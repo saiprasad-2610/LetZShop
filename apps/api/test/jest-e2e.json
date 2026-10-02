@@ -1,0 +1,18 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "test/integration/.*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@simply/types$": "<rootDir>/../../packages/types/src",
+    "^@simply/config$": "<rootDir>/../../packages/config/src",
+    "^@simply/validation$": "<rootDir>/../../packages/validation/src",
+    "^@simply/api-contracts$": "<rootDir>/../../packages/api-contracts/src",
+    "^@simply/storage$": "<rootDir>/../../packages/storage/src",
+    "^@simply/db$": "<rootDir>/../../packages/db/src"
+  },
+  "testTimeout": 30000
+}

@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds & Caches
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Prisma Client generated output
+packages/db/src/generated/
+
+# Uploads, Local Media Storage & Artifacts
+media-storage/
+media-restore-test/
+data/media/
+scratch/
+artifacts/ui-review/
+artifacts/
+
+# Database dumps and backups
+backups/
+*.dump
+*.zip
+
+# Runtime & Process files
+*.pid
+
+

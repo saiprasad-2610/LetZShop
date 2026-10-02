@@ -1,0 +1,31 @@
+{
+  "name": "@simply/seller",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Seller / Merchant Dashboard - PWA & Responsive Web",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@simply/types": "workspace:*",
+    "@simply/api-contracts": "workspace:*",
+    "@simply/config": "workspace:*",
+    "@simply/ui": "workspace:*",
+    "next": "14.2.24",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.453.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.7.3",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20"
+  }
+}

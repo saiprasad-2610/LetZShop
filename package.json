@@ -1,0 +1,40 @@
+{
+  "name": "simply-ecommerce-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-grade multi-tenant SaaS ecommerce platform for Indian businesses",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "pnpm test:unit && pnpm test:e2e",
+    "test:unit": "pnpm --filter @simply/api test",
+    "test:e2e": "pnpm --filter @simply/api test:e2e",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @simply/db generate",
+    "db:migrate": "pnpm --filter @simply/db migrate",
+    "db:seed": "pnpm --filter @simply/db seed",
+    "db:studio": "pnpm --filter @simply/db studio",
+    "demo:reset": "pnpm --filter @simply/db exec tsx ../../scripts/demo-reset.ts",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "playwright": "^1.63.0",
+    "prettier": "^3.5.3",
+    "puppeteer-core": "^25.12.0",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

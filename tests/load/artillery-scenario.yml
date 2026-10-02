@@ -1,0 +1,70 @@
+config:
+  target: "http://127.0.0.1:4000"
+  phases:
+    - name: "Warm up (10 VUs)"
+      duration: 30
+      arrivalRate: 10
+    - name: "Ramp up (50 VUs)"
+      duration: 60
+      arrivalRate: 10
+      rampTo: 50
+    - name: "High load (100 VUs)"
+      duration: 60
+      arrivalRate: 50
+      rampTo: 100
+    - name: "Sustained peak (100 VUs)"
+      duration: 60
+      arrivalRate: 100
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+scenarios:
+  - name: "Buyer Browsing & Purchasing Flow (Mock Checkout)"
+    weight: 70
+    flow:
+      # 1. Public Storefront Home
+      - get:
+          url: "/storefront/aurelia"
+          capture:
+            - json: "$.data.products[0].id"
+              as: "productId"
+            - json: "$.data.products[0].variants[0].id"
+              as: "variantId"
+            - json: "$.data.store.id"
+              as: "storeId"
+
+      # 2. Search Catalog
+      - get:
+          url: "/catalog/products?storeId={{ storeId }}&search=linen"
+
+      # 3. Initialize Guest Cart
+      - post:
+          url: "/cart/init"
+          json:
+            storeId: "{{ storeId }}"
+          capture:
+            - json: "$.data.id"
+              as: "cartId"
+
+      # 4. Add Variant to Cart
+      - post:
+          url: "/cart/{{ cartId }}/items"
+          json:
+            variantId: "{{ variantId }}"
+            quantity: 1
+
+      # 5. Fetch Cart
+      - get:
+          url: "/cart/{{ cartId }}"
+
+  - name: "High Concurrency Catalog Search"
+    weight: 30
+    flow:
+      - get:
+          url: "/storefront/aurelia"
+      - get:
+          url: "/catalog/products?search=shirt"
+      - get:
+          url: "/catalog/products?search=kurta"
