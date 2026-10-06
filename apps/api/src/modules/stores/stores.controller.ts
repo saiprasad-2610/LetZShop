@@ -14,6 +14,7 @@ import { AuthService } from '../auth/auth.service';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentTenant, CurrentUser, Public } from '../../common/decorators';
 import { AuthenticatedUser, TenantContext } from '@simply/types';
+import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 @ApiTags('Stores & Storefront')
 @Controller()
@@ -29,16 +30,9 @@ export class StoresController {
   @ApiOperation({ summary: 'First-time onboarding to create merchant business and store' })
   async onboard(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: {
-      businessName: string;
-      category: string;
-      logoUrl?: string;
-      contactPhone?: string;
-      contactEmail?: string;
-      address?: string;
-    }
+    @Body() dto: OnboardMerchantDto
   ) {
-    const result = await this.storesService.onboardMerchant(user, body);
+    const result = await this.storesService.onboardMerchant(user, dto);
     const tokens = this.authService.issueTokensForUser(
       { id: user.userId, phone: user.phone, role: 'SELLER_OWNER', isSuperAdmin: user.isPlatformAdmin },
       result.tenant.id,
@@ -48,6 +42,8 @@ export class StoresController {
     return {
       ...result,
       ...tokens,
+      accessToken: tokens.accessToken,
+      user: tokens.user,
     };
   }
 
@@ -95,19 +91,5 @@ export class StoresController {
       user.userId
     );
   }
-
-  // 2. Public Storefront API (Subscription Gated)
-  @Public()
-  @Get('storefront/:slug')
-  @ApiOperation({ summary: 'Public Storefront endpoint - subscription gated' })
-  async getStorefront(
-    @Param('slug') slug: string,
-    @Query('previewSecret') previewSecret?: string,
-    @Req() req?: any
-  ) {
-    return this.storesService.getPublicStorefront(slug, {
-      previewSecret,
-      authenticatedUser: req?.user,
-    });
-  }
 }
+

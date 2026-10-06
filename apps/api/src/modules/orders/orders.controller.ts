@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
   Query,
@@ -14,9 +13,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { GuestCheckoutDto } from './dto/checkout.dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
-import { CurrentTenant, CurrentUser, Public } from '../../common/decorators';
-import { AuthenticatedUser, TenantContext } from '@simply/types';
-import { OrderStatus } from '@prisma/client';
+import { CurrentTenant, Public } from '../../common/decorators';
+import { TenantContext } from '@simply/types';
 
 @ApiTags('Orders & Checkout')
 @Controller('orders')
@@ -42,47 +40,32 @@ export class OrdersController {
     return this.ordersService.trackOrder(orderNumber, token);
   }
 
-  // 2. Merchant Order Management (Authenticated + TenantGuard)
+  // 2. Merchant Order Management (Backward Compatibility - Canonical is /seller/orders)
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
   @Get()
-  @ApiOperation({ summary: 'List orders for authenticated merchant store' })
+  @ApiOperation({
+    summary: '[Deprecated/Compat] List orders for store - Canonical route is GET /seller/orders',
+    deprecated: true,
+  })
   async getOrders(
     @CurrentTenant() tenant: TenantContext,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('status') status?: OrderStatus
+    @Query() query: any
   ) {
-    return this.ordersService.getOrders(tenant, { page, limit, status });
+    return this.ordersService.getOrders(tenant, query);
   }
 
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
   @Get(':id')
-  @ApiOperation({ summary: 'Get order details strictly scoped to merchant store' })
+  @ApiOperation({
+    summary: '[Deprecated/Compat] Get order details - Canonical route is GET /seller/orders/:id',
+    deprecated: true,
+  })
   async getOrderById(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string
   ) {
     return this.ordersService.getOrderById(id, tenant);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(TenantGuard)
-  @Put(':id/status')
-  @ApiOperation({ summary: 'Transition order status with history tracking' })
-  async updateStatus(
-    @CurrentTenant() tenant: TenantContext,
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-    @Body() body: { status: OrderStatus; reason?: string }
-  ) {
-    return this.ordersService.updateOrderStatus(
-      id,
-      body.status,
-      tenant,
-      body.reason,
-      user.userId
-    );
   }
 }

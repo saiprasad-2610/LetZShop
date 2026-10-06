@@ -8,6 +8,7 @@ import {
   OrderStatus,
   PaymentStatus,
   ShipmentStatus,
+  FulfillmentStatus,
 } from '@prisma/client';
 import { GuestCheckoutDto } from './dto/checkout.dto';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
@@ -16,6 +17,60 @@ import { TenantContext, BuyerSafeTrackOrderDto } from '@simply/types';
 import { normalizePhone } from '@simply/validation';
 import { InvalidTrackingTokenException } from '../../common/exceptions/domain.exceptions';
 import * as crypto from 'crypto';
+
+/**
+ * Full Domain Order Lifecycle:
+ * Defines system/buyer/admin/logistics transition capabilities.
+ * NOTE: COMPLETED -> RETURN_REQUESTED is preserved for future Buyer/Support returns workflow.
+ * Terminal states in the domain are CANCELLED and RETURNED. COMPLETED is not terminal.
+ */
+export const DOMAIN_ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.NEW]: [OrderStatus.CONFIRMED, OrderStatus.ACCEPTED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.ACCEPTED, OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.ACCEPTED]: [OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.READY]: [OrderStatus.DISPATCHED, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.DISPATCHED]: [OrderStatus.COMPLETED, OrderStatus.RETURN_REQUESTED, OrderStatus.CANCELLED],
+  [OrderStatus.COMPLETED]: [OrderStatus.RETURN_REQUESTED],
+  [OrderStatus.CANCELLED]: [],
+  [OrderStatus.RETURN_REQUESTED]: [OrderStatus.RETURNED, OrderStatus.COMPLETED],
+  [OrderStatus.RETURNED]: [],
+};
+
+/**
+ * Merchant-Allowed Status Transitions:
+ * Defines actions permitted directly by the seller via merchant order management.
+ * In V1:
+ * - Merchants CANNOT initiate returns on COMPLETED orders (returns originate from buyer/support).
+ * - Merchants CANNOT transition from terminal CANCELLED or RETURNED states.
+ * - When in RETURN_REQUESTED, merchants can confirm receipt of returned items (-> RETURNED).
+ */
+export const SELLER_ALLOWED_ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.NEW]: [OrderStatus.CONFIRMED, OrderStatus.ACCEPTED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.ACCEPTED, OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.ACCEPTED]: [OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.READY]: [OrderStatus.DISPATCHED, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.DISPATCHED]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.COMPLETED]: [], // No direct seller-initiated transition; returns must originate from buyer/support
+  [OrderStatus.CANCELLED]: [],
+  [OrderStatus.RETURN_REQUESTED]: [OrderStatus.RETURNED],
+  [OrderStatus.RETURNED]: [],
+};
+
+// Maintained for backward compatibility
+export const ALLOWED_ORDER_STATUS_TRANSITIONS = DOMAIN_ORDER_STATUS_TRANSITIONS;
+
+export interface GetOrdersParams {
+  page?: number;
+  limit?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  orderStatus?: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 @Injectable()
 export class OrdersService {
@@ -32,6 +87,16 @@ export class OrdersService {
    * 3. Creates customer & snapshots product/variant data into OrderItem
    */
   public async createGuestOrder(dto: GuestCheckoutDto) {
+    // Defense-in-depth: Reject preview simulation orders from creating persistent commerce records
+    if (
+      (dto as any).preview === true ||
+      (dto as any).isPreview === true ||
+      dto.cartId?.startsWith('preview_') ||
+      dto.cartId === 'preview-cart'
+    ) {
+      throw new BadRequestException('Orders cannot be created in merchant preview mode.');
+    }
+
     // 1. Enforce Server-Side Subscription Check: Store MUST be LIVE with active paid subscription
     const { store } = await this.visibilityService.evaluateVisibility(dto.storeId);
 
@@ -221,10 +286,27 @@ export class OrdersService {
       where,
       include: {
         customer: true,
-        items: true,
+        orderAddress: true,
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: {
+                  include: {
+                    media: {
+                      take: 1,
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         statusHistory: { orderBy: { createdAt: 'desc' } },
         paymentOrders: { include: { transactions: true } },
-        shipments: true,
+        shipments: { include: { events: { orderBy: { createdAt: 'desc' } } } },
+        refunds: true,
       },
     });
 
@@ -305,34 +387,177 @@ export class OrdersService {
     };
   }
 
-  public async getOrders(
-    tenant: TenantContext,
-    params: { page?: number; limit?: number; status?: OrderStatus } = {}
-  ) {
-    const page = Math.max(1, params.page || 1);
-    const limit = Math.min(50, Math.max(1, params.limit || 20));
+  public async getOrders(tenant: TenantContext, params: GetOrdersParams = {}) {
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(params.pageSize || params.limit) || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {
       tenantId: tenant.tenantId,
       storeId: tenant.storeId,
     };
-    if (params.status) {
-      where.status = params.status;
+
+    // 1. Search filter: order number, customer name, customer phone
+    if (params.search && params.search.trim()) {
+      const q = params.search.trim();
+      where.OR = [
+        { orderNumber: { contains: q, mode: 'insensitive' } },
+        { customer: { fullName: { contains: q, mode: 'insensitive' } } },
+        { customer: { phone: { contains: q } } },
+        { orderAddress: { fullName: { contains: q, mode: 'insensitive' } } },
+        { orderAddress: { phone: { contains: q } } },
+      ];
     }
 
-    const [items, total] = await Promise.all([
-      this.prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: { customer: true, items: true },
-      }),
-      this.prisma.order.count({ where }),
-    ]);
+    // 2. Order status filter
+    const statusVal = params.status || params.orderStatus;
+    if (statusVal && statusVal !== 'ALL') {
+      if (statusVal === 'NEEDS_ACTION') {
+        where.status = {
+          in: [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.ACCEPTED],
+        };
+      } else if (Object.values(OrderStatus).includes(statusVal as OrderStatus)) {
+        where.status = statusVal as OrderStatus;
+      }
+    }
 
-    return { items, total, page, limit, hasMore: skip + items.length < total };
+    // 3. Payment status filter
+    if (
+      params.paymentStatus &&
+      params.paymentStatus !== 'ALL' &&
+      Object.values(PaymentStatus).includes(params.paymentStatus as PaymentStatus)
+    ) {
+      where.paymentStatus = params.paymentStatus as PaymentStatus;
+    }
+
+    // 4. Date range filter
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) {
+        where.createdAt.gte = new Date(params.startDate);
+      }
+      if (params.endDate) {
+        where.createdAt.lte = new Date(params.endDate);
+      }
+    }
+
+    // 5. Parallel queries for list items, total, and compact summary counts
+    const [items, total, allCount, needsActionCount, readyCount, dispatchedCount, completedCount, cancelledCount] =
+      await Promise.all([
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                email: true,
+              },
+            },
+            items: {
+              include: {
+                variant: {
+                  include: {
+                    product: {
+                      include: {
+                        media: {
+                          take: 1,
+                          orderBy: { sortOrder: 'asc' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            orderAddress: true,
+            shipments: {
+              take: 1,
+              select: {
+                awbNumber: true,
+                courierName: true,
+                status: true,
+              },
+            },
+            paymentOrders: {
+              take: 1,
+              select: {
+                provider: true,
+                status: true,
+                transactions: {
+                  take: 1,
+                  select: {
+                    paymentMethod: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        this.prisma.order.count({ where }),
+        this.prisma.order.count({
+          where: { tenantId: tenant.tenantId, storeId: tenant.storeId },
+        }),
+        this.prisma.order.count({
+          where: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            status: { in: [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.ACCEPTED] },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            status: OrderStatus.READY,
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            status: OrderStatus.DISPATCHED,
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            status: OrderStatus.COMPLETED,
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            status: OrderStatus.CANCELLED,
+          },
+        }),
+      ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      pageSize: limit,
+      totalPages,
+      hasMore: skip + items.length < total,
+      summaryCounts: {
+        all: allCount,
+        needsAction: needsActionCount,
+        ready: readyCount,
+        dispatched: dispatchedCount,
+        completed: completedCount,
+        cancelled: cancelledCount,
+      },
+    };
   }
 
   public async updateOrderStatus(
@@ -340,57 +565,130 @@ export class OrdersService {
     toStatus: OrderStatus,
     tenant: TenantContext,
     reason?: string,
-    actorId?: string
+    actorId?: string,
+    isSellerContext: boolean = true
   ) {
     const order = await this.getOrderById(orderId, tenant);
 
     return this.prisma.$transaction(async (tx) => {
-      // If cancelling: release stock reservations
-      if (toStatus === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
-        for (const item of order.items) {
+      // 1. Concurrency Safety: Acquire pessimistic row-level exclusive lock on the order
+      await tx.$executeRaw`SELECT 1 FROM "orders" WHERE "id" = ${order.id} FOR UPDATE;`;
+
+      // 2. Re-read the latest persisted order state within the locked transaction
+      const lockedOrder = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { items: true },
+      });
+
+      if (!lockedOrder) {
+        throw new NotFoundException('Order not found.');
+      }
+
+      // Idempotency: If the order has already achieved target status, return it safely without duplicate side-effects
+      if (lockedOrder.status === toStatus) {
+        return lockedOrder;
+      }
+
+      // 3. Validate Allowed Status Transitions based on actor context
+      const allowedTransitions = isSellerContext
+        ? SELLER_ALLOWED_ORDER_STATUS_TRANSITIONS[lockedOrder.status] || []
+        : DOMAIN_ORDER_STATUS_TRANSITIONS[lockedOrder.status] || [];
+
+      if (!allowedTransitions.includes(toStatus)) {
+        if (lockedOrder.status === OrderStatus.COMPLETED) {
+          throw new BadRequestException(
+            `Cannot transition order from status COMPLETED to ${toStatus}. COMPLETED orders cannot be transitioned by merchants. Return requests must originate from buyer or customer support workflows.`
+          );
+        }
+        if (lockedOrder.status === OrderStatus.CANCELLED) {
+          throw new BadRequestException(
+            `Cannot transition order from status CANCELLED to ${toStatus}. Order is CANCELLED (Terminal state).`
+          );
+        }
+        if (lockedOrder.status === OrderStatus.RETURNED) {
+          throw new BadRequestException(
+            `Cannot transition order from status RETURNED to ${toStatus}. Order is RETURNED (Terminal state).`
+          );
+        }
+        throw new BadRequestException(
+          `Cannot transition order from status ${lockedOrder.status} to ${toStatus}. Allowed transitions: ${
+            allowedTransitions.join(', ') || 'None'
+          }`
+        );
+      }
+
+      // 4. Exactly-Once Inventory Mutation
+      // Step A: If cancelling: release reserved stock atomically back to inventory
+      if (toStatus === OrderStatus.CANCELLED && lockedOrder.status !== OrderStatus.CANCELLED) {
+        for (const item of lockedOrder.items) {
           if (item.variantId) {
             await this.inventoryService.releaseStockReservation(
               item.variantId,
               item.quantity,
-              order.id,
+              lockedOrder.id,
               tx
             );
           }
         }
       }
 
-      // If completing/dispatching: finalize stock deduction
-      if (toStatus === OrderStatus.COMPLETED && order.status !== OrderStatus.COMPLETED) {
-        for (const item of order.items) {
+      // Step B: If completing: finalize stock deduction (fulfill reserved stock)
+      if (toStatus === OrderStatus.COMPLETED && lockedOrder.status !== OrderStatus.COMPLETED) {
+        for (const item of lockedOrder.items) {
           if (item.variantId) {
             await this.inventoryService.fulfillStock(
               item.variantId,
               item.quantity,
-              order.id,
+              lockedOrder.id,
               tx
             );
           }
         }
       }
 
+      // Step C: Determine aligned fulfillment and shipment statuses
+      const updateData: any = {
+        status: toStatus,
+        cancelledAt: toStatus === OrderStatus.CANCELLED ? new Date() : undefined,
+      };
+
+      if (toStatus === OrderStatus.CONFIRMED || toStatus === OrderStatus.ACCEPTED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.PROCESSING;
+      } else if (toStatus === OrderStatus.READY) {
+        updateData.fulfillmentStatus = FulfillmentStatus.READY_TO_SHIP;
+      } else if (toStatus === OrderStatus.DISPATCHED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.SHIPPED;
+        updateData.shipmentStatus = ShipmentStatus.IN_TRANSIT;
+      } else if (toStatus === OrderStatus.COMPLETED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.DELIVERED;
+        updateData.shipmentStatus = ShipmentStatus.DELIVERED;
+      } else if (toStatus === OrderStatus.CANCELLED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.CANCELLED;
+        updateData.shipmentStatus = ShipmentStatus.CANCELLED;
+      } else if (toStatus === OrderStatus.RETURN_REQUESTED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.RETURN_REQUESTED;
+      } else if (toStatus === OrderStatus.RETURNED) {
+        updateData.fulfillmentStatus = FulfillmentStatus.RETURNED;
+        updateData.shipmentStatus = ShipmentStatus.RTO;
+      }
+
       const updated = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: toStatus,
-          cancelledAt: toStatus === OrderStatus.CANCELLED ? new Date() : undefined,
-        },
+        where: { id: lockedOrder.id },
+        data: updateData,
       });
 
+      // Step D: Create OrderStatusHistory record
       await tx.orderStatusHistory.create({
         data: {
-          orderId: order.id,
-          fromStatus: order.status,
+          orderId: lockedOrder.id,
+          fromStatus: lockedOrder.status,
           toStatus,
           reason,
           actorId,
         },
       });
 
+      // Step E: Create AuditLog record
       await tx.auditLog.create({
         data: {
           actorId,
@@ -398,8 +696,8 @@ export class OrdersService {
           storeId: tenant.storeId,
           action: 'ORDER_STATUS_CHANGED',
           entityType: 'Order',
-          entityId: order.id,
-          metadata: { fromStatus: order.status, toStatus, reason },
+          entityId: lockedOrder.id,
+          metadata: { fromStatus: lockedOrder.status, toStatus, reason },
         },
       });
 

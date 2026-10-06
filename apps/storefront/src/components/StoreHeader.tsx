@@ -20,6 +20,14 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
   const wordmark = getWordmark(store.name || 'Store');
   const slug = store.slug;
 
+  const getQueryPath = (path: string) => {
+    const params = new URLSearchParams();
+    if (router.query.preview === 'true') params.set('preview', 'true');
+    if (router.query.embedded === 'true') params.set('embedded', 'true');
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
+
   return (
     <header className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b transition shadow-sm ${
       themeCode === 'foundry' ? 'border-slate-300' :
@@ -98,7 +106,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         </button>
 
         {/* Brand Logo / Wordmark */}
-        <Link href={`/store/${slug}`} className="flex items-center gap-3">
+        <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-3">
           {store.logoUrl ? (
             <img
               src={store.logoUrl}
@@ -133,7 +141,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         {themeCode === 'local' && (
           <div className="hidden md:flex flex-1 max-w-md mx-4">
             <Link
-              href={`/store/${slug}/search`}
+              href={getQueryPath(`/store/${slug}/search`)}
               className="w-full flex items-center gap-2 bg-gray-100 border border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-500 transition"
             >
               <Search className="w-4 h-4 text-gray-400" />
@@ -148,14 +156,14 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-slate-700' :
           themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
         }`}>
-          <Link href={`/store/${slug}`} className="hover:text-gray-900 transition">
+          <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
             Home
           </Link>
-          <Link href={`/store/${slug}/search`} className="hover:text-gray-900 transition">
+          <Link href={getQueryPath(`/store/${slug}/search`)} className="hover:text-gray-900 transition">
             {themeCode === 'foundry' ? 'Product Catalog' : 'All Products'}
           </Link>
           {themeCode === 'habitat' ? (
-            <Link href={`/store/${slug}/search?category=living`} className="hover:text-gray-900 transition">
+            <Link href={getQueryPath(`/store/${slug}/search?category=living`)} className="hover:text-gray-900 transition">
               Living Spaces
             </Link>
           ) : themeCode === 'foundry' ? (
@@ -168,7 +176,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
               <span>Request RFQ</span>
             </a>
           ) : (
-            <Link href={`/store/${slug}/search?featured=true`} className="hover:text-gray-900 transition">
+            <Link href={getQueryPath(`/store/${slug}/search?featured=true`)} className="hover:text-gray-900 transition">
               Featured
             </Link>
           )}
@@ -177,7 +185,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         {/* Right Action Icons (Search, RFQ, Cart) */}
         <div className="flex items-center gap-3">
           <Link
-            href={`/store/${slug}/search`}
+            href={getQueryPath(`/store/${slug}/search`)}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
             title="Search Products"
             aria-label="Search Catalog"
@@ -198,7 +206,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           )}
 
           <Link
-            href={`/store/${slug}/cart`}
+            href={getQueryPath(`/store/${slug}/cart`)}
             className={`relative flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 ${
               themeCode === 'atelier' ? 'rounded-none' :
               themeCode === 'pulse' ? 'rounded-none skew-x-[-4deg]' :
@@ -243,21 +251,21 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           )}
 
           <Link
-            href={`/store/${slug}`}
+            href={getQueryPath(`/store/${slug}`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
             Home
           </Link>
           <Link
-            href={`/store/${slug}/search`}
+            href={getQueryPath(`/store/${slug}/search`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
             {themeCode === 'foundry' ? 'Industrial Catalog' : 'All Products'}
           </Link>
           <Link
-            href={`/store/${slug}/cart`}
+            href={getQueryPath(`/store/${slug}/cart`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >

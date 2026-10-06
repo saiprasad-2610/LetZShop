@@ -3,7 +3,7 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, ConsoleLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
@@ -12,6 +12,26 @@ import fastifyCors from '@fastify/cors';
 import { AppModule } from './app.module';
 import { getBrandConfig } from '@simply/config';
 import { validateProductionSecrets } from './common/config/security-audit';
+import { PrismaService } from './prisma/prisma.service';
+
+/**
+ * Clean Merchant Development Logger
+ * Suppresses repetitive route mapping and initialization noise while preserving all warnings and errors.
+ */
+class CleanMerchantDevLogger extends ConsoleLogger {
+  override log(message: any, context?: string) {
+    if (
+      context === 'InstanceLoader' ||
+      context === 'RouterExplorer' ||
+      context === 'RoutesResolver' ||
+      context === 'NestFactory' ||
+      context === 'NestApplication'
+    ) {
+      return;
+    }
+    super.log(message, context);
+  }
+}
 
 async function bootstrap() {
   validateProductionSecrets();
@@ -19,7 +39,8 @@ async function bootstrap() {
   const brand = getBrandConfig();
 
   const fastifyAdapter = new FastifyAdapter({
-    logger: process.env.NODE_ENV === 'development',
+    // Only log warnings and errors from Fastify in development to suppress routine HTTP request noise
+    logger: process.env.NODE_ENV === 'production' ? false : { level: 'warn' },
     bodyLimit: 15 * 1024 * 1024,
     rewriteUrl: (req: any) => {
       if (req.url && req.url.startsWith('/api/v1')) {
@@ -33,12 +54,16 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     fastifyAdapter,
-    { rawBody: true }
+    {
+      rawBody: true,
+      logger: new CleanMerchantDevLogger(),
+    }
   );
 
   // Security Headers & Middlewares
   await app.register(fastifyHelmet as any, {
     contentSecurityPolicy: false, // Allows Swagger UI to render properly in local dev
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 
   await app.register(fastifyCors as any, {
@@ -94,11 +119,30 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
+  try {
+    const prisma = app.get(PrismaService);
+    await prisma.$connect();
+  } catch (err: any) {
+    console.error('✗ Database connection failed');
+    console.error(err.message || err);
+    process.exit(1);
+  }
+
   const port = process.env.PORT || 4000;
-  await app.listen(port, '0.0.0.0');
+  try {
+    await app.listen(port, '0.0.0.0');
+  } catch (err: any) {
+    console.error('✗ API failed to start');
+    console.error(err.message || err);
+    process.exit(1);
+  }
 
   logger.log(`🚀 ${brand.brandName} API running at http://localhost:${port}`);
   logger.log(`📚 Swagger OpenAPI documentation available at http://localhost:${port}/docs`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('✗ API failed to start');
+  console.error(err.message || err);
+  process.exit(1);
+});

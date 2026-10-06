@@ -14,7 +14,8 @@ import {
   Send,
   X,
   Plus,
-  Minus
+  Minus,
+  Star
 } from 'lucide-react';
 import { useCart } from '../../../../context/CartContext';
 import { ThemeWrapper } from '../../../../components/ThemeWrapper';
@@ -22,10 +23,11 @@ import { StoreHeader } from '../../../../components/StoreHeader';
 import { StoreFooter } from '../../../../components/StoreFooter';
 import { SafeImage } from '../../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { getSellerStorePreviewUrl } from '../../../../utils/config';
 
 export default function ProductDetailPage() {
   const router = useRouter();
-  const { slug, id } = router.query;
+  const { slug, id, preview } = router.query;
   const { api, setStoreId, addItem } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -52,13 +54,13 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!slug || !id) return;
-    loadData(String(slug), String(id));
-  }, [slug, id]);
+    loadData(String(slug), String(id), preview ? String(preview) : undefined);
+  }, [slug, id, preview]);
 
-  const loadData = async (storeSlug: string, productId: string) => {
+  const loadData = async (storeSlug: string, productId: string, previewSecret?: string) => {
     setLoading(true);
     try {
-      const sRes = await api.stores.getPublicStorefront(storeSlug);
+      const sRes = await api.stores.getPublicStorefront(storeSlug, previewSecret);
       setStoreData(sRes);
       if (sRes.store?.id) {
         setStoreId(sRes.store.id);
@@ -101,7 +103,7 @@ export default function ProductDetailPage() {
         id: m.id,
         url:
           m.publicUrl ||
-          (m.storageKey ? `/api/v1/media/file/${m.storageKey}` : undefined) ||
+          (m.storageKey ? `/media/file/${m.storageKey}` : undefined) ||
           m.url,
         variantId: m.variantId,
         isPrimary: m.isPrimary,
@@ -213,15 +215,39 @@ export default function ProductDetailPage() {
     }
   };
 
+  const isEmbedded = router.query.embedded === 'true';
+  const isPreviewMode = Boolean(
+    storeData?.isPreview ||
+    preview === 'true' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+  );
+
+  const getLink = (path: string) => {
+    const params = new URLSearchParams();
+    if (isPreviewMode) params.set('preview', 'true');
+    if (isEmbedded) params.set('embedded', 'true');
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
+
   const handleAddToCart = async () => {
-    if (!activeVariant?.id) {
-      alert('Please select all product options');
-      return;
-    }
+    const variant = activeVariant || product.variants?.[0] || {
+      id: `var_${product.id}`,
+      pricePaise: product.basePricePaise || 0,
+    };
 
     setAddingToCart(true);
     try {
-      await addItem(activeVariant.id, quantity);
+      const primaryImg = activeGallery[0] || product.images?.[0]?.url;
+      await addItem(variant.id, quantity, {
+        productId: product.id,
+        productName: product.title || product.name || 'Product',
+        variantName: variant.title || variant.name || 'Standard',
+        pricePaise: variant.pricePaise || product.basePricePaise || 0,
+        compareAtPricePaise: variant.compareAtPricePaise || product.compareAtPricePaise,
+        imageUrl: primaryImg,
+        sku: variant.sku || '',
+      });
       setCartSuccess(true);
       setTimeout(() => setCartSuccess(false), 2500);
     } catch (err: any) {
@@ -232,10 +258,23 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
-    if (!activeVariant?.id) return;
+    const variant = activeVariant || product.variants?.[0] || {
+      id: `var_${product.id}`,
+      pricePaise: product.basePricePaise || 0,
+    };
+
     try {
-      await addItem(activeVariant.id, quantity);
-      router.push(`/store/${slug}/checkout`);
+      const primaryImg = activeGallery[0] || product.images?.[0]?.url;
+      await addItem(variant.id, quantity, {
+        productId: product.id,
+        productName: product.title || product.name || 'Product',
+        variantName: variant.title || variant.name || 'Standard',
+        pricePaise: variant.pricePaise || product.basePricePaise || 0,
+        compareAtPricePaise: variant.compareAtPricePaise || product.compareAtPricePaise,
+        imageUrl: primaryImg,
+        sku: variant.sku || '',
+      });
+      router.push(getLink(`/store/${slug}/checkout`));
     } catch (err: any) {
       alert(err.message || 'Failed to initiate checkout');
     }
@@ -287,16 +326,43 @@ export default function ProductDetailPage() {
         <meta name="description" content={product.description || `Buy ${product.title} from ${store.name}`} />
       </Head>
 
+      {/* Persistent Merchant Preview Banner (Hidden when embedded in iframe) */}
+      {isPreviewMode && !isEmbedded && (
+        <div className="bg-slate-950 text-white font-medium text-xs py-2 px-4 sticky top-0 z-50 shadow-md flex items-center justify-between border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-semibold text-white">Merchant Preview</span>
+            <span className="text-slate-400 hidden sm:inline">— You're viewing your store exactly as customers will see it.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.removeItem('simply_merchant_preview');
+              } catch {}
+              if (window.opener) {
+                window.close();
+              } else {
+                window.location.href = getSellerStorePreviewUrl();
+              }
+            }}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition"
+          >
+            Exit Preview
+          </button>
+        </div>
+      )}
+
       <StoreHeader store={store} themeConfig={themeConfig} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={`/store/${slug}`} className="hover:text-gray-900">
+          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900">
             Home
           </Link>
           <span>/</span>
-          <Link href={`/store/${slug}/search`} className="hover:text-gray-900">
+          <Link href={getLink(`/store/${slug}/search`)} className="hover:text-gray-900">
             Products
           </Link>
           <span>/</span>
@@ -470,26 +536,28 @@ export default function ProductDetailPage() {
             <div className="space-y-3 pt-2">
               {/* SELL_ONLINE or SELL_AND_ENQUIRY: Add to Cart & Buy Now */}
               {!isEnquiryOnly && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    disabled={addingToCart || isOutOfStock}
-                    onClick={handleAddToCart}
-                    className="w-full py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    {cartSuccess ? 'Added to Cart ✓' : addingToCart ? 'Adding...' : 'Add to Cart'}
-                  </button>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={addingToCart || isOutOfStock}
+                      onClick={handleAddToCart}
+                      className="w-full py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      {cartSuccess ? 'Added to Cart ✓' : addingToCart ? 'Adding...' : 'Add to Cart'}
+                    </button>
 
-                  <button
-                    type="button"
-                    disabled={isOutOfStock}
-                    onClick={handleBuyNow}
-                    className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
-                  >
-                    Buy Now
-                  </button>
+                    <button
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={handleBuyNow}
+                      className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                    >
+                      Buy Now
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -565,6 +633,46 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Customer Reviews Section (Part C - Section 17) */}
+            <div className="space-y-4 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                    <span>Customer Reviews</span>
+                    <span className="text-xs font-normal text-gray-500">(0 reviews)</span>
+                  </h3>
+                  <div className="flex items-center gap-1 mt-1 text-amber-400">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-3.5 h-3.5 fill-slate-200 text-slate-200" />
+                    ))}
+                    <span className="text-xs font-bold text-gray-600 ml-1.5">0.0 out of 5</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isPreviewMode}
+                  title={isPreviewMode ? 'Review submission is disabled in Merchant Preview.' : undefined}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Write a Review
+                </button>
+              </div>
+
+              {/* Review Empty State */}
+              <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 text-center space-y-1.5">
+                <p className="text-xs font-bold text-gray-700">No reviews yet.</p>
+                <p className="text-[11px] text-gray-500 max-w-sm mx-auto">
+                  Be the first to review this product once purchases are live. Reviews from verified buyers will appear here.
+                </p>
+                {isPreviewMode && (
+                  <p className="text-[10px] text-amber-700 font-medium pt-1">
+                    (Merchant Preview: Review submission is disabled)
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </main>

@@ -8,6 +8,18 @@ export enum UserRole {
   SELLER_STAFF = 'SELLER_STAFF',
 }
 
+export enum CredentialType {
+  PIN = 'PIN',
+  PASSKEY = 'PASSKEY',
+  BIOMETRIC = 'BIOMETRIC',
+}
+
+export enum OtpPurpose {
+  REGISTRATION = 'REGISTRATION',
+  LOGIN = 'LOGIN',
+  RECOVERY = 'RECOVERY',
+}
+
 export enum TenantStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
@@ -40,6 +52,7 @@ export enum ProductMode {
 export enum ProductStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED',
+  ACTIVE = 'ACTIVE',
   ARCHIVED = 'ARCHIVED',
 }
 
@@ -69,6 +82,7 @@ export enum InventoryMovementType {
 
 export enum OrderStatus {
   NEW = 'NEW',
+  CONFIRMED = 'CONFIRMED',
   ACCEPTED = 'ACCEPTED',
   READY = 'READY',
   DISPATCHED = 'DISPATCHED',
@@ -87,6 +101,17 @@ export enum PaymentStatus {
   PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED',
 }
 
+export enum FulfillmentStatus {
+  UNFULFILLED = 'UNFULFILLED',
+  PROCESSING = 'PROCESSING',
+  READY_TO_SHIP = 'READY_TO_SHIP',
+  SHIPPED = 'SHIPPED',
+  DELIVERED = 'DELIVERED',
+  RETURN_REQUESTED = 'RETURN_REQUESTED',
+  RETURNED = 'RETURNED',
+  CANCELLED = 'CANCELLED',
+}
+
 export enum ShipmentStatus {
   PENDING = 'PENDING',
   MANIFESTED = 'MANIFESTED',
@@ -96,6 +121,35 @@ export enum ShipmentStatus {
   DELIVERED = 'DELIVERED',
   CANCELLED = 'CANCELLED',
   RTO = 'RTO',
+}
+
+export enum ThemeKey {
+  ATELIER = 'ATELIER',
+  PULSE = 'PULSE',
+  HARVEST = 'HARVEST',
+  FOUNDRY = 'FOUNDRY',
+  HABITAT = 'HABITAT',
+  LOCAL = 'LOCAL',
+  FEAST = 'FEAST',
+}
+
+export enum FulfillmentMode {
+  DELIVERY = 'DELIVERY',
+  PICKUP = 'PICKUP',
+  DELIVERY_AND_PICKUP = 'DELIVERY_AND_PICKUP',
+}
+
+export enum SectionType {
+  HERO = 'HERO',
+  CATEGORIES = 'CATEGORIES',
+  FEATURED_COLLECTION = 'FEATURED_COLLECTION',
+  NEW_ARRIVALS = 'NEW_ARRIVALS',
+  BESTSELLERS = 'BESTSELLERS',
+  STORY = 'STORY',
+  TESTIMONIALS = 'TESTIMONIALS',
+  PHYSICAL_STORE = 'PHYSICAL_STORE',
+  CUSTOM_BANNER = 'CUSTOM_BANNER',
+  CONTACT = 'CONTACT',
 }
 
 export enum EnquiryStatus {
@@ -202,6 +256,7 @@ export interface BuyerSafeTrackOrderDto {
   status: OrderStatus | string;
   paymentStatus: PaymentStatus | string;
   shipmentStatus: ShipmentStatus | string;
+  fulfillmentStatus?: FulfillmentStatus | string;
   createdAt: string | Date;
   deliveryCity: string;
   deliveryState: string;
@@ -228,4 +283,3 @@ export interface CreatePaymentOrderInput {
   orderId?: string;
   subscriptionId?: string;
 }
-

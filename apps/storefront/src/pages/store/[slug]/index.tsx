@@ -28,6 +28,7 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreHomePage() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function StoreHomePage() {
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -43,11 +45,17 @@ export default function StoreHomePage() {
 
   useEffect(() => {
     if (!slug) return;
+    if (preview === 'true') {
+      try {
+        sessionStorage.setItem('simply_merchant_preview', 'true');
+      } catch {}
+    }
     loadStorefront(String(slug), preview ? String(preview) : undefined);
   }, [slug, preview]);
 
   const loadStorefront = async (storeSlug: string, previewSecret?: string) => {
     setLoading(true);
+    setErrorCode(null);
     setErrorMsg(null);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
@@ -57,6 +65,8 @@ export default function StoreHomePage() {
       }
     } catch (err: any) {
       console.error('Failed to load storefront', err);
+      const code = err.code || (err.status === 404 ? 'STORE_NOT_FOUND' : 'INTERNAL_ERROR');
+      setErrorCode(code);
       setErrorMsg(err.message || 'Store unavailable');
     } finally {
       setLoading(false);
@@ -66,14 +76,34 @@ export default function StoreHomePage() {
   const handleQuickAdd = async (e: React.MouseEvent, product: any) => {
     e.preventDefault();
     e.stopPropagation();
-    const variantId = product.variants?.[0]?.id;
-    if (!variantId) {
-      router.push(`/store/${slug}/product/${product.id}`);
-      return;
-    }
+
+    const isPreview = Boolean(
+      storeData?.isPreview ||
+      router.query.preview === 'true' ||
+      (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+    );
+
+    const variant = product.variants?.[0] || {
+      id: `var_${product.id}`,
+      pricePaise: product.minPricePaise || product.pricePaise || 0,
+    };
+    const variantId = variant.id;
+
     setAddingId(product.id);
     try {
-      await addItem(variantId, 1);
+      const primaryImg =
+        product.media?.[0]?.publicUrl ||
+        product.media?.[0]?.url ||
+        product.images?.[0]?.url;
+
+      await addItem(variantId, 1, {
+        productId: product.id,
+        productName: product.name || product.title || 'Product',
+        variantName: variant.name || variant.title || 'Standard',
+        pricePaise: variant.pricePaise || product.minPricePaise || product.pricePaise || 0,
+        imageUrl: primaryImg,
+        sku: variant.sku || '',
+      });
       setAddedId(product.id);
       setTimeout(() => setAddedId(null), 2000);
     } catch (err) {
@@ -94,24 +124,46 @@ export default function StoreHomePage() {
     );
   }
 
-  // Handle subscription-gated or offline stores
-  if (errorMsg || !storeData) {
+  // Handle typed error states (STORE_PRIVATE, SUBSCRIPTION_REQUIRED, STORE_NOT_FOUND, NETWORK_OFFLINE, API_UNAVAILABLE, etc.)
+  if (errorCode || !storeData) {
+    let title = 'Storefront Unavailable';
+    let description = errorMsg || 'This digital store is currently unavailable. Please check back shortly.';
+    let icon = <Lock className="w-6 h-6" />;
+
+    if (errorCode === 'STORE_PRIVATE') {
+      title = 'Private Merchant Storefront';
+      description = 'This store is currently in private setup mode. It is accessible only by the merchant owner via authenticated session.';
+    } else if (errorCode === 'SUBSCRIPTION_REQUIRED' || errorCode === 'STORE_SUBSCRIPTION_REQUIRED') {
+      title = 'Storefront Inactive';
+      description = 'This storefront is temporarily inactive pending merchant subscription renewal.';
+    } else if (errorCode === 'STORE_NOT_FOUND') {
+      title = 'Store Not Found';
+      description = `No merchant storefront exists with the slug '${slug}'. Please check the URL and try again.`;
+    } else if (errorCode === 'NETWORK_OFFLINE') {
+      title = 'Unable to Connect';
+      description = 'Unable to connect to the Simply E-Commerce network. Please check your internet connection.';
+    } else if (errorCode === 'API_UNAVAILABLE') {
+      title = 'Service Temporarily Unavailable';
+      description = 'The storefront service is currently undergoing scheduled maintenance. Please try again in a few moments.';
+    } else if (errorCode === 'INTERNAL_ERROR') {
+      title = 'Unexpected Error';
+      description = 'We encountered an unexpected error loading this storefront. Please refresh the page or try again later.';
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-gray-200 shadow-sm text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
-            <Lock className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center mx-auto">
+            {icon}
           </div>
-          <h1 className="text-xl font-bold text-gray-900">Storefront Temporarily Unpublished</h1>
-          <p className="text-xs text-gray-500 leading-relaxed">
-            {errorMsg || 'This digital store is currently in private setup mode or updating its catalog. Please check back shortly.'}
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
           <div className="pt-2">
             <Link
               href="/"
               className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition"
             >
-              Return to Simply Home
+              Go to Simply Home
             </Link>
           </div>
         </div>
@@ -121,6 +173,21 @@ export default function StoreHomePage() {
 
   const { store, products = [], categories = [], themeConfig } = storeData;
   const isPrivatePreview = storeData.isPreview;
+  const isPreviewMode = Boolean(
+    isPrivatePreview ||
+    router.query.preview === 'true' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+  );
+  const isEmbedded = router.query.embedded === 'true';
+
+  const getLink = (path: string) => {
+    const params = new URLSearchParams();
+    if (isPreviewMode) params.set('preview', 'true');
+    if (isEmbedded) params.set('embedded', 'true');
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
+
   const themeCode = themeConfig?.themeId || 'atelier';
 
   // Filter products by active category
@@ -135,10 +202,30 @@ export default function StoreHomePage() {
         <meta name="description" content={`Discover authentic products from ${store.name}. Pan-India delivery and direct merchant service.`} />
       </Head>
 
-      {/* Private Preview Banner */}
-      {isPrivatePreview && (
-        <div className="bg-amber-500 text-amber-950 font-bold text-xs py-2 px-4 text-center sticky top-0 z-50 shadow-sm flex items-center justify-center gap-2">
-          <span>PRIVATE MERCHANT PREVIEW — Storefront is currently unpublished and accessible only via active authenticated merchant session.</span>
+      {/* Persistent Merchant Preview Banner (Hidden when embedded in iframe) */}
+      {isPreviewMode && !isEmbedded && (
+        <div className="bg-slate-950 text-white font-medium text-xs py-2 px-4 sticky top-0 z-50 shadow-md flex items-center justify-between border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-semibold text-white">Merchant Preview</span>
+            <span className="text-slate-400 hidden sm:inline">— You're viewing your store exactly as customers will see it.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.removeItem('simply_merchant_preview');
+              } catch {}
+              if (window.opener) {
+                window.close();
+              } else {
+                window.location.href = getSellerStorePreviewUrl();
+              }
+            }}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition"
+          >
+            Exit Preview
+          </button>
         </div>
       )}
 
@@ -190,9 +277,9 @@ export default function StoreHomePage() {
               {/* Atelier Visual Frame / Mosaic */}
               <div className="lg:col-span-5 relative">
                 <div className="aspect-[3/4] rounded-sm overflow-hidden border border-amber-500/30 shadow-2xl relative bg-stone-950">
-                  {store.bannerUrl || products?.[0]?.images?.[0]?.url ? (
+                  {store.bannerUrl || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url ? (
                     <SafeImage
-                      src={store.bannerUrl || products?.[0]?.images?.[0]?.url}
+                      src={store.bannerUrl || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url}
                       alt={store.name}
                       className="w-full h-full object-cover"
                       fallbackTitle={store.name}
@@ -614,7 +701,7 @@ export default function StoreHomePage() {
                 const primaryMedia = p.media?.find((m: any) => m.isPrimary) || p.media?.[0];
                 const coverImage =
                   primaryMedia?.publicUrl ||
-                  (primaryMedia?.storageKey ? `/api/v1/media/file/${primaryMedia.storageKey}` : undefined) ||
+                  (primaryMedia?.storageKey ? `/media/file/${primaryMedia.storageKey}` : undefined) ||
                   p.images?.[0]?.url;
                 const isEnquiryOnly = p.productType === 'ENQUIRY_ONLY';
                 const hasVariants = p.variants && p.variants.length > 0;
@@ -629,7 +716,7 @@ export default function StoreHomePage() {
                       className="bg-white border border-stone-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group relative"
                     >
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="block relative aspect-[3/4] bg-stone-100 overflow-hidden"
                       >
                         <SafeImage
@@ -651,7 +738,7 @@ export default function StoreHomePage() {
                             </span>
                           )}
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="font-serif text-base text-stone-900 hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
                           >
                             {title}
@@ -671,7 +758,7 @@ export default function StoreHomePage() {
                           </div>
 
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="text-xs font-semibold text-stone-900 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider"
                           >
                             <span>Inspect</span>
@@ -691,7 +778,7 @@ export default function StoreHomePage() {
                       className="bg-slate-900 border-2 border-slate-800 overflow-hidden shadow-lg hover:border-pink-500 transition-all flex flex-col group relative"
                     >
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="block relative aspect-square bg-slate-950 overflow-hidden"
                       >
                         <SafeImage
@@ -708,7 +795,7 @@ export default function StoreHomePage() {
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-slate-900">
                         <div>
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="font-black text-sm uppercase tracking-tight text-white hover:text-pink-400 transition line-clamp-1"
                           >
                             {title}
@@ -755,7 +842,7 @@ export default function StoreHomePage() {
                       className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
                     >
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="block relative aspect-square bg-amber-50/50 overflow-hidden"
                       >
                         <SafeImage
@@ -777,7 +864,7 @@ export default function StoreHomePage() {
                             </span>
                           )}
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="font-serif font-bold text-sm text-stone-900 hover:text-emerald-800 transition line-clamp-2"
                           >
                             {title}
@@ -823,7 +910,7 @@ export default function StoreHomePage() {
                       className="bg-slate-800 border border-slate-700 rounded-sm overflow-hidden shadow-md font-mono flex flex-col group relative"
                     >
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="block relative aspect-[4/3] bg-slate-900 overflow-hidden border-b border-slate-700"
                       >
                         <SafeImage
@@ -845,7 +932,7 @@ export default function StoreHomePage() {
                           </div>
 
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="font-bold text-sm text-white hover:text-sky-300 transition line-clamp-2 block"
                           >
                             {title}
@@ -881,7 +968,7 @@ export default function StoreHomePage() {
                           </a>
 
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <span>Full Spec</span>
@@ -901,7 +988,7 @@ export default function StoreHomePage() {
                       className="bg-white border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
                     >
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="block relative aspect-[4/5] bg-stone-100 overflow-hidden"
                       >
                         <SafeImage
@@ -918,7 +1005,7 @@ export default function StoreHomePage() {
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
                         <div>
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="font-serif text-sm font-semibold text-stone-900 hover:text-stone-600 transition line-clamp-1"
                           >
                             {title}
@@ -933,7 +1020,7 @@ export default function StoreHomePage() {
                             {formatPaise(pricePaise)}
                           </div>
                           <Link
-                            href={`/store/${slug}/product/${p.id}`}
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
                             className="text-xs font-serif uppercase tracking-wider text-stone-800 hover:underline"
                           >
                             Explore Piece
@@ -951,7 +1038,7 @@ export default function StoreHomePage() {
                     className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
                   >
                     <Link
-                      href={`/store/${slug}/product/${p.id}`}
+                      href={getLink(`/store/${slug}/product/${p.id}`)}
                       className="block relative aspect-square bg-gray-100 overflow-hidden"
                     >
                       <SafeImage
@@ -975,7 +1062,7 @@ export default function StoreHomePage() {
                           </span>
                         )}
                         <Link
-                          href={`/store/${slug}/product/${p.id}`}
+                          href={getLink(`/store/${slug}/product/${p.id}`)}
                           className="font-bold text-xs text-gray-900 hover:text-blue-700 transition line-clamp-2 leading-snug"
                         >
                           {title}

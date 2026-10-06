@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, TenantStatus, StoreStatus, SubscriptionStatus, ProductMode, ProductStatus, VariantStatus, OptionType, InventoryMovementType, OrderStatus, PaymentStatus, ShipmentStatus, EnquiryStatus, PaymentProviderType, ShippingProviderType } from '@prisma/client';
+import { PrismaClient, UserRole, TenantStatus, StoreStatus, SubscriptionStatus, ProductMode, ProductStatus, VariantStatus, OptionType, InventoryMovementType, OrderStatus, PaymentStatus, ShipmentStatus, EnquiryStatus, PaymentProviderType, ShippingProviderType, ThemeKey } from '@prisma/client';
 import { SEED_IDS } from '../src/seed-data';
 
 const prisma = new PrismaClient();
@@ -164,6 +164,23 @@ export async function runSeed() {
         spacingDensity: 'dense',
       },
     },
+    {
+      name: 'Feast',
+      code: 'feast',
+      isDefault: false,
+      configJson: {
+        tagline: 'Food-First Visual Commerce',
+        bestFor: 'Baking, gourmet dining, confectioneries, cloud kitchens, artisanal provisions',
+        palette: { primary: '#78350F', accent: '#E11D48', background: '#FFFBEB', surface: '#FFFFFF', text: '#451A03', muted: '#92400E' },
+        typography: { heading: 'Playfair Display', body: 'Plus Jakarta Sans' },
+        headerStyle: 'warm-friendly',
+        heroStyle: 'organic-showcase',
+        cardStyle: 'rounded-soft',
+        buttonStyle: 'pill-friendly',
+        imageRatio: '1/1',
+        spacingDensity: 'comfortable',
+      },
+    },
   ];
 
   for (const t of foundationalThemes) {
@@ -182,7 +199,199 @@ export async function runSeed() {
       },
     });
   }
-  console.log('✓ 6 Foundational Themes seeded (Atelier, Pulse, Harvest, Foundry, Habitat, Local)');
+
+  // Canonical ThemeDefinitions (7 Themes with Full Capabilities)
+  const canonicalThemeDefinitions: Array<{
+    key: ThemeKey;
+    name: string;
+    version: string;
+    description: string;
+    categoryFit: string;
+    defaultConfig: any;
+    capabilities: any;
+  }> = [
+    {
+      key: ThemeKey.ATELIER,
+      name: 'Atelier',
+      version: '1.0.0',
+      description: 'Quiet luxury editorial theme with dramatic negative space, refined serif typography, and full-bleed lookbooks.',
+      categoryFit: 'Fine jewellery, haute couture, luxury leather, bespoke timepieces, niche perfumery',
+      defaultConfig: {
+        palette: { primary: '#1C1917', accent: '#D4AF37', background: '#FAFAF9', surface: '#FFFFFF', text: '#1C1917', muted: '#78716C' },
+        typography: { heading: 'Playfair Display', body: 'Plus Jakarta Sans' },
+        headerStyle: 'minimal-center',
+        heroStyle: 'split-editorial',
+        cardStyle: 'framed-luxury',
+        buttonStyle: 'sharp-pill',
+        imageRatio: '3/4',
+        spacingDensity: 'generous',
+        motionLevel: 'subtle',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['editorialLuxuryLayouts', 'largeImagery', 'typographyFirstFallback', 'productMosaicFallback', 'hallmarkBanner'],
+      },
+    },
+    {
+      key: ThemeKey.PULSE,
+      name: 'Pulse',
+      version: '1.0.0',
+      description: 'High-energy contemporary storefront with bold typography, split campaign launches, and fast quick-add.',
+      categoryFit: 'Streetwear, activewear, modern electronics, creator merchandise, sneaker culture',
+      defaultConfig: {
+        palette: { primary: '#0F172A', accent: '#EC4899', background: '#F8FAFC', surface: '#FFFFFF', text: '#0F172A', muted: '#64748B' },
+        typography: { heading: 'Cabinet Grotesk', body: 'Inter' },
+        headerStyle: 'sticky-action',
+        heroStyle: 'full-banner',
+        cardStyle: 'elevated-modern',
+        buttonStyle: 'rounded-heavy',
+        imageRatio: '1/1',
+        spacingDensity: 'compact',
+        motionLevel: 'dynamic',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['campaignHero', 'productLaunchHero', 'splitHero', 'productMosaic', 'higherVisualDensity', 'quickAdd'],
+      },
+    },
+    {
+      key: ThemeKey.HARVEST,
+      name: 'Harvest',
+      version: '1.0.0',
+      description: 'Warm, organic, and story-driven storefront tailored for natural goods, artisan crafts, and sustainable brands.',
+      categoryFit: 'Organic grocery, artisanal honey & coffee, natural skincare, slow fashion, ceramics',
+      defaultConfig: {
+        palette: { primary: '#14532D', accent: '#F59E0B', background: '#FEFCE8', surface: '#FFFFFF', text: '#1E293B', muted: '#475569' },
+        typography: { heading: 'DM Serif Display', body: 'Plus Jakarta Sans' },
+        headerStyle: 'warm-friendly',
+        heroStyle: 'organic-showcase',
+        cardStyle: 'rounded-soft',
+        buttonStyle: 'pill-friendly',
+        imageRatio: '1/1',
+        spacingDensity: 'comfortable',
+        motionLevel: 'subtle',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['warmStoryModules', 'processStorySections', 'quickAdd', 'organicTactilePresentation'],
+      },
+    },
+    {
+      key: ThemeKey.FOUNDRY,
+      name: 'Foundry',
+      version: '1.0.0',
+      description: 'Technical B2B / industrial catalog with deep specification sheets, RFQ workflows, and document downloads.',
+      categoryFit: 'Industrial manufacturing, valves & pumps, electrical equipment, laboratory supplies, hardware components',
+      defaultConfig: {
+        palette: { primary: '#1E293B', accent: '#0284C7', background: '#F1F5F9', surface: '#FFFFFF', text: '#0F172A', muted: '#475569' },
+        typography: { heading: 'Space Grotesk', body: 'Inter' },
+        headerStyle: 'industrial-meta',
+        heroStyle: 'technical-hero',
+        cardStyle: 'spec-sheet-card',
+        buttonStyle: 'square-solid',
+        imageRatio: '4/3',
+        spacingDensity: 'dense',
+        motionLevel: 'none',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['technicalSpecifications', 'rfqEnquiry', 'productDocumentsDownloads', 'industriesServed', 'certifications', 'productModes_SELL_ONLINE_ENQUIRY_ONLY_SELL_AND_ENQUIRY'],
+      },
+    },
+    {
+      key: ThemeKey.HABITAT,
+      name: 'Habitat',
+      version: '1.0.0',
+      description: 'Visual interior lifestyle theme featuring room and space curation, material textures, and architectural groups.',
+      categoryFit: 'Furniture, architectural lighting, rugs & textiles, home accessories, handcrafted fixtures',
+      defaultConfig: {
+        palette: { primary: '#292524', accent: '#C2410C', background: '#F5F5F4', surface: '#FFFFFF', text: '#292524', muted: '#78716C' },
+        typography: { heading: 'Cinzel', body: 'Plus Jakarta Sans' },
+        headerStyle: 'spacious-lifestyle',
+        heroStyle: 'lifestyle-immersive',
+        cardStyle: 'minimal-bleed',
+        buttonStyle: 'underline-refined',
+        imageRatio: '4/5',
+        spacingDensity: 'airy',
+        motionLevel: 'subtle',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['shopBySpaceUse', 'materialFinishPresentation', 'shopTheLookCuratedGroups', 'editorialStoryModules'],
+      },
+    },
+    {
+      key: ThemeKey.LOCAL,
+      name: 'Local',
+      version: '1.0.0',
+      description: 'High-density, fast-ordering retail catalog designed for local brick-and-mortar storefronts and quick reorders.',
+      categoryFit: 'Neighbourhood retail, provisions, hardware stores, stationery, pharmacies',
+      defaultConfig: {
+        palette: { primary: '#1E40AF', accent: '#16A34A', background: '#FFFFFF', surface: '#F8FAFC', text: '#0F172A', muted: '#64748B' },
+        typography: { heading: 'Inter', body: 'Inter' },
+        headerStyle: 'quick-search-bar',
+        heroStyle: 'product-mosaic',
+        cardStyle: 'high-density-buy',
+        buttonStyle: 'quick-add',
+        imageRatio: '1/1',
+        spacingDensity: 'dense',
+        motionLevel: 'subtle',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['strongSearch', 'catalogueDensityModes', 'quickAdd', 'listCompactComfortableViews', 'storeInformation', 'localDeliveryDisplay'],
+      },
+    },
+    {
+      key: ThemeKey.FEAST,
+      name: 'Feast',
+      version: '1.0.0',
+      description: 'Sensory food-first commerce featuring menu category bars, quick quantity adjustments, delivery/pickup timings, and custom order requests.',
+      categoryFit: 'Bakeries, patisseries, artisanal sweets, gourmet cloud kitchens, chocolate ateliers, fresh meal provisions',
+      defaultConfig: {
+        palette: { primary: '#78350F', accent: '#E11D48', background: '#FFFBEB', surface: '#FFFFFF', text: '#451A03', muted: '#92400E' },
+        typography: { heading: 'Playfair Display', body: 'Plus Jakarta Sans' },
+        headerStyle: 'warm-friendly',
+        heroStyle: 'organic-showcase',
+        cardStyle: 'rounded-soft',
+        buttonStyle: 'pill-friendly',
+        imageRatio: '1/1',
+        spacingDensity: 'comfortable',
+        motionLevel: 'subtle',
+      },
+      capabilities: {
+        common: ['logo', 'brandColors', 'typographyPreset', 'heroMode', 'heroMedia', 'categoryMedia', 'collectionMedia', 'productMedia', 'variantMedia', 'sectionVisibility', 'sectionOrdering', 'productCardMode', 'imageRatio', 'backgroundTreatment', 'buttonStyle', 'motionLevel'],
+        specialized: ['foodFirstMenuNavigation', 'quickAddQuantityControls', 'availabilityStates', 'deliveryPickupPresentation', 'productCustomizationOptions', 'giftOccasionModules', 'storeTimings', 'foodSpecificDisplayMetadata'],
+      },
+    },
+  ];
+
+  for (const td of canonicalThemeDefinitions) {
+    await prisma.themeDefinition.upsert({
+      where: { key: td.key },
+      update: {
+        name: td.name,
+        version: td.version,
+        description: td.description,
+        categoryFit: td.categoryFit,
+        defaultConfig: td.defaultConfig,
+        capabilities: td.capabilities,
+        status: 'ACTIVE',
+      },
+      create: {
+        key: td.key,
+        name: td.name,
+        version: td.version,
+        description: td.description,
+        categoryFit: td.categoryFit,
+        defaultConfig: td.defaultConfig,
+        capabilities: td.capabilities,
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  console.log('✓ 7 Foundational Themes & ThemeDefinitions seeded (Atelier, Pulse, Harvest, Foundry, Habitat, Local, Feast)');
 
   // ==============================================================================
   // 4. TENANT A: Aurelia Atelier (Fashion / Luxury - PAID & ACTIVE STORE)

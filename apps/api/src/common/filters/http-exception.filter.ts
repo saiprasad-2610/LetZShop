@@ -36,7 +36,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         code = resObj.code || this.mapStatusToErrorCode(status);
         details = resObj.details || (Array.isArray(resObj.message) ? resObj.message : undefined);
         if (Array.isArray(resObj.message)) {
-          message = 'Validation failed for the submitted data.';
+          message = resObj.message[0] || 'Validation failed for the submitted data.';
         }
       }
     } else if (exception instanceof Error) {

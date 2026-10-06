@@ -1,110 +1,116 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { ShoppingBag, ArrowRight, Store, Search, Sparkles, Globe } from 'lucide-react';
+import { ArrowRight, Store, KeyRound, ShieldCheck } from 'lucide-react';
+import { getSellerUrl } from '../utils/config';
 
-export default function StorefrontDirectoryPage() {
-  const router = useRouter();
-  const [storeSlug, setStoreSlug] = useState('');
-
-  const handleGoToStore = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!storeSlug.trim()) return;
-    router.push(`/store/${storeSlug.trim().toLowerCase()}`);
-  };
+/**
+ * Simply E-Commerce Platform Landing Page (Root `/`)
+ * 
+ * Flow 01: Merchant Authentication + Onboarding Entry
+ * 
+ * Functional merchant entry points:
+ * - "Create My Store" -> New merchant registration (/login?mode=register)
+ * - "Merchant Login" -> Returning merchant PIN login (/login)
+ */
+export default function PlatformLandingPage() {
+  const sellerUrl = getSellerUrl();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-between">
+    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col justify-between selection:bg-stone-200 font-sans">
       <Head>
-        <title>Simply E-Commerce | Storefront Portal</title>
+        <title>Simply E-Commerce — Merchant Platform</title>
+        <meta
+          name="description"
+          content="The direct commerce platform empowering independent merchants with custom store design, atomic inventory control, and verified seller operations."
+        />
       </Head>
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 py-4 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-gray-900 text-white font-black text-sm flex items-center justify-center">
+      {/* Navigation Header */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-stone-200 px-6 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-50 font-black text-sm flex items-center justify-center tracking-tight shadow-sm">
               S
             </span>
-            <span className="font-bold text-lg text-gray-900 tracking-tight">
-              Simply E-Commerce
+            <span className="font-bold text-lg tracking-tight text-stone-900">
+              Simply <span className="text-stone-400 font-normal text-sm">Platform</span>
             </span>
           </div>
 
-          <a
-            href="http://localhost:3001"
-            className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition"
-          >
-            Seller Dashboard →
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href={`${sellerUrl}/login`}
+              className="px-4 py-2 text-xs font-semibold text-stone-700 hover:text-stone-950 transition"
+            >
+              Merchant Login
+            </a>
+            <a
+              href={`${sellerUrl}/login?mode=register`}
+              className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+            >
+              <span>Create My Store</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Main Hero */}
-      <main className="max-w-3xl mx-auto px-6 py-16 text-center space-y-8 flex-1 flex flex-col justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 mx-auto">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Multi-Tenant Indian SaaS Storefront Engine</span>
+      {/* Hero Section */}
+      <main className="max-w-3xl mx-auto px-6 py-24 flex-1 flex flex-col justify-center text-center space-y-8">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold mx-auto shadow-xs">
+          <Store className="w-3.5 h-3.5 text-blue-600" />
+          <span>Independent Merchant Platform</span>
         </div>
 
-        <h1 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-tight">
-          Every Business Gets Its Own Digital Identity.
-        </h1>
-
-        <p className="text-sm sm:text-base text-gray-600 max-w-xl mx-auto">
-          Enter any registered merchant store slug to explore their customized storefront, product catalog, and express checkout.
-        </p>
-
-        {/* Store Slug Direct Navigator */}
-        <form onSubmit={handleGoToStore} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto w-full">
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-3 text-xs text-gray-400 font-mono">/store/</span>
-            <input
-              type="text"
-              placeholder="e.g. royal-heritage or urban-threads"
-              value={storeSlug}
-              onChange={(e) => setStoreSlug(e.target.value)}
-              className="w-full pl-16 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-emerald-500 bg-white"
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
-          >
-            <span>Visit Store</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </form>
-
-        {/* Demo Stores Quick Links */}
-        <div className="pt-6 border-t border-gray-200">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-            Seeded Demo Stores
+        <div className="space-y-4">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-stone-950 tracking-tight leading-[1.15]">
+            Start and manage your digital store in seconds.
+          </h1>
+          <p className="text-base sm:text-lg text-stone-600 max-w-xl mx-auto leading-relaxed">
+            Fast OTP registration, quick PIN login, and a dedicated workspace to launch and scale your online business.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/store/royal-heritage"
-              className="px-4 py-2 bg-white border border-gray-300 hover:border-gray-900 rounded-xl text-xs font-semibold text-gray-800 transition shadow-sm flex items-center gap-2"
-            >
-              <Store className="w-3.5 h-3.5 text-amber-600" />
-              <span>Royal Heritage (Jewellery)</span>
-            </Link>
+        </div>
 
-            <Link
-              href="/store/urban-threads"
-              className="px-4 py-2 bg-white border border-gray-300 hover:border-gray-900 rounded-xl text-xs font-semibold text-gray-800 transition shadow-sm flex items-center gap-2"
-            >
-              <Store className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Urban Threads (Fashion)</span>
-            </Link>
+        {/* Primary Action Card */}
+        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto w-full">
+          <a
+            href={`${sellerUrl}/login?mode=register`}
+            className="w-full sm:w-auto flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-md flex items-center justify-center gap-2"
+          >
+            <Store className="w-4 h-4" />
+            <span>Create My Store</span>
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </a>
+
+          <a
+            href={`${sellerUrl}/login`}
+            className="w-full sm:w-auto flex-1 py-3.5 px-6 rounded-xl bg-white hover:bg-stone-100 text-stone-900 border border-stone-300 text-sm font-bold transition shadow-xs flex items-center justify-center gap-2"
+          >
+            <KeyRound className="w-4 h-4 text-stone-600" />
+            <span>Merchant Login</span>
+          </a>
+        </div>
+
+        {/* Feature Badges */}
+        <div className="pt-8 border-t border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+          <div className="p-4 rounded-xl bg-white border border-stone-200">
+            <span className="text-xs font-bold text-stone-900 block mb-1">Instant Registration</span>
+            <p className="text-xs text-stone-500">Sign up using your mobile number and verified OTP in under a minute.</p>
+          </div>
+          <div className="p-4 rounded-xl bg-white border border-stone-200">
+            <span className="text-xs font-bold text-stone-900 block mb-1">Fast PIN Login</span>
+            <p className="text-xs text-stone-500">Daily access with a fast 4–6 digit security PIN and account recovery.</p>
+          </div>
+          <div className="p-4 rounded-xl bg-white border border-stone-200">
+            <span className="text-xs font-bold text-stone-900 block mb-1">Protected Store Creation</span>
+            <p className="text-xs text-stone-500">Transactional setup of your business identity and store presence.</p>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-gray-400 border-t border-gray-200 bg-white">
-        © 2026 Simply E-Commerce Platform. DPDPA 2023 Compliant.
+      <footer className="border-t border-stone-200 bg-white py-6 px-6 text-center text-xs text-stone-500">
+        <p>© 2026 Simply E-Commerce. All rights reserved.</p>
       </footer>
     </div>
   );

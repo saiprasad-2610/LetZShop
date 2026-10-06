@@ -22,6 +22,7 @@ import { OutboxModule } from './modules/outbox/outbox.module';
 import { HealthModule } from './modules/health/health.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { SellerModule } from './modules/seller/seller.module';
 
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -63,6 +64,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     HealthModule,
     CustomersModule,
     AdminModule,
+    SellerModule,
   ],
   providers: [
     {

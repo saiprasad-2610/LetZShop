@@ -286,8 +286,9 @@ export default function ProductsPage() {
                     <tbody className="divide-y divide-slate-100">
                       {products.map((p) => {
                         const coverImg =
+                          p.media?.[0]?.publicUrl ||
                           p.images?.[0]?.url ||
-                          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=120&auto=format&fit=crop&q=80';
+                          null;
                         const variantCount = p.variants?.length || 0;
 
                         // Calculate total stock across all variants
@@ -295,10 +296,13 @@ export default function ProductsPage() {
                           p.variants && p.variants.length > 0
                             ? p.variants.reduce(
                                 (acc: number, v: any) =>
-                                  acc + (v.inventory?.availableQuantity ?? 15),
+                                  acc + (v.inventory?.stockOnHand ?? v.inventory?.availableQuantity ?? 0),
                                 0
                               )
-                            : 20;
+                            : 0;
+
+                        const basePaise = p.variants?.[0]?.pricePaise ?? p.basePricePaise ?? 0;
+                        const comparePaise = p.variants?.[0]?.compareAtPricePaise ?? p.compareAtPricePaise;
 
                         const isOutOfStock = totalStock <= 0;
                         const isLowStock = totalStock > 0 && totalStock < 5;
@@ -308,16 +312,20 @@ export default function ProductsPage() {
                             {/* Product Column */}
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                                  <SafeImage
-                                    src={coverImg}
-                                    alt={p.title || p.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                                  {coverImg ? (
+                                    <SafeImage
+                                      src={coverImg}
+                                      alt={p.name || p.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Package className="w-5 h-5 text-slate-400" />
+                                  )}
                                 </div>
                                 <div className="min-w-0">
                                   <div className="font-bold text-slate-900 truncate max-w-xs">
-                                    {p.title || p.name}
+                                    {p.name || p.title}
                                   </div>
                                   <span className="text-[10px] text-slate-400 font-mono">
                                     ID: {p.id.slice(0, 8)}...
@@ -335,10 +343,10 @@ export default function ProductsPage() {
 
                             {/* Price / MRP */}
                             <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                              <div>{formatPaise(p.basePricePaise)}</div>
-                              {p.compareAtPricePaise && (
+                              <div>{formatPaise(basePaise)}</div>
+                              {comparePaise && (
                                 <span className="text-[10px] text-slate-400 line-through">
-                                  {formatPaise(p.compareAtPricePaise)}
+                                  {formatPaise(comparePaise)}
                                 </span>
                               )}
                             </td>

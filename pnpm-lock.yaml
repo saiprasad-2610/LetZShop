@@ -366,6 +366,9 @@ importers:
       '@simply/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@simply/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       lucide-react:
         specifier: ^0.453.0
         version: 0.453.0(react@18.3.1)

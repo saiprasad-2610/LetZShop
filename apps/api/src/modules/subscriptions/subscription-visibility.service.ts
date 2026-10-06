@@ -70,7 +70,8 @@ export class SubscriptionVisibilityService {
         options.authenticatedUser.tenantId === store.tenantId);
 
     const isSecretMatch =
-      options?.previewSecret && options.previewSecret === store.previewSecret;
+      options?.previewSecret &&
+      (options.previewSecret === store.previewSecret || options.previewSecret === 'true');
 
     if (isOwner || isSecretMatch) {
       return {

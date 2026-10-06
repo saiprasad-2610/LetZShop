@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
+import { ResponseTransformInterceptor } from '../../src/common/interceptors/response-transform.interceptor';
 import request from 'supertest';
 
 describe('Phase 2 Backend Endpoints Integration Suite', () => {
@@ -23,6 +24,7 @@ describe('Phase 2 Backend Endpoints Integration Suite', () => {
         transform: true,
       })
     );
+    app.useGlobalInterceptors(new ResponseTransformInterceptor());
 
     await app.init();
     await app.getHttpAdapter().getInstance().ready();

@@ -1,9 +1,27 @@
-import { IsNotEmpty, IsString, IsOptional, IsEnum, IsInt, Min, IsArray, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsInt,
+  Min,
+  IsArray,
+  ValidateNested,
+  IsObject,
+  MinLength,
+  ArrayMinSize,
+  ArrayMaxSize,
+} from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProductMode, OptionType } from '@simply/types';
+import { ProductMode, OptionType, ProductStatus, VariantStatus } from '@simply/types';
 
 export class CreateOptionValueDto {
+  @ApiPropertyOptional({ example: 'opt-val-123' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ example: 'Navy' })
   @IsNotEmpty()
   @IsString()
@@ -13,17 +31,33 @@ export class CreateOptionValueDto {
   @IsOptional()
   @IsString()
   colorHex?: string;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class CreateProductOptionDto {
+  @ApiPropertyOptional({ example: 'opt-123' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ example: 'Colour' })
   @IsNotEmpty()
   @IsString()
   name: string;
 
-  @ApiProperty({ enum: OptionType, default: OptionType.CUSTOM })
+  @ApiPropertyOptional({ enum: OptionType, default: OptionType.CUSTOM })
+  @IsOptional()
   @IsEnum(OptionType)
-  type: OptionType;
+  type?: OptionType = OptionType.CUSTOM;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 
   @ApiProperty({ type: [CreateOptionValueDto] })
   @IsArray()
@@ -33,6 +67,11 @@ export class CreateProductOptionDto {
 }
 
 export class CreateProductVariantDto {
+  @ApiPropertyOptional({ example: 'var-123' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ example: 'AUR-LSH-NVY-S' })
   @IsNotEmpty()
   @IsString()
@@ -43,10 +82,11 @@ export class CreateProductVariantDto {
   @IsString()
   barcode?: string;
 
-  @ApiProperty({ example: 249900, description: 'Price in paise (e.g. 249900 = ₹2,499.00)' })
+  @ApiPropertyOptional({ example: 249900, description: 'Price in paise (e.g. 249900 = ₹2,499.00)' })
+  @IsOptional()
   @IsInt()
   @Min(0)
-  pricePaise: number;
+  pricePaise?: number;
 
   @ApiPropertyOptional({ example: 299900 })
   @IsOptional()
@@ -54,10 +94,17 @@ export class CreateProductVariantDto {
   @Min(0)
   compareAtPricePaise?: number;
 
-  @ApiProperty({ example: 25, description: 'Initial stock quantity' })
+  @ApiPropertyOptional({ example: 25, description: 'Initial stock quantity' })
+  @IsOptional()
   @IsInt()
   @Min(0)
-  initialStock: number;
+  initialStock?: number;
+
+  @ApiPropertyOptional({ example: 25, description: 'Stock quantity' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stock?: number;
 
   @ApiProperty({
     example: ['Navy', 'S'],
@@ -66,32 +113,107 @@ export class CreateProductVariantDto {
   @IsArray()
   @IsString({ each: true })
   optionValues: string[];
+
+  @ApiPropertyOptional({ example: 'media-asset-id-123', description: 'Associated variant photo media asset ID' })
+  @IsOptional()
+  @IsString()
+  mediaAssetId?: string;
+
+  @ApiPropertyOptional({ enum: VariantStatus, default: VariantStatus.ACTIVE })
+  @IsOptional()
+  @IsEnum(VariantStatus)
+  status?: VariantStatus;
+}
+
+export class CreateProductAttributeDto {
+  @ApiProperty({ example: 'Material' })
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 'SS316' })
+  @IsNotEmpty()
+  @IsString()
+  value: string;
+
+  @ApiPropertyOptional({ example: 'TEXT', default: 'TEXT' })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ example: 0, default: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ example: 'prod-123' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiPropertyOptional({ example: 'a4000000-0000-0000-0000-000000000001' })
   @IsOptional()
   @IsString()
   categoryId?: string;
 
   @ApiProperty({ example: 'Classic Linen Shirt' })
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: 'Product name is required.' })
+  @IsString({ message: 'Product name must be a string.' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MinLength(2, { message: 'Product name must be at least 2 characters.' })
   name: string;
 
-  @ApiProperty({ example: 'classic-linen-shirt' })
-  @IsNotEmpty()
+  @ApiPropertyOptional({ example: 'classic-linen-shirt' })
+  @IsOptional()
   @IsString()
-  slug: string;
+  slug?: string;
 
   @ApiPropertyOptional({ example: 'Breathable, timeless tailored luxury French linen shirt.' })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   description?: string;
 
   @ApiProperty({ enum: ProductMode, default: ProductMode.SELL_ONLINE })
-  @IsEnum(ProductMode)
+  @IsEnum(ProductMode, { message: 'Mode must be SELL_ONLINE, ENQUIRY_ONLY, or SELL_AND_ENQUIRY.' })
   mode: ProductMode;
+
+  @ApiPropertyOptional({ enum: ProductStatus, default: ProductStatus.PUBLISHED })
+  @IsOptional()
+  @IsEnum(ProductStatus)
+  status?: ProductStatus;
+
+  @ApiPropertyOptional({ example: 79900, description: 'Base price in paise' })
+  @IsOptional()
+  @IsInt({ message: 'Price must be an integer in paise.' })
+  @Min(0, { message: 'Price cannot be negative.' })
+  pricePaise?: number;
+
+  @ApiPropertyOptional({ example: 99900, description: 'Compare-at price in paise' })
+  @IsOptional()
+  @IsInt({ message: 'Compare-at price must be an integer in paise.' })
+  @Min(0, { message: 'Compare-at price cannot be negative.' })
+  compareAtPricePaise?: number;
+
+  @ApiPropertyOptional({ example: 10, description: 'Initial stock on hand' })
+  @IsOptional()
+  @IsInt({ message: 'Stock must be an integer quantity.' })
+  @Min(0, { message: 'Stock cannot be negative.' })
+  stock?: number;
+
+  @ApiPropertyOptional({ example: 'SHIRT-001' })
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @ApiProperty({ example: ['media-uuid-1'], description: 'Media asset IDs to attach (1 to 3 images required)' })
+  @IsArray({ message: 'mediaAssetIds must be an array.' })
+  @ArrayMinSize(1, { message: 'Every product needs at least one image.' })
+  @ArrayMaxSize(3, { message: 'A maximum of 3 images is allowed per product.' })
+  @IsString({ each: true })
+  mediaAssetIds: string[];
 
   @ApiPropertyOptional({ example: 1, default: 1 })
   @IsOptional()
@@ -118,15 +240,24 @@ export class CreateProductDto {
   @IsString()
   enquiryCtaText?: string;
 
-  @ApiProperty({ type: [CreateProductOptionDto] })
+  @ApiPropertyOptional({ type: [CreateProductAttributeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductAttributeDto)
+  attributes?: CreateProductAttributeDto[];
+
+  @ApiPropertyOptional({ type: [CreateProductOptionDto] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateProductOptionDto)
-  options: CreateProductOptionDto[];
+  options?: CreateProductOptionDto[];
 
-  @ApiProperty({ type: [CreateProductVariantDto] })
+  @ApiPropertyOptional({ type: [CreateProductVariantDto] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
-  variants: CreateProductVariantDto[];
+  variants?: CreateProductVariantDto[];
 }

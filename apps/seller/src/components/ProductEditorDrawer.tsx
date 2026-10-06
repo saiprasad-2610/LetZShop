@@ -13,14 +13,15 @@ import {
   UploadCloud,
   ArrowLeft,
   ArrowRight,
-  Eye,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatPaise, parseRupeesToPaise } from '@simply/ui';
+import { parseRupeesToPaise } from '@simply/ui';
 import { SafeImage } from './ui/SafeImage';
 
 interface OptionTypeDraft {
+  id?: string;
   name: string;
   values: string[];
   inputValue: string;
@@ -35,7 +36,15 @@ interface VariantDraft {
   compareAtPaise: number | null;
   inventoryQuantity: number;
   isActive: boolean;
-  imageUrls: string[];
+  mediaAssetId?: string;
+}
+
+interface MediaItemDraft {
+  id: string; // temp id or mediaAssetId
+  mediaAssetId?: string;
+  publicUrl: string;
+  previewUrl?: string; // local blob URL
+  isUploading?: boolean;
 }
 
 interface ProductEditorDrawerProps {
@@ -44,6 +53,17 @@ interface ProductEditorDrawerProps {
   onClose: () => void;
   onSaved: () => void;
 }
+
+const COMMON_OPTION_SUGGESTIONS = [
+  'Colour',
+  'Size',
+  'Material',
+  'Storage',
+  'Pack',
+  'Weight',
+  'Style',
+  'Flavour',
+];
 
 export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   isOpen,
@@ -59,26 +79,32 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const [categories, setCategories] = useState<any[]>([]);
 
   // Form State
-  const [title, setTitle] = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [productType, setProductType] = useState<
+  const [mode, setMode] = useState<
     'SELL_ONLINE' | 'ENQUIRY_ONLY' | 'SELL_AND_ENQUIRY'
   >('SELL_ONLINE');
-  const [basePriceRupees, setBasePriceRupees] = useState('999');
-  const [comparePriceRupees, setComparePriceRupees] = useState('1499');
+  const [basePriceRupees, setBasePriceRupees] = useState('799');
+  const [comparePriceRupees, setComparePriceRupees] = useState('');
+  const [stock, setStock] = useState('10');
+  const [sku, setSku] = useState('');
 
-  // Media state (list of image URLs or base64 data URLs)
-  const [generalImages, setGeneralImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
-  ]);
+  // Media state (MediaItemDraft with instant blob preview + upload state + canonical publicUrl)
+  const [mediaItems, setMediaItems] = useState<MediaItemDraft[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Field validation errors
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [variantLimitError, setVariantLimitError] = useState<string | null>(null);
 
   // Options & Variants
   const [hasVariants, setHasVariants] = useState(false);
   const [options, setOptions] = useState<OptionTypeDraft[]>([
-    { name: 'Colour', values: ['Navy', 'White', 'Black'], inputValue: '' },
-    { name: 'Size', values: ['S', 'M', 'L', 'XL'], inputValue: '' },
+    { name: 'Colour', values: ['Black', 'White'], inputValue: '' },
+    { name: 'Size', values: ['S', 'M', 'L'], inputValue: '' },
   ]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
 
@@ -103,67 +129,101 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   };
 
   const resetForm = () => {
-    setTitle('');
+    setName('');
     setDescription('');
     setCategoryId('');
-    setProductType('SELL_ONLINE');
-    setBasePriceRupees('999');
-    setComparePriceRupees('1499');
-    setGeneralImages([
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
-    ]);
+    setMode('SELL_ONLINE');
+    setBasePriceRupees('799');
+    setComparePriceRupees('');
+    setStock('10');
+    setSku('');
+    setMediaItems([]);
+    setUploadingImage(false);
+    setImageError(null);
+    setFormErrors({});
+    setVariantLimitError(null);
     setHasVariants(false);
-    const initialOpts = [
-      { name: 'Colour', values: ['Navy', 'White', 'Black'], inputValue: '' },
-      { name: 'Size', values: ['S', 'M', 'L', 'XL'], inputValue: '' },
+    const initialOpts: OptionTypeDraft[] = [
+      { name: 'Colour', values: ['Black', 'White'], inputValue: '' },
+      { name: 'Size', values: ['S', 'M', 'L'], inputValue: '' },
     ];
     setOptions(initialOpts);
-    generateVariantMatrix(initialOpts, 99900, 149900);
+    generateVariantMatrix(initialOpts, 79900, null, []);
   };
 
   const loadProduct = async (id: string) => {
     setLoading(true);
     try {
       const product = await api.catalog.getProduct(id);
-      setTitle(product.title || product.name || '');
+      setName(product.name || product.title || '');
       setDescription(product.description || '');
       setCategoryId(product.categoryId || '');
-      setProductType(product.productType || product.mode || 'SELL_ONLINE');
-      setBasePriceRupees(String((product.basePricePaise || 0) / 100));
-      setComparePriceRupees(
-        product.compareAtPricePaise ? String(product.compareAtPricePaise / 100) : ''
-      );
+      setMode(product.mode || 'SELL_ONLINE');
 
-      const imgUrls = product.images?.map((img: any) => img.url) || [];
-      if (imgUrls.length > 0) {
-        setGeneralImages(imgUrls);
-      }
+      const firstVar = product.variants?.[0];
+      const basePaise = firstVar?.pricePaise ?? product.pricePaise ?? 0;
+      setBasePriceRupees(basePaise ? String(basePaise / 100) : '');
+
+      const compPaise = firstVar?.compareAtPricePaise ?? product.compareAtPricePaise;
+      setComparePriceRupees(compPaise ? String(compPaise / 100) : '');
+
+      const initialStock = firstVar?.inventory?.stockOnHand ?? 10;
+      setStock(String(initialStock));
+      setSku(firstVar?.sku || '');
+
+      // Load media with canonical publicUrl
+      const loadedMedia: MediaItemDraft[] = (product.media || []).map((m: any) => ({
+        id: m.mediaAssetId || m.id,
+        mediaAssetId: m.mediaAssetId || m.id,
+        publicUrl: m.publicUrl,
+        previewUrl: m.publicUrl,
+        isUploading: false,
+      }));
+      setMediaItems(loadedMedia);
 
       if (product.options && product.options.length > 0) {
         setHasVariants(true);
         const mappedOptions: OptionTypeDraft[] = product.options.map((opt: any) => ({
+          id: opt.id,
           name: opt.name,
-          values: opt.values || [],
+          values: (opt.values || []).map((v: any) => (typeof v === 'string' ? v : v.value)),
           inputValue: '',
         }));
         setOptions(mappedOptions);
 
         if (product.variants && product.variants.length > 0) {
+          // Map variant media relation
+          const variantMediaMap = new Map<string, string>();
+          for (const m of product.media || []) {
+            if (m.variantId && m.mediaAssetId) {
+              variantMediaMap.set(m.variantId, m.mediaAssetId);
+            }
+          }
+
           const mappedVariants: VariantDraft[] = product.variants.map((v: any) => {
-            const vImgs =
-              product.images
-                ?.filter((img: any) => img.variantId === v.id)
-                .map((img: any) => img.url) || [];
+            const optMap: Record<string, string> = {};
+            if (v.optionValues && Array.isArray(v.optionValues)) {
+              v.optionValues.forEach((vo: any) => {
+                const optName =
+                  vo.optionValue?.option?.name ||
+                  mappedOptions.find((o) => o.values.includes(vo.optionValue?.value))?.name;
+                if (optName && vo.optionValue?.value) {
+                  optMap[optName] = vo.optionValue.value;
+                }
+              });
+            }
+
+            const comboTitle = Object.values(optMap).join(' / ') || v.sku;
             return {
               id: v.id,
-              title: v.title,
-              optionValues: v.optionValues || {},
+              title: comboTitle,
+              optionValues: optMap,
               sku: v.sku || '',
-              pricePaise: v.pricePaise,
-              compareAtPaise: v.compareAtPricePaise,
-              inventoryQuantity: v.inventory?.availableQuantity ?? 15,
-              isActive: v.isActive ?? true,
-              imageUrls: vImgs,
+              pricePaise: v.pricePaise ?? null,
+              compareAtPaise: v.compareAtPricePaise ?? null,
+              inventoryQuantity: v.inventory?.stockOnHand ?? 0,
+              isActive: v.status !== 'INACTIVE' && v.status !== 'DISCONTINUED',
+              mediaAssetId: variantMediaMap.get(v.id) || undefined,
             };
           });
           setVariants(mappedVariants);
@@ -178,16 +238,31 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     }
   };
 
+  /**
+   * Cartesian Variant Generator with existing data retention and combination safety cap
+   */
   const generateVariantMatrix = (
     currentOptions: OptionTypeDraft[],
     defaultPricePaise = parseRupeesToPaise(Number(basePriceRupees) || 0),
-    defaultComparePaise = parseRupeesToPaise(Number(comparePriceRupees) || 0)
+    defaultComparePaise = comparePriceRupees ? parseRupeesToPaise(Number(comparePriceRupees)) : null,
+    currentVariantsList = variants
   ) => {
     const validOptions = currentOptions.filter((o) => o.name.trim() && o.values.length > 0);
     if (validOptions.length === 0) {
       setVariants([]);
+      setVariantLimitError(null);
       return;
     }
+
+    // Safety limit check
+    const totalCombos = validOptions.reduce((acc, o) => acc * o.values.length, 1);
+    if (totalCombos > 100) {
+      setVariantLimitError(
+        `This combination would create ${totalCombos} variants. Reduce option values to continue (limit is 100).`
+      );
+      return;
+    }
+    setVariantLimitError(null);
 
     const cartesian = (arrays: string[][]): string[][] => {
       return arrays.reduce(
@@ -199,42 +274,64 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     const valueArrays = validOptions.map((o) => o.values);
     const combos = cartesian(valueArrays);
 
+    const prefix = (name || 'PROD').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'PROD';
+
     const newVariants: VariantDraft[] = combos.map((combo) => {
       const optionMap: Record<string, string> = {};
       validOptions.forEach((opt, idx) => {
-        optionMap[opt.name] = combo[idx];
+        optionMap[opt.name.trim()] = combo[idx];
       });
 
       const titlePart = combo.join(' / ');
-      const skuSlug = combo.map((v) => v.toUpperCase().replace(/\s+/g, '')).join('-');
+      const skuSlug = combo.map((v) => v.toUpperCase().replace(/[^A-Z0-9]/g, '')).join('-');
 
-      const existing = variants.find((v) =>
+      // Retain existing variant attributes if combination matches
+      const existing = currentVariantsList.find((v) =>
         Object.entries(optionMap).every(([k, val]) => v.optionValues[k] === val)
       );
 
       if (existing) {
-        return existing;
+        return {
+          ...existing,
+          title: titlePart,
+          optionValues: optionMap,
+        };
       }
 
       return {
         title: titlePart,
         optionValues: optionMap,
-        sku: `SKU-${skuSlug}-${Math.floor(100 + Math.random() * 900)}`,
+        sku: `${prefix}-${skuSlug}`,
         pricePaise: defaultPricePaise,
         compareAtPaise: defaultComparePaise,
-        inventoryQuantity: 20,
+        inventoryQuantity: Number(stock) || 10,
         isActive: true,
-        imageUrls: [],
+        mediaAssetId: undefined,
       };
     });
 
     setVariants(newVariants);
   };
 
+  // Option modification handlers
   const handleAddOptionValue = (optIndex: number) => {
     const opt = options[optIndex];
-    if (!opt.inputValue.trim()) return;
-    const newValues = [...opt.values, opt.inputValue.trim()];
+    const valTrim = opt.inputValue.trim();
+    if (!valTrim) return;
+
+    // Disallow duplicate values (case-insensitive) inside same option
+    if (opt.values.some((v) => v.toLowerCase() === valTrim.toLowerCase())) {
+      setFormErrors({ options: `Value "${valTrim}" already exists in option "${opt.name}".` });
+      return;
+    }
+
+    if (opt.values.length >= 20) {
+      setFormErrors({ options: `Option "${opt.name}" has reached the limit of 20 values.` });
+      return;
+    }
+
+    setFormErrors({});
+    const newValues = [...opt.values, valTrim];
     const updatedOptions = [...options];
     updatedOptions[optIndex] = { ...opt, values: newValues, inputValue: '' };
     setOptions(updatedOptions);
@@ -243,6 +340,20 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
   const handleRemoveOptionValue = (optIndex: number, valIndex: number) => {
     const opt = options[optIndex];
+    const removedVal = opt.values[valIndex];
+    const affectedCount = variants.filter(
+      (v) => v.optionValues[opt.name.trim()] === removedVal
+    ).length;
+
+    if (
+      affectedCount > 0 &&
+      !window.confirm(
+        `Removing "${removedVal}" will delete ${affectedCount} variant combination(s). Continue?`
+      )
+    ) {
+      return;
+    }
+
     const newValues = opt.values.filter((_, idx) => idx !== valIndex);
     const updatedOptions = [...options];
     updatedOptions[optIndex] = { ...opt, values: newValues };
@@ -250,39 +361,139 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     generateVariantMatrix(updatedOptions);
   };
 
-  const handleAddOptionType = (presetName = 'Colour') => {
-    const updated = [...options, { name: presetName, values: [], inputValue: '' }];
+  const handleAddOption = (defaultName = '') => {
+    if (options.length >= 3) {
+      setFormErrors({ options: 'A maximum of 3 option dimensions is supported.' });
+      return;
+    }
+    setFormErrors({});
+    const updated = [...options, { name: defaultName, values: [], inputValue: '' }];
     setOptions(updated);
   };
 
-  const handleRemoveOptionType = (idx: number) => {
-    const updated = options.filter((_, i) => i !== idx);
+  const handleRemoveOption = (optIndex: number) => {
+    const opt = options[optIndex];
+    if (
+      variants.length > 0 &&
+      !window.confirm(
+        `Removing option "${opt.name || 'Option ' + (optIndex + 1)}" will recalculate variant combinations. Continue?`
+      )
+    ) {
+      return;
+    }
+    const updated = options.filter((_, i) => i !== optIndex);
     setOptions(updated);
     generateVariantMatrix(updated);
   };
 
-  // Real File Upload Handler (Drag & Drop or File Picker)
-  const processFiles = (files: FileList | null) => {
+  const handleOptionNameChange = (optIndex: number, newName: string) => {
+    const oldName = options[optIndex].name.trim();
+    const trimmed = newName.trim();
+    const updated = [...options];
+    updated[optIndex].name = newName;
+    setOptions(updated);
+
+    // Update variant optionValues keys if name changed
+    if (oldName && trimmed && oldName !== trimmed) {
+      setVariants((prev) =>
+        prev.map((v) => {
+          const newMap = { ...v.optionValues };
+          if (newMap[oldName] !== undefined) {
+            newMap[trimmed] = newMap[oldName];
+            delete newMap[oldName];
+          }
+          return { ...v, optionValues: newMap };
+        })
+      );
+    }
+  };
+
+  // Immediate Local Blob Preview + Background MediaAsset Upload
+  const processFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) {
-        alert(`File ${file.name} is not an image.`);
+    setImageError(null);
+
+    if (mediaItems.length >= 3) {
+      setImageError('A maximum of 3 images is allowed per product.');
+      return;
+    }
+
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+
+    for (const file of Array.from(files)) {
+      if (mediaItems.length >= 3) {
+        setImageError('A maximum of 3 images is allowed per product.');
+        break;
+      }
+
+      if (!allowedMime.includes(file.type)) {
+        setImageError('Upload a supported image format (JPEG, PNG, WebP).');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert(`File ${file.name} exceeds 5MB limit.`);
+        setImageError('Image file size exceeds 5MB limit.');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64Url = e.target?.result as string;
-        if (base64Url) {
-          setGeneralImages((prev) => [...prev, base64Url]);
+      // Step 1: Create immediate local blob URL
+      const blobUrl = URL.createObjectURL(file);
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      setMediaItems((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          publicUrl: blobUrl,
+          previewUrl: blobUrl,
+          isUploading: true,
+        },
+      ]);
+
+      setUploadingImage(true);
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            const commaIdx = result.indexOf(',');
+            resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const res = await api.media.uploadMediaAsset({
+          filename: file.name,
+          mimeType: file.type,
+          base64Data,
+          altText: name || file.name,
+        });
+
+        if (res && res.id) {
+          // Step 2: Replace temporary upload draft with canonical uploaded MediaAsset
+          setMediaItems((prev) =>
+            prev.map((item) =>
+              item.id === tempId
+                ? {
+                    id: res.id,
+                    mediaAssetId: res.id,
+                    publicUrl: res.publicUrl,
+                    previewUrl: blobUrl, // keep local blob for instant crispness
+                    isUploading: false,
+                  }
+                : item
+            )
+          );
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err: any) {
+        console.error('Failed to upload media asset', err);
+        setImageError(err.message || 'Failed to upload image.');
+        // Remove failed temp item
+        setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
+      } finally {
+        setUploadingImage(false);
+      }
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -293,26 +504,44 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
   const handleSetPrimaryImage = (index: number) => {
     if (index === 0) return;
-    const updated = [...generalImages];
+    const updated = [...mediaItems];
     const [selected] = updated.splice(index, 1);
     updated.unshift(selected);
-    setGeneralImages(updated);
+    setMediaItems(updated);
   };
 
   const handleMoveImage = (index: number, direction: 'left' | 'right') => {
     const targetIdx = direction === 'left' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= generalImages.length) return;
-    const updated = [...generalImages];
+    if (targetIdx < 0 || targetIdx >= mediaItems.length) return;
+    const updated = [...mediaItems];
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIdx, 0, moved);
-    setGeneralImages(updated);
+    setMediaItems(updated);
   };
 
   const handleRemoveImage = (index: number) => {
-    setGeneralImages(generalImages.filter((_, i) => i !== index));
+    if (mediaItems.length <= 1) {
+      setImageError('Every product needs at least one image.');
+      return;
+    }
+    setImageError(null);
+
+    const removedItem = mediaItems[index];
+    setMediaItems(mediaItems.filter((_, i) => i !== index));
+
+    // Clear any variant image associations linked to this removed photo
+    if (removedItem.mediaAssetId) {
+      setVariants((prev) =>
+        prev.map((v) =>
+          v.mediaAssetId === removedItem.mediaAssetId
+            ? { ...v, mediaAssetId: undefined }
+            : v
+        )
+      );
+    }
   };
 
-  // Bulk Apply helpers for non-technical merchants
+  // Bulk Apply helpers for merchants
   const handleApplyBasePriceToAll = () => {
     const basePaise = parseRupeesToPaise(Number(basePriceRupees) || 0);
     const comparePaise = comparePriceRupees ? parseRupeesToPaise(Number(comparePriceRupees)) : null;
@@ -325,7 +554,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     );
   };
 
-  const handleApplyStockToAll = (qty = 20) => {
+  const handleApplyStockToAll = (qty = 10) => {
     setVariants((prev) =>
       prev.map((v) => ({
         ...v,
@@ -334,80 +563,125 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     );
   };
 
-  const colourOption = options.find(
-    (o) => o.name.toLowerCase() === 'colour' || o.name.toLowerCase() === 'color'
-  );
-  const colourValues = colourOption ? colourOption.values : [];
-
-  const handleAssignImageToColour = (imgUrl: string, colourName: string) => {
-    setVariants((prev) =>
-      prev.map((v) => {
-        const matchesColour = v.optionValues[colourOption?.name || 'Colour'] === colourName;
-        if (matchesColour) {
-          const alreadyHas = (v.imageUrls || []).includes(imgUrl);
-          return {
-            ...v,
-            imageUrls: alreadyHas ? v.imageUrls : [...(v.imageUrls || []), imgUrl],
-          };
-        }
-        return v;
-      })
-    );
-    alert(`Assigned image to all ${colourName} variants.`);
-  };
-
   const handleSave = async () => {
-    if (!title.trim()) {
-      alert('Please enter a product title');
+    const errors: Record<string, string> = {};
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      errors.name = 'Product name is required.';
+    } else if (trimmedName.length < 2) {
+      errors.name = 'Product name must be at least 2 characters.';
+    }
+
+    if (mode === 'SELL_ONLINE' || mode === 'SELL_AND_ENQUIRY') {
+      if (!hasVariants || variants.length === 0) {
+        const numPrice = Number(basePriceRupees);
+        if (basePriceRupees === '' || isNaN(numPrice) || numPrice < 0) {
+          errors.price = 'Enter a valid price.';
+        }
+      } else {
+        const invalidVar = variants.find(
+          (v) => v.isActive && (v.pricePaise === null || v.pricePaise === undefined || v.pricePaise < 0)
+        );
+        if (invalidVar) {
+          errors.general = `Price is required for variant "${invalidVar.title}".`;
+        }
+      }
+    }
+
+    if (hasVariants) {
+      const validOptions = options.filter((o) => o.name.trim());
+      if (validOptions.length === 0) {
+        errors.options = 'Add at least one product option, or disable variants.';
+      } else {
+        const optNames = new Set<string>();
+        for (const opt of validOptions) {
+          const lName = opt.name.trim().toLowerCase();
+          if (optNames.has(lName)) {
+            errors.options = `Duplicate option name "${opt.name}".`;
+            break;
+          }
+          optNames.add(lName);
+
+          if (opt.values.length === 0) {
+            errors.options = `Option "${opt.name}" must have at least one value.`;
+            break;
+          }
+        }
+      }
+
+      if (variantLimitError) {
+        errors.general = variantLimitError;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({});
 
     setSaving(true);
     try {
-      const basePaise = parseRupeesToPaise(Number(basePriceRupees) || 0);
+      const basePaise =
+        mode === 'SELL_ONLINE' || mode === 'SELL_AND_ENQUIRY'
+          ? parseRupeesToPaise(Number(basePriceRupees) || 0)
+          : undefined;
       const comparePaise = comparePriceRupees
         ? parseRupeesToPaise(Number(comparePriceRupees))
         : undefined;
 
-      const payload = {
-        title: title.trim(),
-        description: description.trim(),
+      const mediaAssetIds = mediaItems
+        .filter((m) => !m.isUploading && m.mediaAssetId)
+        .map((m) => m.mediaAssetId as string);
+
+      if (mediaAssetIds.length === 0) {
+        setImageError('Every product needs at least one image.');
+        setFormErrors({ general: 'Every product needs at least one image.' });
+        setSaving(false);
+        return;
+      }
+      if (mediaAssetIds.length > 3) {
+        setImageError('A maximum of 3 images is allowed per product.');
+        setFormErrors({ general: 'A maximum of 3 images is allowed per product.' });
+        setSaving(false);
+        return;
+      }
+
+      const payload: any = {
+        name: trimmedName,
+        description: description.trim() || undefined,
         categoryId: categoryId || undefined,
-        productType,
-        basePricePaise: basePaise,
+        mode,
+        pricePaise: basePaise,
         compareAtPricePaise: comparePaise,
-        hasVariants,
-        images: generalImages.map((url, idx) => ({
-          url,
-          position: idx,
-          altText: `${title} view ${idx + 1}`,
-        })),
-        options: hasVariants
-          ? options
-              .filter((o) => o.values.length > 0)
-              .map((o, idx) => ({
-                name: o.name,
-                position: idx,
-                values: o.values,
-              }))
-          : [],
-        variants: hasVariants
-          ? variants.map((v) => ({
-              title: v.title,
-              sku: v.sku,
-              pricePaise: v.pricePaise || basePaise,
-              compareAtPricePaise: v.compareAtPaise || comparePaise,
-              optionValues: v.optionValues,
-              inventoryQuantity: Number(v.inventoryQuantity) || 0,
-              isActive: v.isActive,
-              images: (v.imageUrls || []).map((url, idx) => ({
-                url,
-                position: idx,
-                altText: `${v.title} image`,
-              })),
-            }))
-          : [],
+        stock: Number(stock) || 0,
+        sku: sku.trim() || undefined,
+        mediaAssetIds,
       };
+
+      if (hasVariants && options.some((o) => o.values.length > 0)) {
+        payload.options = options
+          .filter((o) => o.name.trim() && o.values.length > 0)
+          .map((o, idx) => ({
+            id: o.id,
+            name: o.name.trim(),
+            sortOrder: idx,
+            values: o.values.map((v, vIdx) => ({ value: v.trim(), sortOrder: vIdx })),
+          }));
+
+        payload.variants = variants.map((v, idx) => ({
+          id: v.id,
+          sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
+          pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
+          compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
+          stock: Number(v.inventoryQuantity) || 0,
+          initialStock: Number(v.inventoryQuantity) || 0,
+          optionValues: Object.values(v.optionValues),
+          mediaAssetId: v.mediaAssetId || undefined,
+          status: v.isActive ? 'ACTIVE' : 'INACTIVE',
+        }));
+      }
 
       if (productId) {
         await api.catalog.updateProduct(productId, payload);
@@ -419,7 +693,14 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Failed to save product', err);
-      alert(err.message || 'Error saving product');
+      const msg = err.message || '';
+      if (msg.includes('name') || msg.includes('title')) {
+        setFormErrors({ name: 'Product name is required (min 2 characters).' });
+      } else if (msg.includes('price') || msg.includes('paise')) {
+        setFormErrors({ price: 'Enter a valid price.' });
+      } else {
+        setFormErrors({ general: msg || 'Error saving product. Please try again.' });
+      }
     } finally {
       setSaving(false);
     }
@@ -434,7 +715,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       aria-labelledby="product-drawer-title"
       className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-xs"
     >
-      <div className="w-full max-w-3xl bg-white h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-200">
+      <div className="w-full sm:max-w-3xl md:max-w-4xl bg-white h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
           <div>
@@ -442,7 +723,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               {productId ? 'Edit Product' : 'Add New Product'}
             </h2>
             <p className="text-xs text-slate-500">
-              Configure product details, photo uploads, variant matrix, and stock
+              Configure product details, photo uploads, custom options & variant matrix
             </p>
           </div>
           <button
@@ -454,138 +735,195 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {/* SECTION 1: BASIC DETAILS */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
+          {/* General Form Error Banner */}
+          {formErrors.general && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{formErrors.general}</span>
+            </div>
+          )}
+
+          {/* SECTION 1: BASIC INFORMATION */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="w-4 h-4 text-emerald-600" />
+              <Tag className="w-4 h-4 text-blue-600" />
               <span>1. Basic Details</span>
             </h3>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Product Title *
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Classic French Linen Shirt"
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 bg-white"
-                >
-                  <option value="">Select Category (Optional)</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Product Purpose & Mode
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Product Name <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 bg-white"
-                >
-                  <option value="SELL_ONLINE">Sell Online (Direct Checkout & Cart)</option>
-                  <option value="ENQUIRY_ONLY">Enquiry Only (Request Quote & WhatsApp)</option>
-                  <option value="SELL_AND_ENQUIRY">Both (Online Buy + Bulk RFQ)</option>
-                </select>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  placeholder="e.g. Classic Cotton Shirt"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs sm:text-sm transition ${
+                    formErrors.name
+                      ? 'border-rose-300 focus:border-rose-500 bg-rose-50/30'
+                      : 'border-slate-300 focus:border-blue-500'
+                  }`}
+                />
+                {formErrors.name && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{formErrors.name}</p>
+                )}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Description / Story
-              </label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Handcrafted from pure natural fibers with tailored fit..."
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-600"
-              />
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your product materials, fit, care instructions..."
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm bg-white"
+                  >
+                    <option value="">Select Category (Optional)</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Selling Mode</label>
+                  <select
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm bg-white"
+                  >
+                    <option value="SELL_ONLINE">Sell Online (Direct Checkout)</option>
+                    <option value="ENQUIRY_ONLY">Enquiry Only (Price on Request)</option>
+                    <option value="SELL_AND_ENQUIRY">Sell Online & Allow Enquiries</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* SECTION 2: PRODUCT MEDIA (DRAG & DROP / FILE PICKER) */}
+          {/* SECTION 2: PRODUCT PHOTOS */}
           <div className="space-y-4 pt-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-blue-600" />
-                <span>2. Media & Product Photography</span>
-              </h3>
-              <span className="text-[11px] text-slate-400">
-                {generalImages.length} {generalImages.length === 1 ? 'image' : 'images'}
-              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-emerald-600" />
+                    <span>Product Photos</span>
+                  </h3>
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      mediaItems.length === 0
+                        ? 'bg-rose-100 text-rose-700'
+                        : mediaItems.length === 3
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {mediaItems.length} / 3
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Add 1–3 product images. The first image is used as the primary image.
+                </p>
+              </div>
             </div>
 
-            {/* Drag & Drop File Upload Box */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${
-                isDragging
-                  ? 'border-blue-500 bg-blue-50/50'
-                  : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => processFiles(e.target.files)}
-                className="hidden"
-              />
-              <UploadCloud className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-xs sm:text-sm font-bold text-slate-800">
-                Click to upload product photos, or drag & drop files here
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                PNG, JPG, WebP supported up to 5MB each. First image becomes the primary thumbnail.
-              </p>
-            </div>
+            {/* Dropzone - shown when < 3 images, hidden when 3 images reached */}
+            {mediaItems.length < 3 ? (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50/50'
+                    : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => processFiles(e.target.files)}
+                  className="hidden"
+                />
+                <UploadCloud className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                {uploadingImage ? (
+                  <p className="text-xs sm:text-sm font-bold text-blue-600 animate-pulse">
+                    Uploading image to media library...
+                  </p>
+                ) : (
+                  <p className="text-xs sm:text-sm font-bold text-slate-800">
+                    Click to upload product photo, or drag & drop file here
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-400 mt-1">
+                  JPG, PNG, WebP supported up to 5MB each ({mediaItems.length} / 3 uploaded).
+                </p>
+                {imageError && (
+                  <p className="text-xs text-rose-600 font-medium mt-2">{imageError}</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <p className="text-xs font-medium text-slate-600">
+                  Maximum of 3 images reached (3 / 3). Remove an image to upload a different one.
+                </p>
+                {imageError && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{imageError}</p>
+                )}
+              </div>
+            )}
 
             {/* Uploaded Photos Gallery */}
-            {generalImages.length > 0 && (
+            {mediaItems.length > 0 && (
               <div className="space-y-2">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
-                  Uploaded Showcase Photos
+                  Uploaded Product Photos
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {generalImages.map((url, idx) => (
+                  {mediaItems.map((item, idx) => (
                     <div
-                      key={idx}
+                      key={item.id || idx}
                       className="group relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 shadow-2xs space-y-1 p-1.5"
                     >
                       <div className="aspect-square rounded-lg overflow-hidden bg-white relative">
                         <SafeImage
-                          src={url}
-                          alt={`Product view ${idx + 1}`}
+                          src={item.previewUrl || item.publicUrl}
+                          alt={`Product photo ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
-                        {idx === 0 && (
+                        {item.isUploading && (
+                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center">
+                            <span className="text-[10px] text-white font-bold animate-pulse">
+                              Uploading...
+                            </span>
+                          </div>
+                        )}
+                        {idx === 0 && !item.isUploading && (
                           <span className="absolute top-1.5 left-1.5 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-xs flex items-center gap-1">
                             <Star className="w-2.5 h-2.5 fill-current" /> Primary
                           </span>
@@ -617,7 +955,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() => handleMoveImage(idx, 'right')}
-                            disabled={idx === generalImages.length - 1}
+                            disabled={idx === mediaItems.length - 1}
                             title="Move Right"
                             className="p-0.5 hover:text-blue-600 disabled:opacity-30"
                           >
@@ -634,28 +972,6 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-
-                      {/* Assign to Colour Selector */}
-                      {colourValues.length > 0 && (
-                        <div className="pt-1 border-t border-slate-100">
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleAssignImageToColour(url, e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            className="w-full text-[10px] py-0.5 px-1 border border-slate-200 rounded text-slate-600 bg-white"
-                          >
-                            <option value="">Tag to Colour...</option>
-                            {colourValues.map((c) => (
-                              <option key={c} value={c}>
-                                {c}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -663,60 +979,91 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             )}
           </div>
 
-          {/* SECTION 3: PRICING & INVENTORY */}
+          {/* SECTION 3: BASE PRICING & INVENTORY (Fallback / Baseline) */}
           <div className="space-y-4 pt-4 border-t border-slate-200">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span>3. Pricing (Base)</span>
+              <DollarSign className="w-4 h-4 text-amber-600" />
+              <span>3. Pricing & Baseline Inventory</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Selling Price (₹) *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Base Price (₹) {mode !== 'ENQUIRY_ONLY' && <span className="text-rose-500">*</span>}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₹</span>
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-xs sm:text-sm">₹</span>
                   <input
                     type="number"
                     min="0"
-                    step="1"
+                    step="0.01"
                     value={basePriceRupees}
-                    onChange={(e) => setBasePriceRupees(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold"
+                    onChange={(e) => {
+                      setBasePriceRupees(e.target.value);
+                      if (formErrors.price) setFormErrors((prev) => ({ ...prev, price: '' }));
+                    }}
+                    placeholder="799.00"
+                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
+                  />
+                </div>
+                {formErrors.price && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{formErrors.price}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Compare-at Price (₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-xs sm:text-sm">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={comparePriceRupees}
+                    onChange={(e) => setComparePriceRupees(e.target.value)}
+                    placeholder="999.00"
+                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Compare at MRP (₹) (Optional strikethrough)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={comparePriceRupees}
-                    onChange={(e) => setComparePriceRupees(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-500"
-                  />
-                </div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Stock Units</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  placeholder="10"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Base SKU</label>
+                <input
+                  type="text"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="e.g. SHIRT-001"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono uppercase"
+                />
               </div>
             </div>
           </div>
 
-          {/* SECTION 4: VARIANTS (COLOUR & SIZE MATRIX) */}
+          {/* SECTION 4: PRODUCT OPTIONS & VARIANTS */}
           <div className="space-y-4 pt-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-indigo-600" />
-                  <span>4. Product Variants (Colour & Size)</span>
+                  <span>4. Product Options & Variants</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Enable if this item has multiple options like colours, sizes, or packs.
+                  Enable if this item has customizable options (Colour, Size, Material, Storage, Pack, etc.).
                 </p>
               </div>
 
@@ -739,23 +1086,49 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
             {hasVariants && (
               <div className="space-y-6 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
+                {/* Options Error Banner */}
+                {formErrors.options && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formErrors.options}</span>
+                  </div>
+                )}
+
+                {/* Variant Limit Error Banner */}
+                {variantLimitError && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{variantLimitError}</span>
+                  </div>
+                )}
+
                 {/* Option Types Definition */}
                 <div className="space-y-4">
                   {options.map((opt, optIdx) => (
                     <div
                       key={optIdx}
-                      className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2"
+                      className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 uppercase">
-                          Option {optIdx + 1}: {opt.name}
-                        </span>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 max-w-sm">
+                          <span className="text-xs font-bold text-slate-500 uppercase whitespace-nowrap">
+                            Option {optIdx + 1}:
+                          </span>
+                          <input
+                            type="text"
+                            value={opt.name}
+                            onChange={(e) => handleOptionNameChange(optIdx, e.target.value)}
+                            placeholder="e.g. Colour, Size, Material, Storage..."
+                            className="flex-1 px-2.5 py-1 text-xs sm:text-sm font-semibold text-slate-800 border border-slate-300 rounded-lg focus:border-blue-500"
+                          />
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => handleRemoveOptionType(optIdx)}
-                          className="text-[11px] text-rose-600 hover:underline"
+                          onClick={() => handleRemoveOption(optIdx)}
+                          className="text-[11px] text-rose-600 hover:underline flex items-center gap-1 self-end sm:self-center"
                         >
-                          Remove Option
+                          <Trash2 className="w-3 h-3" /> Remove Option
                         </button>
                       </div>
 
@@ -776,10 +1149,13 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             </button>
                           </span>
                         ))}
+                        {opt.values.length === 0 && (
+                          <span className="text-xs text-slate-400 italic">No values added yet</span>
+                        )}
                       </div>
 
                       {/* Add Value Input */}
-                      <div className="flex gap-2 max-w-sm pt-1">
+                      <div className="flex gap-2 max-w-md pt-1">
                         <input
                           type="text"
                           value={opt.inputValue}
@@ -794,7 +1170,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                               handleAddOptionValue(optIdx);
                             }
                           }}
-                          placeholder={`Add ${opt.name} (e.g. ${opt.name === 'Colour' ? 'Crimson' : 'XXL'})`}
+                          placeholder={`Add value to ${opt.name || 'option'} (e.g. ${opt.name === 'Colour' ? 'Crimson' : opt.name === 'Size' ? 'XL' : 'Value'})`}
                           className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs"
                         />
                         <button
@@ -802,29 +1178,50 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                           onClick={() => handleAddOptionValue(optIdx)}
                           className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition"
                         >
-                          Add
+                          Add Value
                         </button>
                       </div>
                     </div>
                   ))}
 
+                  {/* Add Option & Common Suggestions */}
                   {options.length < 3 && (
-                    <button
-                      type="button"
-                      onClick={() => handleAddOptionType('Material')}
-                      className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add Another Option (e.g. Material, Pack)
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAddOption('')}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Option
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+                        <span className="hidden sm:inline">Suggestions:</span>
+                        {COMMON_OPTION_SUGGESTIONS.filter(
+                          (s) => !options.some((o) => o.name.toLowerCase() === s.toLowerCase())
+                        )
+                          .slice(0, 4)
+                          .map((sug) => (
+                            <button
+                              key={sug}
+                              type="button"
+                              onClick={() => handleAddOption(sug)}
+                              className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:border-blue-400 hover:text-blue-600 transition"
+                            >
+                              + {sug}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Variant Matrix Table */}
+                {/* Variant Matrix Table / Cards */}
                 {variants.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                        Variant Combinations ({variants.length})
+                        Generated Variants ({variants.length})
                       </span>
                       <div className="flex items-center gap-2">
                         <button
@@ -832,26 +1229,171 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                           onClick={handleApplyBasePriceToAll}
                           className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-700 transition"
                         >
-                          Sync Price to All
+                          Sync Base Price to All
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleApplyStockToAll(25)}
+                          onClick={() => handleApplyStockToAll(10)}
                           className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-700 transition"
                         >
-                          Set Stock (25) All
+                          Set Stock (10) All
                         </button>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-2xs">
+                    {/* Mobile Variant Cards (<768px) */}
+                    <div className="block md:hidden space-y-3">
+                      {variants.map((v, vIdx) => (
+                        <div
+                          key={vIdx}
+                          className={`p-3 rounded-xl border ${
+                            v.isActive ? 'bg-white border-slate-200' : 'bg-slate-100/60 border-slate-200 opacity-70'
+                          } shadow-2xs space-y-2`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-slate-900">{v.title}</span>
+                            <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={v.isActive}
+                                onChange={(e) => {
+                                  const updated = [...variants];
+                                  updated[vIdx].isActive = e.target.checked;
+                                  setVariants(updated);
+                                }}
+                                className="rounded text-blue-600"
+                              />
+                              <span>Active</span>
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-0.5">Price (₹)</span>
+                              <div className="flex items-center gap-1 font-mono">
+                                <span>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={v.pricePaise !== null ? v.pricePaise / 100 : ''}
+                                  onChange={(e) => {
+                                    const updated = [...variants];
+                                    updated[vIdx].pricePaise = e.target.value
+                                      ? parseRupeesToPaise(Number(e.target.value) || 0)
+                                      : null;
+                                    setVariants(updated);
+                                  }}
+                                  className="w-full px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-0.5">Compare-at (₹)</span>
+                              <div className="flex items-center gap-1 font-mono">
+                                <span>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={v.compareAtPaise !== null ? v.compareAtPaise / 100 : ''}
+                                  onChange={(e) => {
+                                    const updated = [...variants];
+                                    updated[vIdx].compareAtPaise = e.target.value
+                                      ? parseRupeesToPaise(Number(e.target.value) || 0)
+                                      : null;
+                                    setVariants(updated);
+                                  }}
+                                  className="w-full px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-0.5">SKU</span>
+                              <input
+                                type="text"
+                                value={v.sku}
+                                onChange={(e) => {
+                                  const updated = [...variants];
+                                  updated[vIdx].sku = e.target.value;
+                                  setVariants(updated);
+                                }}
+                                className="w-full px-1.5 py-1 border border-slate-200 rounded text-xs font-mono uppercase"
+                              />
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-0.5">Stock</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={v.inventoryQuantity}
+                                onChange={(e) => {
+                                  const updated = [...variants];
+                                  updated[vIdx].inventoryQuantity =
+                                    parseInt(e.target.value, 10) || 0;
+                                  setVariants(updated);
+                                }}
+                                className="w-full px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Variant Photo Selector on mobile */}
+                          {mediaItems.length > 0 && (
+                            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                              <span className="text-[10px] text-slate-400">Variant Photo:</span>
+                              <div className="flex items-center gap-1.5">
+                                {v.mediaAssetId && (
+                                  <div className="w-5 h-5 rounded overflow-hidden border border-slate-200 shrink-0">
+                                    <SafeImage
+                                      src={
+                                        mediaItems.find((m) => m.mediaAssetId === v.mediaAssetId)
+                                          ?.previewUrl ||
+                                        mediaItems.find((m) => m.mediaAssetId === v.mediaAssetId)
+                                          ?.publicUrl
+                                      }
+                                      className="w-full h-full object-cover"
+                                      alt="Variant preview"
+                                    />
+                                  </div>
+                                )}
+                                <select
+                                  value={v.mediaAssetId || ''}
+                                  onChange={(e) => {
+                                    const updated = [...variants];
+                                    updated[vIdx].mediaAssetId = e.target.value || undefined;
+                                    setVariants(updated);
+                                  }}
+                                  className="text-[10px] py-0.5 px-1 border border-slate-200 rounded bg-white text-slate-700"
+                                >
+                                  <option value="">No photo tagged</option>
+                                  {mediaItems
+                                    .filter((m) => m.mediaAssetId)
+                                    .map((m, mIdx) => (
+                                      <option key={m.id || `${m.mediaAssetId}-${mIdx}`} value={m.mediaAssetId}>
+                                        Photo {mIdx + 1}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop/Tablet Variant Table (>=768px) */}
+                    <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-2xs">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                           <tr>
                             <th className="py-2.5 px-3">Variant</th>
+                            <th className="py-2.5 px-3">Photo</th>
                             <th className="py-2.5 px-3">SKU</th>
                             <th className="py-2.5 px-3">Price (₹)</th>
-                            <th className="py-2.5 px-3">Stock Units</th>
+                            <th className="py-2.5 px-3">Compare (₹)</th>
+                            <th className="py-2.5 px-3">Stock</th>
                             <th className="py-2.5 px-3 text-center">Active</th>
                           </tr>
                         </thead>
@@ -861,6 +1403,45 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                               <td className="py-2.5 px-3 font-semibold text-slate-900">
                                 {v.title}
                               </td>
+
+                              {/* Variant Photo Tagging */}
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  {v.mediaAssetId && (
+                                    <div className="w-6 h-6 rounded overflow-hidden border border-slate-200 shrink-0">
+                                      <SafeImage
+                                        src={
+                                          mediaItems.find((m) => m.mediaAssetId === v.mediaAssetId)
+                                            ?.previewUrl ||
+                                          mediaItems.find((m) => m.mediaAssetId === v.mediaAssetId)
+                                            ?.publicUrl
+                                        }
+                                        className="w-full h-full object-cover"
+                                        alt="Variant photo"
+                                      />
+                                    </div>
+                                  )}
+                                  <select
+                                    value={v.mediaAssetId || ''}
+                                    onChange={(e) => {
+                                      const updated = [...variants];
+                                      updated[vIdx].mediaAssetId = e.target.value || undefined;
+                                      setVariants(updated);
+                                    }}
+                                    className="text-[11px] py-1 px-1.5 border border-slate-200 rounded text-slate-600 bg-white max-w-[110px]"
+                                  >
+                                    <option value="">None</option>
+                                    {mediaItems
+                                      .filter((m) => m.mediaAssetId)
+                                      .map((m, mIdx) => (
+                                        <option key={m.id || `${m.mediaAssetId}-${mIdx}`} value={m.mediaAssetId}>
+                                          Photo {mIdx + 1}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                              </td>
+
                               <td className="py-2.5 px-3 font-mono text-slate-500">
                                 <input
                                   type="text"
@@ -870,27 +1451,49 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                                     updated[vIdx].sku = e.target.value;
                                     setVariants(updated);
                                   }}
-                                  className="w-28 px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
+                                  className="w-28 px-1.5 py-1 border border-slate-200 rounded text-xs font-mono uppercase"
                                 />
                               </td>
+
                               <td className="py-2.5 px-3">
                                 <div className="flex items-center gap-1 font-mono">
                                   <span>₹</span>
                                   <input
                                     type="number"
                                     min="0"
-                                    value={v.pricePaise ? v.pricePaise / 100 : ''}
+                                    value={v.pricePaise !== null ? v.pricePaise / 100 : ''}
                                     onChange={(e) => {
                                       const updated = [...variants];
-                                      updated[vIdx].pricePaise = parseRupeesToPaise(
-                                        Number(e.target.value) || 0
-                                      );
+                                      updated[vIdx].pricePaise = e.target.value
+                                        ? parseRupeesToPaise(Number(e.target.value) || 0)
+                                        : null;
                                       setVariants(updated);
                                     }}
                                     className="w-20 px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
                                   />
                                 </div>
                               </td>
+
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1 font-mono">
+                                  <span>₹</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={v.compareAtPaise !== null ? v.compareAtPaise / 100 : ''}
+                                    onChange={(e) => {
+                                      const updated = [...variants];
+                                      updated[vIdx].compareAtPaise = e.target.value
+                                        ? parseRupeesToPaise(Number(e.target.value) || 0)
+                                        : null;
+                                      setVariants(updated);
+                                    }}
+                                    placeholder="—"
+                                    className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
+                                  />
+                                </div>
+                              </td>
+
                               <td className="py-2.5 px-3">
                                 <input
                                   type="number"
@@ -905,6 +1508,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                                   className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs font-mono"
                                 />
                               </td>
+
                               <td className="py-2.5 px-3 text-center">
                                 <input
                                   type="checkbox"
@@ -942,7 +1546,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || uploadingImage}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? (
@@ -950,7 +1554,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                <span>{productId ? 'Update Product' : 'Publish Product'}</span>
+                <span>{productId ? 'Update Product' : 'Create Product'}</span>
               </>
             )}
           </button>

@@ -26,6 +26,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     foundry: "'Space Grotesk', monospace, system-ui",
     habitat: "'Cinzel', Garamond, Georgia, serif",
     local: "'Inter', system-ui, sans-serif",
+    feast: "'Playfair Display', Georgia, serif",
   };
 
   const fontBodyMap: Record<string, string> = {
@@ -35,6 +36,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     foundry: "'Inter', system-ui, sans-serif",
     habitat: "'Plus Jakarta Sans', system-ui, sans-serif",
     local: "'Inter', system-ui, sans-serif",
+    feast: "'Plus Jakarta Sans', system-ui, sans-serif",
   };
 
   const styleVariables = {

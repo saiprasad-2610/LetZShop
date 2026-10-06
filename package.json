@@ -5,7 +5,9 @@
   "description": "Production-grade multi-tenant SaaS ecommerce platform for Indian businesses",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency 20",
+    "dev:merchant": "node scripts/dev-merchant.mjs",
+    "dev:check": "tsx scripts/dev-health-check.ts",
     "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "pnpm --filter @simply/api test",
     "test:e2e": "pnpm --filter @simply/api test:e2e",

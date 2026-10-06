@@ -17,6 +17,18 @@ enum UserRole {
   SELLER_STAFF
 }
 
+enum CredentialType {
+  PIN
+  PASSKEY
+  BIOMETRIC
+}
+
+enum OtpPurpose {
+  REGISTRATION
+  LOGIN
+  RECOVERY
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED
@@ -49,6 +61,7 @@ enum ProductMode {
 enum ProductStatus {
   DRAFT
   PUBLISHED
+  ACTIVE
   ARCHIVED
 }
 
@@ -78,6 +91,7 @@ enum InventoryMovementType {
 
 enum OrderStatus {
   NEW
+  CONFIRMED
   ACCEPTED
   READY
   DISPATCHED
@@ -96,6 +110,17 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  RETURN_REQUESTED
+  RETURNED
+  CANCELLED
+}
+
 enum ShipmentStatus {
   PENDING
   MANIFESTED
@@ -105,6 +130,35 @@ enum ShipmentStatus {
   DELIVERED
   CANCELLED
   RTO
+}
+
+enum ThemeKey {
+  ATELIER
+  PULSE
+  HARVEST
+  FOUNDRY
+  HABITAT
+  LOCAL
+  FEAST
+}
+
+enum FulfillmentMode {
+  DELIVERY
+  PICKUP
+  DELIVERY_AND_PICKUP
+}
+
+enum SectionType {
+  HERO
+  CATEGORIES
+  FEATURED_COLLECTION
+  NEW_ARRIVALS
+  BESTSELLERS
+  STORY
+  TESTIMONIALS
+  PHYSICAL_STORE
+  CUSTOM_BANNER
+  CONTACT
 }
 
 enum EnquiryStatus {
@@ -185,8 +239,47 @@ model User {
   memberships    TenantMembership[]
   sessions       Session[]
   refreshTokens  RefreshToken[]
+  credentials    SellerCredential[]
+  devices        Device[]
+  otpChallenges  OtpChallenge[]
 
   @@map("users")
+}
+
+model SellerCredential {
+  id                String         @id @default(uuid())
+  userId            String         @map("user_id")
+  credentialType    CredentialType @default(PIN) @map("credential_type")
+  pinHash           String?        @map("pin_hash")
+  publicKey         String?        @map("public_key")
+  failedPinAttempts Int            @default(0) @map("failed_pin_attempts")
+  lockedUntil       DateTime?      @map("locked_until")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, credentialType])
+  @@map("seller_credentials")
+}
+
+model OtpChallenge {
+  id          String      @id @default(uuid())
+  userId      String?     @map("user_id")
+  phone       String
+  purpose     OtpPurpose  @default(REGISTRATION)
+  codeHash    String      @map("code_hash")
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(5) @map("max_attempts")
+  isVerified  Boolean     @default(false) @map("is_verified")
+  expiresAt   DateTime    @map("expires_at")
+  verifiedAt  DateTime?   @map("verified_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phone, purpose, isVerified, expiresAt])
+  @@map("otp_challenges")
 }
 
 model OtpRequest {
@@ -204,11 +297,30 @@ model OtpRequest {
   @@map("otp_requests")
 }
 
+model Device {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  deviceFingerprint String    @map("device_fingerprint")
+  deviceName        String?   @map("device_name")
+  userAgent         String?   @map("user_agent")
+  lastIp            String?   @map("last_ip")
+  isTrusted         Boolean   @default(false) @map("is_trusted")
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([userId, deviceFingerprint])
+  @@map("devices")
+}
+
 model Session {
   id         String         @id @default(uuid())
   userId     String         @map("user_id")
   tenantId   String?        @map("tenant_id")
   storeId    String?        @map("store_id")
+  deviceId   String?        @map("device_id")
   tokenHash  String         @unique @map("token_hash")
   ipAddress  String?        @map("ip_address")
   userAgent  String?        @map("user_agent")
@@ -218,6 +330,7 @@ model Session {
   updatedAt  DateTime       @updatedAt @map("updated_at")
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device        Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   refreshTokens RefreshToken[]
 
   @@index([userId, isRevoked, expiresAt])
@@ -266,6 +379,7 @@ model Tenant {
   enquiries             Enquiry[]
   auditLogs             AuditLog[]
   dataSubjectRequests   DataSubjectRequest[]
+  mediaAssets           MediaAsset[]
 
   @@map("tenants")
 }
@@ -297,21 +411,32 @@ model Store {
   timezone             String      @default("Asia/Kolkata")
   isPubliclyAccessible Boolean     @default(false) @map("is_publicly_accessible")
   previewSecret        String      @default(uuid()) @map("preview_secret")
-  createdAt            DateTime    @default(now()) @map("created_at")
-  updatedAt            DateTime    @updatedAt @map("updated_at")
-  deletedAt            DateTime?   @map("deleted_at")
+  supportPhone         String?                   @map("support_phone")
+  supportEmail         String?                   @map("support_email")
+  whatsappNumber       String?                   @map("whatsapp_number")
+  businessAddress      String?                   @map("business_address")
+  mapsUrl              String?                   @map("maps_url")
+  socialLinks          Json?                     @map("social_links")
+  fulfillmentMode      FulfillmentMode           @default(DELIVERY) @map("fulfillment_mode")
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+  deletedAt            DateTime?                 @map("deleted_at")
 
-  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branding         StoreBranding?
-  themeConfigs     StoreThemeConfig[]
-  sections         StoreSection[]
-  categories       Category[]
-  products         Product[]
-  customers        Customer[]
-  carts            Cart[]
-  orders           Order[]
-  enquiries        Enquiry[]
-  shippingProfiles ShippingProfile[]
+  tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branding           StoreBranding?
+  themeConfigs       StoreThemeConfig[]
+  themeConfiguration StoreThemeConfiguration?
+  sections           StoreSection[]
+  businessHours      StoreBusinessHours[]
+  categories         Category[]
+  products           Product[]
+  productDocuments   ProductDocument[]
+  customers          Customer[]
+  carts              Cart[]
+  orders             Order[]
+  enquiries          Enquiry[]
+  shippingProfiles   ShippingProfile[]
+  mediaAssets        MediaAsset[]
 
   @@index([tenantId, status])
   @@index([slug, isPubliclyAccessible])
@@ -319,17 +444,20 @@ model Store {
 }
 
 model StoreBranding {
-  id           String   @id @default(uuid())
-  storeId      String   @unique @map("store_id")
-  logoUrl      String?  @map("logo_url")
-  faviconUrl   String?  @map("favicon_url")
-  primaryColor String   @default("#1E40AF") @map("primary_color")
-  accentColor  String   @default("#F59E0B") @map("accent_color")
-  fontHeading  String   @default("Inter") @map("font_heading")
-  fontBody     String   @default("Inter") @map("font_body")
-  announcement String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  storeId        String   @unique @map("store_id")
+  logoUrl        String?  @map("logo_url")
+  faviconUrl     String?  @map("favicon_url")
+  logoMediaId    String?  @map("logo_media_id")
+  heroMediaId    String?  @map("hero_media_id")
+  faviconMediaId String?  @map("favicon_media_id")
+  primaryColor   String   @default("#1E40AF") @map("primary_color")
+  accentColor    String   @default("#F59E0B") @map("accent_color")
+  fontHeading    String   @default("Inter") @map("font_heading")
+  fontBody       String   @default("Inter") @map("font_body")
+  announcement   String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
@@ -350,6 +478,24 @@ model Theme {
   @@map("themes")
 }
 
+model ThemeDefinition {
+  id            String   @id @default(uuid())
+  key           ThemeKey @unique
+  name          String
+  version       String   @default("1.0.0")
+  description   String?
+  categoryFit   String   @map("category_fit")
+  defaultConfig Json     @map("default_config")
+  capabilities  Json
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  storeConfigurations StoreThemeConfiguration[]
+
+  @@map("theme_definitions")
+}
+
 model StoreThemeConfig {
   id         String   @id @default(uuid())
   storeId    String   @map("store_id")
@@ -365,21 +511,90 @@ model StoreThemeConfig {
   @@map("store_theme_configs")
 }
 
+model StoreThemeConfiguration {
+  id                     String          @id @default(uuid())
+  storeId                String          @unique @map("store_id")
+  themeDefinitionId      String          @map("theme_definition_id")
+  themeVersion           String          @default("1.0.0") @map("theme_version")
+  configuration          Json
+  publishedConfiguration Json?           @map("published_configuration")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  themeDefinition ThemeDefinition @relation(fields: [themeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@map("store_theme_configurations")
+}
+
 model StoreSection {
-  id          String   @id @default(uuid())
-  storeId     String   @map("store_id")
-  sectionType String   @map("section_type") // hero, featured_products, banner, rich_text, faq
-  title       String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  isEnabled   Boolean  @default(true) @map("is_enabled")
-  configJson  Json?    @map("config_json")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            String      @id @default(uuid())
+  storeId       String      @map("store_id")
+  type          SectionType @default(HERO)
+  sectionType   String      @default("hero") @map("section_type")
+  title         String?
+  position      Int         @default(0)
+  sortOrder     Int         @default(0) @map("sort_order")
+  enabled       Boolean     @default(true)
+  isEnabled     Boolean     @default(true) @map("is_enabled")
+  configuration Json?       @map("configuration")
+  configJson    Json?       @map("config_json")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  @@index([storeId, position])
   @@index([storeId, sortOrder])
   @@map("store_sections")
+}
+
+model StoreBusinessHours {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  dayOfWeek Int      @map("day_of_week") // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  openTime  String   @map("open_time") // e.g. "09:00"
+  closeTime String   @map("close_time") // e.g. "21:00"
+  isClosed  Boolean  @default(false) @map("is_closed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, dayOfWeek])
+  @@index([storeId])
+  @@map("store_business_hours")
+}
+
+model MediaAsset {
+  id              String            @id @default(uuid())
+  tenantId        String            @map("tenant_id")
+  storeId         String?           @map("store_id")
+  storageProvider String            @default("LOCAL") @map("storage_provider") // LOCAL, CLOUDFLARE_R2, S3
+  storageKey      String            @unique @map("storage_key")
+  publicUrl       String            @map("public_url")
+  fileName        String            @map("file_name")
+  mimeType        String            @map("mime_type")
+  sizeBytes       Int               @map("size_bytes")
+  checksum        String?
+  width           Int?
+  height          Int?
+  altText         String?           @map("alt_text")
+  focalPointX     Float?            @default(0.5) @map("focal_point_x")
+  focalPointY     Float?            @default(0.5) @map("focal_point_y")
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store            Store?            @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  productMedia     ProductMedia[]
+  productDocuments ProductDocument[]
+
+  @@index([tenantId, createdAt])
+  @@index([storeId])
+  @@map("media_assets")
 }
 
 // ==============================================================================
@@ -387,19 +602,19 @@ model StoreSection {
 // ==============================================================================
 
 model Plan {
-  id                   String   @id @default(uuid())
-  code                 String   @unique
-  name                 String
-  description          String?
-  pricePaise           Int      @map("price_paise") // 0 for free/trial, e.g. 99900 for ₹999
-  billingCycle         String   @default("MONTHLY") @map("billing_cycle") // MONTHLY, YEARLY
-  maxProducts          Int      @default(50) @map("max_products")
-  maxStaff             Int      @default(2) @map("max_staff")
-  maxStorageMb         Int      @default(1024) @map("max_storage_mb")
-  customDomainAllowed  Boolean  @default(false) @map("custom_domain_allowed")
-  isPublic             Boolean  @default(true) @map("is_public")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  name                String
+  description         String?
+  pricePaise          Int      @map("price_paise") // 0 for free/trial, e.g. 99900 for ₹999
+  billingCycle        String   @default("MONTHLY") @map("billing_cycle") // MONTHLY, YEARLY
+  maxProducts         Int      @default(50) @map("max_products")
+  maxStaff            Int      @default(2) @map("max_staff")
+  maxStorageMb        Int      @default(1024) @map("max_storage_mb")
+  customDomainAllowed Boolean  @default(false) @map("custom_domain_allowed")
+  isPublic            Boolean  @default(true) @map("is_public")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   subscriptions Subscription[]
 
@@ -479,17 +694,18 @@ model SubscriptionPayment {
 // ==============================================================================
 
 model Category {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  storeId     String   @map("store_id")
-  name        String
-  slug        String
-  description String?
-  parentId    String?  @map("parent_id")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  storeId      String   @map("store_id")
+  name         String
+  slug         String
+  description  String?
+  parentId     String?  @map("parent_id")
+  mediaAssetId String?  @map("media_asset_id")
+  sortOrder    Int      @default(0) @map("sort_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   store    Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -498,6 +714,7 @@ model Category {
   products Product[]
 
   @@unique([storeId, slug])
+  @@index([storeId])
   @@index([tenantId, storeId, isActive])
   @@map("categories")
 }
@@ -521,16 +738,19 @@ model Product {
   updatedAt        DateTime      @updatedAt @map("updated_at")
   deletedAt        DateTime?     @map("deleted_at")
 
-  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store     Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category  Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  options   ProductOption[]
-  variants  ProductVariant[]
-  media     ProductMedia[]
-  enquiries Enquiry[]
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category  Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  options    ProductOption[]
+  variants   ProductVariant[]
+  attributes ProductAttribute[]
+  documents  ProductDocument[]
+  media      ProductMedia[]
+  enquiries  Enquiry[]
 
   @@unique([storeId, slug])
   @@index([tenantId, storeId, status])
+  @@index([storeId, status])
   @@index([name])
   @@map("products")
 }
@@ -540,7 +760,7 @@ model ProductOption {
   tenantId  String     @map("tenant_id")
   storeId   String     @map("store_id")
   productId String     @map("product_id")
-  name      String     // e.g. Colour, Size, Material
+  name      String     // e.g. Colour, Size, Material, Storage, Pack Size
   type      OptionType @default(CUSTOM)
   sortOrder Int        @default(0) @map("sort_order")
   createdAt DateTime   @default(now()) @map("created_at")
@@ -551,6 +771,7 @@ model ProductOption {
 
   @@unique([productId, name])
   @@index([tenantId, storeId])
+  @@index([productId])
   @@map("product_options")
 }
 
@@ -567,6 +788,7 @@ model ProductOptionValue {
   variantValues ProductVariantOptionValue[]
 
   @@unique([optionId, value])
+  @@index([optionId])
   @@map("product_option_values")
 }
 
@@ -581,6 +803,10 @@ model ProductVariant {
   compareAtPricePaise Int?          @map("compare_at_price_paise")
   costPricePaise      Int?          @map("cost_price_paise")
   status              VariantStatus @default(ACTIVE)
+  weightGrams         Int?          @map("weight_grams")
+  lengthCm            Float?        @map("length_cm")
+  widthCm             Float?        @map("width_cm")
+  heightCm            Float?        @map("height_cm")
   sortOrder           Int           @default(0) @map("sort_order")
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
@@ -595,6 +821,7 @@ model ProductVariant {
 
   @@unique([storeId, sku])
   @@index([tenantId, storeId, status])
+  @@index([productId])
   @@index([sku])
   @@map("product_variants")
 }
@@ -612,28 +839,70 @@ model ProductVariantOptionValue {
 }
 
 model ProductMedia {
-  id         String   @id @default(uuid())
-  tenantId   String   @map("tenant_id")
-  storeId    String   @map("store_id")
-  productId  String   @map("product_id")
-  variantId  String?  @map("variant_id") // Links variant-specific or colour-specific images
-  storageKey String   @map("storage_key")
-  publicUrl  String   @map("public_url")
-  filePath   String   @map("file_path")
-  mimeType   String   @map("mime_type")
-  sizeBytes  Int      @map("size_bytes")
-  width      Int?
-  height     Int?
-  altText    String?  @map("alt_text")
-  sortOrder  Int      @default(0) @map("sort_order")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id           String      @id @default(uuid())
+  tenantId     String      @map("tenant_id")
+  storeId      String      @map("store_id")
+  productId    String      @map("product_id")
+  variantId    String?     @map("variant_id") // Links variant-specific or colour-specific images
+  mediaAssetId String?     @map("media_asset_id")
+  storageKey   String      @map("storage_key")
+  publicUrl    String      @map("public_url")
+  filePath     String      @map("file_path")
+  mimeType     String      @map("mime_type")
+  sizeBytes    Int         @map("size_bytes")
+  width        Int?
+  height       Int?
+  altText      String?     @map("alt_text")
+  sortOrder    Int         @default(0) @map("sort_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
-  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  mediaAsset MediaAsset?     @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
   @@index([variantId])
   @@map("product_media")
+}
+
+model ProductAttribute {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  name      String   // e.g. Material, Pressure, Shelf Life, Fabric, Voltage, Serves
+  value     String   // e.g. SS316, PN40, 7 Days, Linen, 220V, 4
+  type      String   @default("TEXT") // TEXT, NUMBER, BADGE, DIMENSION, BOOLEAN
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+  @@map("product_attributes")
+}
+
+model ProductDocument {
+  id           String      @id @default(uuid())
+  tenantId     String      @map("tenant_id")
+  storeId      String      @map("store_id")
+  productId    String      @map("product_id")
+  mediaAssetId String?     @map("media_asset_id")
+  title        String      // e.g. "Technical Datasheet", "ISO 9001 Certificate"
+  docType      String      @default("DATASHEET") @map("doc_type") // BROCHURE, DATASHEET, DRAWING, MANUAL, CERTIFICATE
+  fileUrl      String      @map("file_url")
+  fileSizeMb   Float?      @map("file_size_mb")
+  sortOrder    Int         @default(0) @map("sort_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([productId, sortOrder])
+  @@index([storeId])
+  @@map("product_documents")
 }
 
 // ==============================================================================
@@ -641,20 +910,21 @@ model ProductMedia {
 // ==============================================================================
 
 model Inventory {
-  id                    String   @id @default(uuid())
-  tenantId              String   @map("tenant_id")
-  storeId               String   @map("store_id")
-  variantId             String   @unique @map("variant_id")
-  stockOnHand           Int      @default(0) @map("stock_on_hand")
-  stockReserved         Int      @default(0) @map("stock_reserved")
-  safetyStockThreshold  Int      @default(0) @map("safety_stock_threshold")
-  allowBackorder        Boolean  @default(false) @map("allow_backorder")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  tenantId             String   @map("tenant_id")
+  storeId              String   @map("store_id")
+  variantId            String   @unique @map("variant_id")
+  stockOnHand          Int      @default(0) @map("stock_on_hand")
+  stockReserved        Int      @default(0) @map("stock_reserved")
+  safetyStockThreshold Int      @default(0) @map("safety_stock_threshold")
+  allowBackorder       Boolean  @default(false) @map("allow_backorder")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   variant   ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
   movements InventoryMovement[]
 
   @@index([tenantId, storeId])
+  @@index([variantId])
   @@map("inventory")
 }
 
@@ -704,6 +974,7 @@ model Customer {
   consents  ConsentRecord[]
 
   @@index([tenantId, storeId, phone])
+  @@index([storeId, phone])
   @@map("customers")
 }
 
@@ -723,6 +994,7 @@ model CustomerAddress {
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@index([customerId])
   @@map("customer_addresses")
 }
 
@@ -770,31 +1042,34 @@ model CartItem {
 // ==============================================================================
 
 model Order {
-  id              String         @id @default(uuid())
-  tenantId        String         @map("tenant_id")
-  storeId         String         @map("store_id")
-  customerId      String         @map("customer_id")
-  orderNumber     String         @unique @map("order_number")
-  status          OrderStatus    @default(NEW)
-  paymentStatus   PaymentStatus  @default(PENDING) @map("payment_status")
-  shipmentStatus  ShipmentStatus @default(PENDING) @map("shipment_status")
-  subtotalPaise   Int            @map("subtotal_paise")
-  taxPaise        Int            @default(0) @map("tax_paise")
-  shippingPaise   Int            @default(0) @map("shipping_paise")
-  discountPaise   Int            @default(0) @map("discount_paise")
-  totalPaise      Int            @map("total_paise")
-  currency        String         @default("INR")
-  notes           String?
-  deliveryAddress Json           @map("delivery_address") // Snapshot of address
-  guestCheckout   Boolean        @default(true) @map("guest_checkout")
-  trackingToken   String?        @unique @map("tracking_token")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  cancelledAt     DateTime?      @map("cancelled_at")
+  id                String            @id @default(uuid())
+  tenantId          String            @map("tenant_id")
+  storeId           String            @map("store_id")
+  customerId        String            @map("customer_id")
+  orderNumber       String            @unique @map("order_number")
+  status            OrderStatus       @default(NEW)
+  paymentStatus     PaymentStatus     @default(PENDING) @map("payment_status")
+  shipmentStatus    ShipmentStatus    @default(PENDING) @map("shipment_status")
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED) @map("fulfillment_status")
+  fulfillmentMode   FulfillmentMode   @default(DELIVERY) @map("fulfillment_mode")
+  subtotalPaise     Int               @map("subtotal_paise")
+  taxPaise          Int               @default(0) @map("tax_paise")
+  shippingPaise     Int               @default(0) @map("shipping_paise")
+  discountPaise     Int               @default(0) @map("discount_paise")
+  totalPaise        Int               @map("total_paise")
+  currency          String            @default("INR")
+  notes             String?
+  deliveryAddress   Json              @map("delivery_address") // Snapshot of address
+  guestCheckout     Boolean           @default(true) @map("guest_checkout")
+  trackingToken     String?           @unique @map("tracking_token")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  cancelledAt       DateTime?         @map("cancelled_at")
 
   tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   store         Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orderAddress  OrderAddress?
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
   paymentOrders PaymentOrder[]
@@ -802,9 +1077,30 @@ model Order {
   refunds       Refund[]
 
   @@index([tenantId, storeId, status])
+  @@index([storeId, status])
+  @@index([storeId, createdAt])
   @@index([orderNumber])
   @@index([createdAt])
   @@map("orders")
+}
+
+model OrderAddress {
+  id           String   @id @default(uuid())
+  orderId      String   @unique @map("order_id")
+  fullName     String   @map("full_name")
+  phone        String
+  addressLine1 String   @map("address_line1")
+  addressLine2 String?  @map("address_line2")
+  landmark     String?
+  city         String
+  state        String
+  pincode      String
+  country      String   @default("India")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_addresses")
 }
 
 model OrderItem {
@@ -828,13 +1124,13 @@ model OrderItem {
 }
 
 model OrderStatusHistory {
-  id         String       @id @default(uuid())
-  orderId    String       @map("order_id")
-  fromStatus OrderStatus? @map("from_status")
-  toStatus   OrderStatus  @map("to_status")
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  fromStatus String?  @map("from_status")
+  toStatus   String   @map("to_status")
   reason     String?
-  actorId    String?      @map("actor_id")
-  createdAt  DateTime     @default(now()) @map("created_at")
+  actorId    String?  @map("actor_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -847,20 +1143,20 @@ model OrderStatusHistory {
 // ==============================================================================
 
 model MerchantPaymentAccount {
-  id                      String              @id @default(uuid())
-  tenantId                String              @map("tenant_id")
-  storeId                 String              @map("store_id")
-  provider                PaymentProviderType @default(MOCK)
-  isEnabled               Boolean             @default(true) @map("is_enabled")
-  connectionStatus        String              @default("NOT_CONNECTED") @map("connection_status") // NOT_CONNECTED, CONNECTED, PENDING_VERIFICATION
-  kycStatus               String              @default("NOT_STARTED") @map("kyc_status") // NOT_STARTED, IN_REVIEW, VERIFIED, REJECTED
-  keyId                   String              @map("key_id") // Merchant-specific API Key ID
-  keySecretEncrypted      String              @map("key_secret_encrypted")
-  webhookSecretEncrypted  String?             @map("webhook_secret_encrypted")
-  merchantAccountId       String?             @map("merchant_account_id")
-  capabilities            Json?
-  createdAt               DateTime            @default(now()) @map("created_at")
-  updatedAt               DateTime            @updatedAt @map("updated_at")
+  id                     String              @id @default(uuid())
+  tenantId               String              @map("tenant_id")
+  storeId                String              @map("store_id")
+  provider               PaymentProviderType @default(MOCK)
+  isEnabled              Boolean             @default(true) @map("is_enabled")
+  connectionStatus       String              @default("NOT_CONNECTED") @map("connection_status") // NOT_CONNECTED, CONNECTED, PENDING_VERIFICATION
+  kycStatus              String              @default("NOT_STARTED") @map("kyc_status") // NOT_STARTED, IN_REVIEW, VERIFIED, REJECTED
+  keyId                  String              @map("key_id") // Merchant-specific API Key ID
+  keySecretEncrypted     String              @map("key_secret_encrypted")
+  webhookSecretEncrypted String?             @map("webhook_secret_encrypted")
+  merchantAccountId      String?             @map("merchant_account_id")
+  capabilities           Json?
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -953,7 +1249,7 @@ model PaymentWebhookEvent {
 }
 
 // ==============================================================================
-// SHIPPING & LOGISTICS (SHIPROCKET)
+// SHIPPING & LOGISTICS (SHIPROCKET ADAPTER)
 // ==============================================================================
 
 model MerchantShippingAccount {
@@ -994,23 +1290,24 @@ model ShippingProfile {
 }
 
 model Shipment {
-  id          String         @id @default(uuid())
-  tenantId    String         @map("tenant_id")
-  storeId     String         @map("store_id")
-  orderId     String         @map("order_id")
-  provider    String         @default("MOCK")
-  awbNumber   String?        @unique @map("awb_number")
-  courierName String?        @map("courier_name")
-  trackingUrl String?        @map("tracking_url")
-  status      ShipmentStatus @default(PENDING)
-  labelUrl    String?        @map("label_url")
-  manifestUrl String?        @map("manifest_url")
-  weightKg    Float?         @map("weight_kg")
-  lengthCm    Float?         @map("length_cm")
-  widthCm     Float?         @map("width_cm")
-  heightCm    Float?         @map("height_cm")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id                String            @id @default(uuid())
+  tenantId          String            @map("tenant_id")
+  storeId           String            @map("store_id")
+  orderId           String            @map("order_id")
+  provider          String            @default("MOCK")
+  awbNumber         String?           @unique @map("awb_number")
+  courierName       String?           @map("courier_name")
+  trackingUrl       String?           @map("tracking_url")
+  status            ShipmentStatus    @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED) @map("fulfillment_status")
+  labelUrl          String?           @map("label_url")
+  manifestUrl       String?           @map("manifest_url")
+  weightKg          Float?            @map("weight_kg")
+  lengthCm          Float?            @map("length_cm")
+  widthCm           Float?            @map("width_cm")
+  heightCm          Float?            @map("height_cm")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   order  Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   events ShipmentEvent[]

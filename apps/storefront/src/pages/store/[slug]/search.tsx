@@ -177,9 +177,9 @@ export default function StoreSearchPage() {
               const primaryMedia = p.media?.find((m: any) => m.isPrimary) || p.media?.[0];
               const coverImage =
                 primaryMedia?.publicUrl ||
-                (primaryMedia?.storageKey ? `/api/v1/media/file/${primaryMedia.storageKey}` : undefined) ||
+                (primaryMedia?.storageKey ? `/media/file/${primaryMedia.storageKey}` : undefined) ||
                 p.images?.[0]?.url ||
-                'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
+                '';
               return (
                 <div
                   key={p.id}

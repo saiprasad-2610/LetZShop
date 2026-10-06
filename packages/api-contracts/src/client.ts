@@ -8,6 +8,9 @@ import { ApiResponse, ApiErrorResponse } from './index';
 export class SimplyApiClient {
   private baseUrl: string;
   private token: string | null = null;
+  private refreshToken: string | null = null;
+  private isRefreshing = false;
+  private onTokenRefreshed?: (accessToken: string, refreshToken: string) => void;
 
   constructor(baseUrl = 'http://localhost:4000') {
     this.baseUrl = (baseUrl || 'http://localhost:4000')
@@ -23,6 +26,18 @@ export class SimplyApiClient {
     return this.token;
   }
 
+  public setRefreshToken(token: string | null) {
+    this.refreshToken = token;
+  }
+
+  public getRefreshToken(): string | null {
+    return this.refreshToken;
+  }
+
+  public setOnTokenRefreshed(cb?: (accessToken: string, refreshToken: string) => void) {
+    this.onTokenRefreshed = cb;
+  }
+
   public async request<T = any>(
     path: string,
     options: {
@@ -30,9 +45,10 @@ export class SimplyApiClient {
       body?: any;
       headers?: Record<string, string>;
       params?: Record<string, any>;
+      _isRetry?: boolean;
     } = {}
   ): Promise<T> {
-    const { method = 'GET', body, headers = {}, params } = options;
+    const { method = 'GET', body, headers = {}, params, _isRetry = false } = options;
 
     let url = `${this.baseUrl}/${path.replace(/^\/+/, '')}`;
     if (params) {
@@ -56,18 +72,51 @@ export class SimplyApiClient {
       reqHeaders['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: reqHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: reqHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (networkErr: any) {
+      const err = new Error('Unable to connect to Simply E-Commerce API servers.') as any;
+      err.code = 'NETWORK_OFFLINE';
+      err.status = 0;
+      err.details = networkErr?.message;
+      throw err;
+    }
+
+    // Auto-refresh token if 401 Unauthorized occurs on a protected route and refreshToken is present
+    if (res.status === 401 && !_isRetry && this.refreshToken && !path.startsWith('auth/')) {
+      try {
+        const refreshRes = await this.auth.refreshSession(this.refreshToken);
+        if (refreshRes?.accessToken) {
+          this.setToken(refreshRes.accessToken);
+          if (refreshRes.refreshToken) {
+            this.setRefreshToken(refreshRes.refreshToken);
+          }
+          this.onTokenRefreshed?.(refreshRes.accessToken, refreshRes.refreshToken || this.refreshToken);
+          return this.request<T>(path, { ...options, _isRetry: true });
+        }
+      } catch {
+        // Refresh failed, proceed to handle original 401 error
+      }
+    }
 
     const json = await res.json().catch(() => ({}));
 
     if (!res.ok || json.success === false) {
+      let defaultCode = 'API_ERROR';
+      if (res.status === 404) defaultCode = 'NOT_FOUND';
+      else if (res.status === 401) defaultCode = 'UNAUTHORIZED';
+      else if (res.status === 403) defaultCode = 'FORBIDDEN';
+      else if (res.status === 503) defaultCode = 'API_UNAVAILABLE';
+      else if (res.status >= 500) defaultCode = 'INTERNAL_ERROR';
+
       const errorMsg = json?.error?.message || json?.message || `Request failed with status ${res.status}`;
       const err = new Error(errorMsg) as any;
-      err.code = json?.error?.code || 'API_ERROR';
+      err.code = json?.error?.code || defaultCode;
       err.status = res.status;
       err.details = json?.error?.details;
       throw err;
@@ -81,8 +130,29 @@ export class SimplyApiClient {
     return json;
   }
 
-  // --- Auth ---
+  // --- Canonical Seller Auth (OTP -> PIN -> Session) ---
   public auth = {
+    // Canonical OTP + PIN
+    requestRegisterOtp: (phone: string) =>
+      this.request('auth/register/request-otp', { method: 'POST', body: { phone } }),
+    verifyRegisterOtp: (phone: string, otp: string) =>
+      this.request('auth/register/verify-otp', { method: 'POST', body: { phone, otp } }),
+    setupPin: (pin: string, tempToken?: string) =>
+      this.request('auth/pin/setup', {
+        method: 'POST',
+        body: { pin },
+        headers: tempToken ? { Authorization: `Bearer ${tempToken}` } : {},
+      }),
+    loginWithPin: (phone: string, pin: string, device?: any) =>
+      this.request('auth/pin/login', { method: 'POST', body: { phone, pin, device } }),
+    refreshSession: (refreshToken: string) =>
+      this.request('auth/session/refresh', { method: 'POST', body: { refreshToken } }),
+    requestRecoveryOtp: (phone: string) =>
+      this.request('auth/recovery/request-otp', { method: 'POST', body: { phone } }),
+    verifyRecoveryOtp: (phone: string, otp: string) =>
+      this.request('auth/recovery/verify-otp', { method: 'POST', body: { phone, otp } }),
+
+    // Backward-compat aliases
     sendOtp: (phone: string) => this.request('auth/otp/send', { method: 'POST', body: { phone } }),
     verifyOtp: (phone: string, code: string) =>
       this.request('auth/otp/verify', { method: 'POST', body: { phone, code } }),
@@ -101,12 +171,21 @@ export class SimplyApiClient {
       contactPhone?: string;
       contactEmail?: string;
       address?: string;
+      city?: string;
+      state?: string;
     }) => this.request('stores/onboard', { method: 'POST', body: data }),
     getMyStore: () => this.request('stores/my-store'),
-    getMetrics: () => this.request('stores/my-store/metrics'),
+    getMetrics: (params?: { period?: string; startDate?: string; endDate?: string }) =>
+      this.request('seller/dashboard', { params }),
     getPrivatePreview: () => this.request('stores/my-store/preview'),
     getPublicStorefront: (slug: string, previewSecret?: string) =>
       this.request(`storefront/${slug}`, { params: { previewSecret } }),
+  };
+
+  // --- Seller Analytics ---
+  public seller = {
+    getDashboard: (params?: { period?: string; startDate?: string; endDate?: string }) =>
+      this.request('seller/dashboard', { params }),
   };
 
   // --- Catalog ---
@@ -148,6 +227,12 @@ export class SimplyApiClient {
       mimeType: string;
       base64Data: string;
     }) => this.request('media/store-asset', { method: 'POST', body: data }),
+    uploadMediaAsset: (data: {
+      filename: string;
+      mimeType: string;
+      base64Data: string;
+      altText?: string;
+    }) => this.request('media/asset', { method: 'POST', body: data }),
     delete: (id: string) => this.request(`media/${id}`, { method: 'DELETE' }),
   };
 
@@ -164,14 +249,24 @@ export class SimplyApiClient {
       this.request(`cart/${cartId}/items/${variantId}/remove`, { method: 'POST' }),
   };
 
-  // --- Orders ---
+  // --- Orders (Merchant Canonical: /seller/orders; Public Buyer: /orders/checkout, /orders/track) ---
   public orders = {
     checkout: (data: any) => this.request('orders/checkout', { method: 'POST', body: data }),
-    getOrders: (params?: { page?: number; limit?: number; status?: string }) =>
-      this.request('orders', { params }),
-    getOrder: (id: string) => this.request(`orders/${id}`),
+    getOrders: (params?: {
+      page?: number;
+      limit?: number;
+      pageSize?: number;
+      status?: string;
+      orderStatus?: string;
+      paymentStatus?: string;
+      fulfillmentStatus?: string;
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+    }) => this.request('seller/orders', { params }),
+    getOrder: (id: string) => this.request(`seller/orders/${id}`),
     updateStatus: (id: string, status: string, reason?: string) =>
-      this.request(`orders/${id}/status`, { method: 'PUT', body: { status, reason } }),
+      this.request(`seller/orders/${id}/status`, { method: 'PATCH', body: { status, reason } }),
     trackOrder: (orderNumber: string, token?: string) =>
       this.request(`orders/track/${orderNumber}`, { params: token ? { t: token } : undefined }),
   };

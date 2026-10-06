@@ -256,4 +256,40 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
       'contact',
     ],
   },
+
+  feast: {
+    code: 'feast',
+    name: 'Feast',
+    tagline: 'Food-First Visual Commerce',
+    bestFor: 'Baking, gourmet dining, confectioneries, cloud kitchens, artisanal provisions',
+    palette: {
+      primary: '#78350F', // Rich cocoa
+      accent: '#E11D48',  // Berry rose
+      background: '#FFFBEB', // Warm buttercream
+      surface: '#FFFFFF',
+      text: '#451A03',
+      muted: '#92400E',
+      border: '#FDE68A',
+    },
+    typography: {
+      heading: 'Playfair Display',
+      body: 'Plus Jakarta Sans',
+    },
+    headerStyle: 'warm-friendly',
+    heroStyle: 'organic-showcase',
+    cardStyle: 'rounded-soft',
+    buttonStyle: 'pill-friendly',
+    imageRatio: '1/1',
+    spacingDensity: 'comfortable',
+    backgroundTreatment: 'warm-tint',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'categories',
+      'featured_products',
+      'about_business',
+      'testimonials',
+      'contact',
+    ],
+  },
 };

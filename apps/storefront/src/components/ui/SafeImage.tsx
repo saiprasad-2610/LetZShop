@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package } from 'lucide-react';
+import { resolveMediaUrl } from '@simply/ui';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackTitle?: string;
@@ -13,8 +14,13 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   ...props
 }) => {
   const [error, setError] = useState(false);
+  const resolvedSrc = resolveMediaUrl(src);
 
-  if (!src || error) {
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
+  if (!resolvedSrc || error) {
     return (
       <div
         className={`bg-gray-100 text-gray-400 flex flex-col items-center justify-center p-3 select-none ${className}`}
@@ -29,7 +35,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       className={className}
       onError={() => setError(true)}

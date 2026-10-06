@@ -53,6 +53,31 @@ export class MediaController {
 
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
+  @Post('asset')
+  @ApiOperation({ summary: 'Upload standalone media asset and return MediaAsset reference' })
+  async uploadMediaAsset(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: {
+      filename: string;
+      mimeType: string;
+      base64Data: string;
+      altText?: string;
+    }
+  ) {
+    const buffer = Buffer.from(body.base64Data, 'base64');
+    return this.mediaService.uploadStandaloneMediaAsset(
+      tenant,
+      {
+        buffer,
+        originalFilename: body.filename,
+        mimeType: body.mimeType,
+      },
+      body.altText
+    );
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(TenantGuard)
   @Post('store-asset')
   @ApiOperation({ summary: 'Upload store brand asset (logo, banner, favicon) with 5MB limit' })
   async uploadStoreAsset(
@@ -87,21 +112,73 @@ export class MediaController {
     return this.mediaService.deleteProductMedia(tenant, id);
   }
 
-  @Public()
-  @Get('file/*')
-  @ApiOperation({ summary: 'Serve stored media file safely' })
-  async serveFile(@Param('*') storageKey: string, @Res() res: any) {
+  private streamMediaFile(storageKey: string, res: any) {
     const rootDir = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
-    const safeKey = storageKey.replace(/^[\/\\]+/, '');
-    const absolutePath = path.resolve(rootDir, safeKey);
+    const normalizedRoot = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep;
+
+    let safeKey = (storageKey || '').replace(/^[\/\\]+/, '');
+    let absolutePath = path.resolve(rootDir, safeKey);
+
+    // If file prefix was included in safeKey (e.g. /media/file/<key>), also resolve without it
+    if ((!fs.existsSync(absolutePath) || !absolutePath.startsWith(normalizedRoot)) && safeKey.startsWith('file/')) {
+      const strippedKey = safeKey.slice(5).replace(/^[\/\\]+/, '');
+      const altPath = path.resolve(rootDir, strippedKey);
+      if (altPath.startsWith(normalizedRoot) && fs.existsSync(altPath)) {
+        absolutePath = altPath;
+      }
+    }
 
     // Path traversal defense
-    if (!absolutePath.startsWith(rootDir) || !fs.existsSync(absolutePath)) {
+    if (!absolutePath.startsWith(normalizedRoot) || !fs.existsSync(absolutePath)) {
       throw new NotFoundException('Requested media file not found.');
+    }
+
+    try {
+      const stat = fs.statSync(absolutePath);
+      if (!stat.isFile()) {
+        throw new NotFoundException('Requested media file not found.');
+      }
+    } catch {
+      throw new NotFoundException('Requested media file not found.');
+    }
+
+    const ext = path.extname(absolutePath).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+    };
+    if (mimeMap[ext]) {
+      res.header('Content-Type', mimeMap[ext]);
     }
 
     const stream = fs.createReadStream(absolutePath);
     res.header('Cache-Control', 'public, max-age=86400');
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.header('Access-Control-Allow-Origin', '*');
     return res.send(stream);
+  }
+
+  @Public()
+  @Get('file/*')
+  @ApiOperation({ summary: 'Serve stored media file safely' })
+  async serveFile(@Param('*') storageKey: string, @Res() res: any) {
+    return this.streamMediaFile(storageKey, res);
+  }
+
+  @Public()
+  @Get(':tenantId/:storeId/*')
+  @ApiOperation({ summary: 'Serve stored media file safely via tenant/store path' })
+  async serveDirectFile(
+    @Param('tenantId') tenantId: string,
+    @Param('storeId') storeId: string,
+    @Param('*') restKey: string,
+    @Res() res: any
+  ) {
+    const storageKey = `${tenantId}/${storeId}/${restKey}`;
+    return this.streamMediaFile(storageKey, res);
   }
 }

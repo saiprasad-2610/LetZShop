@@ -22,6 +22,26 @@ export class JwtAuthGuard implements CanActivate {
     ]);
 
     if (isPublic) {
+      // Optional authentication on public routes (e.g. seller previewing own store)
+      const request = context.switchToHttp().getRequest();
+      const authHeader = request.headers?.['authorization'];
+      let token: string | undefined;
+
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+      } else if (request.cookies?.['access_token']) {
+        token = request.cookies['access_token'];
+      }
+
+      if (token) {
+        try {
+          const user = await this.authService.validateAccessToken(token);
+          request.user = user;
+        } catch {
+          // Ignore invalid token on public routes
+        }
+      }
+
       return true;
     }
 

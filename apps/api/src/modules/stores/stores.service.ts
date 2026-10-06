@@ -1,8 +1,9 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, StoreStatus } from '@prisma/client';
-import { normalizeSlug, isReservedSlug } from '@simply/validation';
+import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
 import { AuthenticatedUser } from '@simply/types';
+import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 export interface CreateStoreInput {
   tenantId: string;
@@ -104,12 +105,16 @@ export class StoresService {
       include: {
         branding: true,
         themeConfigs: { include: { theme: true } },
+        themeConfiguration: { include: { themeDefinition: true } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
+        businessHours: { orderBy: { dayOfWeek: 'asc' } },
         categories: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
         products: {
           where: { status: 'PUBLISHED', deletedAt: null },
           include: {
             media: { orderBy: { sortOrder: 'asc' } },
+            attributes: { orderBy: { sortOrder: 'asc' } },
+            documents: { orderBy: { sortOrder: 'asc' } },
             options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
             variants: {
               where: { status: 'ACTIVE', deletedAt: null },
@@ -129,16 +134,54 @@ export class StoresService {
       },
     });
 
-    const activeThemeConfig = fullStore?.themeConfigs?.[0];
-    const themeCode = activeThemeConfig?.theme?.code || 'atelier';
-    const themeJson = (activeThemeConfig?.configJson as any) || {};
+    const activeThemeDef = fullStore?.themeConfiguration?.themeDefinition;
+    const activeLegacyConfig = fullStore?.themeConfigs?.[0];
+    const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
+    const themeVersion = activeThemeDef?.version || fullStore?.themeConfiguration?.themeVersion || '1.0.0';
+    const themeJson = (fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {};
+
+    const sanitizedBranding = {
+      logoUrl: fullStore?.branding?.logoUrl || null,
+      faviconUrl: fullStore?.branding?.faviconUrl || null,
+      primaryColor: fullStore?.branding?.primaryColor || themeJson.palette?.primary || '#1C1917',
+      accentColor: fullStore?.branding?.accentColor || themeJson.palette?.accent || '#D4AF37',
+      fontHeading: fullStore?.branding?.fontHeading || themeJson.typography?.heading || 'Inter',
+      fontBody: fullStore?.branding?.fontBody || themeJson.typography?.body || 'Inter',
+      announcement: fullStore?.branding?.announcement || null,
+    };
+
+    const sanitizedStore = {
+      id: fullStore?.id,
+      name: fullStore?.name,
+      slug: fullStore?.slug,
+      description: fullStore?.description,
+      status: fullStore?.status,
+      defaultCurrency: fullStore?.defaultCurrency || 'INR',
+      timezone: fullStore?.timezone || 'Asia/Kolkata',
+      supportPhone: fullStore?.supportPhone,
+      supportEmail: fullStore?.supportEmail,
+      whatsappNumber: fullStore?.whatsappNumber,
+      businessAddress: fullStore?.businessAddress,
+      mapsUrl: fullStore?.mapsUrl,
+      socialLinks: fullStore?.socialLinks || {},
+      fulfillmentMode: fullStore?.fulfillmentMode || 'DELIVERY',
+      businessHours: fullStore?.businessHours || [],
+      branding: sanitizedBranding,
+      sections: fullStore?.sections || [],
+    };
 
     return {
-      store: fullStore,
-      products: fullStore?.products || [],
-      categories: fullStore?.categories || [],
+      store: sanitizedStore,
+      branding: sanitizedBranding,
+      theme: {
+        key: themeKey,
+        name: activeThemeDef?.name || themeKey,
+        version: themeVersion,
+        configuration: themeJson,
+        capabilities: activeThemeDef?.capabilities || {},
+      },
       themeConfig: {
-        themeId: themeCode,
+        themeId: typeof themeKey === 'string' ? themeKey.toLowerCase() : 'atelier',
         ...themeJson,
         palette: {
           primary: fullStore?.branding?.primaryColor || themeJson.palette?.primary || '#1C1917',
@@ -146,23 +189,52 @@ export class StoresService {
           background: themeJson.palette?.background || '#FFFFFF',
         },
       },
+      sections: fullStore?.sections || [],
+      categories: (fullStore?.categories || []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        description: c.description,
+        mediaAssetId: c.mediaAssetId,
+        sortOrder: c.sortOrder,
+      })),
+      products: fullStore?.products || [],
       isPreview,
     };
   }
 
   public async onboardMerchant(
     user: AuthenticatedUser,
-    input: {
-      businessName: string;
-      category: string;
-      logoUrl?: string;
-      contactPhone?: string;
-      contactEmail?: string;
-      address?: string;
-    }
+    input: OnboardMerchantDto
   ) {
     if (!input.businessName || !input.businessName.trim()) {
       throw new BadRequestException('Business name is required.');
+    }
+
+    // Duplicate onboarding prevention: Check if user already owns an active store
+    const existingMembership = await this.prisma.tenantMembership.findFirst({
+      where: {
+        userId: user.userId,
+        isActive: true,
+      },
+      include: {
+        tenant: {
+          include: {
+            stores: {
+              where: { deletedAt: null },
+              take: 1,
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (existingMembership?.tenant?.stores?.[0]) {
+      return {
+        tenant: existingMembership.tenant,
+        store: existingMembership.tenant.stores[0],
+      };
     }
 
     const baseSlug = normalizeSlug(input.businessName);
@@ -202,6 +274,9 @@ export class StoresService {
           slug: candidateSlug,
           status: StoreStatus.PRIVATE_PREVIEW,
           isPubliclyAccessible: false,
+          supportPhone: input.contactPhone ? normalizePhone(input.contactPhone) : null,
+          supportEmail: input.contactEmail || null,
+          businessAddress: input.address || null,
         },
       });
 

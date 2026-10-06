@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaClient, ProductStatus, VariantStatus } from '@prisma/client';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { PrismaClient, ProductStatus, VariantStatus, ProductMode } from '@prisma/client';
 import { CreateProductDto } from './dto/catalog.dto';
 import { TenantContext } from '@simply/types';
 import { normalizeSlug } from '@simply/validation';
@@ -13,14 +13,42 @@ export class CatalogService {
     dto: CreateProductDto,
     actorId?: string
   ) {
-    const slug = normalizeSlug(dto.slug);
+    // Mode & Price validation
+    if (dto.mode === ProductMode.SELL_ONLINE || dto.mode === ProductMode.SELL_AND_ENQUIRY) {
+      const hasVariantWithPrice =
+        dto.variants &&
+        dto.variants.length > 0 &&
+        dto.variants.some((v) => v.pricePaise !== undefined && v.pricePaise !== null);
+      if (!hasVariantWithPrice) {
+        if (dto.pricePaise === undefined || dto.pricePaise === null || isNaN(dto.pricePaise)) {
+          throw new BadRequestException('Price is required for products that can be sold online.');
+        }
+        if (dto.pricePaise < 0) {
+          throw new BadRequestException('Price cannot be negative.');
+        }
+      }
+    }
 
-    // Verify slug uniqueness within store
-    const existing = await this.prisma.product.findFirst({
-      where: { storeId: tenant.storeId, slug, deletedAt: null },
-    });
-    if (existing) {
-      throw new ConflictException(`Product slug "${slug}" already exists in this store.`);
+    // Enforce Product Media Limit: 1 to 3 images, at least 1 compulsory
+    if (!dto.mediaAssetIds || !Array.isArray(dto.mediaAssetIds) || dto.mediaAssetIds.length < 1) {
+      throw new BadRequestException('Every product needs at least one image.');
+    }
+    if (dto.mediaAssetIds.length > 3) {
+      throw new BadRequestException('A maximum of 3 images is allowed per product.');
+    }
+
+    // Derive unique slug within store
+    let baseSlug = normalizeSlug(dto.slug || dto.name);
+    if (!baseSlug) baseSlug = 'product';
+    let slug = baseSlug;
+    let counter = 1;
+    while (
+      await this.prisma.product.findFirst({
+        where: { storeId: tenant.storeId, slug, deletedAt: null },
+      })
+    ) {
+      counter++;
+      slug = `${baseSlug}-${counter}`;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -43,88 +71,259 @@ export class CatalogService {
         },
       });
 
-      // 2. Create Options and Option Values
+      let baseVariantId: string | null = null;
+
+      // 2. Create Options and Option Values if provided
       const optionValueMap = new Map<string, string>(); // valueString -> OptionValueId
 
-      for (let i = 0; i < dto.options.length; i++) {
-        const optDto = dto.options[i];
-        const opt = await tx.productOption.create({
-          data: {
-            tenantId: tenant.tenantId,
-            storeId: tenant.storeId,
-            productId: product.id,
-            name: optDto.name,
-            type: optDto.type as any,
-            sortOrder: i,
-          },
-        });
+      if (dto.options && dto.options.length > 0) {
+        if (dto.options.length > 3) {
+          throw new BadRequestException('A maximum of 3 option dimensions is supported.');
+        }
+        let totalCombos = 1;
+        const optNames = new Set<string>();
+        for (const opt of dto.options) {
+          const trimmedName = (opt.name || '').trim();
+          if (!trimmedName) {
+            throw new BadRequestException('Option name is required.');
+          }
+          if (optNames.has(trimmedName.toLowerCase())) {
+            throw new BadRequestException(`Duplicate option name "${trimmedName}".`);
+          }
+          optNames.add(trimmedName.toLowerCase());
 
-        for (let j = 0; j < optDto.values.length; j++) {
-          const valDto = optDto.values[j];
-          const optVal = await tx.productOptionValue.create({
+          if (!opt.values || opt.values.length === 0) {
+            throw new BadRequestException(`Option "${opt.name}" must have at least one value.`);
+          }
+          if (opt.values.length > 20) {
+            throw new BadRequestException(`Option "${opt.name}" exceeds the limit of 20 values.`);
+          }
+          const valSet = new Set<string>();
+          for (const valDto of opt.values) {
+            const vTrim = (valDto.value || '').trim();
+            if (!vTrim) {
+              throw new BadRequestException(`Empty option value in option "${opt.name}".`);
+            }
+            if (valSet.has(vTrim.toLowerCase())) {
+              throw new BadRequestException(`Duplicate value "${vTrim}" in option "${opt.name}".`);
+            }
+            valSet.add(vTrim.toLowerCase());
+          }
+          totalCombos *= opt.values.length;
+        }
+
+        if (totalCombos > 100) {
+          throw new BadRequestException(
+            `This combination would create ${totalCombos} variants. Reduce option values to continue.`
+          );
+        }
+
+        for (let i = 0; i < dto.options.length; i++) {
+          const optDto = dto.options[i];
+          const opt = await tx.productOption.create({
             data: {
-              optionId: opt.id,
-              value: valDto.value,
-              colorHex: valDto.colorHex,
-              sortOrder: j,
+              tenantId: tenant.tenantId,
+              storeId: tenant.storeId,
+              productId: product.id,
+              name: optDto.name.trim(),
+              type: optDto.type as any,
+              sortOrder: i,
             },
           });
-          optionValueMap.set(valDto.value, optVal.id);
+
+          for (let j = 0; j < optDto.values.length; j++) {
+            const valDto = optDto.values[j];
+            const optVal = await tx.productOptionValue.create({
+              data: {
+                optionId: opt.id,
+                value: valDto.value.trim(),
+                colorHex: valDto.colorHex,
+                sortOrder: j,
+              },
+            });
+            optionValueMap.set(valDto.value.trim(), optVal.id);
+          }
         }
       }
 
       // 3. Create Variants & Initial Inventory
-      for (let i = 0; i < dto.variants.length; i++) {
-        const varDto = dto.variants[i];
+      if (dto.variants && dto.variants.length > 0) {
+        for (let i = 0; i < dto.variants.length; i++) {
+          const varDto = dto.variants[i];
 
-        // Check SKU uniqueness within store
+          // Check SKU uniqueness within store
+          const existingSku = await tx.productVariant.findFirst({
+            where: { storeId: tenant.storeId, sku: varDto.sku, deletedAt: null },
+          });
+          if (existingSku) {
+            throw new ConflictException(`SKU "${varDto.sku}" already exists in this store.`);
+          }
+
+          const pricePaise =
+            varDto.pricePaise ?? (product.mode === ProductMode.ENQUIRY_ONLY ? 0 : (dto.pricePaise ?? 0));
+          const compareAtPaise = varDto.compareAtPricePaise ?? dto.compareAtPricePaise;
+          const stockQty = varDto.stock ?? varDto.initialStock ?? 0;
+
+          const variant = await tx.productVariant.create({
+            data: {
+              tenantId: tenant.tenantId,
+              storeId: tenant.storeId,
+              productId: product.id,
+              sku: varDto.sku,
+              barcode: varDto.barcode,
+              pricePaise,
+              compareAtPricePaise: compareAtPaise,
+              status: varDto.status || VariantStatus.ACTIVE,
+              sortOrder: i,
+            },
+          });
+
+          if (i === 0) baseVariantId = variant.id;
+
+          // Link variant to option values
+          if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
+            for (const valString of varDto.optionValues) {
+              const optValId = optionValueMap.get(valString.trim());
+              if (optValId) {
+                await tx.productVariantOptionValue.create({
+                  data: {
+                    variantId: variant.id,
+                    optionValueId: optValId,
+                  },
+                });
+              }
+            }
+          }
+
+          // Initialize inventory
+          await tx.inventory.create({
+            data: {
+              tenantId: tenant.tenantId,
+              storeId: tenant.storeId,
+              variantId: variant.id,
+              stockOnHand: stockQty,
+              stockReserved: 0,
+            },
+          });
+
+          // Link variant media asset if provided
+          if (varDto.mediaAssetId) {
+            const asset = await tx.mediaAsset.findFirst({
+              where: { id: varDto.mediaAssetId, tenantId: tenant.tenantId },
+            });
+            if (asset) {
+              await tx.productMedia.create({
+                data: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  productId: product.id,
+                  variantId: variant.id,
+                  mediaAssetId: asset.id,
+                  storageKey: asset.storageKey,
+                  publicUrl: asset.publicUrl,
+                  filePath: asset.storageKey,
+                  mimeType: asset.mimeType,
+                  sizeBytes: asset.sizeBytes,
+                  altText: asset.altText || `${product.name} - ${varDto.sku}`,
+                  sortOrder: 100 + i,
+                },
+              });
+            }
+          }
+        }
+      } else {
+        // Base single-product variant
+        let sku = (dto.sku || '').trim().toUpperCase();
+        if (!sku) {
+          const prefix = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'PROD';
+          sku = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
         const existingSku = await tx.productVariant.findFirst({
-          where: { storeId: tenant.storeId, sku: varDto.sku, deletedAt: null },
+          where: { storeId: tenant.storeId, sku, deletedAt: null },
         });
         if (existingSku) {
-          throw new ConflictException(`SKU "${varDto.sku}" already exists in this store.`);
+          if (dto.sku) {
+            throw new ConflictException(`SKU "${dto.sku}" already exists in this store.`);
+          }
+          sku = `${sku}-${Math.floor(100 + Math.random() * 900)}`;
         }
 
-        const variant = await tx.productVariant.create({
+        const initialStock = dto.stock !== undefined ? dto.stock : 0;
+        const basePrice = dto.pricePaise !== undefined ? dto.pricePaise : 0;
+        const comparePrice = dto.compareAtPricePaise !== undefined ? dto.compareAtPricePaise : null;
+
+        const baseVariant = await tx.productVariant.create({
           data: {
             tenantId: tenant.tenantId,
             storeId: tenant.storeId,
             productId: product.id,
-            sku: varDto.sku,
-            barcode: varDto.barcode,
-            pricePaise: varDto.pricePaise,
-            compareAtPricePaise: varDto.compareAtPricePaise,
+            sku,
+            pricePaise: basePrice,
+            compareAtPricePaise: comparePrice,
             status: VariantStatus.ACTIVE,
-            sortOrder: i,
+            sortOrder: 0,
           },
         });
+        baseVariantId = baseVariant.id;
 
-        // Link variant to option values
-        for (const valString of varDto.optionValues) {
-          const optValId = optionValueMap.get(valString);
-          if (optValId) {
-            await tx.productVariantOptionValue.create({
-              data: {
-                variantId: variant.id,
-                optionValueId: optValId,
-              },
-            });
-          }
-        }
-
-        // Initialize inventory
         await tx.inventory.create({
           data: {
             tenantId: tenant.tenantId,
             storeId: tenant.storeId,
-            variantId: variant.id,
-            stockOnHand: varDto.initialStock,
+            variantId: baseVariant.id,
+            stockOnHand: initialStock,
             stockReserved: 0,
           },
         });
       }
 
-      // 4. Audit Log
+      // 4. Attach Media Assets if provided
+      if (dto.mediaAssetIds && dto.mediaAssetIds.length > 0) {
+        for (let i = 0; i < dto.mediaAssetIds.length; i++) {
+          const assetId = dto.mediaAssetIds[i];
+          const asset = await tx.mediaAsset.findFirst({
+            where: { id: assetId, tenantId: tenant.tenantId },
+          });
+          if (asset) {
+            await tx.productMedia.create({
+              data: {
+                tenantId: tenant.tenantId,
+                storeId: tenant.storeId,
+                productId: product.id,
+                variantId: baseVariantId,
+                mediaAssetId: asset.id,
+                storageKey: asset.storageKey,
+                publicUrl: asset.publicUrl,
+                filePath: asset.storageKey,
+                mimeType: asset.mimeType,
+                sizeBytes: asset.sizeBytes,
+                altText: asset.altText || product.name,
+                sortOrder: i,
+              },
+            });
+          }
+        }
+      }
+
+      // 5. Create Product Attributes if provided
+      if (dto.attributes && Array.isArray(dto.attributes)) {
+        for (let i = 0; i < dto.attributes.length; i++) {
+          const attr = dto.attributes[i];
+          if (attr.name && attr.value) {
+            await tx.productAttribute.create({
+              data: {
+                productId: product.id,
+                name: attr.name,
+                value: attr.value,
+                type: attr.type || 'TEXT',
+                sortOrder: attr.sortOrder !== undefined ? attr.sortOrder : i,
+              },
+            });
+          }
+        }
+      }
+
+      // 6. Audit Log
       await tx.auditLog.create({
         data: {
           actorId,
@@ -133,11 +332,21 @@ export class CatalogService {
           action: 'PRODUCT_CREATED',
           entityType: 'Product',
           entityId: product.id,
-          metadata: { name: product.name, slug: product.slug, variantCount: dto.variants.length },
+          metadata: { name: product.name, slug: product.slug },
         },
       });
 
-      return product;
+      return tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          media: { orderBy: { sortOrder: 'asc' } },
+          variants: {
+            where: { deletedAt: null },
+            include: { inventory: true },
+          },
+          category: true,
+        },
+      });
     });
   }
 
@@ -174,6 +383,8 @@ export class CatalogService {
         orderBy: { createdAt: 'desc' },
         include: {
           media: { orderBy: { sortOrder: 'asc' } },
+          attributes: { orderBy: { sortOrder: 'asc' } },
+          documents: { orderBy: { sortOrder: 'asc' } },
           variants: {
             where: { deletedAt: null },
             include: { inventory: true },
@@ -204,12 +415,14 @@ export class CatalogService {
       include: {
         category: true,
         media: { orderBy: { sortOrder: 'asc' } },
+        attributes: { orderBy: { sortOrder: 'asc' } },
+        documents: { orderBy: { sortOrder: 'asc' } },
         options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
         variants: {
           where: { deletedAt: null },
           include: {
             inventory: true,
-            optionValues: { include: { optionValue: true } },
+            optionValues: { include: { optionValue: { include: { option: true } } } },
           },
         },
       },
@@ -260,6 +473,15 @@ export class CatalogService {
   ) {
     const product = await this.getProductById(tenant, productId);
 
+    if (dto.mediaAssetIds !== undefined) {
+      if (!Array.isArray(dto.mediaAssetIds) || dto.mediaAssetIds.length < 1) {
+        throw new BadRequestException('Every product needs at least one image.');
+      }
+      if (dto.mediaAssetIds.length > 3) {
+        throw new BadRequestException('A maximum of 3 images is allowed per product.');
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.product.update({
         where: { id: product.id },
@@ -276,6 +498,332 @@ export class CatalogService {
         },
       });
 
+      // 2. Options and Variants update if provided
+      if (dto.options !== undefined && dto.variants !== undefined) {
+        // Validation: Combination safety
+        if (dto.options && dto.options.length > 0) {
+          if (dto.options.length > 3) {
+            throw new BadRequestException('A maximum of 3 option dimensions is supported.');
+          }
+          let totalCombos = 1;
+          const optNames = new Set<string>();
+          for (const opt of dto.options) {
+            const trimmedName = (opt.name || '').trim();
+            if (!trimmedName) {
+              throw new BadRequestException('Option name is required.');
+            }
+            if (optNames.has(trimmedName.toLowerCase())) {
+              throw new BadRequestException(`Duplicate option name "${trimmedName}".`);
+            }
+            optNames.add(trimmedName.toLowerCase());
+
+            if (!opt.values || opt.values.length === 0) {
+              throw new BadRequestException(`Option "${opt.name}" must have at least one value.`);
+            }
+            if (opt.values.length > 20) {
+              throw new BadRequestException(`Option "${opt.name}" exceeds the limit of 20 values.`);
+            }
+            const valSet = new Set<string>();
+            for (const valDto of opt.values) {
+              const vTrim = (valDto.value || '').trim();
+              if (!vTrim) {
+                throw new BadRequestException(`Empty option value in option "${opt.name}".`);
+              }
+              if (valSet.has(vTrim.toLowerCase())) {
+                throw new BadRequestException(`Duplicate value "${vTrim}" in option "${opt.name}".`);
+              }
+              valSet.add(vTrim.toLowerCase());
+            }
+            totalCombos *= opt.values.length;
+          }
+
+          if (totalCombos > 100) {
+            throw new BadRequestException(
+              `This combination would create ${totalCombos} variants. Reduce option values to continue.`
+            );
+          }
+        }
+
+        // Recreate options transactionally
+        await tx.productOption.deleteMany({ where: { productId: product.id } });
+        const optionValueMap = new Map<string, string>();
+
+        if (dto.options && dto.options.length > 0) {
+          for (let i = 0; i < dto.options.length; i++) {
+            const optDto = dto.options[i];
+            const opt = await tx.productOption.create({
+              data: {
+                tenantId: tenant.tenantId,
+                storeId: tenant.storeId,
+                productId: product.id,
+                name: optDto.name.trim(),
+                type: optDto.type as any,
+                sortOrder: i,
+              },
+            });
+
+            for (let j = 0; j < optDto.values.length; j++) {
+              const valDto = optDto.values[j];
+              const optVal = await tx.productOptionValue.create({
+                data: {
+                  optionId: opt.id,
+                  value: valDto.value.trim(),
+                  colorHex: valDto.colorHex,
+                  sortOrder: j,
+                },
+              });
+              optionValueMap.set(valDto.value.trim(), optVal.id);
+            }
+          }
+        }
+
+        // Sync variants
+        const existingVariants = await tx.productVariant.findMany({
+          where: { productId: product.id, deletedAt: null },
+        });
+
+        const touchedVariantIds = new Set<string>();
+
+        if (dto.variants && dto.variants.length > 0) {
+          for (let i = 0; i < dto.variants.length; i++) {
+            const varDto = dto.variants[i];
+            const matched = existingVariants.find(
+              (v) => (varDto.id && v.id === varDto.id) || v.sku === varDto.sku
+            );
+
+            let variantId: string;
+            const pricePaise =
+              varDto.pricePaise ?? (product.mode === ProductMode.ENQUIRY_ONLY ? 0 : (dto.pricePaise ?? 0));
+            const compareAtPaise = varDto.compareAtPricePaise ?? dto.compareAtPricePaise;
+            const stockQty = varDto.stock ?? varDto.initialStock ?? 0;
+
+            if (matched) {
+              variantId = matched.id;
+              await tx.productVariant.update({
+                where: { id: matched.id },
+                data: {
+                  sku: varDto.sku,
+                  pricePaise,
+                  compareAtPricePaise: compareAtPaise,
+                  status: varDto.status || VariantStatus.ACTIVE,
+                  sortOrder: i,
+                },
+              });
+
+              // Re-link option values
+              await tx.productVariantOptionValue.deleteMany({ where: { variantId: matched.id } });
+              if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
+                for (const valString of varDto.optionValues) {
+                  const optValId = optionValueMap.get(valString.trim());
+                  if (optValId) {
+                    await tx.productVariantOptionValue.create({
+                      data: { variantId: matched.id, optionValueId: optValId },
+                    });
+                  }
+                }
+              }
+
+              // Update inventory
+              await tx.inventory.upsert({
+                where: { variantId: matched.id },
+                create: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  variantId: matched.id,
+                  stockOnHand: stockQty,
+                  stockReserved: 0,
+                },
+                update: {
+                  stockOnHand: stockQty,
+                },
+              });
+            } else {
+              // Check SKU uniqueness
+              const existingSku = await tx.productVariant.findFirst({
+                where: { storeId: tenant.storeId, sku: varDto.sku, deletedAt: null },
+              });
+              if (existingSku) {
+                throw new ConflictException(`SKU "${varDto.sku}" already exists in this store.`);
+              }
+
+              const newVariant = await tx.productVariant.create({
+                data: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  productId: product.id,
+                  sku: varDto.sku,
+                  pricePaise,
+                  compareAtPricePaise: compareAtPaise,
+                  status: varDto.status || VariantStatus.ACTIVE,
+                  sortOrder: i,
+                },
+              });
+              variantId = newVariant.id;
+
+              if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
+                for (const valString of varDto.optionValues) {
+                  const optValId = optionValueMap.get(valString.trim());
+                  if (optValId) {
+                    await tx.productVariantOptionValue.create({
+                      data: { variantId: newVariant.id, optionValueId: optValId },
+                    });
+                  }
+                }
+              }
+
+              await tx.inventory.create({
+                data: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  variantId: newVariant.id,
+                  stockOnHand: stockQty,
+                  stockReserved: 0,
+                },
+              });
+            }
+
+            touchedVariantIds.add(variantId);
+
+            // Link variant media if provided
+            if (varDto.mediaAssetId) {
+              const asset = await tx.mediaAsset.findFirst({
+                where: { id: varDto.mediaAssetId, tenantId: tenant.tenantId },
+              });
+              if (asset) {
+                const existingMedia = await tx.productMedia.findFirst({
+                  where: { productId: product.id, mediaAssetId: asset.id },
+                });
+                if (existingMedia) {
+                  await tx.productMedia.update({
+                    where: { id: existingMedia.id },
+                    data: { variantId },
+                  });
+                } else {
+                  await tx.productMedia.create({
+                    data: {
+                      tenantId: tenant.tenantId,
+                      storeId: tenant.storeId,
+                      productId: product.id,
+                      variantId,
+                      mediaAssetId: asset.id,
+                      storageKey: asset.storageKey,
+                      publicUrl: asset.publicUrl,
+                      filePath: asset.storageKey,
+                      mimeType: asset.mimeType,
+                      sizeBytes: asset.sizeBytes,
+                      altText: asset.altText || `${product.name} - ${varDto.sku}`,
+                      sortOrder: 100 + i,
+                    },
+                  });
+                }
+              }
+            }
+          }
+
+          // Soft delete old variants not touched
+          for (const ev of existingVariants) {
+            if (!touchedVariantIds.has(ev.id)) {
+              await tx.productVariant.update({
+                where: { id: ev.id },
+                data: { deletedAt: new Date(), status: VariantStatus.DISCONTINUED },
+              });
+            }
+          }
+        }
+      } else {
+        // Fallback: update variant price or stock if base fields are supplied
+        if (dto.pricePaise !== undefined || dto.compareAtPricePaise !== undefined || dto.stock !== undefined) {
+          const firstVariant = await tx.productVariant.findFirst({
+            where: { productId: product.id, deletedAt: null },
+            orderBy: { sortOrder: 'asc' },
+          });
+          if (firstVariant) {
+            const varUpdate: any = {};
+            if (dto.pricePaise !== undefined) varUpdate.pricePaise = dto.pricePaise;
+            if (dto.compareAtPricePaise !== undefined) varUpdate.compareAtPricePaise = dto.compareAtPricePaise;
+            if (Object.keys(varUpdate).length > 0) {
+              await tx.productVariant.update({
+                where: { id: firstVariant.id },
+                data: varUpdate,
+              });
+            }
+            if (dto.stock !== undefined) {
+              await tx.inventory.updateMany({
+                where: { variantId: firstVariant.id },
+                data: { stockOnHand: dto.stock },
+              });
+            }
+          }
+        }
+      }
+
+      // 3. Media sync
+      if (dto.mediaAssetIds && Array.isArray(dto.mediaAssetIds)) {
+        // Remove media associations no longer present in mediaAssetIds
+        await tx.productMedia.deleteMany({
+          where: {
+            productId: product.id,
+            mediaAssetId: { notIn: dto.mediaAssetIds },
+          },
+        });
+
+        for (let i = 0; i < dto.mediaAssetIds.length; i++) {
+          const assetId = dto.mediaAssetIds[i];
+          const existingMedia = await tx.productMedia.findFirst({
+            where: { productId: product.id, mediaAssetId: assetId },
+          });
+          if (existingMedia) {
+            await tx.productMedia.update({
+              where: { id: existingMedia.id },
+              data: { sortOrder: i },
+            });
+          } else {
+            const asset = await tx.mediaAsset.findFirst({
+              where: { id: assetId, tenantId: tenant.tenantId },
+            });
+            if (asset) {
+              await tx.productMedia.create({
+                data: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  productId: product.id,
+                  mediaAssetId: asset.id,
+                  storageKey: asset.storageKey,
+                  publicUrl: asset.publicUrl,
+                  filePath: asset.storageKey,
+                  mimeType: asset.mimeType,
+                  sizeBytes: asset.sizeBytes,
+                  altText: asset.altText || product.name,
+                  sortOrder: i,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      // 4. Attributes
+      if (dto.attributes && Array.isArray(dto.attributes)) {
+        await tx.productAttribute.deleteMany({
+          where: { productId: product.id },
+        });
+        for (let i = 0; i < dto.attributes.length; i++) {
+          const attr = dto.attributes[i];
+          if (attr.name && attr.value) {
+            await tx.productAttribute.create({
+              data: {
+                productId: product.id,
+                name: attr.name,
+                value: attr.value,
+                type: attr.type || 'TEXT',
+                sortOrder: attr.sortOrder !== undefined ? attr.sortOrder : i,
+              },
+            });
+          }
+        }
+      }
+
+      // 5. Audit Log
       await tx.auditLog.create({
         data: {
           actorId,
@@ -288,7 +836,63 @@ export class CatalogService {
         },
       });
 
-      return updated;
+      return tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          media: { orderBy: { sortOrder: 'asc' } },
+          options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
+          variants: {
+            where: { deletedAt: null },
+            include: { inventory: true, optionValues: { include: { optionValue: { include: { option: true } } } } },
+          },
+          category: true,
+        },
+      });
+    });
+  }
+
+  public async addProductDocument(
+    tenant: TenantContext,
+    productId: string,
+    data: {
+      title: string;
+      docType?: string;
+      fileUrl: string;
+      fileSizeMb?: number;
+      mediaAssetId?: string;
+      sortOrder?: number;
+    }
+  ) {
+    await this.getProductById(tenant, productId);
+    return this.prisma.productDocument.create({
+      data: {
+        tenantId: tenant.tenantId,
+        storeId: tenant.storeId,
+        productId,
+        title: data.title,
+        docType: data.docType || 'DATASHEET',
+        fileUrl: data.fileUrl,
+        fileSizeMb: data.fileSizeMb,
+        mediaAssetId: data.mediaAssetId,
+        sortOrder: data.sortOrder ?? 0,
+      },
+    });
+  }
+
+  public async removeProductDocument(
+    tenant: TenantContext,
+    productId: string,
+    docId: string
+  ) {
+    await this.getProductById(tenant, productId);
+    const existing = await this.prisma.productDocument.findFirst({
+      where: { id: docId, productId, storeId: tenant.storeId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Product document not found in this store.');
+    }
+    return this.prisma.productDocument.delete({
+      where: { id: docId },
     });
   }
 

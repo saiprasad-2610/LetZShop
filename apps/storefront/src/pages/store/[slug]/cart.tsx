@@ -17,24 +17,41 @@ import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { formatPaise } from '@simply/ui';
+import { SafeImage } from '../../../components/ui/SafeImage';
+import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreCartPage() {
   const router = useRouter();
-  const { slug } = router.query;
+  const { slug, preview } = router.query;
   const { cart, itemCount, subtotalPaise, updateQuantity, removeItem, api, setStoreId } = useCart();
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
 
+  const isEmbedded = router.query.embedded === 'true';
+  const isPreviewMode = Boolean(
+    storeData?.isPreview ||
+    preview === 'true' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+  );
+
+  const getLink = (path: string) => {
+    const params = new URLSearchParams();
+    if (isPreviewMode) params.set('preview', 'true');
+    if (isEmbedded) params.set('embedded', 'true');
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
+
   useEffect(() => {
     if (!slug) return;
     loadStore();
-  }, [slug]);
+  }, [slug, preview]);
 
   const loadStore = async () => {
     setLoading(true);
     try {
-      const res = await api.stores.getPublicStorefront(String(slug));
+      const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
       if (res.store?.id) {
         setStoreId(res.store.id);
@@ -65,12 +82,39 @@ export default function StoreCartPage() {
         <title>Shopping Cart ({itemCount}) | {store.name}</title>
       </Head>
 
+      {/* Persistent Merchant Preview Banner (Hidden when embedded in iframe) */}
+      {isPreviewMode && !isEmbedded && (
+        <div className="bg-slate-950 text-white font-medium text-xs py-2 px-4 sticky top-0 z-50 shadow-md flex items-center justify-between border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-semibold text-white">Merchant Preview</span>
+            <span className="text-slate-400 hidden sm:inline">— You're viewing your store exactly as customers will see it.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.removeItem('simply_merchant_preview');
+              } catch {}
+              if (window.opener) {
+                window.close();
+              } else {
+                window.location.href = getSellerStorePreviewUrl();
+              }
+            }}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition"
+          >
+            Exit Preview
+          </button>
+        </div>
+      )}
+
       <StoreHeader store={store} themeConfig={themeConfig} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={`/store/${slug}`} className="hover:text-gray-900 flex items-center gap-1">
+          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Continue Shopping
           </Link>
           <span>/</span>
@@ -90,7 +134,7 @@ export default function StoreCartPage() {
             </p>
             <div className="pt-2">
               <Link
-                href={`/store/${slug}`}
+                href={getLink(`/store/${slug}`)}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
               >
@@ -107,17 +151,20 @@ export default function StoreCartPage() {
                 const variant = item.variant || {};
                 const product = variant.product || {};
                 const cover =
+                  item.media?.[0]?.publicUrl ||
                   variant.images?.[0]?.url ||
+                  product.media?.[0]?.publicUrl ||
                   product.images?.[0]?.url ||
-                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=80';
+                  '';
 
                 return (
                   <div key={item.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <img
+                      <SafeImage
                         src={cover}
-                        alt={product.title}
+                        alt={product.title || product.name}
                         className="w-20 h-20 rounded-xl object-cover border border-gray-200 flex-shrink-0"
+                        fallbackTitle={product.title || product.name}
                       />
                       <div className="space-y-1">
                         <Link
@@ -200,7 +247,7 @@ export default function StoreCartPage() {
 
               <div className="pt-2">
                 <Link
-                  href={`/store/${slug}/checkout`}
+                  href={getLink(`/store/${slug}/checkout`)}
                   className="w-full py-3.5 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90 flex items-center justify-center gap-2"
                   style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                 >

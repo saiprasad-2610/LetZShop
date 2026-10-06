@@ -12,8 +12,8 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   api: SimplyApiClient;
-  login: (token: string, user: any, store?: any) => void;
-  logout: () => void;
+  login: (token: string, user: any, store?: any, refreshToken?: string) => void;
+  logout: () => Promise<void>;
   setStoreContext: (store: any) => void;
   refreshProfile: () => Promise<void>;
 }
@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   api: apiClient,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
   setStoreContext: () => {},
   refreshProfile: async () => {},
 });
@@ -39,12 +39,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const savedToken = localStorage.getItem('simply_seller_token');
+    const savedRefreshToken = localStorage.getItem('simply_seller_refresh_token');
     const savedUser = localStorage.getItem('simply_seller_user');
     const savedStore = localStorage.getItem('simply_seller_store');
+
+    apiClient.setOnTokenRefreshed((newAccess, newRefresh) => {
+      setToken(newAccess);
+      localStorage.setItem('simply_seller_token', newAccess);
+      if (newRefresh) {
+        localStorage.setItem('simply_seller_refresh_token', newRefresh);
+      }
+    });
 
     if (savedToken) {
       setToken(savedToken);
       apiClient.setToken(savedToken);
+      if (savedRefreshToken) {
+        apiClient.setRefreshToken(savedRefreshToken);
+      }
       if (savedUser) setUser(JSON.parse(savedUser));
       if (savedStore) setStore(JSON.parse(savedStore));
 
@@ -54,25 +66,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .then((s) => {
           setStore(s);
           localStorage.setItem('simply_seller_store', JSON.stringify(s));
+          setLoading(false);
         })
-        .catch(() => {
-          // If token expired or invalid, handle gracefully
-        })
-        .finally(() => setLoading(false));
+        .catch(async (err) => {
+          if (err?.status === 404) {
+            // User is authenticated but store has not been created yet (ONBOARDING_REQUIRED)
+            setStore(null);
+            localStorage.removeItem('simply_seller_store');
+            setLoading(false);
+            return;
+          }
+
+          if (err?.status === 401 && savedRefreshToken) {
+            try {
+              const refreshed = await apiClient.auth.refreshSession(savedRefreshToken);
+              if (refreshed?.accessToken) {
+                setToken(refreshed.accessToken);
+                apiClient.setToken(refreshed.accessToken);
+                localStorage.setItem('simply_seller_token', refreshed.accessToken);
+                if (refreshed.refreshToken) {
+                  apiClient.setRefreshToken(refreshed.refreshToken);
+                  localStorage.setItem('simply_seller_refresh_token', refreshed.refreshToken);
+                }
+
+                try {
+                  const s = await apiClient.stores.getMyStore();
+                  setStore(s);
+                  localStorage.setItem('simply_seller_store', JSON.stringify(s));
+                } catch (storeErr: any) {
+                  if (storeErr?.status === 404) {
+                    setStore(null);
+                    localStorage.removeItem('simply_seller_store');
+                  }
+                }
+                setLoading(false);
+                return;
+              }
+            } catch {
+              // Refresh token revoked or expired
+            }
+          }
+
+          // If session invalid and cannot be refreshed, clear expired session
+          if (err?.status === 401) {
+            setToken(null);
+            setUser(null);
+            setStore(null);
+            apiClient.setToken(null);
+            apiClient.setRefreshToken(null);
+            localStorage.removeItem('simply_seller_token');
+            localStorage.removeItem('simply_seller_refresh_token');
+            localStorage.removeItem('simply_seller_user');
+            localStorage.removeItem('simply_seller_store');
+          }
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
   }, []);
 
-  const login = (newToken: string, newUser: any, newStore?: any) => {
+  const login = (newToken: string, newUser: any, newStore?: any, newRefreshToken?: string) => {
     setToken(newToken);
     setUser(newUser);
-    if (newStore) setStore(newStore);
+    if (newStore) {
+      setStore(newStore);
+    } else {
+      setStore(null);
+      localStorage.removeItem('simply_seller_store');
+    }
 
     apiClient.setToken(newToken);
     localStorage.setItem('simply_seller_token', newToken);
     localStorage.setItem('simply_seller_user', JSON.stringify(newUser));
-    if (newStore) localStorage.setItem('simply_seller_store', JSON.stringify(newStore));
+    if (newStore) {
+      localStorage.setItem('simply_seller_store', JSON.stringify(newStore));
+    }
+    if (newRefreshToken) {
+      apiClient.setRefreshToken(newRefreshToken);
+      localStorage.setItem('simply_seller_refresh_token', newRefreshToken);
+    }
   };
 
   const logout = async () => {
@@ -85,9 +158,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setStore(null);
     apiClient.setToken(null);
+    apiClient.setRefreshToken(null);
     localStorage.removeItem('simply_seller_token');
+    localStorage.removeItem('simply_seller_refresh_token');
     localStorage.removeItem('simply_seller_user');
     localStorage.removeItem('simply_seller_store');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('simply_onboarding_draft');
+    }
     router.push('/login');
   };
 

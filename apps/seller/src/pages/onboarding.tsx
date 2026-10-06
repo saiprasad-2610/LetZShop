@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth, apiClient } from '../context/AuthContext';
 import {
@@ -7,11 +7,19 @@ import {
   CheckCircle,
   Building2,
   Tag,
-  Phone,
   Upload,
-  Eye,
   RefreshCw,
 } from 'lucide-react';
+import {
+  getIndianStateNames,
+  getCitiesForState,
+  OTHER_CITY_OPTION,
+  isValidIndianPhone,
+  isValidEmail,
+  isValidBusinessName,
+} from '@simply/validation';
+import { IndianPhoneInput } from '../components/IndianPhoneInput';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 const CATEGORIES = [
   'Fashion',
@@ -27,45 +35,179 @@ const CATEGORIES = [
 ];
 
 export default function OnboardingPage() {
-  const { user, login } = useAuth();
+  const { user, store, loading: authLoading, login } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [businessName, setBusinessName] = useState('');
+  const [businessNameTouched, setBusinessNameTouched] = useState(false);
   const [category, setCategory] = useState('Fashion');
   const [logoUrl, setLogoUrl] = useState('');
-  const [contactPhone, setContactPhone] = useState(user?.phone || '+91');
+  const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [selectedState, setSelectedState] = useState('');
+  const [stateTouched, setStateTouched] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [cityTouched, setCityTouched] = useState(false);
+  const [customCity, setCustomCity] = useState('');
+  const [customCityTouched, setCustomCityTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [createdStore, setCreatedStore] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const indianStates = getIndianStateNames();
+  const availableCities = selectedState ? getCitiesForState(selectedState) : [];
+
+  // Route protection & state determination
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
+    if (!authLoading && user && store) {
+      router.push('/');
+      return;
+    }
+
+    if (user?.phone && !contactPhone) {
+      setContactPhone(user.phone);
+    }
+  }, [authLoading, user, store]);
+
+  // Restore draft onboarding progress if available
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const draft = sessionStorage.getItem('simply_onboarding_draft');
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed.businessName) setBusinessName(parsed.businessName);
+        if (parsed.category) setCategory(parsed.category);
+        if (parsed.logoUrl) setLogoUrl(parsed.logoUrl);
+        if (parsed.contactPhone) setContactPhone(parsed.contactPhone);
+        if (parsed.contactEmail) setContactEmail(parsed.contactEmail);
+        if (parsed.selectedState) setSelectedState(parsed.selectedState);
+        if (parsed.selectedCity) setSelectedCity(parsed.selectedCity);
+        if (parsed.customCity) setCustomCity(parsed.customCity);
+        if (parsed.step && parsed.step >= 1 && parsed.step <= 4) setStep(parsed.step);
+      }
+    } catch {
+      // Ignore sessionStorage parsing errors
+    }
+  }, []);
+
+  // Save draft state on progress change
+  const saveDraft = (updatedStep: 1 | 2 | 3 | 4) => {
+    setStep(updatedStep);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(
+          'simply_onboarding_draft',
+          JSON.stringify({
+            step: updatedStep,
+            businessName,
+            category,
+            logoUrl,
+            contactPhone,
+            contactEmail,
+            selectedState,
+            selectedCity,
+            customCity,
+          })
+        );
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  };
+
+  const handleStateChange = (newState: string) => {
+    setSelectedState(newState);
+    setStateTouched(true);
+    setSelectedCity('');
+    setCustomCity('');
+    setCityTouched(false);
+  };
+
+  const handleCityChange = (newCity: string) => {
+    setSelectedCity(newCity);
+    setCityTouched(true);
+    if (newCity !== OTHER_CITY_OPTION) {
+      setCustomCity('');
+    }
+  };
+
   const handleSubmitOnboarding = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const resolvedCity = selectedCity === OTHER_CITY_OPTION ? customCity.trim() : selectedCity.trim();
+    const locationString = resolvedCity && selectedState ? `${resolvedCity}, ${selectedState}` : (resolvedCity || selectedState || undefined);
+
+    if (!isValidBusinessName(businessName)) {
+      setError('Business name is required and must be valid.');
+      return;
+    }
+    if (!isValidIndianPhone(contactPhone)) {
+      setError('Enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (contactEmail.trim() && !isValidEmail(contactEmail.trim())) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if (!selectedState) {
+      setError('Select a state.');
+      return;
+    }
+    if (!selectedCity || (selectedCity === OTHER_CITY_OPTION && !customCity.trim())) {
+      setError('Select or enter a valid city.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await apiClient.stores.onboard({
-        businessName,
+        businessName: businessName.trim(),
         category,
-        logoUrl: logoUrl || undefined,
-        contactPhone,
-        contactEmail: contactEmail || undefined,
-        address: address || undefined,
+        logoUrl: logoUrl.trim() || undefined,
+        contactPhone: contactPhone.trim(),
+        contactEmail: contactEmail.trim().toLowerCase() || undefined,
+        address: locationString,
+        city: resolvedCity || undefined,
+        state: selectedState.trim() || undefined,
       });
 
       // Update auth session with the new tenant and store tokens
-      login(res.accessToken, res.user, res.store);
+      login(res.accessToken, res.user, res.store, res.refreshToken);
       setCreatedStore(res.store);
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('simply_onboarding_draft');
+      }
+
       setStep(5); // "Your Store Is Ready" screen
     } catch (err: any) {
-      setError(err.message || 'Failed to complete store setup. Please check your inputs.');
+      if (err.details && Array.isArray(err.details) && err.details.length > 0) {
+        setError(err.details.join('. '));
+      } else {
+        setError(err.message || 'Failed to complete store setup. Please check your inputs.');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center">
+        <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -122,26 +264,46 @@ export default function OnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Business Name</label>
+                <label htmlFor="business-name" className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Business Name <span className="text-rose-400">*</span>
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                     <Building2 className="w-4 h-4" />
                   </div>
                   <input
+                    id="business-name"
                     type="text"
                     required
                     value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="e.g. Royal Silk Emporium"
-                    className="block w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      setBusinessName(e.target.value);
+                      setBusinessNameTouched(true);
+                    }}
+                    onBlur={() => setBusinessNameTouched(true)}
+                    placeholder="e.g. Shree Ganesh Foods, Maa's Kitchen"
+                    className={`block w-full pl-9 pr-3 py-2.5 bg-slate-900 border rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${
+                      businessNameTouched && !isValidBusinessName(businessName)
+                        ? 'border-rose-500 focus:ring-rose-500/30'
+                        : 'border-slate-700 focus:ring-blue-500'
+                    }`}
                   />
                 </div>
+                {businessNameTouched && !businessName.trim() && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">Business name is required.</p>
+                )}
+                {businessNameTouched && businessName.trim().length > 0 && (businessName.trim().length < 2 || businessName.trim().length > 100) && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">Business name must be between 2 and 100 characters.</p>
+                )}
+                {businessNameTouched && businessName.trim().length >= 2 && businessName.trim().length <= 100 && !isValidBusinessName(businessName) && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">Business name contains invalid characters.</p>
+                )}
               </div>
 
               <button
                 type="button"
-                disabled={!businessName.trim()}
-                onClick={() => setStep(2)}
+                disabled={!isValidBusinessName(businessName)}
+                onClick={() => saveDraft(2)}
                 className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
               >
                 Continue to Category
@@ -182,14 +344,14 @@ export default function OnboardingPage() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={() => saveDraft(1)}
                   className="w-1/3 py-2.5 px-4 rounded-lg text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
                 >
                   Back
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => saveDraft(3)}
                   className="w-2/3 flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors"
                 >
                   Continue to Logo
@@ -206,17 +368,18 @@ export default function OnboardingPage() {
                 <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Step 3 of 4</span>
                 <h2 className="text-lg font-bold text-white mt-1">Add Business Logo (Optional)</h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  If you don't have a logo yet, we will generate an elegant typography wordmark.
+                  If you don&apos;t have a logo yet, we will generate an elegant typography wordmark.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Logo URL or Image Link</label>
+                <label htmlFor="logo-url" className="block text-xs font-medium text-slate-300 mb-1.5">Logo URL or Image Link</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                     <Upload className="w-4 h-4" />
                   </div>
                   <input
+                    id="logo-url"
                     type="url"
                     value={logoUrl}
                     onChange={(e) => setLogoUrl(e.target.value)}
@@ -236,14 +399,14 @@ export default function OnboardingPage() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => saveDraft(2)}
                   className="w-1/3 py-2.5 px-4 rounded-lg text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
                 >
                   Back
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(4)}
+                  onClick={() => saveDraft(4)}
                   className="w-2/3 flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors"
                 >
                   Continue to Contact Info
@@ -264,51 +427,119 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Contact Phone</label>
-                <input
-                  type="tel"
-                  required
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  className="block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {/* Contact Phone */}
+              <IndianPhoneInput
+                id="contact-phone"
+                label="Contact Phone"
+                value={contactPhone}
+                onChange={(canonical, raw10, valid) => {
+                  setContactPhone(canonical);
+                }}
+                required
+              />
 
+              {/* Contact Email */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Contact Email (Optional)</label>
+                <label htmlFor="contact-email" className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Contact Email (Optional)
+                </label>
                 <input
+                  id="contact-email"
                   type="email"
                   value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
+                  onChange={(e) => {
+                    setContactEmail(e.target.value);
+                    setEmailTouched(true);
+                  }}
+                  onBlur={() => setEmailTouched(true)}
                   placeholder="contact@yourbusiness.com"
-                  className="block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`block w-full px-3 py-2.5 bg-slate-900 border rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${
+                    emailTouched && contactEmail.trim().length > 0 && !isValidEmail(contactEmail.trim())
+                      ? 'border-rose-500 focus:ring-rose-500/30'
+                      : 'border-slate-700 focus:ring-blue-500'
+                  }`}
                 />
+                {emailTouched && contactEmail.trim().length > 0 && !isValidEmail(contactEmail.trim()) && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">Enter a valid email address.</p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">City & State</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Surat, Gujarat"
-                  className="block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {/* State Select */}
+              <SearchableSelect
+                id="onboard-state"
+                label="State"
+                options={indianStates}
+                value={selectedState}
+                onChange={handleStateChange}
+                placeholder="Select State / UT"
+                searchPlaceholder="Search state or territory..."
+                required
+                error={stateTouched && !selectedState ? 'Select a state.' : null}
+              />
 
+              {/* City Select */}
+              <SearchableSelect
+                id="onboard-city"
+                label="City"
+                options={availableCities}
+                value={selectedCity}
+                onChange={handleCityChange}
+                placeholder={selectedState ? 'Select City' : 'Select a state first'}
+                searchPlaceholder="Search city..."
+                disabled={!selectedState}
+                required
+                error={cityTouched && selectedState && !selectedCity ? 'Select a city.' : null}
+              />
+
+              {/* Other city custom input */}
+              {selectedCity === OTHER_CITY_OPTION && (
+                <div>
+                  <label htmlFor="custom-city" className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Enter City Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    id="custom-city"
+                    type="text"
+                    required
+                    value={customCity}
+                    onChange={(e) => {
+                      setCustomCity(e.target.value);
+                      setCustomCityTouched(true);
+                    }}
+                    onBlur={() => setCustomCityTouched(true)}
+                    placeholder="Enter your city / town name"
+                    className={`block w-full px-3 py-2.5 bg-slate-900 border rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${
+                      customCityTouched && !customCity.trim()
+                        ? 'border-rose-500 focus:ring-rose-500/30'
+                        : 'border-slate-700 focus:ring-blue-500'
+                    }`}
+                  />
+                  {customCityTouched && !customCity.trim() && (
+                    <p className="mt-1 text-xs text-rose-400 font-medium">City name is required.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Navigation buttons */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => saveDraft(3)}
                   className="w-1/3 py-2.5 px-4 rounded-lg text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-2/3 flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                  disabled={
+                    loading ||
+                    !isValidIndianPhone(contactPhone) ||
+                    (contactEmail.trim().length > 0 && !isValidEmail(contactEmail.trim())) ||
+                    !selectedState ||
+                    !selectedCity ||
+                    (selectedCity === OTHER_CITY_OPTION && !customCity.trim())
+                  }
+                  className="w-2/3 flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 transition-colors shadow-sm"
                 >
                   {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : 'Create My Store Now'}
                 </button>

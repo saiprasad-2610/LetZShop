@@ -70,6 +70,57 @@ export class MediaService {
   }
 
   /**
+   * Upload standalone media asset (for product creation before product ID exists).
+   * Persists to storage provider and creates MediaAsset record.
+   */
+  public async uploadStandaloneMediaAsset(
+    tenant: TenantContext,
+    file: {
+      buffer: Buffer;
+      originalFilename: string;
+      mimeType: string;
+    },
+    altText?: string
+  ) {
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMime.includes(file.mimeType)) {
+      throw new BadRequestException(
+        `Upload a supported image format (${allowedMime.map((m) => m.replace('image/', '').toUpperCase()).join(', ')}). Received: ${file.mimeType}`
+      );
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.buffer.length > MAX_SIZE) {
+      throw new BadRequestException('File size exceeds 5MB limit.');
+    }
+
+    const uploadResult = await this.storageProvider.upload({
+      tenantId: tenant.tenantId,
+      storeId: tenant.storeId,
+      buffer: file.buffer,
+      originalFilename: file.originalFilename,
+      mimeType: file.mimeType,
+      prefix: 'products',
+    });
+
+    const mediaAsset = await this.prisma.mediaAsset.create({
+      data: {
+        tenantId: tenant.tenantId,
+        storeId: tenant.storeId,
+        storageProvider: 'LOCAL',
+        storageKey: uploadResult.storageKey,
+        publicUrl: uploadResult.publicUrl,
+        fileName: file.originalFilename,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        altText: altText || null,
+      },
+    });
+
+    return mediaAsset;
+  }
+
+  /**
    * Upload store brand asset (logo, banner, favicon) with 5MB limit and MIME validation.
    */
   public async uploadStoreAsset(

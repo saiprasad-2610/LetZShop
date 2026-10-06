@@ -50,6 +50,7 @@ data/media/
 scratch/
 artifacts/ui-review/
 artifacts/
+artifacts-browser-test/
 
 # Database dumps and backups
 backups/

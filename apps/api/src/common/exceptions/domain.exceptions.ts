@@ -42,7 +42,7 @@ export class StoreSubscriptionRequiredException extends DomainException {
   constructor(
     message = 'Store is currently unavailable as it requires an active paid subscription.'
   ) {
-    super(ErrorCode.STORE_SUBSCRIPTION_REQUIRED, message, HttpStatus.PAYMENT_REQUIRED);
+    super(ErrorCode.SUBSCRIPTION_REQUIRED, message, HttpStatus.PAYMENT_REQUIRED);
   }
 }
 
