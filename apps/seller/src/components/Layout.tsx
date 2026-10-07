@@ -59,6 +59,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     if (itemHref === '/more') {
       return (
         router.pathname.startsWith('/more') ||
+        router.pathname.startsWith('/coupons') ||
+        router.pathname.startsWith('/marketing') ||
         router.pathname.startsWith('/settings') ||
         router.pathname.startsWith('/subscription')
       );

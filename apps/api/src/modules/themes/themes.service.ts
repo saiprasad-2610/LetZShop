@@ -52,7 +52,7 @@ export class ThemesService {
     const [branding, sections, themeConfigs, defaultTheme] = await Promise.all([
       db.storeBranding.findUnique({ where: { storeId: tenant.storeId } }),
       db.storeSection.findMany({ where: { storeId: tenant.storeId }, orderBy: { sortOrder: 'asc' } }),
-      db.storeThemeConfig.findMany({ where: { storeId: tenant.storeId }, include: { theme: true } }),
+      db.storeThemeConfig.findMany({ where: { storeId: tenant.storeId }, include: { theme: true }, orderBy: { updatedAt: 'desc' } }),
       db.theme.findFirst({ where: { isDefault: true } }),
     ]);
 
@@ -116,6 +116,7 @@ export class ThemesService {
             },
             update: {
               configJson: dto.configJson || theme.configJson || {},
+              updatedAt: new Date(),
             },
             create: {
               storeId: tenant.storeId,

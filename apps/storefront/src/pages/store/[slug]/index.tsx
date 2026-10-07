@@ -23,6 +23,7 @@ import {
   Search
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
+import { useToast } from '../../../components/ui/Toast';
 import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
@@ -34,6 +35,7 @@ export default function StoreHomePage() {
   const router = useRouter();
   const { slug, preview } = router.query;
   const { setStoreId, api, addItem } = useCart();
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
@@ -52,6 +54,31 @@ export default function StoreHomePage() {
     }
     loadStorefront(String(slug), preview ? String(preview) : undefined);
   }, [slug, preview]);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true') {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'UPDATE_THEME_PREVIEW' && event.data.themeConfig) {
+          setStoreData((prev: any) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              themeConfig: {
+                ...prev.themeConfig,
+                ...event.data.themeConfig,
+                branding: {
+                  ...prev.themeConfig?.branding,
+                  ...event.data.branding,
+                },
+              },
+            };
+          });
+        }
+      };
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
+  }, [router.query.embedded]);
 
   const loadStorefront = async (storeSlug: string, previewSecret?: string) => {
     setLoading(true);
@@ -83,11 +110,11 @@ export default function StoreHomePage() {
       (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
     );
 
-    const variant = product.variants?.[0] || {
-      id: `var_${product.id}`,
-      pricePaise: product.minPricePaise || product.pricePaise || 0,
-    };
-    const variantId = variant.id;
+    let variant = product.variants?.[0];
+    if (!variant?.id || variant.id.startsWith('var_')) {
+      router.push(getLink(`/store/${slug}/product/${product.id}`));
+      return;
+    }
 
     setAddingId(product.id);
     try {
@@ -96,7 +123,7 @@ export default function StoreHomePage() {
         product.media?.[0]?.url ||
         product.images?.[0]?.url;
 
-      await addItem(variantId, 1, {
+      await addItem(variant.id, 1, {
         productId: product.id,
         productName: product.name || product.title || 'Product',
         variantName: variant.name || variant.title || 'Standard',
@@ -105,9 +132,11 @@ export default function StoreHomePage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
+      toast.success('Added to Cart', `${product.name || product.title} was added to your bag.`);
       setTimeout(() => setAddedId(null), 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Quick add failed', err);
+      toast.error('Could Not Add Item', err?.message || 'Failed to add item to bag');
     } finally {
       setAddingId(null);
     }
@@ -238,7 +267,7 @@ export default function StoreHomePage() {
 
         {/* --- ATELIER: Luxury Editorial Split-Hero --- */}
         {themeCode === 'atelier' && (
-          <section className="relative overflow-hidden bg-stone-900 text-stone-100 py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
+          <section className="relative overflow-hidden py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               <div className="lg:col-span-7 space-y-6 text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40">
@@ -246,11 +275,11 @@ export default function StoreHomePage() {
                   <span>Artisanal Atelier • Hallmarked & Certified</span>
                 </div>
 
-                <h1 className="text-4xl sm:text-6xl font-serif tracking-tight leading-[1.1] text-stone-100">
+                <h1 className="text-4xl sm:text-6xl font-serif tracking-tight leading-[1.1]">
                   Timeless Elegance by <span className="text-amber-300 italic">{store.name}</span>
                 </h1>
 
-                <p className="text-sm sm:text-base text-stone-300 max-w-xl font-light leading-relaxed">
+                <p className="text-sm sm:text-base max-w-xl font-light leading-relaxed opacity-90">
                   Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.
                 </p>
 
@@ -302,7 +331,7 @@ export default function StoreHomePage() {
 
         {/* --- PULSE: High Voltage Drop Hero --- */}
         {themeCode === 'pulse' && (
-          <section className="relative overflow-hidden bg-slate-950 text-white py-14 sm:py-20 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
+          <section className="relative overflow-hidden py-14 sm:py-20 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
             <div className="max-w-6xl mx-auto space-y-6 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-pink-500 text-white font-black text-xs uppercase tracking-widest shadow-md">
                 <Zap className="w-3.5 h-3.5 fill-current" />
@@ -353,7 +382,7 @@ export default function StoreHomePage() {
 
         {/* --- HARVEST: Warm Organic Showcase Hero --- */}
         {themeCode === 'harvest' && (
-          <section className="relative overflow-hidden bg-amber-50/70 border-b border-amber-200 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
+          <section className="relative overflow-hidden border-b border-amber-200 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl mx-auto text-center space-y-5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <span>🌿 Farm-Fresh & Handcrafted Daily</span>
@@ -757,13 +786,35 @@ export default function StoreHomePage() {
                             )}
                           </div>
 
-                          <Link
-                            href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="text-xs font-semibold text-stone-900 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider"
-                          >
-                            <span>Inspect</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => handleQuickAdd(e, p)}
+                              disabled={isAdding}
+                              className="px-3 py-1.5 rounded-none bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                              title="Add to shopping bag"
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Added</span>
+                                </>
+                              ) : isAdding ? (
+                                <span>Adding...</span>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add</span>
+                                </>
+                              )}
+                            </button>
+                            <Link
+                              href={getLink(`/store/${slug}/product/${p.id}`)}
+                              className="text-xs font-semibold text-stone-900 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
+                              title="View full piece"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1019,12 +1070,35 @@ export default function StoreHomePage() {
                           <div className="font-serif text-sm font-bold text-stone-900">
                             {formatPaise(pricePaise)}
                           </div>
-                          <Link
-                            href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="text-xs font-serif uppercase tracking-wider text-stone-800 hover:underline"
-                          >
-                            Explore Piece
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => handleQuickAdd(e, p)}
+                              disabled={isAdding}
+                              className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs shadow-sm transition flex items-center gap-1"
+                              title="Add to shopping bag"
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Added</span>
+                                </>
+                              ) : isAdding ? (
+                                <span>Adding...</span>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add</span>
+                                </>
+                              )}
+                            </button>
+                            <Link
+                              href={getLink(`/store/${slug}/product/${p.id}`)}
+                              className="text-xs font-serif uppercase tracking-wider text-stone-600 hover:text-stone-900"
+                              title="View piece details"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1113,15 +1187,15 @@ export default function StoreHomePage() {
 
         {/* --- ATELIER: Editorial Lookbook & Heritage Strip --- */}
         {themeCode === 'atelier' && (
-          <section className="bg-stone-900 text-stone-100 py-16 px-4 sm:px-6 lg:px-8 border-y border-amber-900/40">
+          <section className="py-16 px-4 sm:px-6 lg:px-8 border-y border-amber-900/40">
             <div className="max-w-4xl mx-auto text-center space-y-6">
               <span className="font-mono text-xs uppercase tracking-[0.25em] text-amber-300">
                 The Artisanal Benchmark
               </span>
-              <h3 className="text-2xl sm:text-4xl font-serif font-light text-stone-100 leading-snug">
+              <h3 className="text-2xl sm:text-4xl font-serif font-light leading-snug">
                 &ldquo;True luxury resides in the quiet integrity of the materials and the patience of the artisan.&rdquo;
               </h3>
-              <p className="text-xs sm:text-sm text-stone-400 max-w-2xl mx-auto leading-relaxed font-light">
+              <p className="text-xs sm:text-sm opacity-80 max-w-2xl mx-auto leading-relaxed font-light">
                 Each piece dispatched by {store.name} carries a registered hallmark of authenticity. We accommodate private appointments and custom bridal commissions.
               </p>
               <div className="pt-4 flex flex-wrap items-center justify-center gap-8 text-xs font-serif text-amber-200/90 tracking-wider">

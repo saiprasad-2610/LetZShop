@@ -162,19 +162,21 @@ export class OrdersService {
       }
 
       // Step C: Record Customer Delivery Address
-      await tx.customerAddress.create({
-        data: {
-          customerId: customer.id,
-          addressLine1: dto.deliveryAddress.addressLine1,
-          addressLine2: dto.deliveryAddress.addressLine2,
-          landmark: dto.deliveryAddress.landmark,
-          city: dto.deliveryAddress.city,
-          state: dto.deliveryAddress.state,
-          pincode: dto.deliveryAddress.pincode,
-          country: dto.deliveryAddress.country || 'India',
-          isDefault: true,
-        },
-      });
+      if (dto.deliveryAddress) {
+        await tx.customerAddress.create({
+          data: {
+            customerId: customer.id,
+            addressLine1: dto.deliveryAddress.addressLine1,
+            addressLine2: dto.deliveryAddress.addressLine2,
+            landmark: dto.deliveryAddress.landmark,
+            city: dto.deliveryAddress.city,
+            state: dto.deliveryAddress.state,
+            pincode: dto.deliveryAddress.pincode,
+            country: dto.deliveryAddress.country || 'India',
+            isDefault: true,
+          },
+        });
+      }
 
       // Step D: Calculate Monetary Amounts (paise)
       let subtotalPaise = 0;
@@ -199,14 +201,24 @@ export class OrdersService {
         }
       }
 
-      const taxPaise = Math.round(subtotalPaise * 0.05); // 5% GST estimate in paise
-      const totalPaise = subtotalPaise + shippingPaise + taxPaise;
+      let discountPaise = typeof dto.discountPaise === 'number' && dto.discountPaise > 0 
+        ? Math.min(dto.discountPaise, subtotalPaise) 
+        : 0;
+
+      const taxableAmount = Math.max(0, subtotalPaise - discountPaise);
+      const taxPaise = Math.round(taxableAmount * 0.05); // 5% GST estimate in paise
+      const totalPaise = Math.max(0, taxableAmount + shippingPaise + taxPaise);
 
       // Generate Order Number: ORD-YYYYMMDD-XXXX
       const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
       const orderNumber = `ORD-${datePrefix}-${randomSuffix}`;
       const trackingToken = crypto.randomBytes(16).toString('hex');
+
+      const fullNotes = [
+        dto.notes?.trim(),
+        dto.couponCode ? `Coupon applied: ${dto.couponCode}` : null,
+      ].filter(Boolean).join(' | ') || null;
 
       // Step E: Create Order
       const order = await tx.order.create({
@@ -219,13 +231,14 @@ export class OrdersService {
           status: OrderStatus.NEW,
           paymentStatus: PaymentStatus.PENDING,
           shipmentStatus: ShipmentStatus.PENDING,
+          fulfillmentMode: dto.fulfillmentMode === 'PICKUP' ? ('PICKUP' as any) : ('DELIVERY' as any),
           subtotalPaise,
           taxPaise,
           shippingPaise,
-          discountPaise: 0,
+          discountPaise,
           totalPaise,
           currency: 'INR',
-          notes: dto.notes,
+          notes: fullNotes,
           deliveryAddress: dto.deliveryAddress as any,
           guestCheckout: true,
         },
@@ -374,6 +387,9 @@ export class OrdersService {
       deliveryState: deliveryAddress.state || 'Confidential',
       deliveryPincode: maskedPincode,
       itemCount: order.items.reduce((acc, it) => acc + it.quantity, 0),
+      subtotalPaise: order.subtotalPaise,
+      discountPaise: order.discountPaise,
+      shippingPaise: order.shippingPaise,
       totalPaise: order.totalPaise,
       currency: order.currency,
       items: order.items.map((it) => ({

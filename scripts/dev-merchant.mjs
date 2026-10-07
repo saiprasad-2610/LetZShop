@@ -232,7 +232,7 @@ function checkPortReady(port, pathname = '/') {
   });
 }
 
-async function waitForServicesReady(timeoutMs = 45000) {
+async function waitForServicesReady(timeoutMs = 120000) {
   const start = Date.now();
   let apiReady = false;
   let sellerReady = false;
@@ -512,7 +512,7 @@ async function main() {
   }
 
   // 7. Wait for all services to become healthy before declaring success
-  const allReady = await waitForServicesReady(45000);
+  const allReady = await waitForServicesReady(120000);
   if (allReady && !bannerPrinted && !shuttingDown) {
     printSummary();
   } else if (!allReady && !shuttingDown) {

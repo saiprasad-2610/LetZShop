@@ -79,7 +79,7 @@ export class StoresService {
       where: { tenantId, deletedAt: null },
       include: {
         branding: true,
-        themeConfigs: true,
+        themeConfigs: { orderBy: { updatedAt: 'desc' } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
         shippingProfiles: true,
       },
@@ -104,7 +104,7 @@ export class StoresService {
       where: { id: store.id },
       include: {
         branding: true,
-        themeConfigs: { include: { theme: true } },
+        themeConfigs: { include: { theme: true }, orderBy: { updatedAt: 'desc' } },
         themeConfiguration: { include: { themeDefinition: true } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
         businessHours: { orderBy: { dayOfWeek: 'asc' } },

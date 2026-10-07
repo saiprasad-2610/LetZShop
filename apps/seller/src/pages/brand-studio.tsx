@@ -24,6 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
+import { MiniStorePreview } from '../components/MiniStorePreview';
 import { useAuth } from '../context/AuthContext';
 import {
   FOUNDATIONAL_THEMES,
@@ -46,6 +47,7 @@ export default function BrandStudioPage() {
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Studio Config State
   const [selectedThemeId, setSelectedThemeId] = useState('atelier');
@@ -137,6 +139,51 @@ export default function BrandStudioPage() {
     }
   };
 
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: 'UPDATE_THEME_PREVIEW',
+          themeConfig: {
+            themeId: selectedThemeId,
+            palette: {
+              primary: primaryColor,
+              accent: accentColor,
+              background: backgroundColor,
+            },
+            typography: {
+              preset: typographyPreset,
+            },
+            announcement: {
+              enabled: announcementEnabled,
+              text: announcementText,
+            },
+            headerStyle,
+            heroStyle,
+            cardStyle,
+            buttonStyle,
+            imageRatio,
+            storeStory,
+            physicalStoreAddress,
+            physicalStoreTimings,
+          },
+          branding: {
+            logoUrl,
+            bannerUrl: heroBannerUrl,
+            primaryColor,
+            accentColor,
+          }
+        },
+        '*'
+      );
+    }
+  }, [
+    selectedThemeId, primaryColor, accentColor, backgroundColor, typographyPreset,
+    announcementEnabled, announcementText, headerStyle, heroStyle, cardStyle,
+    buttonStyle, imageRatio, storeStory, physicalStoreAddress, physicalStoreTimings,
+    logoUrl, heroBannerUrl
+  ]);
+
   const handleApplyQuickPreset = (categoryName: string) => {
     const output = QuickDesigner.designForCategory(categoryName, store?.name || 'Our Store');
     setSelectedThemeId(output.themeCode);
@@ -192,31 +239,36 @@ export default function BrandStudioPage() {
     setSaving(true);
     try {
       await api.themes.updateThemeConfig({
-        themeId: selectedThemeId,
-        palette: {
-          primary: primaryColor,
-          accent: accentColor,
-          background: backgroundColor,
+        themeCode: selectedThemeId,
+        configJson: {
+          themeId: selectedThemeId,
+          palette: {
+            primary: primaryColor,
+            accent: accentColor,
+            background: backgroundColor,
+          },
+          typography: {
+            preset: typographyPreset,
+          },
+          announcement: {
+            enabled: announcementEnabled,
+            text: announcementText,
+          },
+          headerStyle,
+          heroStyle,
+          cardStyle,
+          buttonStyle,
+          imageRatio,
+          storeStory,
+          physicalStoreAddress,
+          physicalStoreTimings,
         },
-        typography: {
-          preset: typographyPreset,
-        },
-        announcement: {
-          enabled: announcementEnabled,
-          text: announcementText,
-        },
-        headerStyle,
-        heroStyle,
-        cardStyle,
-        buttonStyle,
-        imageRatio,
-        storeStory,
-        physicalStoreAddress,
-        physicalStoreTimings,
         sections: sections.map((s, idx) => ({
-          type: s.id,
-          enabled: s.enabled,
-          order: idx,
+          sectionType: s.id,
+          title: (s as any).title || s.name,
+          isEnabled: s.enabled,
+          sortOrder: idx,
+          configJson: {},
         })),
       });
 
@@ -876,128 +928,10 @@ export default function BrandStudioPage() {
               {/* Rendered Preview Mockup Frame */}
               <div
                 className={`mx-auto rounded-xl overflow-hidden shadow-2xl transition-all duration-300 border border-slate-800 ${
-                  previewDevice === 'mobile' ? 'max-w-[340px]' : 'w-full'
+                  previewDevice === 'mobile' ? 'max-w-[340px] h-[650px]' : 'w-full h-[650px]'
                 }`}
-                style={{ backgroundColor }}
               >
-                {/* Announcement Bar */}
-                {announcementEnabled && (
-                  <div
-                    className="py-1 px-3 text-center text-[10px] font-semibold tracking-wide"
-                    style={{ backgroundColor: primaryColor, color: '#FFFFFF' }}
-                  >
-                    {announcementText}
-                  </div>
-                )}
-
-                {/* Nav Header */}
-                <div className="px-4 py-3 flex items-center justify-between border-b border-black/5 bg-white/80 backdrop-blur-xs">
-                  <div className="flex items-center gap-2">
-                    {logoUrl ? (
-                      <img
-                        src={logoUrl}
-                        alt="Logo"
-                        className="h-6 w-auto max-w-[90px] object-contain"
-                      />
-                    ) : (
-                      <span
-                        className="font-bold text-xs tracking-tight"
-                        style={{ color: primaryColor }}
-                      >
-                        {wordmark.text}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2.5 text-[11px] text-slate-600 font-medium">
-                    <span>Shop</span>
-                    <span>Story</span>
-                    <span
-                      className="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      Cart (0)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Hero Showcase Mockup */}
-                <div className="p-6 text-center space-y-3 bg-gradient-to-b from-black/5 to-transparent">
-                  <span
-                    className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full inline-block"
-                    style={{ backgroundColor: `${accentColor}25`, color: accentColor }}
-                  >
-                    {currentThemeObj.tagline}
-                  </span>
-                  <h2
-                    className="text-lg sm:text-xl font-black tracking-tight leading-tight"
-                    style={{ color: primaryColor }}
-                  >
-                    Curated For Discerning Customers
-                  </h2>
-                  <p className="text-xs text-slate-600 max-w-xs mx-auto line-clamp-2">
-                    {storeStory}
-                  </p>
-                  <button
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-xs inline-block"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Explore Collection
-                  </button>
-                </div>
-
-                {/* Sample Products Grid */}
-                <div className="p-3 grid grid-cols-2 gap-2.5 bg-slate-50/60">
-                  <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
-                      <SafeImage
-                        src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=80"
-                        alt="Product"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <p className="text-[11px] font-bold text-slate-900 truncate">Featured Item</p>
-                    <div className="flex items-center justify-between text-[10px] font-mono">
-                      <span className="font-bold text-slate-900">₹2,499</span>
-                      <span className="font-semibold" style={{ color: accentColor }}>
-                        In Stock
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
-                      <SafeImage
-                        src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80"
-                        alt="Product"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <p className="text-[11px] font-bold text-slate-900 truncate">Signature Piece</p>
-                    <div className="flex items-center justify-between text-[10px] font-mono">
-                      <span className="font-bold text-slate-900">₹3,999</span>
-                      <span className="font-semibold" style={{ color: accentColor }}>
-                        In Stock
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Physical Store Section Mockup */}
-                <div className="p-4 bg-white border-t border-slate-200 text-slate-800 space-y-1.5 text-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Physical Store & Studio
-                  </span>
-                  <p className="text-[11px] font-semibold text-slate-700 flex items-center justify-center gap-1">
-                    <MapPin className="w-3 h-3 text-slate-400" />
-                    <span>{physicalStoreAddress}</span>
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-mono">{physicalStoreTimings}</p>
-                </div>
-
-                {/* Storefront Footer */}
-                <div className="p-3 text-center text-[10px] text-slate-400 border-t border-black/5 bg-slate-50">
-                  © 2026 {store?.name || 'Your Store'}. Powered by Simply Commerce
-                </div>
+                {store && <MiniStorePreview store={store} iframeRef={iframeRef} />}
               </div>
             </div>
           </div>

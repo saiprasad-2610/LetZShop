@@ -262,6 +262,9 @@ export interface BuyerSafeTrackOrderDto {
   deliveryState: string;
   deliveryPincode: string;
   itemCount: number;
+  subtotalPaise?: number;
+  discountPaise?: number;
+  shippingPaise?: number;
   totalPaise: number;
   currency: string;
   items: Array<{

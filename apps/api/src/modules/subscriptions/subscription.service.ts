@@ -13,7 +13,11 @@ export class SubscriptionService {
     return this.prisma.subscription.findFirst({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
-      include: { plan: true, invoices: true },
+      include: { 
+        plan: true, 
+        invoices: { orderBy: { createdAt: 'desc' } },
+        events: { orderBy: { createdAt: 'desc' } }
+      },
     });
   }
 

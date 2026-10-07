@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Search, Filter, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { Search, Filter, ArrowLeft, ShoppingBag, Plus, Check, Eye } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
+import { useToast } from '../../../components/ui/Toast';
 import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
+import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
 
 export default function StoreSearchPage() {
   const router = useRouter();
-  const { slug, q, category } = router.query;
-  const { api, setStoreId } = useCart();
+  const { slug, q, category, preview, embedded } = router.query;
+  const { api, setStoreId, addItem } = useCart();
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
@@ -21,6 +24,23 @@ export default function StoreSearchPage() {
   const [searchTerm, setSearchTerm] = useState(q ? String(q) : '');
   const [selectedCategory, setSelectedCategory] = useState(category ? String(category) : '');
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc'>('featured');
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedId, setAddedId] = useState<string | null>(null);
+
+  const isPreviewMode = Boolean(
+    storeData?.isPreview ||
+    preview === 'true' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+  );
+  const isEmbedded = embedded === 'true';
+
+  const getLink = (path: string) => {
+    const params = new URLSearchParams();
+    if (isPreviewMode) params.set('preview', 'true');
+    if (isEmbedded) params.set('embedded', 'true');
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
 
   useEffect(() => {
     if (!slug) return;
@@ -46,6 +66,44 @@ export default function StoreSearchPage() {
       console.error('Failed to load store search', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent, product: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    let variant = product.variants?.[0];
+    if (!variant?.id || variant.id.startsWith('var_')) {
+      router.push(getLink(`/store/${slug}/product/${product.id}`));
+      return;
+    }
+
+    setAddingId(product.id);
+    try {
+      const primaryMedia = product.media?.find((m: any) => m.isPrimary) || product.media?.[0];
+      const primaryImg =
+        primaryMedia?.publicUrl ||
+        (primaryMedia?.storageKey ? `/media/file/${primaryMedia.storageKey}` : undefined) ||
+        product.images?.[0]?.url;
+
+      await addItem(variant.id, 1, {
+        productId: product.id,
+        productName: product.name || product.title || 'Product',
+        variantName: variant.name || variant.title || 'Standard',
+        pricePaise: product.basePricePaise ?? variant.pricePaise ?? 0,
+        compareAtPricePaise: product.compareAtPricePaise ?? variant.compareAtPricePaise,
+        imageUrl: primaryImg,
+        sku: variant.sku || '',
+      });
+
+      setAddedId(product.id);
+      toast.success('Added to Cart!', `${product.name || product.title} added to your bag.`);
+      setTimeout(() => setAddedId(null), 2200);
+    } catch (err: any) {
+      toast.error('Could Not Add Item', err?.message || 'Failed to add item to cart');
+    } finally {
+      setAddingId(null);
     }
   };
 
@@ -91,7 +149,7 @@ export default function StoreSearchPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Breadcrumb & Title */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={`/store/${slug}`} className="hover:text-gray-900 flex items-center gap-1">
+          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Storefront
           </Link>
           <span>/</span>
@@ -100,7 +158,7 @@ export default function StoreSearchPage() {
 
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Explore Catalog</h1>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 mt-1">
             Showing {filteredProducts.length} items from {store.name}
           </p>
         </div>
@@ -180,20 +238,29 @@ export default function StoreSearchPage() {
                 (primaryMedia?.storageKey ? `/media/file/${primaryMedia.storageKey}` : undefined) ||
                 p.images?.[0]?.url ||
                 '';
+
+              const isAdding = addingId === p.id;
+              const isAdded = addedId === p.id;
+
               return (
                 <div
                   key={p.id}
-                  className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group"
+                  className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
                 >
                   <Link
-                    href={`/store/${slug}/product/${p.id}`}
+                    href={getLink(`/store/${slug}/product/${p.id}`)}
                     className="block relative aspect-square bg-gray-100 overflow-hidden"
                   >
-                    <img
+                    <SafeImage
                       src={coverImage}
                       alt={title}
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                     />
+                    {comparePaise && comparePaise > pricePaise && (
+                      <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        {Math.round(((comparePaise - pricePaise) / comparePaise) * 100)}% OFF
+                      </span>
+                    )}
                   </Link>
 
                   <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
@@ -204,32 +271,58 @@ export default function StoreSearchPage() {
                         </span>
                       )}
                       <Link
-                        href={`/store/${slug}/product/${p.id}`}
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
                         className="font-bold text-sm text-gray-900 hover:text-emerald-700 transition line-clamp-2"
                       >
                         {title}
                       </Link>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
                       <div>
                         <div className="font-mono font-bold text-sm text-gray-900">
                           {formatPaise(pricePaise)}
                         </div>
-                        {comparePaise && (
+                        {comparePaise && comparePaise > pricePaise && (
                           <div className="text-[11px] text-gray-400 font-mono line-through">
                             {formatPaise(comparePaise)}
                           </div>
                         )}
                       </div>
 
-                      <Link
-                        href={`/store/${slug}/product/${p.id}`}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition hover:opacity-90"
-                        style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        {/* Interactive Add to Cart Button */}
+                        <button
+                          onClick={(e) => handleAddToCart(e, p)}
+                          disabled={isAdding}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5 hover:opacity-95 ${
+                            isAdded
+                              ? 'bg-emerald-700 text-white'
+                              : 'text-white'
+                          }`}
+                          style={{
+                            backgroundColor: isAdded ? '#047857' : 'var(--theme-primary, #111827)',
+                          }}
+                          title="Add item directly to shopping cart"
+                        >
+                          {isAdded ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-white" />
+                              <span>Added</span>
+                            </>
+                          ) : isAdding ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Adding...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingBag className="w-3.5 h-3.5" />
+                              <span>Add to Cart</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

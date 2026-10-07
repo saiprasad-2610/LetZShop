@@ -49,8 +49,12 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
 
   return (
     <div
-      style={styleVariables}
-      className={`min-h-screen text-gray-900 transition-colors duration-200 theme-${themeCode} font-theme-body`}
+      style={{
+        ...styleVariables,
+        backgroundColor: 'var(--theme-background)',
+        color: 'var(--theme-primary)',
+      }}
+      className={`min-h-screen transition-colors duration-200 theme-${themeCode} font-theme-body`}
     >
       {children}
     </div>

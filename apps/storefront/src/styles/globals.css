@@ -42,3 +42,164 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* ========================================================================
+   Toast & Cart Animation Keyframes
+   ======================================================================== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes cartBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  50% { transform: scale(0.9); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+@keyframes slideInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpPanel {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.35s ease-out forwards;
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown 0.35s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.animate-cartBounce {
+  animation: cartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 2s infinite;
+}
+
+.animate-slideInOverlay {
+  animation: slideInOverlay 0.2s ease-out forwards;
+}
+
+.animate-slideUpPanel {
+  animation: slideUpPanel 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========================================================================
+   Checkout Step Transition
+   ======================================================================== */
+.checkout-step-enter {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.checkout-step-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.3s ease-out;
+}
+
+/* ========================================================================
+   Cart Drawer / Slide Panel (for mobile)
+   ======================================================================== */
+.cart-slide-right {
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cart-slide-right.open {
+  transform: translateX(0);
+}
+
+/* ========================================================================
+   Focus Ring Utility
+   ======================================================================== */
+.focus-ring-primary:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+}
+
+/* ========================================================================
+   Coupon Input Styling
+   ======================================================================== */
+.coupon-input {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.coupon-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ========================================================================
+   Secure Badge Shimmer
+   ======================================================================== */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+.secure-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  background-size: 200px 100%;
+  animation: shimmer 2s infinite;
+}

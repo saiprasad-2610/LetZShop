@@ -107,9 +107,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
 
         {/* Brand Logo / Wordmark */}
         <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-3">
-          {store.logoUrl ? (
+          {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
             <img
-              src={store.logoUrl}
+              src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
               alt={store.name}
               className="h-9 w-auto max-w-[150px] object-contain"
             />

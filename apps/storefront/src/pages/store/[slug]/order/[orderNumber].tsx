@@ -238,15 +238,23 @@ export default function OrderConfirmationPage() {
             <div className="pt-3 border-t border-gray-200 space-y-1.5 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="font-mono">{formatPaise(order.subtotalPaise)}</span>
+                <span className="font-mono">{formatPaise(order.subtotalPaise || order.totalPaise || 0)}</span>
               </div>
+              {order.discountPaise && order.discountPaise > 0 ? (
+                <div className="flex justify-between text-emerald-700 font-semibold">
+                  <span>Coupon Savings</span>
+                  <span className="font-mono">- {formatPaise(order.discountPaise)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between">
                 <span>Delivery</span>
-                <span className="text-emerald-700 font-semibold">FREE</span>
+                <span className="text-emerald-700 font-semibold">
+                  {order.shippingPaise && order.shippingPaise > 0 ? formatPaise(order.shippingPaise) : 'FREE'}
+                </span>
               </div>
               <div className="pt-2 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-900">
-                <span>Total Paid</span>
-                <span className="font-mono">{formatPaise(order.totalAmountPaise)}</span>
+                <span>Total Amount</span>
+                <span className="font-mono text-emerald-800">{formatPaise(order.totalPaise || order.totalAmountPaise || 0)}</span>
               </div>
             </div>
           </div>

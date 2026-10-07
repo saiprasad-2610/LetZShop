@@ -179,7 +179,7 @@ export class SimplyApiClient {
       this.request('seller/dashboard', { params }),
     getPrivatePreview: () => this.request('stores/my-store/preview'),
     getPublicStorefront: (slug: string, previewSecret?: string) =>
-      this.request(`storefront/${slug}`, { params: { previewSecret } }),
+      this.request(`storefront/${slug}`, { params: { previewSecret, _t: Date.now() } }),
   };
 
   // --- Seller Analytics ---
@@ -339,6 +339,19 @@ export class SimplyApiClient {
     retryOutbox: (id: string) => this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
     reconcilePayment: (paymentOrderId: string) =>
       this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, { method: 'POST' }),
+  };
+
+  // --- Buyer Payments (Merchant Razorpay Checkout) ---
+  public payments = {
+    createOrder: (orderId: string) =>
+      this.request('payments/orders', { method: 'POST', body: { orderId } }),
+    verify: (data: {
+      paymentOrderId: string;
+      razorpay_payment_id: string;
+      razorpay_order_id: string;
+      razorpay_signature: string;
+    }) =>
+      this.request('payments/verify', { method: 'POST', body: data }),
   };
 }
 

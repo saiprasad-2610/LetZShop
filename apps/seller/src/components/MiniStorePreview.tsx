@@ -6,16 +6,18 @@ import { getStorefrontUrl } from '../utils/config';
 interface MiniStorePreviewProps {
   store: any;
   products?: any[];
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
 
-export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store }) => {
+export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store, iframeRef }) => {
   const router = useRouter();
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const slug = store?.slug || 'sk-general-stores';
   const storefrontUrl = getStorefrontUrl();
-  const previewIframeUrl = `${storefrontUrl}/store/${slug}?preview=true&embedded=true`;
+  const initialTimestamp = React.useMemo(() => Date.now(), []);
+  const previewIframeUrl = `${storefrontUrl}/store/${slug}?preview=true&embedded=true&_t=${initialTimestamp}_${refreshKey}`;
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
@@ -84,6 +86,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store }) => 
           }`}
         >
           <iframe
+            ref={iframeRef}
             key={refreshKey}
             src={previewIframeUrl}
             className="w-full h-full border-0 bg-white"

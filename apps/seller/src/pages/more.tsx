@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  Tag,
 } from 'lucide-react';
 
 export default function MoreSettingsPage() {
@@ -53,6 +54,38 @@ export default function MoreSettingsPage() {
             Configure payments, fulfillment, subscriptions, and merchant account policies
           </p>
         </div>
+
+        {/* =========================================================================
+            PROMOTIONS & COUPONS
+        ========================================================================= */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <Tag className="w-4 h-4 text-emerald-600" />
+            <span>Promotions & Growth</span>
+          </div>
+
+          <div className="bg-white border border-slate-200/90 rounded-2xl divide-y divide-slate-100 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">Promotional Coupons & Discount Codes</h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                    Checkout Ready
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Create promo codes (e.g. WELCOME10, FESTIVE25), flat rupee or % discounts, and minimum order rules
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/coupons')}
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 shrink-0 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition"
+              >
+                Manage Coupons <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* =========================================================================
             1. PAYMENTS

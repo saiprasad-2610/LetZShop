@@ -10,9 +10,11 @@ export class CartService {
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) throw new NotFoundException('Store not found.');
 
-    if (guestToken) {
+    const cleanToken = guestToken?.trim();
+
+    if (cleanToken) {
       const existing = await this.prisma.cart.findUnique({
-        where: { guestToken },
+        where: { guestToken: cleanToken },
         include: {
           items: {
             include: {
@@ -23,23 +25,60 @@ export class CartService {
           },
         },
       });
-      if (existing && existing.expiresAt > new Date()) {
-        return existing;
+
+      if (existing) {
+        // If expired, refresh expiration by 30 days
+        if (existing.expiresAt <= new Date()) {
+          const newExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          await this.prisma.cart.update({
+            where: { id: existing.id },
+            data: { expiresAt: newExpires },
+          });
+          existing.expiresAt = newExpires;
+        }
+
+        const subtotalPaise = existing.items.reduce(
+          (sum, item) => sum + item.quantity * item.unitPricePaise,
+          0
+        );
+        const itemCount = existing.items.reduce((sum, item) => sum + item.quantity, 0);
+
+        return {
+          ...existing,
+          cart: existing,
+          subtotalPaise,
+          itemCount,
+        };
       }
     }
 
-    const newGuestToken = `guest_${crypto.randomUUID()}`;
+    const assignedToken = cleanToken || `guest_${crypto.randomUUID()}`;
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    return this.prisma.cart.create({
+    const created = await this.prisma.cart.create({
       data: {
         tenantId: store.tenantId,
         storeId: store.id,
-        guestToken: newGuestToken,
+        guestToken: assignedToken,
         expiresAt,
       },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: { product: true, optionValues: { include: { optionValue: true } } },
+            },
+          },
+        },
+      },
     });
+
+    return {
+      ...created,
+      cart: created,
+      subtotalPaise: 0,
+      itemCount: 0,
+    };
   }
 
   public async addItem(cartId: string, variantId: string, quantity: number) {
@@ -68,23 +107,25 @@ export class CartService {
     });
 
     if (existingItem) {
-      return this.prisma.cartItem.update({
+      await this.prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
           quantity: existingItem.quantity + quantity,
           unitPricePaise: variant.pricePaise,
         },
       });
+    } else {
+      await this.prisma.cartItem.create({
+        data: {
+          cartId,
+          variantId,
+          quantity,
+          unitPricePaise: variant.pricePaise,
+        },
+      });
     }
 
-    return this.prisma.cartItem.create({
-      data: {
-        cartId,
-        variantId,
-        quantity,
-        unitPricePaise: variant.pricePaise,
-      },
-    });
+    return this.getCart(cartId);
   }
 
   public async getCart(cartId: string) {
@@ -110,11 +151,13 @@ export class CartService {
       (sum, item) => sum + item.quantity * item.unitPricePaise,
       0
     );
+    const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
     return {
+      ...cart,
       cart,
       subtotalPaise,
-      itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+      itemCount,
     };
   }
 
@@ -133,15 +176,19 @@ export class CartService {
       throw new BadRequestException('Insufficient stock available for this quantity.');
     }
 
-    return this.prisma.cartItem.update({
+    await this.prisma.cartItem.update({
       where: { cartId_variantId: { cartId, variantId } },
       data: { quantity },
     });
+
+    return this.getCart(cartId);
   }
 
   public async removeItem(cartId: string, variantId: string) {
-    return this.prisma.cartItem.deleteMany({
+    await this.prisma.cartItem.deleteMany({
       where: { cartId, variantId },
     });
+
+    return this.getCart(cartId);
   }
 }

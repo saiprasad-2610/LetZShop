@@ -130,7 +130,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   try {
-    await app.listen(port, '0.0.0.0');
+    await app.listen(port, '::');
   } catch (err: any) {
     console.error('✗ API failed to start');
     console.error(err.message || err);

@@ -5,11 +5,12 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, UserRole, CredentialType, OtpPurpose, StoreStatus } from '@prisma/client';
-import { DevOtpProvider } from './providers/dev-otp.provider';
+import { OtpProvider } from './interfaces/otp-provider.interface';
 import { AuthenticatedUser } from '@simply/types';
 import { normalizePhone, isValidIndianPhone } from '@simply/validation';
 import * as crypto from 'crypto';
@@ -26,7 +27,7 @@ export class AuthService {
     private readonly prisma: PrismaClient,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly otpProvider: DevOtpProvider
+    @Inject('OTP_PROVIDER') private readonly otpProvider: OtpProvider
   ) {
     this.otpExpirySeconds = Number(this.configService.get('OTP_EXPIRY_SECONDS')) || 300;
     this.maxAttempts = Number(this.configService.get('OTP_MAX_ATTEMPTS')) || 5;

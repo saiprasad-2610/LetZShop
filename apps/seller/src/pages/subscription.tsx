@@ -10,7 +10,11 @@ import {
   Clock, 
   ShieldCheck,
   Zap,
-  ArrowRight
+  ArrowRight,
+  History,
+  FileText,
+  Calendar,
+  Download
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -322,6 +326,125 @@ export default function SubscriptionPage() {
             })}
           </div>
         </div>
+
+        {/* Subscription Details & Billing History (Requirement: Production-Level History & Validation) */}
+        {currentSub && (
+          <div className="space-y-4 pt-8 border-t border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <History className="w-5 h-5 text-gray-500" /> Subscription Details & Billing History
+            </h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Active Plan Details */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-4">
+                    <CreditCard className="w-4 h-4 text-emerald-500" /> Current Subscription
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                      <span className="text-gray-500">Plan</span>
+                      <span className="font-semibold text-gray-900">{currentSub.plan?.name || 'Unknown'}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                      <span className="text-gray-500">Status</span>
+                      <span className={`font-bold ${isLive ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {currentSub.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                      <span className="text-gray-500">Period Start</span>
+                      <span className="font-medium text-gray-800">
+                        {new Date(currentSub.currentPeriodStart).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                      <span className="text-gray-500">Period End</span>
+                      <span className="font-medium text-gray-800">
+                        {new Date(currentSub.currentPeriodEnd).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Auto-Renew</span>
+                      <span className="font-medium text-gray-800">
+                        {!currentSub.cancelAtPeriodEnd ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoices */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-500" /> Invoice History
+                  </h3>
+                </div>
+                
+                {(!currentSub.invoices || currentSub.invoices.length === 0) ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-gray-400">
+                    <FileText className="w-8 h-8 mb-2 opacity-50" />
+                    <p className="text-sm">No billing history available yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50/50 text-gray-500 border-b border-gray-100">
+                        <tr>
+                          <th className="px-6 py-3 font-medium">Invoice #</th>
+                          <th className="px-6 py-3 font-medium">Date</th>
+                          <th className="px-6 py-3 font-medium">Amount</th>
+                          <th className="px-6 py-3 font-medium">Status</th>
+                          <th className="px-6 py-3 font-medium text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {currentSub.invoices.map((inv: any) => (
+                          <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4 font-mono text-xs text-gray-600">{inv.invoiceNumber}</td>
+                            <td className="px-6 py-4 text-gray-600">
+                              {new Date(inv.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 font-medium text-gray-900">
+                              {formatPaise(inv.amountPaise)}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                                inv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {inv.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                type="button"
+                                disabled={!inv.invoicePdfUrl}
+                                className={`inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                                  inv.invoicePdfUrl 
+                                    ? 'text-blue-600 hover:text-blue-700' 
+                                    : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                                onClick={() => inv.invoicePdfUrl && window.open(inv.invoicePdfUrl, '_blank')}
+                                title={!inv.invoicePdfUrl ? "Invoice PDF not generated yet" : "Download PDF"}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                PDF
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Value Proposition Highlights */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200">

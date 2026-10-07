@@ -68,13 +68,33 @@ export class GuestCheckoutDto {
   @IsEmail()
   email?: string;
 
-  @ApiProperty({ type: CheckoutAddressDto })
+  @ApiPropertyOptional({ type: CheckoutAddressDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => CheckoutAddressDto)
-  deliveryAddress: CheckoutAddressDto;
+  deliveryAddress?: CheckoutAddressDto;
 
   @ApiPropertyOptional({ example: 'Please call before delivery' })
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 'WELCOME10' })
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
+  @ApiPropertyOptional({ example: 2000 })
+  @IsOptional()
+  discountPaise?: number;
+
+  @ApiPropertyOptional({ example: 'DELIVERY', enum: ['DELIVERY', 'PICKUP'] })
+  @IsOptional()
+  @IsString()
+  fulfillmentMode?: 'DELIVERY' | 'PICKUP';
+
+  @ApiProperty({ example: 'COD' })
+  @IsNotEmpty()
+  @IsString()
+  paymentMethod: string;
 }

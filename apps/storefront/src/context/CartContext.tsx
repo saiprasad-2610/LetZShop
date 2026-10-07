@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { SimplyApiClient, createApiClient } from '@simply/api-contracts';
 
@@ -16,6 +16,74 @@ export interface CartItemDetails {
   sku?: string;
 }
 
+export interface AppliedCoupon {
+  code: string;
+  type: 'PERCENTAGE' | 'FLAT';
+  value: number; // percentage (e.g. 10) or flat paise
+  discountPaise: number;
+  label: string;
+  minOrderPaise?: number;
+  maxDiscountPaise?: number;
+}
+
+// -------------------------------------------------------------------
+// Built-in Promotional Coupon Engine (client-side, extensible)
+// In production, this should be validated server-side via API
+// -------------------------------------------------------------------
+const BUILT_IN_COUPONS: Record<string, Omit<AppliedCoupon, 'discountPaise'>> = {
+  WELCOME10: {
+    code: 'WELCOME10',
+    type: 'PERCENTAGE',
+    value: 10,
+    label: '10% Off — Welcome Discount',
+    minOrderPaise: 50000, // ₹500 minimum
+    maxDiscountPaise: 20000, // max ₹200 off
+  },
+  FLAT50: {
+    code: 'FLAT50',
+    type: 'FLAT',
+    value: 5000, // ₹50 flat off
+    label: '₹50 Off on Your Order',
+    minOrderPaise: 30000, // ₹300 minimum
+  },
+  SAVE20: {
+    code: 'SAVE20',
+    type: 'PERCENTAGE',
+    value: 20,
+    label: '20% Off — Limited Offer',
+    minOrderPaise: 100000, // ₹1000 minimum
+    maxDiscountPaise: 50000, // max ₹500 off
+  },
+  FIRST100: {
+    code: 'FIRST100',
+    type: 'FLAT',
+    value: 10000, // ₹100 off
+    label: '₹100 Off — First Order',
+    minOrderPaise: 50000,
+  },
+  FREESHIP: {
+    code: 'FREESHIP',
+    type: 'FLAT',
+    value: 0,
+    label: 'Free Shipping',
+    minOrderPaise: 0,
+  },
+};
+
+function calculateCouponDiscount(
+  couponDef: Omit<AppliedCoupon, 'discountPaise'>,
+  subtotalPaise: number
+): number {
+  if (couponDef.type === 'FLAT') {
+    return couponDef.value;
+  }
+  let disc = Math.round((subtotalPaise * couponDef.value) / 100);
+  if (couponDef.maxDiscountPaise && disc > couponDef.maxDiscountPaise) {
+    disc = couponDef.maxDiscountPaise;
+  }
+  return disc;
+}
+
 interface CartContextType {
   cart: any | null;
   guestToken: string;
@@ -31,6 +99,17 @@ interface CartContextType {
   clearCart: () => void;
   refreshCart: () => Promise<void>;
   api: SimplyApiClient;
+  // Coupon
+  appliedCoupon: AppliedCoupon | null;
+  couponError: string | null;
+  applyCoupon: (code: string) => boolean;
+  removeCoupon: () => void;
+  discountPaise: number;
+  grandTotalPaise: number;
+  shippingPaise: number;
+  // Order notes
+  orderNotes: string;
+  setOrderNotes: (notes: string) => void;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -48,9 +127,62 @@ const CartContext = createContext<CartContextType>({
   clearCart: () => {},
   refreshCart: async () => {},
   api: apiClient,
+  appliedCoupon: null,
+  couponError: null,
+  applyCoupon: () => false,
+  removeCoupon: () => {},
+  discountPaise: 0,
+  grandTotalPaise: 0,
+  shippingPaise: 0,
+  orderNotes: '',
+  setOrderNotes: () => {},
 });
 
 const PREVIEW_CART_KEY = 'simply_preview_cart';
+const COUPON_KEY = 'simply_applied_coupon';
+const ORDER_NOTES_KEY = 'simply_order_notes';
+
+function normalizeCart(raw: any) {
+  if (!raw) return null;
+  // If response has nested cart property
+  if (raw.cart && typeof raw.cart === 'object') {
+    const inner = raw.cart;
+    const items = Array.isArray(inner.items) ? inner.items : [];
+    const subtotalPaise =
+      raw.subtotalPaise ??
+      inner.subtotalPaise ??
+      items.reduce((sum: number, it: any) => sum + (it.quantity * (it.unitPricePaise || it.variant?.pricePaise || 0)), 0);
+    const itemCount =
+      raw.itemCount ??
+      inner.itemCount ??
+      items.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0);
+
+    return {
+      ...inner,
+      items,
+      subtotalPaise,
+      itemCount,
+    };
+  }
+
+  // If response has items directly
+  if (Array.isArray(raw.items)) {
+    const subtotalPaise =
+      raw.subtotalPaise ??
+      raw.items.reduce((sum: number, it: any) => sum + (it.quantity * (it.unitPricePaise || it.variant?.pricePaise || 0)), 0);
+    const itemCount =
+      raw.itemCount ??
+      raw.items.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0);
+
+    return {
+      ...raw,
+      subtotalPaise,
+      itemCount,
+    };
+  }
+
+  return raw;
+}
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
@@ -59,6 +191,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [storeId, setStoreIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+
+  // Coupon state
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  // Order notes
+  const [orderNotes, setOrderNotesState] = useState('');
+
+  const updateCartState = useCallback((raw: any, sId?: string | null) => {
+    const norm = normalizeCart(raw);
+    if (!norm) return;
+    setCart(norm);
+
+    if (typeof window !== 'undefined') {
+      const activeStore = sId || storeId;
+      if (activeStore && norm.id) {
+        try {
+          localStorage.setItem(`simply_cart_${activeStore}`, JSON.stringify(norm));
+        } catch {}
+      }
+      if (norm.guestToken) {
+        setGuestToken(norm.guestToken);
+        try {
+          localStorage.setItem('simply_guest_token', norm.guestToken);
+        } catch {}
+      }
+    }
+  }, [storeId]);
 
   // Check preview mode state
   useEffect(() => {
@@ -93,30 +253,71 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('simply_guest_token', token);
       }
       setGuestToken(token);
+
+      // Restore saved active store id if available
+      const savedStoreId = localStorage.getItem('simply_active_store_id');
+      if (savedStoreId && !storeId) {
+        setStoreIdState(savedStoreId);
+        const cached = localStorage.getItem(`simply_cart_${savedStoreId}`);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed?.id) setCart(parsed);
+          } catch {}
+        }
+      }
+
+      // Restore coupon from localStorage
+      try {
+        const savedCoupon = localStorage.getItem(COUPON_KEY);
+        if (savedCoupon) {
+          setAppliedCoupon(JSON.parse(savedCoupon));
+        }
+      } catch {}
+
+      // Restore order notes
+      try {
+        const savedNotes = localStorage.getItem(ORDER_NOTES_KEY);
+        if (savedNotes) {
+          setOrderNotesState(savedNotes);
+        }
+      } catch {}
     }
   }, []);
 
-  const setStoreId = (id: string) => {
+  const setStoreId = useCallback((id: string) => {
     setStoreIdState(id);
-  };
-
-  useEffect(() => {
-    if (storeId && guestToken && !isPreview) {
-      initCart(storeId, guestToken);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('simply_active_store_id', id);
+        const cached = localStorage.getItem(`simply_cart_${id}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.id) {
+            setCart(parsed);
+          }
+        }
+      } catch {}
     }
-  }, [storeId, guestToken, isPreview]);
+  }, []);
 
-  const initCart = async (sId: string, gToken: string) => {
+  const initCart = useCallback(async (sId: string, gToken: string) => {
     setLoading(true);
     try {
       const c = await apiClient.cart.init(sId, gToken);
-      setCart(c);
+      updateCartState(c, sId);
     } catch (err) {
       console.error('Failed to init cart', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateCartState]);
+
+  useEffect(() => {
+    if (storeId && guestToken && !isPreview) {
+      initCart(storeId, guestToken);
+    }
+  }, [storeId, guestToken, isPreview, initCart]);
 
   const savePreviewCart = (updatedCart: any) => {
     setCart(updatedCart);
@@ -170,11 +371,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (!cart?.id) return;
     setLoading(true);
     try {
-      const updated = await apiClient.cart.addItem(cart.id, variantId, quantity);
-      setCart(updated);
+      let activeCart = cart;
+
+      // Auto-initialize cart if not ready
+      if (!activeCart?.id) {
+        const sId = storeId || (typeof window !== 'undefined' ? localStorage.getItem('simply_active_store_id') : null);
+        const gToken = guestToken || (typeof window !== 'undefined' ? localStorage.getItem('simply_guest_token') : null) || undefined;
+        if (sId) {
+          const initRes = await apiClient.cart.init(sId, gToken);
+          activeCart = normalizeCart(initRes);
+          updateCartState(activeCart, sId);
+        }
+      }
+
+      if (!activeCart?.id) {
+        throw new Error('Shopping cart could not be initialized. Please refresh and try again.');
+      }
+
+      const updated = await apiClient.cart.addItem(activeCart.id, variantId, quantity);
+      const normalized = normalizeCart(updated);
+
+      if (!normalized?.items || !Array.isArray(normalized.items)) {
+        const fresh = await apiClient.cart.get(activeCart.id);
+        updateCartState(fresh, storeId);
+      } else {
+        updateCartState(normalized, storeId);
+      }
     } catch (err) {
       console.error('Failed to add item to cart', err);
       throw err;
@@ -208,12 +432,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cart?.id) return;
     setLoading(true);
     try {
+      let updated;
       if (quantity <= 0) {
-        const updated = await apiClient.cart.removeItem(cart.id, variantId);
-        setCart(updated);
+        updated = await apiClient.cart.removeItem(cart.id, variantId);
       } else {
-        const updated = await apiClient.cart.updateQuantity(cart.id, variantId, quantity);
-        setCart(updated);
+        updated = await apiClient.cart.updateQuantity(cart.id, variantId, quantity);
+      }
+      const normalized = normalizeCart(updated);
+      if (!normalized?.items || !Array.isArray(normalized.items)) {
+        const fresh = await apiClient.cart.get(cart.id);
+        updateCartState(fresh, storeId);
+      } else {
+        updateCartState(normalized, storeId);
       }
     } catch (err) {
       console.error('Failed to update cart quantity', err);
@@ -242,7 +472,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const updated = await apiClient.cart.removeItem(cart.id, variantId);
-      setCart(updated);
+      const normalized = normalizeCart(updated);
+      if (!normalized?.items || !Array.isArray(normalized.items)) {
+        const fresh = await apiClient.cart.get(cart.id);
+        updateCartState(fresh, storeId);
+      } else {
+        updateCartState(normalized, storeId);
+      }
     } catch (err) {
       console.error('Failed to remove cart item', err);
       throw err;
@@ -264,6 +500,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     setCart(null);
+    removeCoupon();
+    setOrderNotesState('');
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(ORDER_NOTES_KEY);
+        if (storeId) {
+          localStorage.removeItem(`simply_cart_${storeId}`);
+        }
+      } catch {}
+    }
   };
 
   const refreshCart = async () => {
@@ -271,17 +517,110 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cart?.id) return;
     try {
       const fresh = await apiClient.cart.get(cart.id);
-      setCart(fresh);
+      updateCartState(fresh, storeId);
     } catch (err) {
       console.error('Failed to refresh cart', err);
     }
   };
 
+  // ====================================================================
+  // Coupon Engine
+  // ====================================================================
+  const applyCoupon = useCallback(
+    (code: string): boolean => {
+      setCouponError(null);
+      const normalizedCode = code.trim().toUpperCase();
+
+      if (!normalizedCode) {
+        setCouponError('Please enter a coupon code');
+        return false;
+      }
+
+      let couponDef: any = BUILT_IN_COUPONS[normalizedCode];
+
+      // Check merchant-created custom coupons from the admin panel
+      if (!couponDef && typeof window !== 'undefined') {
+        try {
+          const customKey = storeId ? `simply_coupons_${storeId}` : 'simply_custom_coupons';
+          const savedCustom = localStorage.getItem('simply_custom_coupons') || localStorage.getItem(customKey);
+          if (savedCustom) {
+            const list = JSON.parse(savedCustom);
+            const found = list.find((c: any) => c.code === normalizedCode && c.isActive);
+            if (found) {
+              couponDef = {
+                code: found.code,
+                type: found.type,
+                value: found.value,
+                label: found.label,
+                minOrderPaise: found.minOrderPaise,
+                maxDiscountPaise: found.maxDiscountPaise,
+              };
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse custom coupons', e);
+        }
+      }
+
+      if (!couponDef) {
+        setCouponError(`Coupon "${normalizedCode}" is not valid or has expired`);
+        return false;
+      }
+
+      const currentSubtotal = subtotalCalc;
+      if (couponDef.minOrderPaise && currentSubtotal < couponDef.minOrderPaise) {
+        const minAmount = (couponDef.minOrderPaise / 100).toFixed(0);
+        setCouponError(`Minimum order amount of ₹${minAmount} required for this coupon`);
+        return false;
+      }
+
+      const disc = calculateCouponDiscount(couponDef, currentSubtotal);
+
+      const applied: AppliedCoupon = {
+        ...couponDef,
+        discountPaise: disc,
+      };
+      setAppliedCoupon(applied);
+      try {
+        localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
+      } catch {}
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cart]
+  );
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+    try {
+      localStorage.removeItem(COUPON_KEY);
+    } catch {}
+  }, []);
+
+  const setOrderNotes = useCallback((notes: string) => {
+    setOrderNotesState(notes);
+    try {
+      localStorage.setItem(ORDER_NOTES_KEY, notes);
+    } catch {}
+  }, []);
+
+  // ====================================================================
+  // Computed Values
+  // ====================================================================
   const itemCount = (cart?.items || []).reduce((acc: number, item: any) => acc + item.quantity, 0);
-  const subtotalPaise = cart?.subtotalPaise || (cart?.items || []).reduce(
+  const subtotalCalc = cart?.subtotalPaise || (cart?.items || []).reduce(
     (acc: number, item: any) => acc + item.quantity * (item.variant?.pricePaise || 0),
     0
   );
+
+  // Recalculate coupon discount when subtotal changes
+  const discountPaise = appliedCoupon
+    ? calculateCouponDiscount(appliedCoupon, subtotalCalc)
+    : 0;
+
+  const shippingPaise = 0; // Free promotional shipping
+  const grandTotalPaise = Math.max(0, subtotalCalc - discountPaise + shippingPaise);
 
   return (
     <CartContext.Provider
@@ -289,7 +628,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cart,
         guestToken,
         itemCount,
-        subtotalPaise,
+        subtotalPaise: subtotalCalc,
         loading,
         storeId,
         isPreview,
@@ -300,6 +639,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearCart,
         refreshCart,
         api: apiClient,
+        appliedCoupon,
+        couponError,
+        applyCoupon,
+        removeCoupon,
+        discountPaise,
+        grandTotalPaise,
+        shippingPaise,
+        orderNotes,
+        setOrderNotes,
       }}
     >
       {children}

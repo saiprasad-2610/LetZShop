@@ -18,6 +18,7 @@ import {
   Star
 } from 'lucide-react';
 import { useCart } from '../../../../context/CartContext';
+import { useToast } from '../../../../components/ui/Toast';
 import { ThemeWrapper } from '../../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../../components/StoreHeader';
 import { StoreFooter } from '../../../../components/StoreFooter';
@@ -29,6 +30,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { slug, id, preview } = router.query;
   const { api, setStoreId, addItem } = useCart();
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
@@ -231,10 +233,11 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
-    const variant = activeVariant || product.variants?.[0] || {
-      id: `var_${product.id}`,
-      pricePaise: product.basePricePaise || 0,
-    };
+    const variant = activeVariant || product.variants?.[0];
+    if (!variant?.id || variant.id.startsWith('var_')) {
+      toast.warning('Variant Unavailable', 'Please select an available product variant/size.');
+      return;
+    }
 
     setAddingToCart(true);
     try {
@@ -249,19 +252,21 @@ export default function ProductDetailPage() {
         sku: variant.sku || '',
       });
       setCartSuccess(true);
+      toast.success('Added to Cart', `${quantity} × ${product.title || 'Product'} added to your bag.`);
       setTimeout(() => setCartSuccess(false), 2500);
     } catch (err: any) {
-      alert(err.message || 'Failed to add item to cart');
+      toast.error('Could Not Add Item', err.message || 'Failed to add item to cart');
     } finally {
       setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
-    const variant = activeVariant || product.variants?.[0] || {
-      id: `var_${product.id}`,
-      pricePaise: product.basePricePaise || 0,
-    };
+    const variant = activeVariant || product.variants?.[0];
+    if (!variant?.id || variant.id.startsWith('var_')) {
+      toast.warning('Variant Unavailable', 'Please select an available product variant/size.');
+      return;
+    }
 
     try {
       const primaryImg = activeGallery[0] || product.images?.[0]?.url;
@@ -276,7 +281,7 @@ export default function ProductDetailPage() {
       });
       router.push(getLink(`/store/${slug}/checkout`));
     } catch (err: any) {
-      alert(err.message || 'Failed to initiate checkout');
+      toast.error('Checkout Error', err.message || 'Failed to initiate checkout');
     }
   };
 
@@ -295,8 +300,9 @@ export default function ProductDetailPage() {
         message: enquiryMsg || `Inquiry for ${product.title} (${activeVariant?.title || 'Default'})`,
       });
       setEnquirySuccess(true);
+      toast.success('Inquiry Submitted', 'The store merchant will get back to you soon.');
     } catch (err: any) {
-      alert(err.message || 'Failed to submit enquiry');
+      toast.error('Inquiry Failed', err.message || 'Failed to submit enquiry');
     } finally {
       setSubmittingEnquiry(false);
     }
