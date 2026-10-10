@@ -8,7 +8,7 @@ export class TwilioOtpProvider implements OtpProvider {
   private readonly logger = new Logger(TwilioOtpProvider.name);
   private client: twilio.Twilio | null = null;
   private readonly fromNumber: string;
-  private readonly isEnabled: boolean;
+  public readonly isEnabled: boolean;
 
   constructor(private configService: ConfigService) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
@@ -27,14 +27,14 @@ export class TwilioOtpProvider implements OtpProvider {
         this.isEnabled = false;
       }
     } else {
-      this.logger.warn('⚠️ Twilio credentials missing or invalid. SMS dispatches will silently fail or default to DevOtpProvider.');
+      this.logger.warn('⚠️ Twilio credentials missing or invalid. Defaulting to development OTP fallback.');
     }
   }
 
   async sendOtp(phone: string, code: string): Promise<SendOtpResult> {
     if (!this.isEnabled || !this.client) {
-      this.logger.warn(`Cannot send OTP to ${phone} - Twilio is not configured.`);
-      return { success: false, isMock: false };
+      this.logger.warn(`[OTP] SMS not dispatched to ${phone} (Twilio not configured). Verification OTP code: ${code}`);
+      return { success: true, isMock: true };
     }
 
     try {

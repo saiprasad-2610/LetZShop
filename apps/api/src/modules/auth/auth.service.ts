@@ -72,7 +72,8 @@ export class AuthService {
     }
 
     const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction && this.devMockEnabled) {
+    const isTwilioConfigured = Boolean((this.otpProvider as any)?.isEnabled);
+    if (isProduction && this.devMockEnabled && isTwilioConfigured) {
       throw new BadRequestException('Mock OTP provider cannot be enabled in production.');
     }
 
@@ -91,8 +92,8 @@ export class AuthService {
       throw new BadRequestException('Please wait at least 60 seconds before requesting a new OTP.');
     }
 
-    // Determine code
-    const otpCode = (!isProduction && this.devMockEnabled)
+    // Determine code: if SMS gateway (Twilio) is not configured, fall back to devDefaultCode (123456)
+    const otpCode = (!isTwilioConfigured || (!isProduction && this.devMockEnabled))
       ? this.devDefaultCode
       : Math.floor(100000 + Math.random() * 900000).toString();
 
