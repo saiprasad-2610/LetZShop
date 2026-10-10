@@ -128,9 +128,9 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  const port = process.env.PORT || 4000;
+  const port = Number(process.env.PORT) || 4000;
   try {
-    await app.listen(port, '::');
+    await app.listen(port, '0.0.0.0');
   } catch (err: any) {
     console.error('✗ API failed to start');
     console.error(err.message || err);

@@ -13,9 +13,10 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { PrismaClient, OrderStatus, ProductStatus, StoreStatus } from '@prisma/client';
+import { PrismaClient, OrderStatus, ProductStatus, StoreStatus, ShippingProviderType } from '@prisma/client';
 import { StoreSubscriptionRequiredException } from '../../common/exceptions/domain.exceptions';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentTenant, CurrentUser } from '../../common/decorators';
@@ -26,8 +27,10 @@ import { ThemesService } from '../themes/themes.service';
 import { OrdersService } from '../orders/orders.service';
 import { MediaService } from '../media/media.service';
 import { CreateProductDto } from '../catalog/dto/catalog.dto';
+import { ShiprocketShippingProvider } from '../shipping/providers/shiprocket-shipping.provider';
 
 import { DashboardService } from './dashboard.service';
+import { ReportsService } from './reports.service';
 
 @ApiTags('Seller Dashboard & Merchant APIs')
 @ApiBearerAuth()
@@ -41,7 +44,9 @@ export class SellerController {
     private readonly themesService: ThemesService,
     private readonly ordersService: OrdersService,
     private readonly mediaService: MediaService,
-    private readonly dashboardService: DashboardService
+    private readonly dashboardService: DashboardService,
+    private readonly reportsService: ReportsService,
+    private readonly shiprocketProvider: ShiprocketShippingProvider
   ) {}
 
   // ============================================================================
@@ -228,6 +233,25 @@ export class SellerController {
       period,
       startDate,
       endDate,
+    });
+  }
+
+  @Get('reports')
+  @ApiOperation({ summary: 'Get merchant customized report data (sales, orders, products, customers)' })
+  async getReports(
+    @CurrentTenant() tenant: TenantContext,
+    @Query('type') type?: 'sales' | 'orders' | 'products' | 'customers',
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+    @Query('paymentStatus') paymentStatus?: string
+  ) {
+    return this.reportsService.getReportData(tenant, {
+      type,
+      startDate,
+      endDate,
+      status,
+      paymentStatus,
     });
   }
 
@@ -557,4 +581,393 @@ export class SellerController {
       user.userId
     );
   }
+
+  // ============================================================================
+  // RAZORPAY PAYMENT SETTINGS
+  // ============================================================================
+
+  @Get('payment-settings')
+  @ApiOperation({ summary: 'Get merchant Razorpay payment account configuration status' })
+  async getPaymentSettings(@CurrentTenant() tenant: TenantContext) {
+    let storeId: string | undefined = tenant?.storeId;
+    if (!storeId && tenant?.tenantId) {
+      const store = await this.prisma.store.findFirst({
+        where: { tenantId: tenant.tenantId, deletedAt: null },
+      });
+      if (store?.id) storeId = store.id;
+    }
+
+    const account = storeId
+      ? await this.prisma.merchantPaymentAccount.findFirst({
+          where: { storeId, provider: 'RAZORPAY' },
+        })
+      : null;
+
+    const capabilities = (account?.capabilities as any) || {};
+    const codEnabled = capabilities.codEnabled !== false;
+
+    if (!account) {
+      return {
+        connected: false,
+        provider: 'RAZORPAY',
+        keyId: null,
+        isEnabled: false,
+        codEnabled,
+        secretConfigured: false,
+      };
+    }
+
+    const isConnected = Boolean(
+      account.keyId &&
+      account.keyId !== 'pending_setup' &&
+      account.keySecretEncrypted &&
+      account.keySecretEncrypted !== 'pending_setup' &&
+      account.isEnabled !== false
+    );
+
+    return {
+      connected: isConnected,
+      provider: 'RAZORPAY',
+      keyId: account.keyId === 'pending_setup' ? null : account.keyId,
+      isEnabled: account.isEnabled,
+      codEnabled,
+      secretConfigured: Boolean(account.keySecretEncrypted && account.keySecretEncrypted !== 'pending_setup'),
+    };
+  }
+
+  @Post('payment-settings')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Save or update merchant Razorpay Key ID and Key Secret' })
+  async savePaymentSettings(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: { keyId: string; keySecret: string; isEnabled?: boolean; codEnabled?: boolean }
+  ) {
+    const { keyId, keySecret, isEnabled = true, codEnabled } = body;
+    const keepExisting = keySecret === '__KEEP_EXISTING__';
+
+    if (!keyId || !keyId.trim()) {
+      throw new BadRequestException('Razorpay Key ID is required.');
+    }
+
+    let storeId: string | undefined = tenant?.storeId;
+    let tenantId: string | undefined = tenant?.tenantId;
+    if (!storeId && tenantId) {
+      const store = await this.prisma.store.findFirst({
+        where: { tenantId, deletedAt: null },
+      });
+      if (store?.id) storeId = store.id;
+    }
+
+    if (!storeId) {
+      throw new BadRequestException('Store context not found.');
+    }
+
+    const existing = await this.prisma.merchantPaymentAccount.findFirst({
+      where: { storeId, provider: 'RAZORPAY' },
+    });
+
+    if (!existing && (!keySecret || keepExisting)) {
+      throw new BadRequestException('Razorpay Key Secret is required for first-time setup.');
+    }
+
+    const currentCapabilities = (existing?.capabilities as any) || {};
+    const updatedCapabilities = codEnabled !== undefined
+      ? { ...currentCapabilities, codEnabled }
+      : currentCapabilities;
+
+    let account;
+    if (existing) {
+      account = await this.prisma.merchantPaymentAccount.update({
+        where: { id: existing.id },
+        data: {
+          keyId: keyId.trim(),
+          ...(keepExisting ? {} : { keySecretEncrypted: keySecret.trim() }),
+          isEnabled,
+          capabilities: updatedCapabilities,
+        },
+      });
+    } else {
+      account = await this.prisma.merchantPaymentAccount.create({
+        data: {
+          tenantId: tenantId || tenant.tenantId,
+          storeId,
+          provider: 'RAZORPAY',
+          keyId: keyId.trim(),
+          keySecretEncrypted: keySecret.trim(),
+          isEnabled,
+          capabilities: updatedCapabilities,
+        },
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Payment credentials saved successfully.',
+      keyId: account.keyId,
+      isEnabled: account.isEnabled,
+      codEnabled: updatedCapabilities.codEnabled !== false,
+      secretConfigured: Boolean(account.keySecretEncrypted),
+    };
+  }
+
+  @Post('payment-settings/cod')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle Cash on Delivery (COD) for this store' })
+  async toggleCod(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: { codEnabled: boolean }
+  ) {
+    const { codEnabled } = body;
+    const existing = await this.prisma.merchantPaymentAccount.findFirst({
+      where: { storeId: tenant.storeId },
+    });
+
+    if (existing) {
+      const currentCaps = (existing.capabilities as any) || {};
+      await this.prisma.merchantPaymentAccount.update({
+        where: { id: existing.id },
+        data: {
+          capabilities: { ...currentCaps, codEnabled },
+        },
+      });
+    } else {
+      await this.prisma.merchantPaymentAccount.create({
+        data: {
+          tenantId: tenant.tenantId,
+          storeId: tenant.storeId,
+          provider: 'RAZORPAY',
+          keyId: 'pending_setup',
+          keySecretEncrypted: 'pending_setup',
+          isEnabled: false,
+          capabilities: { codEnabled },
+        },
+      });
+    }
+
+    return {
+      success: true,
+      codEnabled,
+      message: `Cash on Delivery is now ${codEnabled ? 'enabled' : 'disabled'}.`,
+    };
+  }
+
+  // ============================================================================
+  // SHIPROCKET SHIPPING SETTINGS
+  // ============================================================================
+
+  @Get('shipping-settings')
+  @ApiOperation({ summary: 'Get merchant Shiprocket shipping configuration status' })
+  async getShippingSettings(@CurrentTenant() tenant: TenantContext) {
+    const account = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+    });
+
+    if (!account) {
+      return {
+        connected: false,
+        provider: 'SHIPROCKET',
+        email: '',
+        pickupLocation: 'Primary',
+        isEnabled: false,
+        passwordConfigured: false,
+      };
+    }
+
+    return {
+      connected: Boolean(account.apiKeyEncrypted && account.apiSecretEncrypted),
+      provider: 'SHIPROCKET',
+      email: account.apiKeyEncrypted,
+      pickupLocation: account.accountId || 'Primary',
+      isEnabled: account.isEnabled,
+      passwordConfigured: Boolean(account.apiSecretEncrypted),
+    };
+  }
+
+  @Post('shipping-settings')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Save or update merchant Shiprocket API User credentials and pickup location' })
+  async saveShippingSettings(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: { email: string; password?: string; pickupLocation?: string; isEnabled?: boolean }
+  ) {
+    const { email, password, pickupLocation = 'Primary', isEnabled = true } = body;
+    const keepExisting = !password || password === '__KEEP_EXISTING__';
+
+    if (!email || !email.trim()) {
+      throw new BadRequestException('Shiprocket API User Email is required.');
+    }
+
+    const existing = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+    });
+
+    if (!existing && keepExisting) {
+      throw new BadRequestException('Shiprocket API User Password is required for first-time configuration.');
+    }
+
+    const cleanEmail = email.trim();
+    const cleanPickup = (pickupLocation || 'Primary').trim();
+    const cleanPassword = keepExisting ? existing!.apiSecretEncrypted : password!.trim();
+
+    await this.prisma.merchantShippingAccount.upsert({
+      where: {
+        storeId_provider: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+      },
+      create: {
+        tenantId: tenant.tenantId,
+        storeId: tenant.storeId,
+        provider: ShippingProviderType.SHIPROCKET,
+        apiKeyEncrypted: cleanEmail,
+        apiSecretEncrypted: cleanPassword,
+        accountId: cleanPickup,
+        isEnabled,
+      },
+      update: {
+        apiKeyEncrypted: cleanEmail,
+        ...(keepExisting ? {} : { apiSecretEncrypted: cleanPassword }),
+        accountId: cleanPickup,
+        isEnabled,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Shiprocket logistics settings saved successfully.',
+      connected: true,
+      email: cleanEmail,
+      pickupLocation: cleanPickup,
+      isEnabled,
+    };
+  }
+
+  @Post('shipping-settings/test')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Test merchant Shiprocket API User authentication' })
+  async testShippingSettings(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: { email: string; password?: string }
+  ) {
+    let { email, password } = body;
+    if (!email || !email.trim()) {
+      throw new BadRequestException('Shiprocket API User Email is required to test.');
+    }
+
+    if (!password || password === '__KEEP_EXISTING__') {
+      const existing = await this.prisma.merchantShippingAccount.findFirst({
+        where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+      });
+      if (!existing || !existing.apiSecretEncrypted) {
+        throw new BadRequestException('Please enter your Shiprocket API password to test.');
+      }
+      password = existing.apiSecretEncrypted;
+    }
+
+    return this.shiprocketProvider.testCredentials(email.trim(), password.trim());
+  }
+
+  @Post('shipping-settings/toggle')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle Shiprocket fulfillment enabled / disabled' })
+  async toggleShippingEnabled(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: { isEnabled: boolean }
+  ) {
+    const { isEnabled } = body;
+    const existing = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Shiprocket account not configured yet.');
+    }
+
+    await this.prisma.merchantShippingAccount.update({
+      where: { id: existing.id },
+      data: { isEnabled },
+    });
+
+    return {
+      success: true,
+      isEnabled,
+      message: `Shiprocket logistics fulfillment is now ${isEnabled ? 'enabled' : 'disabled'}.`,
+    };
+  }
+
+  // ============================================================================
+  // DELIVERY CHARGES & FREE DELIVERY THRESHOLD RULES
+  // ============================================================================
+
+  @Get('delivery-rates')
+  @ApiOperation({ summary: 'Get merchant delivery charges and free delivery threshold' })
+  async getDeliveryRates(@CurrentTenant() tenant: TenantContext) {
+    const profile = await this.prisma.shippingProfile.findFirst({
+      where: { storeId: tenant.storeId, isDefault: true },
+    });
+
+    const flatRatePaise = profile?.flatRatePaise ?? 0;
+    const freeThresholdPaise = profile?.freeShippingThresholdPaise ?? null;
+
+    return {
+      deliveryChargeRupees: flatRatePaise / 100,
+      freeDeliveryThresholdRupees: freeThresholdPaise ? freeThresholdPaise / 100 : null,
+      freeDeliveryEnabled: freeThresholdPaise !== null && freeThresholdPaise !== undefined,
+    };
+  }
+
+  @Post('delivery-rates')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Save merchant delivery charges and free delivery threshold' })
+  async saveDeliveryRates(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: {
+      deliveryChargeRupees: number;
+      freeDeliveryThresholdRupees?: number | null;
+      freeDeliveryEnabled?: boolean;
+    }
+  ) {
+    const deliveryChargeRupees = Math.max(0, Number(body.deliveryChargeRupees) || 0);
+    const flatRatePaise = Math.round(deliveryChargeRupees * 100);
+
+    const freeDeliveryEnabled = Boolean(body.freeDeliveryEnabled);
+    const thresholdRupees = Number(body.freeDeliveryThresholdRupees);
+    const freeShippingThresholdPaise =
+      freeDeliveryEnabled && !isNaN(thresholdRupees) && thresholdRupees > 0
+        ? Math.round(thresholdRupees * 100)
+        : null;
+
+    const existing = await this.prisma.shippingProfile.findFirst({
+      where: { storeId: tenant.storeId, isDefault: true },
+    });
+
+    let profile;
+    if (existing) {
+      profile = await this.prisma.shippingProfile.update({
+        where: { id: existing.id },
+        data: {
+          flatRatePaise,
+          freeShippingThresholdPaise,
+        },
+      });
+    } else {
+      profile = await this.prisma.shippingProfile.create({
+        data: {
+          tenantId: tenant.tenantId,
+          storeId: tenant.storeId,
+          name: 'Standard Delivery',
+          flatRatePaise,
+          freeShippingThresholdPaise,
+          isDefault: true,
+        },
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Delivery charges and free delivery threshold saved successfully.',
+      deliveryChargeRupees: profile.flatRatePaise / 100,
+      freeDeliveryThresholdRupees: profile.freeShippingThresholdPaise ? profile.freeShippingThresholdPaise / 100 : null,
+      freeDeliveryEnabled: profile.freeShippingThresholdPaise !== null,
+    };
+  }
 }
+

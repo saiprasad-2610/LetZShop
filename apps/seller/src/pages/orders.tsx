@@ -646,7 +646,24 @@ export default function OrdersPage() {
                     {orders.map((o) => {
                       const dt = formatDate(o.createdAt);
                       const itemsCount = o.itemsCount || o.items?.length || 1;
-                      const summary = o.itemsSummary || o.items?.[0]?.titleSnapshot || 'Order items';
+                      const summary =
+                        o.itemsSummary ||
+                        o.items?.[0]?.productName ||
+                        o.items?.[0]?.variantTitle ||
+                        o.items?.[0]?.titleSnapshot ||
+                        'Order items';
+                      const customerDisplayName =
+                        o.customerName ||
+                        o.customer?.fullName ||
+                        o.orderAddress?.fullName ||
+                        (o.deliveryAddress as any)?.fullName ||
+                        'Guest Customer';
+                      const customerDisplayPhone =
+                        o.customerPhone ||
+                        o.customer?.phone ||
+                        o.orderAddress?.phone ||
+                        (o.deliveryAddress as any)?.phone ||
+                        '—';
 
                       return (
                         <tr
@@ -662,10 +679,10 @@ export default function OrdersPage() {
                           {/* Customer */}
                           <td className="py-3.5 px-4">
                             <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition">
-                              {o.customerName || 'Guest Customer'}
+                              {customerDisplayName}
                             </div>
                             <div className="text-[11px] text-slate-400 font-mono">
-                              {o.customerPhone || '—'}
+                              {customerDisplayPhone}
                             </div>
                           </td>
 
@@ -728,7 +745,24 @@ export default function OrdersPage() {
               {orders.map((o) => {
                 const dt = formatDate(o.createdAt);
                 const itemsCount = o.itemsCount || o.items?.length || 1;
-                const summary = o.itemsSummary || o.items?.[0]?.titleSnapshot || 'Order items';
+                const summary =
+                  o.itemsSummary ||
+                  o.items?.[0]?.productName ||
+                  o.items?.[0]?.variantTitle ||
+                  o.items?.[0]?.titleSnapshot ||
+                  'Order items';
+                const customerDisplayName =
+                  o.customerName ||
+                  o.customer?.fullName ||
+                  o.orderAddress?.fullName ||
+                  (o.deliveryAddress as any)?.fullName ||
+                  'Guest Customer';
+                const customerDisplayPhone =
+                  o.customerPhone ||
+                  o.customer?.phone ||
+                  o.orderAddress?.phone ||
+                  (o.deliveryAddress as any)?.phone ||
+                  '—';
 
                 return (
                   <div
@@ -752,15 +786,15 @@ export default function OrdersPage() {
                     <div className="text-xs space-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-slate-900">
-                          {o.customerName || 'Guest Customer'}
+                          {customerDisplayName}
                         </span>
                         <span className="text-[11px] text-slate-500 font-medium">
                           {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                         </span>
                       </div>
-                      {o.customerPhone && (
+                      {customerDisplayPhone !== '—' && (
                         <p className="text-[11px] text-slate-400 font-mono">
-                          {o.customerPhone}
+                          {customerDisplayPhone}
                         </p>
                       )}
                       <p className="text-[11px] text-slate-500 truncate pt-0.5">

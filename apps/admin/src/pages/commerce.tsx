@@ -10,12 +10,11 @@ import {
   Store 
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { createApiClient } from '@simply/api-contracts';
+import { useAdminAuth } from '../context/AdminAuthContext';
 import { formatPaise } from '@simply/ui';
 
-const api = createApiClient();
-
 export default function AdminCommercePage() {
+  const { api } = useAdminAuth();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);

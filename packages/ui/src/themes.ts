@@ -292,4 +292,116 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
       'contact',
     ],
   },
+
+  aura: {
+    code: 'aura',
+    name: 'Aura',
+    tagline: 'Luminous Glow & Clean Beauty',
+    bestFor: 'Skincare, cosmetics, perfumes, organic serums, luxury spas, aesthetic wellness',
+    palette: {
+      primary: '#881337', // Deep rose wine
+      accent: '#FB7185',  // Luminous rose quartz
+      background: '#FFF1F2', // Soft blush mist
+      surface: '#FFFFFF',
+      text: '#4C0519',
+      muted: '#9F1239',
+      border: '#FFE4E6',
+    },
+    typography: {
+      heading: 'Playfair Display',
+      body: 'Plus Jakarta Sans',
+    },
+    headerStyle: 'minimal-center',
+    heroStyle: 'split-editorial',
+    cardStyle: 'framed-luxury',
+    buttonStyle: 'sharp-pill',
+    imageRatio: '3/4',
+    spacingDensity: 'generous',
+    backgroundTreatment: 'warm-tint',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'featured_products',
+      'categories',
+      'editorial_image_text',
+      'testimonials',
+      'about_business',
+      'contact',
+    ],
+  },
+
+  noir: {
+    code: 'noir',
+    name: 'Noir',
+    tagline: 'Avant-Garde Dark Studio & Monolith',
+    bestFor: 'Luxury streetwear, haute horlogerie, cyberpunk audio & gear, minimalist apparel',
+    palette: {
+      primary: '#09090B', // Deep void black
+      accent: '#10B981',  // Electric neon emerald
+      background: '#09090B', // Stealth obsidian dark
+      surface: '#18181B', // Dark carbon surface
+      text: '#F4F4F5',    // Crisp titanium white
+      muted: '#A1A1AA',   // Cool steel muted
+      border: '#27272A',  // Subtle hairline border
+    },
+    typography: {
+      heading: 'Space Grotesk',
+      body: 'Inter',
+    },
+    headerStyle: 'sticky-action',
+    heroStyle: 'full-banner',
+    cardStyle: 'elevated-modern',
+    buttonStyle: 'sharp-pill',
+    imageRatio: '4/5',
+    spacingDensity: 'compact',
+    backgroundTreatment: 'high-contrast',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'new_arrivals',
+      'featured_products',
+      'categories',
+      'offer_banner',
+      'gallery',
+      'contact',
+    ],
+  },
+
+  vista: {
+    code: 'vista',
+    name: 'Vista',
+    tagline: 'Earth & Craft Heritage Showcase',
+    bestFor: 'Handloom textiles, artisan ceramics, organic roasters, sustainable heirloom crafts',
+    palette: {
+      primary: '#9A3412', // Sun-baked terracotta
+      accent: '#D97706',  // Warm amber gold
+      background: '#FDFBF7', // Natural raw linen canvas
+      surface: '#FFFFFF',
+      text: '#431407',    // Deep earth bark
+      muted: '#78350F',
+      border: '#FED7AA',  // Warm woven sand border
+    },
+    typography: {
+      heading: 'DM Serif Display',
+      body: 'Plus Jakarta Sans',
+    },
+    headerStyle: 'warm-friendly',
+    heroStyle: 'organic-showcase',
+    cardStyle: 'rounded-soft',
+    buttonStyle: 'pill-friendly',
+    imageRatio: '4/3',
+    spacingDensity: 'comfortable',
+    backgroundTreatment: 'warm-tint',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'categories',
+      'featured_products',
+      'editorial_image_text',
+      'testimonials',
+      'about_business',
+      'physical_store',
+      'contact',
+    ],
+  },
 };

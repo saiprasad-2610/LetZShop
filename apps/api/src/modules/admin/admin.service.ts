@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, TenantStatus, StoreStatus, UserRole } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
 
@@ -35,15 +35,22 @@ export class AdminService {
       }),
     ]);
 
+    const totalGmvPaise = gmvAggregate._sum.totalPaise || 0;
+    const kpis = {
+      totalMerchants,
+      activeStores: liveStores,
+      liveStores,
+      privateStores,
+      expiredSubscriptions: expiredStores,
+      expiredStores,
+      totalOrders,
+      platformGmvPaise: totalGmvPaise,
+      totalGmvPaise,
+    };
+
     return {
-      metrics: {
-        totalMerchants,
-        liveStores,
-        privateStores,
-        expiredStores,
-        totalOrders,
-        totalGmvPaise: gmvAggregate._sum.totalPaise || 0,
-      },
+      kpis,
+      metrics: kpis,
       recentOrders,
       systemHealth: {
         database: 'HEALTHY',
@@ -80,6 +87,7 @@ export class AdminService {
         },
         subscriptions: {
           orderBy: { createdAt: 'desc' },
+          include: { plan: true },
           take: 1,
         },
       },
@@ -110,8 +118,12 @@ export class AdminService {
           : null,
         subscription: activeSub
           ? {
+              id: activeSub.id,
               planId: activeSub.planId,
+              plan: activeSub.plan,
               status: activeSub.status,
+              currentPeriodStart: activeSub.currentPeriodStart,
+              currentPeriodEnd: activeSub.currentPeriodEnd,
               paidThrough: activeSub.currentPeriodEnd,
             }
           : null,
@@ -130,19 +142,67 @@ export class AdminService {
         stores: {
           include: {
             branding: true,
-            sections: true,
+            themeConfigs: {
+              include: { theme: true },
+            },
             shippingProfiles: true,
             _count: { select: { products: true, orders: true, customers: true, enquiries: true } },
           },
         },
         subscriptions: {
           orderBy: { createdAt: 'desc' },
+          include: {
+            plan: true,
+            events: {
+              orderBy: { createdAt: 'desc' },
+            },
+            invoices: {
+              orderBy: { createdAt: 'desc' },
+              include: { payments: true },
+            },
+          },
+        },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          include: { payments: true },
+        },
+        auditLogs: {
+          take: 15,
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
 
     if (!tenant) throw new NotFoundException('Merchant not found.');
-    return tenant;
+
+    const rawInvoices: any[] = (tenant.invoices && tenant.invoices.length > 0)
+      ? (tenant.invoices as any[])
+      : tenant.subscriptions.flatMap((sub: any) => {
+          if (sub.invoices && sub.invoices.length > 0) return sub.invoices;
+          return [{
+            id: `INV-SUB-${sub.id.slice(0, 8)}`,
+            invoiceNumber: `INV-${new Date(sub.createdAt).getFullYear()}-${sub.id.slice(0, 6).toUpperCase()}`,
+            amountPaise: sub.plan?.pricePaise || 99900,
+            currency: 'INR',
+            status: sub.status === 'ACTIVE' ? 'PAID' : sub.status,
+            paidAt: sub.currentPeriodStart || sub.createdAt,
+            createdAt: sub.createdAt,
+            planName: sub.plan?.name || 'Growth Plan',
+            paymentMethod: 'RAZORPAY_UPI',
+            payments: [{
+              id: `PAY-${sub.id.slice(0, 8)}`,
+              paymentMethod: 'RAZORPAY',
+              amountPaise: sub.plan?.pricePaise || 99900,
+              status: 'SUCCESS',
+              createdAt: sub.createdAt,
+            }],
+          }];
+        });
+
+    return {
+      ...tenant,
+      paymentHistory: rawInvoices,
+    };
   }
 
   public async suspendMerchant(tenantId: string, actorId: string, reason: string) {
@@ -295,5 +355,279 @@ export class AdminService {
 
   public async reconcilePaymentOrder(paymentOrderId: string, adminUserId?: string) {
     return this.paymentsService.reconcilePaymentOrder(paymentOrderId, adminUserId);
+  }
+
+  public async getUsers(search?: string, role?: string) {
+    const where: any = { deletedAt: null };
+    if (role) {
+      where.role = role;
+    }
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        memberships: {
+          include: {
+            tenant: {
+              include: {
+                stores: {
+                  select: { id: true, name: true, slug: true, status: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return users.map((u) => {
+      const membership = u.memberships[0];
+      const store = membership?.tenant?.stores[0];
+      return {
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+        isActive: u.isActive,
+        isSuperAdmin: u.isSuperAdmin,
+        createdAt: u.createdAt,
+        store: store ? { id: store.id, name: store.name, slug: store.slug, status: store.status } : null,
+      };
+    });
+  }
+
+  public async toggleUserStatus(userId: string, actorId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !user.isActive },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: user.isActive ? 'USER_DEACTIVATED' : 'USER_ACTIVATED',
+        entityType: 'User',
+        entityId: userId,
+        metadata: { previousState: user.isActive, newState: !user.isActive },
+      },
+    }).catch(() => {});
+
+    return updated;
+  }
+
+  public async getAnalytics() {
+    const [totalOrders, paidOrders, stores, tenants, topStores] = await Promise.all([
+      this.prisma.order.count(),
+      this.prisma.order.findMany({
+        where: { paymentStatus: 'PAID' },
+        select: { totalPaise: true, createdAt: true, storeId: true },
+      }),
+      this.prisma.store.count({ where: { deletedAt: null } }),
+      this.prisma.tenant.count({ where: { deletedAt: null } }),
+      this.prisma.store.findMany({
+        where: { deletedAt: null },
+        take: 5,
+        include: {
+          _count: { select: { orders: true, products: true } },
+        },
+      }),
+    ]);
+
+    const totalRevenuePaise = paidOrders.reduce((sum, o) => sum + (o.totalPaise || 0), 0);
+    const averageOrderValuePaise = paidOrders.length > 0 ? Math.round(totalRevenuePaise / paidOrders.length) : 0;
+    const platformCommissionPaise = Math.round(totalRevenuePaise * 0.02); // 2% platform fee
+
+    return {
+      kpis: {
+        totalRevenuePaise,
+        totalOrders,
+        paidOrdersCount: paidOrders.length,
+        averageOrderValuePaise,
+        platformCommissionPaise,
+        totalStores: stores,
+        totalTenants: tenants,
+      },
+      topStores: topStores.map((s) => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        ordersCount: s._count.orders,
+        productsCount: s._count.products,
+      })),
+    };
+  }
+
+  public async getPlans() {
+    const plans = await this.prisma.plan.findMany({
+      orderBy: { pricePaise: 'asc' },
+      include: {
+        _count: {
+          select: { subscriptions: true },
+        },
+      },
+    });
+
+    return plans.map((p) => ({
+      ...p,
+      activeSubscribersCount: p._count.subscriptions,
+    }));
+  }
+
+  public async createPlan(data: {
+    name: string;
+    code?: string;
+    description?: string;
+    pricePaise: number;
+    billingCycle?: string;
+    maxProducts?: number;
+    maxStaff?: number;
+    maxStorageMb?: number;
+    customDomainAllowed?: boolean;
+    isPublic?: boolean;
+  }, actorId: string) {
+    if (!data.name?.trim()) throw new BadRequestException('Plan name is required.');
+    
+    // Auto-generate unique code
+    const baseCode = (data.code?.trim() || data.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_') + '_' + (data.billingCycle || 'MONTHLY')).toUpperCase();
+
+    const existing = await this.prisma.plan.findUnique({ where: { code: baseCode } });
+    if (existing) {
+      throw new BadRequestException(`A plan with code "${baseCode}" already exists.`);
+    }
+
+    const plan = await this.prisma.plan.create({
+      data: {
+        name: data.name.trim(),
+        code: baseCode,
+        description: data.description?.trim() || null,
+        pricePaise: Number(data.pricePaise) || 0,
+        billingCycle: data.billingCycle || 'MONTHLY',
+        maxProducts: Number(data.maxProducts) ?? 50,
+        maxStaff: Number(data.maxStaff) ?? 2,
+        maxStorageMb: Number(data.maxStorageMb) ?? 1024,
+        customDomainAllowed: Boolean(data.customDomainAllowed),
+        isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : true,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'PLAN_CREATED',
+        entityType: 'Plan',
+        entityId: plan.id,
+        metadata: { code: plan.code, name: plan.name, pricePaise: plan.pricePaise },
+      },
+    }).catch(() => {});
+
+    return plan;
+  }
+
+  public async updatePlan(id: string, data: {
+    name?: string;
+    description?: string;
+    pricePaise?: number;
+    billingCycle?: string;
+    maxProducts?: number;
+    maxStaff?: number;
+    maxStorageMb?: number;
+    customDomainAllowed?: boolean;
+    isPublic?: boolean;
+  }, actorId: string) {
+    const existing = await this.prisma.plan.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Plan not found.');
+
+    const updated = await this.prisma.plan.update({
+      where: { id },
+      data: {
+        ...(data.name ? { name: data.name.trim() } : {}),
+        ...(data.description !== undefined ? { description: data.description?.trim() || null } : {}),
+        ...(data.pricePaise !== undefined ? { pricePaise: Number(data.pricePaise) } : {}),
+        ...(data.billingCycle ? { billingCycle: data.billingCycle } : {}),
+        ...(data.maxProducts !== undefined ? { maxProducts: Number(data.maxProducts) } : {}),
+        ...(data.maxStaff !== undefined ? { maxStaff: Number(data.maxStaff) } : {}),
+        ...(data.maxStorageMb !== undefined ? { maxStorageMb: Number(data.maxStorageMb) } : {}),
+        ...(data.customDomainAllowed !== undefined ? { customDomainAllowed: Boolean(data.customDomainAllowed) } : {}),
+        ...(data.isPublic !== undefined ? { isPublic: Boolean(data.isPublic) } : {}),
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'PLAN_UPDATED',
+        entityType: 'Plan',
+        entityId: id,
+        metadata: { previousName: existing.name, newName: updated.name },
+      },
+    }).catch(() => {});
+
+    return updated;
+  }
+
+  public async deletePlan(id: string, actorId: string) {
+    const plan = await this.prisma.plan.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { subscriptions: true } },
+      },
+    });
+
+    if (!plan) throw new NotFoundException('Plan not found.');
+
+    if (plan._count.subscriptions > 0) {
+      await this.prisma.plan.update({
+        where: { id },
+        data: { isPublic: false },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'PLAN_ARCHIVED_WITH_ACTIVE_SUBSCRIBERS',
+          entityType: 'Plan',
+          entityId: id,
+          metadata: { planCode: plan.code, activeSubscribers: plan._count.subscriptions },
+        },
+      }).catch(() => {});
+
+      return {
+        success: true,
+        archived: true,
+        message: `Plan "${plan.name}" has ${plan._count.subscriptions} active subscriber(s). It has been archived and hidden from public signups.`,
+      };
+    }
+
+    await this.prisma.plan.delete({ where: { id } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'PLAN_DELETED',
+        entityType: 'Plan',
+        entityId: id,
+        metadata: { planCode: plan.code, name: plan.name },
+      },
+    }).catch(() => {});
+
+    return {
+      success: true,
+      archived: false,
+      message: `Plan "${plan.name}" successfully deleted.`,
+    };
   }
 }

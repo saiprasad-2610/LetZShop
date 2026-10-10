@@ -107,6 +107,12 @@ interface CartContextType {
   discountPaise: number;
   grandTotalPaise: number;
   shippingPaise: number;
+  flatRatePaise: number;
+  freeShippingThresholdPaise: number | null;
+  freeDeliveryRemainingPaise: number;
+  isFreeDeliveryQualified: boolean;
+  shippingSettings: { flatRatePaise: number; freeShippingThresholdPaise: number | null } | null;
+  setShippingSettings: (settings: { flatRatePaise: number; freeShippingThresholdPaise: number | null } | null) => void;
   // Order notes
   orderNotes: string;
   setOrderNotes: (notes: string) => void;
@@ -134,6 +140,12 @@ const CartContext = createContext<CartContextType>({
   discountPaise: 0,
   grandTotalPaise: 0,
   shippingPaise: 0,
+  flatRatePaise: 0,
+  freeShippingThresholdPaise: null,
+  freeDeliveryRemainingPaise: 0,
+  isFreeDeliveryQualified: true,
+  shippingSettings: null,
+  setShippingSettings: () => {},
   orderNotes: '',
   setOrderNotes: () => {},
 });
@@ -198,6 +210,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Order notes
   const [orderNotes, setOrderNotesState] = useState('');
+
+  // Shipping & Free Delivery Settings
+  const [shippingSettings, setShippingSettingsState] = useState<{
+    flatRatePaise: number;
+    freeShippingThresholdPaise: number | null;
+  } | null>(null);
+
+  const setShippingSettings = useCallback((settings: { flatRatePaise: number; freeShippingThresholdPaise: number | null } | null) => {
+    setShippingSettingsState(settings);
+  }, []);
 
   const updateCartState = useCallback((raw: any, sId?: string | null) => {
     const norm = normalizeCart(raw);
@@ -619,7 +641,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ? calculateCouponDiscount(appliedCoupon, subtotalCalc)
     : 0;
 
-  const shippingPaise = 0; // Free promotional shipping
+  const flatRatePaise = shippingSettings?.flatRatePaise ?? 0;
+  const freeShippingThresholdPaise = shippingSettings?.freeShippingThresholdPaise ?? null;
+
+  const isFreeDeliveryQualified = freeShippingThresholdPaise !== null
+    ? subtotalCalc >= freeShippingThresholdPaise
+    : (flatRatePaise === 0);
+
+  const shippingPaise = isFreeDeliveryQualified ? 0 : flatRatePaise;
+  const freeDeliveryRemainingPaise = freeShippingThresholdPaise !== null
+    ? Math.max(0, freeShippingThresholdPaise - subtotalCalc)
+    : 0;
+
   const grandTotalPaise = Math.max(0, subtotalCalc - discountPaise + shippingPaise);
 
   return (
@@ -646,6 +679,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         discountPaise,
         grandTotalPaise,
         shippingPaise,
+        flatRatePaise,
+        freeShippingThresholdPaise,
+        freeDeliveryRemainingPaise,
+        isFreeDeliveryQualified,
+        shippingSettings,
+        setShippingSettings,
         orderNotes,
         setOrderNotes,
       }}

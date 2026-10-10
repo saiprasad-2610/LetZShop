@@ -565,7 +565,9 @@ export default function AnalyticsPage() {
                                 {ord.paymentStatus}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-500 mt-0.5">{ord.customerName}</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              {ord.customerName || ord.customer?.fullName || 'Customer'}
+                            </div>
                           </div>
                           <div className="font-bold text-slate-900">
                             {formatPaise(ord.totalPaise)}

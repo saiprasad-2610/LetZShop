@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -87,5 +89,63 @@ export class AdminController {
     @Param('id') id: string
   ) {
     return this.adminService.reconcilePaymentOrder(id, user.userId);
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'List all platform users across merchants, staff, and customers' })
+  async getUsers(
+    @Query('search') search?: string,
+    @Query('role') role?: string
+  ) {
+    return this.adminService.getUsers(search, role);
+  }
+
+  @Post('users/:id/toggle-status')
+  @ApiOperation({ summary: 'Activate or deactivate a user account' })
+  async toggleUserStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    return this.adminService.toggleUserStatus(id, user.userId);
+  }
+
+  @Get('analytics')
+  @ApiOperation({ summary: 'Platform SaaS analytics, revenue metrics, and top stores' })
+  async getAnalytics() {
+    return this.adminService.getAnalytics();
+  }
+
+  @Get('plans')
+  @ApiOperation({ summary: 'List all SaaS subscription tiers with subscriber counts' })
+  async getPlans() {
+    return this.adminService.getPlans();
+  }
+
+  @Post('plans')
+  @ApiOperation({ summary: 'Create a new SaaS subscription tier' })
+  async createPlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: any
+  ) {
+    return this.adminService.createPlan(body, user.userId);
+  }
+
+  @Put('plans/:id')
+  @ApiOperation({ summary: 'Update an existing SaaS subscription tier' })
+  async updatePlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: any
+  ) {
+    return this.adminService.updatePlan(id, body, user.userId);
+  }
+
+  @Delete('plans/:id')
+  @ApiOperation({ summary: 'Delete or archive a SaaS subscription tier' })
+  async deletePlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    return this.adminService.deletePlan(id, user.userId);
   }
 }

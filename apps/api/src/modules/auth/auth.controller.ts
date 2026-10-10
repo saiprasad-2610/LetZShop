@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SendOtpDto, VerifyOtpDto, RefreshTokenDto, SetupPinDto, PinLoginDto } from './dto/auth.dto';
+import { SendOtpDto, VerifyOtpDto, RefreshTokenDto, SetupPinDto, PinLoginDto, AdminLoginDto } from './dto/auth.dto';
 import { Public, CurrentUser } from '../../common/decorators';
 import { AuthenticatedUser, OtpPurpose } from '@simply/types';
 
@@ -77,6 +77,16 @@ export class AuthController {
     const userAgent = req.headers?.['user-agent'];
     const ipAddress = req.ip || req.headers?.['x-forwarded-for'];
     return this.authService.loginWithPin(dto.phone, dto.pin, dto.deviceFingerprint, userAgent, ipAddress);
+  }
+
+  @Public()
+  @Post('admin/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Platform SuperAdmin credential authentication (Email/Phone & Password/PIN)' })
+  async adminLogin(@Body() dto: AdminLoginDto, @Req() req: any) {
+    const userAgent = req.headers?.['user-agent'];
+    const ipAddress = req.ip || req.headers?.['x-forwarded-for'];
+    return this.authService.loginAdmin(dto.identifier, dto.secret, userAgent, ipAddress);
   }
 
   @Public()

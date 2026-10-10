@@ -185,6 +185,32 @@ export class RazorpayPaymentProvider implements PaymentProvider {
           `Razorpay merchant credentials not configured for store ${input.storeId}. Valid credentials are required.`
         );
       }
+
+      // Call real Razorpay API when real merchant credentials exist (not dummy/mock test fixtures)
+      if (!keyId.includes('dummy') && !keyId.includes('mock')) {
+        const orderData = await this.createRazorpayApiOrder(keyId, keySecret, {
+          amount: input.amountPaise,
+          currency: input.currency || 'INR',
+          receipt: input.receipt || input.orderNumber || input.orderId,
+          notes: {
+            purpose,
+            storeId: input.storeId,
+            orderId: input.orderId,
+          },
+        });
+
+        this.logger.log(
+          `[RAZORPAY MERCHANT] Real Order created via API: ${orderData.id} for amount: ₹${input.amountPaise / 100}`
+        );
+
+        return {
+          providerOrderId: orderData.id,
+          amountPaise: orderData.amount,
+          currency: orderData.currency,
+          status: orderData.status || 'created',
+          keyId,
+        };
+      }
     }
 
     // Fixture order generation for mock/offline unit tests with dummy/mock keys

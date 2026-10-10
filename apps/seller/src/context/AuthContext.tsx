@@ -6,6 +6,19 @@ export const apiClient = createApiClient(
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 );
 
+// Synchronously initialize token from localStorage in browser context
+// so requests triggered during initial component mounts are immediately authenticated
+if (typeof window !== 'undefined') {
+  try {
+    const initToken = localStorage.getItem('simply_seller_token');
+    if (initToken) apiClient.setToken(initToken);
+    const initRefresh = localStorage.getItem('simply_seller_refresh_token');
+    if (initRefresh) apiClient.setRefreshToken(initRefresh);
+  } catch (e) {
+    // Ignore storage errors
+  }
+}
+
 interface AuthContextType {
   user: any | null;
   store: any | null;
@@ -31,10 +44,43 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [store, setStore] = useState<any | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const u = localStorage.getItem('simply_seller_user');
+        return u ? JSON.parse(u) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [store, setStore] = useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem('simply_seller_store');
+        return s ? JSON.parse(s) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('simply_seller_token');
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return !localStorage.getItem('simply_seller_token');
+    }
+    return true;
+  });
   const router = useRouter();
 
   useEffect(() => {

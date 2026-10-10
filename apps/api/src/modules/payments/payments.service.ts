@@ -383,15 +383,18 @@ export class PaymentsService {
 
     const provider = this.getProvider(paymentOrder.provider);
 
-    // Resolve merchant secret if applicable
+    // Resolve merchant credentials if applicable
     let merchantSecret: string | undefined;
+    let merchantKeyId: string | undefined;
     if (paymentOrder.purpose === PaymentPurpose.MERCHANT_ORDER) {
       const merchantAccount = await this.prisma.merchantPaymentAccount.findFirst({
         where: { storeId: paymentOrder.storeId, isEnabled: true },
       });
       merchantSecret = merchantAccount?.keySecretEncrypted;
+      merchantKeyId = merchantAccount?.keyId;
     } else {
       merchantSecret = this.razorpayProvider.platformKeySecret;
+      merchantKeyId = this.razorpayProvider.platformKeyId;
     }
 
     // Server-side signature verification (skipped when already verified by webhook HMAC or manual admin reconciliation)
@@ -413,10 +416,7 @@ export class PaymentsService {
     // Gateway verification where appropriate (Requirement 7, Requirement 12: failed payment, tampered amount)
     if (paymentOrder.provider === PaymentProviderType.RAZORPAY) {
       try {
-        const keyId =
-          paymentOrder.purpose === PaymentPurpose.PLATFORM_SUBSCRIPTION
-            ? this.razorpayProvider.platformKeyId
-            : undefined;
+        const keyId = merchantKeyId;
         const paymentEntity = await this.razorpayProvider.getPayment(providerPaymentId!, {
           keyId,
           keySecret: merchantSecret,

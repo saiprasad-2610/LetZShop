@@ -83,3 +83,15 @@ export class PinLoginDto {
   @IsString()
   deviceFingerprint?: string;
 }
+
+export class AdminLoginDto {
+  @ApiProperty({ example: 'admin@shopongo.com', description: 'Admin Email or Mobile Number' })
+  @IsNotEmpty({ message: 'Email or mobile number is required' })
+  @IsString()
+  identifier: string;
+
+  @ApiProperty({ example: 'Admin@ShopOnGo2026!', description: 'Administrator Password or PIN' })
+  @IsNotEmpty({ message: 'Password or PIN is required' })
+  @IsString()
+  secret: string;
+}

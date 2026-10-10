@@ -140,6 +140,9 @@ enum ThemeKey {
   HABITAT
   LOCAL
   FEAST
+  AURA
+  NOIR
+  VISTA
 }
 
 enum FulfillmentMode {

@@ -16,6 +16,8 @@ import {
   Ban,
   ArrowRight,
   Store as StoreIcon,
+  Printer,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatPaise, resolveMediaUrl } from '@simply/ui';
@@ -81,12 +83,36 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   const [cancellationReason, setCancellationReason] = useState(CANCELLATION_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
 
+  const [shippingLoading, setShippingLoading] = useState(false);
+
   if (!isOpen || !order) return null;
+
+  const handleShipWithShiprocket = async () => {
+    setShippingLoading(true);
+    setActionError(null);
+    try {
+      await api.shipping.shipOrder(order.id);
+      onStatusUpdated();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to dispatch via Shiprocket');
+    } finally {
+      setShippingLoading(false);
+    }
+  };
 
   const handleUpdateStatus = async (newStatus: string, reason?: string) => {
     setUpdating(true);
     setActionError(null);
     try {
+      // If dispatching and no shipment created yet, automatically trigger shipment manifest with Shiprocket
+      if (newStatus === 'DISPATCHED' && (!order.shipments || order.shipments.length === 0)) {
+        try {
+          await api.shipping.shipOrder(order.id);
+        } catch (shipErr: any) {
+          console.warn('Shipment dispatch warning:', shipErr);
+        }
+      }
+
       await api.orders.updateStatus(order.id, newStatus, reason || undefined);
       setConfirmModal(null);
       onStatusUpdated();
@@ -103,18 +129,21 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   };
 
   const customerPhone =
+    order.customerPhone ||
     order.customer?.phone ||
     order.orderAddress?.phone ||
     (order.deliveryAddress as any)?.phone ||
     '';
 
   const customerName =
+    order.customerName ||
     order.customer?.fullName ||
     order.orderAddress?.fullName ||
     (order.deliveryAddress as any)?.fullName ||
     'Customer';
 
   const customerEmail =
+    order.customerEmail ||
     order.customer?.email ||
     (order.deliveryAddress as any)?.email ||
     '';
@@ -534,33 +563,95 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
             {/* SHIPPING & LOGISTICS DETAILS */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Truck className="w-4 h-4" />
-                <span>Logistics & Fulfillment</span>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-amber-600" />
+                  Logistics & Shiprocket Fulfillment
+                </span>
+                {shipment && (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    AWB Active
+                  </span>
+                )}
               </h3>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 text-xs space-y-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 text-xs space-y-2.5">
                 {shipment ? (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600">Courier</span>
-                      <span className="font-bold text-slate-900">{shipment.courierName || 'Standard Delivery'}</span>
+                      <span className="text-slate-600">Assigned Courier</span>
+                      <span className="font-bold text-slate-900">{shipment.courierName || 'Shiprocket Delivery'}</span>
                     </div>
                     {shipment.awbNumber && (
                       <div className="flex justify-between items-center">
                         <span className="text-slate-600">AWB Tracking #</span>
-                        <span className="font-mono font-bold text-blue-600">{shipment.awbNumber}</span>
+                        <a
+                          href={`https://shiprocket.co/tracking/${shipment.awbNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
+                        >
+                          {shipment.awbNumber}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
                       </div>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600">Shipment Status</span>
-                      <span className="font-medium text-slate-800 uppercase">{shipment.status}</span>
+                      <span className="text-slate-600">Logistics Status</span>
+                      <span className="font-semibold text-slate-800 uppercase px-2 py-0.5 bg-slate-200/60 rounded text-[10px]">
+                        {shipment.status}
+                      </span>
                     </div>
+
+                    {(shipment.labelUrl || shipment.manifestUrl) && (
+                      <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-2">
+                        {shipment.labelUrl && (
+                          <a
+                            href={shipment.labelUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-slate-500" /> Print Label
+                          </a>
+                        )}
+                        {shipment.manifestUrl && (
+                          <a
+                            href={shipment.manifestUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-slate-500" /> Print Manifest
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : (
-                  <p className="text-slate-500">
-                    Shipment not created • Ready for shipping setup
-                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <p className="font-semibold text-slate-800">Shipment Not Created Yet</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Manifest this order with Shiprocket to assign an AWB and schedule pickup.
+                      </p>
+                    </div>
+
+                    {!['CANCELLED', 'COMPLETED'].includes(order.status) && (
+                      <button
+                        type="button"
+                        onClick={handleShipWithShiprocket}
+                        disabled={shippingLoading}
+                        className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50"
+                      >
+                        {shippingLoading ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Manifesting...</>
+                        ) : (
+                          <><Truck className="w-3.5 h-3.5" /> Ship via Shiprocket</>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

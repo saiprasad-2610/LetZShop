@@ -22,14 +22,25 @@ export class ThemesService {
       fontBody?: string;
       announcement?: string;
       logoUrl?: string;
+      faviconUrl?: string;
+      bannerUrl?: string;
     }
   ) {
+    const validData: any = {};
+    if (dto.primaryColor !== undefined) validData.primaryColor = dto.primaryColor;
+    if (dto.accentColor !== undefined) validData.accentColor = dto.accentColor;
+    if (dto.fontHeading !== undefined) validData.fontHeading = dto.fontHeading;
+    if (dto.fontBody !== undefined) validData.fontBody = dto.fontBody;
+    if (dto.announcement !== undefined) validData.announcement = dto.announcement;
+    if (dto.logoUrl !== undefined) validData.logoUrl = dto.logoUrl;
+    if (dto.faviconUrl !== undefined) validData.faviconUrl = dto.faviconUrl;
+
     return this.prisma.storeBranding.upsert({
       where: { storeId: tenant.storeId },
-      update: dto,
+      update: validData,
       create: {
         storeId: tenant.storeId,
-        ...dto,
+        ...validData,
       },
     });
   }
@@ -93,19 +104,38 @@ export class ThemesService {
     return this.prisma.$transaction(async (tx) => {
       // 1. Update branding if provided
       if (dto.branding) {
+        const validBranding: any = {};
+        if (dto.branding.primaryColor !== undefined) validBranding.primaryColor = dto.branding.primaryColor;
+        if (dto.branding.accentColor !== undefined) validBranding.accentColor = dto.branding.accentColor;
+        if (dto.branding.fontHeading !== undefined) validBranding.fontHeading = dto.branding.fontHeading;
+        if (dto.branding.fontBody !== undefined) validBranding.fontBody = dto.branding.fontBody;
+        if (dto.branding.announcement !== undefined) validBranding.announcement = dto.branding.announcement;
+        if (dto.branding.logoUrl !== undefined) validBranding.logoUrl = dto.branding.logoUrl;
+
         await tx.storeBranding.upsert({
           where: { storeId: tenant.storeId },
-          update: dto.branding,
+          update: validBranding,
           create: {
             storeId: tenant.storeId,
-            ...dto.branding,
+            ...validBranding,
           },
         });
       }
 
       // 2. Update active theme config if provided
       if (dto.themeCode) {
-        const theme = await tx.theme.findUnique({ where: { code: dto.themeCode } });
+        let theme = await tx.theme.findUnique({ where: { code: dto.themeCode } });
+        if (!theme) {
+          const capitalizedName = dto.themeCode.charAt(0).toUpperCase() + dto.themeCode.slice(1);
+          theme = await tx.theme.create({
+            data: {
+              code: dto.themeCode,
+              name: capitalizedName,
+              isDefault: false,
+              configJson: dto.configJson || {},
+            },
+          });
+        }
         if (theme) {
           await tx.storeThemeConfig.upsert({
             where: {

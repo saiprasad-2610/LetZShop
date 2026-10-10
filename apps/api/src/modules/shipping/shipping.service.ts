@@ -22,10 +22,15 @@ export class ShippingService {
   public async createShipmentForOrder(orderId: string, tenant: TenantContext) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, tenantId: tenant.tenantId, storeId: tenant.storeId },
-      include: { items: true, customer: true },
+      include: { items: true, customer: true, shipments: true },
     });
 
     if (!order) throw new NotFoundException('Order not found.');
+
+    // If shipment already manifested for this order, return it idempotently
+    if (order.shipments && order.shipments.length > 0) {
+      return order.shipments[0];
+    }
 
     const merchantShipping = await this.prisma.merchantShippingAccount.findFirst({
       where: { storeId: tenant.storeId, isEnabled: true },
@@ -34,20 +39,25 @@ export class ShippingService {
     const providerType = merchantShipping?.provider || ShippingProviderType.MOCK;
     const provider = this.getProvider(providerType);
 
-    const deliveryAddress = order.deliveryAddress as any;
+    const deliveryAddress = (order.deliveryAddress as any) || {};
 
     try {
       const shipmentResult = await provider.createShipment({
         orderId: order.id,
         orderNumber: order.orderNumber,
         pickupPincode: '400001',
+        pickupLocation: merchantShipping?.accountId || 'Primary',
+        totalPaise: order.totalPaise,
+        paymentMethod: order.paymentStatus === 'PAID' ? 'Prepaid' : 'COD',
         deliveryAddress: {
-          fullName: order.customer.fullName,
-          phone: order.customer.phone,
+          fullName: order.customer?.fullName || deliveryAddress.fullName || 'Customer',
+          phone: order.customer?.phone || deliveryAddress.phone || '9999999999',
           addressLine1: deliveryAddress.addressLine1 || 'Street',
+          addressLine2: deliveryAddress.addressLine2 || '',
           city: deliveryAddress.city || 'City',
           state: deliveryAddress.state || 'State',
           pincode: deliveryAddress.pincode || '400001',
+          email: order.customer?.email || deliveryAddress.email || '',
         },
         items: order.items.map((it) => ({
           name: it.productName,

@@ -9,6 +9,7 @@ export interface CreateShipmentInput {
   orderId: string;
   orderNumber: string;
   pickupPincode: string;
+  pickupLocation?: string;
   deliveryAddress: {
     fullName: string;
     phone: string;
@@ -17,6 +18,7 @@ export interface CreateShipmentInput {
     city: string;
     state: string;
     pincode: string;
+    email?: string;
   };
   items: Array<{
     name: string;
@@ -24,6 +26,8 @@ export interface CreateShipmentInput {
     quantity: number;
     pricePaise: number;
   }>;
+  totalPaise?: number;
+  paymentMethod?: string;
   weightKg: number;
   lengthCm?: number;
   widthCm?: number;
@@ -38,6 +42,8 @@ export interface ShipmentResult {
   trackingUrl: string;
   labelUrl?: string;
   manifestUrl?: string;
+  shipmentId?: string | number;
+  shiprocketOrderId?: string | number;
 }
 
 export interface ShippingProvider {

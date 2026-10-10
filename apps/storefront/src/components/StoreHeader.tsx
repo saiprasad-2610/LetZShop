@@ -19,6 +19,8 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
   const announcement = themeConfig?.announcement;
   const wordmark = getWordmark(store.name || 'Store');
   const slug = store.slug;
+  const logoSize = Number(themeConfig?.logoSize) || Number(store?.branding?.logoSize) || 40;
+  const storeNameSize = Number(themeConfig?.storeNameSize) || Number(store?.branding?.storeNameSize) || 18;
 
   const getQueryPath = (path: string) => {
     const params = new URLSearchParams();
@@ -26,6 +28,46 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
     if (router.query.embedded === 'true') params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
+  };
+
+  // Resolve theme announcement styling & content
+  const isAnnouncementEnabled = announcement ? announcement.enabled !== false : true;
+  const isFloating = Boolean(announcement?.floating);
+
+  const getThemeAnnouncementDefault = () => {
+    switch (themeCode) {
+      case 'foundry':
+        return 'GSTIN REGISTERED • ISO 9001:2015 COMPLIANT • DIRECT FACTORY SUPPLY';
+      case 'pulse':
+        return '⚡ LIMITED DROP ONLINE NOW • FREE PAN-INDIA EXPRESS SHIPPING OVER ₹999 • 100% AUTHENTIC';
+      case 'harvest':
+        return '🌿 Pure & Handcrafted Daily • No Artificial Preservatives • Fresh Dispatch Within 24 Hours';
+      case 'habitat':
+        return 'Artisanal Living & Contemporary Furnishings • Pan-India White-Glove Logistics';
+      case 'atelier':
+        return 'Haute Joaillerie & Timeless Craftsmanship • Hallmarked 100% Certified';
+      default:
+        return 'Complimentary pan-India insured shipping on all orders';
+    }
+  };
+
+  const displayText = announcement?.text?.trim() ? announcement.text : getThemeAnnouncementDefault();
+
+  const getThemeStripClasses = () => {
+    switch (themeCode) {
+      case 'foundry':
+        return 'bg-slate-900 text-slate-300 text-[11px] font-mono border-b border-slate-800';
+      case 'pulse':
+        return 'bg-black text-pink-300 text-[11px] font-black tracking-widest border-b border-pink-500/30';
+      case 'harvest':
+        return 'bg-amber-100/90 text-amber-900 text-[11px] font-medium border-b border-amber-200';
+      case 'habitat':
+        return 'bg-stone-100 text-stone-700 text-[11px] tracking-wider uppercase font-serif border-b border-stone-200';
+      case 'atelier':
+        return 'bg-stone-900 text-amber-200/90 text-[10px] tracking-[0.2em] uppercase font-medium border-b border-amber-900/30';
+      default:
+        return 'bg-slate-900 text-slate-100 text-xs border-b border-slate-800';
+    }
   };
 
   return (
@@ -36,66 +78,35 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       themeCode === 'habitat' ? 'border-stone-200' :
       themeCode === 'atelier' ? 'border-stone-200' : 'border-gray-200'
     }`}>
-      {/* 1. Theme-Specific Top Meta Strips */}
-      {themeCode === 'foundry' ? (
-        <div className="bg-slate-900 text-slate-300 text-[11px] font-mono py-1.5 px-4 border-b border-slate-800">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>GSTIN REGISTERED • ISO 9001:2015 COMPLIANT • DIRECT FACTORY SUPPLY</span>
-            </span>
-            <span className="hidden sm:inline text-slate-400">
-              Bulk Orders & Custom Engineering RFQ Desk: <strong>+91 98220 12345</strong>
-            </span>
-          </div>
-        </div>
-      ) : themeCode === 'pulse' ? (
-        <div className="bg-black text-white text-[11px] font-black tracking-widest py-1.5 px-4 overflow-hidden border-b border-pink-500/30">
-          <div className="whitespace-nowrap flex items-center justify-center gap-6 animate-pulse">
-            <span>⚡ LIMITED DROP ONLINE NOW</span>
-            <span>•</span>
-            <span>FREE PAN-INDIA EXPRESS SHIPPING OVER ₹999</span>
-            <span>•</span>
-            <span>100% VERIFIED AUTHENTIC</span>
-          </div>
-        </div>
-      ) : themeCode === 'harvest' ? (
-        <div className="bg-amber-100/80 text-amber-900 text-[11px] font-medium py-1.5 px-4 border-b border-amber-200">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <span>🌿 Pure & Handcrafted Daily • No Artificial Preservatives</span>
-            <span className="hidden sm:inline font-semibold">Fresh Dispatch Within 24 Hours</span>
-          </div>
-        </div>
-      ) : themeCode === 'habitat' ? (
-        <div className="bg-stone-100 text-stone-700 text-[11px] tracking-wider py-1.5 px-4 uppercase font-serif border-b border-stone-200">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <span>Artisanal Living & Contemporary Furnishings</span>
-            <span className="hidden sm:inline">Pan-India White-Glove Logistics</span>
-          </div>
-        </div>
-      ) : themeCode === 'atelier' ? (
-        <div className="bg-stone-900 text-amber-200/90 text-[10px] tracking-[0.2em] uppercase py-1.5 px-4 text-center font-medium border-b border-amber-900/30">
-          {announcement?.enabled && announcement?.text ? announcement.text : 'Haute Joaillerie & Timeless Craftsmanship • Hallmarked 100% Certified'}
-        </div>
-      ) : (
-        /* Local theme announcement / contact bar */
-        <div className="bg-blue-900 text-blue-100 text-xs py-1.5 px-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <span>📍 Your Trusted Neighborhood Store • Fast Local Delivery</span>
-            <a
-              href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20I%20would%20like%20to%20place%20an%20order`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-bold underline text-white hover:text-green-300"
-            >
-              Order directly via WhatsApp
-            </a>
-          </div>
+      {/* 1. Universal Top Announcement Bar with Theme Styling & Floating Marquee */}
+      {isAnnouncementEnabled && (
+        <div className={`${getThemeStripClasses()} py-1.5 px-4 overflow-hidden select-none`}>
+          {isFloating ? (
+            <div className="relative w-full overflow-hidden whitespace-nowrap flex items-center">
+              <div className="inline-flex animate-marquee gap-10 items-center">
+                <span>{displayText}</span>
+                <span className="opacity-60">•</span>
+                <span>{displayText}</span>
+                <span className="opacity-60">•</span>
+                <span>{displayText}</span>
+                <span className="opacity-60">•</span>
+                <span>{displayText}</span>
+                <span className="opacity-60">•</span>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto flex items-center justify-center text-center truncate">
+              <span>{displayText}</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Main Header Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
+        style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
+      >
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -105,36 +116,63 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        {/* Brand Logo / Wordmark */}
-        <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-3">
+        {/* Brand Logo & Highlighted Store Name */}
+        <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-2.5 sm:gap-3 group">
           {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
             <img
               src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
               alt={store.name}
-              className="h-9 w-auto max-w-[150px] object-contain"
+              style={{
+                width: `${logoSize}px`,
+                height: `${logoSize}px`,
+                maxHeight: `${logoSize}px`,
+                maxWidth: `${logoSize}px`,
+              }}
+              className="rounded-full object-contain p-0.5 bg-white border border-gray-200/80 shadow-xs group-hover:scale-105 transition-all shrink-0"
             />
           ) : (
-            <div className="flex items-center gap-2.5">
-              <span
-                className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-sm text-white shadow-sm ${
-                  themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
-                  themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
-                  themeCode === 'foundry' ? 'rounded-sm font-mono' : 'rounded-lg'
-                }`}
-                style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
-              >
-                {wordmark.monogram}
-              </span>
-              <span className={`font-bold tracking-tight text-gray-900 ${
-                themeCode === 'atelier' ? 'font-serif text-xl tracking-wider' :
-                themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-lg' :
-                themeCode === 'foundry' ? 'font-mono uppercase text-base tracking-wider' :
-                themeCode === 'habitat' ? 'font-serif text-xl tracking-wide' : 'text-lg'
-              }`}>
-                {store.name}
-              </span>
-            </div>
+            <span
+              style={{
+                width: `${logoSize}px`,
+                height: `${logoSize}px`,
+                fontSize: `${Math.max(10, Math.round(logoSize * 0.4))}px`,
+                backgroundColor: 'var(--theme-primary, #111827)',
+              }}
+              className={`rounded-lg flex items-center justify-center font-black text-white shadow-xs shrink-0 group-hover:scale-105 transition-all ${
+                themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
+                themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
+                themeCode === 'foundry' ? 'rounded-sm font-mono' : 'rounded-lg'
+              }`}
+            >
+              {wordmark.monogram}
+            </span>
           )}
+
+          <div className="flex flex-col text-left">
+            <span
+              style={{
+                fontSize: `${storeNameSize}px`,
+                lineHeight: '1.2',
+              }}
+              className={`font-bold tracking-tight transition-all ${
+                themeCode === 'atelier' ? 'font-serif tracking-wide text-stone-900 group-hover:text-amber-800' :
+                themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-slate-900 group-hover:text-pink-600' :
+                themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
+                themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
+                themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
+                'font-bold text-gray-900 group-hover:text-blue-700'
+              }`}
+            >
+              {store.name}
+            </span>
+            <span className="text-[10px] text-gray-400 font-mono tracking-wider uppercase -mt-0.5 hidden xs:inline">
+              {themeCode === 'harvest' ? 'Pure & Artisanal' :
+               themeCode === 'atelier' ? 'Haute Maison' :
+               themeCode === 'pulse' ? 'Verified Drop' :
+               themeCode === 'foundry' ? 'Direct OEM Supply' :
+               themeCode === 'habitat' ? 'Sanctuary Living' : 'Official Store'}
+            </span>
+          </div>
         </Link>
 
         {/* Local Theme Inline Search Bar (Desktop) */}
@@ -159,27 +197,12 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
             Home
           </Link>
-          <Link href={getQueryPath(`/store/${slug}/search`)} className="hover:text-gray-900 transition">
-            {themeCode === 'foundry' ? 'Product Catalog' : 'All Products'}
+          <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
+            Products
           </Link>
-          {themeCode === 'habitat' ? (
-            <Link href={getQueryPath(`/store/${slug}/search?category=living`)} className="hover:text-gray-900 transition">
-              Living Spaces
-            </Link>
-          ) : themeCode === 'foundry' ? (
-            <a
-              href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20${encodeURIComponent(store.name)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-700 font-bold hover:text-sky-900 transition flex items-center gap-1"
-            >
-              <span>Request RFQ</span>
-            </a>
-          ) : (
-            <Link href={getQueryPath(`/store/${slug}/search?featured=true`)} className="hover:text-gray-900 transition">
-              Featured
-            </Link>
-          )}
+          <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-gray-900 transition">
+            About Us
+          </Link>
         </nav>
 
         {/* Right Action Icons (Search, RFQ, Cart) */}
@@ -258,18 +281,25 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             Home
           </Link>
           <Link
-            href={getQueryPath(`/store/${slug}/search`)}
+            href={getQueryPath(`/store/${slug}/products`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            {themeCode === 'foundry' ? 'Industrial Catalog' : 'All Products'}
+            Products
+          </Link>
+          <Link
+            href={getQueryPath(`/store/${slug}/about`)}
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-sm font-semibold text-gray-800 py-1"
+          >
+            About Us
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/cart`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            {themeCode === 'foundry' ? 'Order List' : 'Shopping Cart'} ({itemCount})
+            Shopping Cart ({itemCount})
           </Link>
           {themeCode === 'foundry' && (
             <a

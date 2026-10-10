@@ -7,9 +7,16 @@ interface MiniStorePreviewProps {
   store: any;
   products?: any[];
   iframeRef?: React.RefObject<HTMLIFrameElement>;
+  activePage?: 'home' | 'products' | 'about';
+  onPageChange?: (page: 'home' | 'products' | 'about') => void;
 }
 
-export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store, iframeRef }) => {
+export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
+  store,
+  iframeRef,
+  activePage = 'home',
+  onPageChange,
+}) => {
   const router = useRouter();
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -17,7 +24,15 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store, ifram
   const slug = store?.slug || 'sk-general-stores';
   const storefrontUrl = getStorefrontUrl();
   const initialTimestamp = React.useMemo(() => Date.now(), []);
-  const previewIframeUrl = `${storefrontUrl}/store/${slug}?preview=true&embedded=true&_t=${initialTimestamp}_${refreshKey}`;
+
+  const pagePath =
+    activePage === 'products'
+      ? `/store/${slug}/products`
+      : activePage === 'about'
+      ? `/store/${slug}/about`
+      : `/store/${slug}`;
+
+  const previewIframeUrl = `${storefrontUrl}${pagePath}?preview=true&embedded=true&_t=${initialTimestamp}_${refreshKey}`;
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
@@ -26,17 +41,48 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store, ifram
   return (
     <div className="w-full rounded-2xl border border-slate-200/90 overflow-hidden bg-slate-900 shadow-sm">
       {/* Simulated Browser Header Bar */}
-      <div className="bg-slate-800/95 px-4 py-2.5 flex items-center justify-between border-b border-slate-700/80">
+      <div className="bg-slate-800/95 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80">
         <div className="flex items-center space-x-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
         </div>
 
-        {/* Address Bar */}
-        <div className="text-[11px] font-mono text-slate-300 bg-slate-950/80 px-4 py-1 rounded-md truncate max-w-sm flex items-center gap-1.5 shadow-inner">
-          <Globe className="w-3 h-3 text-slate-400 shrink-0" />
-          <span className="truncate">simply.in/store/{slug}</span>
+        {/* 3 Page Tabs Switcher */}
+        <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-700/80 text-xs">
+          <button
+            type="button"
+            onClick={() => onPageChange?.('home')}
+            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
+              activePage === 'home'
+                ? 'bg-blue-600 text-white font-bold shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>🏠 Home</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onPageChange?.('products')}
+            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
+              activePage === 'products'
+                ? 'bg-blue-600 text-white font-bold shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>🛍️ Products</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onPageChange?.('about')}
+            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
+              activePage === 'about'
+                ? 'bg-blue-600 text-white font-bold shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>📖 About Us</span>
+          </button>
         </div>
 
         {/* Device Switcher & Reload */}
@@ -87,7 +133,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({ store, ifram
         >
           <iframe
             ref={iframeRef}
-            key={refreshKey}
+            key={`${pagePath}_${refreshKey}`}
             src={previewIframeUrl}
             className="w-full h-full border-0 bg-white"
             title="Storefront Interactive Buyer Preview"

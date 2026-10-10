@@ -131,6 +131,9 @@ export enum ThemeKey {
   HABITAT = 'HABITAT',
   LOCAL = 'LOCAL',
   FEAST = 'FEAST',
+  AURA = 'AURA',
+  NOIR = 'NOIR',
+  VISTA = 'VISTA',
 }
 
 export enum FulfillmentMode {

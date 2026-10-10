@@ -332,7 +332,7 @@ export default function StoreSearchPage() {
         )}
       </main>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

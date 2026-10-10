@@ -14,8 +14,7 @@ import {
   Send,
   X,
   Plus,
-  Minus,
-  Star
+  Minus
 } from 'lucide-react';
 import { useCart } from '../../../../context/CartContext';
 import { useToast } from '../../../../components/ui/Toast';
@@ -376,20 +375,20 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Product Hero Split (Gallery Left / Commercials Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* LEFT: Dynamic Image Gallery */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="lg:col-span-5 xl:col-span-5 space-y-3 lg:sticky lg:top-24">
             {/* Primary Main Viewport */}
-            <div className="aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm relative group">
+            <div className="aspect-square max-h-[460px] w-full bg-white rounded-2xl overflow-hidden border border-gray-200/90 shadow-xs relative group flex items-center justify-center p-4 sm:p-6">
               <SafeImage
                 src={activeGallery[selectedImageIndex] || activeGallery[0]}
                 alt={product.title}
-                className="w-full h-full object-cover transition duration-300"
+                className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                 fallbackTitle={product.title}
               />
               {comparePricePaise && !isEnquiryOnly && (
                 <span
-                  className="absolute top-3 left-3 text-white text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded shadow"
+                  className="absolute top-3.5 left-3.5 text-white text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-xs"
                   style={{ backgroundColor: 'var(--theme-accent, #D97706)' }}
                 >
                   Save {Math.round(((comparePricePaise - currentPricePaise) / comparePricePaise) * 100)}%
@@ -399,19 +398,19 @@ export default function ProductDetailPage() {
 
             {/* Thumbnail Navigation Row */}
             {activeGallery.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {activeGallery.map((url, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setSelectedImageIndex(idx)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition ${
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white p-1.5 flex items-center justify-center ${
                       selectedImageIndex === idx
-                        ? 'border-gray-900 ring-2 ring-gray-900/20'
-                        : 'border-gray-200 hover:border-gray-400 opacity-70'
+                        ? 'border-gray-900 ring-2 ring-gray-900/15 shadow-xs'
+                        : 'border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <SafeImage src={url} alt="thumbnail" className="w-full h-full object-cover" />
+                    <SafeImage src={url} alt="thumbnail" className="w-full h-full object-contain" />
                   </button>
                 ))}
               </div>
@@ -419,15 +418,15 @@ export default function ProductDetailPage() {
           </div>
 
           {/* RIGHT: Product Details, Variant Selectors, Pricing & CTA */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-7 xl:col-span-7 space-y-6">
             {/* Title & Category */}
             <div>
               {product.category?.name && (
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-1">
+                <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full mb-2">
                   {product.category.name}
                 </span>
               )}
-              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-theme-heading text-gray-900 tracking-tight leading-tight">
                 {product.title}
               </h1>
             </div>
@@ -640,45 +639,6 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Customer Reviews Section (Part C - Section 17) */}
-            <div className="space-y-4 pt-6 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                    <span>Customer Reviews</span>
-                    <span className="text-xs font-normal text-gray-500">(0 reviews)</span>
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1 text-amber-400">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-3.5 h-3.5 fill-slate-200 text-slate-200" />
-                    ))}
-                    <span className="text-xs font-bold text-gray-600 ml-1.5">0.0 out of 5</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isPreviewMode}
-                  title={isPreviewMode ? 'Review submission is disabled in Merchant Preview.' : undefined}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Write a Review
-                </button>
-              </div>
-
-              {/* Review Empty State */}
-              <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 text-center space-y-1.5">
-                <p className="text-xs font-bold text-gray-700">No reviews yet.</p>
-                <p className="text-[11px] text-gray-500 max-w-sm mx-auto">
-                  Be the first to review this product once purchases are live. Reviews from verified buyers will appear here.
-                </p>
-                {isPreviewMode && (
-                  <p className="text-[10px] text-amber-700 font-medium pt-1">
-                    (Merchant Preview: Review submission is disabled)
-                  </p>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </main>
@@ -843,7 +803,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

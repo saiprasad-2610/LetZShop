@@ -28,6 +28,11 @@ export default function MoreSettingsPage() {
   const { user, store, logout } = useAuth();
   const router = useRouter();
 
+  // Redirect canonical navigation from /more to /settings
+  React.useEffect(() => {
+    router.replace('/settings');
+  }, [router]);
+
   const [codEnabled, setCodEnabled] = useState(true);
   const [pickupEnabled, setPickupEnabled] = useState(false);
 

@@ -35,7 +35,9 @@ export default function StoreCartPage() {
   const { 
     cart, itemCount, subtotalPaise, updateQuantity, removeItem, 
     api, setStoreId, appliedCoupon, couponError, applyCoupon, removeCoupon,
-    discountPaise, grandTotalPaise, shippingPaise
+    discountPaise, grandTotalPaise, shippingPaise,
+    flatRatePaise, freeShippingThresholdPaise, freeDeliveryRemainingPaise,
+    isFreeDeliveryQualified, setShippingSettings
   } = useCart();
   const toast = useToast();
 
@@ -73,6 +75,9 @@ export default function StoreCartPage() {
       setStoreData(res);
       if (res.store?.id) {
         setStoreId(res.store.id);
+      }
+      if (res.store?.shippingSettings) {
+        setShippingSettings(res.store.shippingSettings);
       }
     } catch (err) {
       console.error('Failed to load store cart', err);
@@ -120,9 +125,11 @@ export default function StoreCartPage() {
 
   const handleQuantityChange = async (variantId: string, newQty: number, productName: string) => {
     try {
-      await updateQuantity(variantId, newQty);
       if (newQty <= 0) {
+        await removeItem(variantId);
         toast.success('Item Removed', `${productName} removed from cart`);
+      } else {
+        await updateQuantity(variantId, newQty);
       }
     } catch {
       toast.error('Update Failed', 'Could not update quantity');
@@ -241,14 +248,6 @@ export default function StoreCartPage() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-
-            {/* Promotional Coupon Hint */}
-            <div className="pt-4 border-t border-gray-100">
-              <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
-                <Gift className="w-3.5 h-3.5 text-amber-500" />
-                Use code <span className="font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">WELCOME10</span> for 10% off your first order
-              </p>
-            </div>
           </div>
         ) : (
           /* ================================================================
@@ -273,12 +272,17 @@ export default function StoreCartPage() {
                   const product = variant.product || {};
                   const cover =
                     item.media?.[0]?.publicUrl ||
+                    item.imageUrl ||
                     variant.images?.[0]?.url ||
+                    variant.media?.[0]?.publicUrl ||
                     product.media?.[0]?.publicUrl ||
+                    product.media?.[0]?.url ||
                     product.images?.[0]?.url ||
+                    (Array.isArray(product.media) && typeof product.media[0] === 'string' ? product.media[0] : '') ||
                     '';
                   const productTitle = product.title || product.name || 'Product';
-                  const isRemoving = removingItemId === variant.id;
+                  const targetVariantId = item.variantId || variant.id;
+                  const isRemoving = removingItemId === targetVariantId;
                   const hasCompare = variant.compareAtPricePaise && variant.compareAtPricePaise > variant.pricePaise;
                   const lineTotal = (variant.pricePaise || 0) * item.quantity;
 
@@ -340,7 +344,7 @@ export default function StoreCartPage() {
                           <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden shadow-sm">
                             <button
                               type="button"
-                              onClick={() => handleQuantityChange(variant.id, item.quantity - 1, productTitle)}
+                              onClick={() => handleQuantityChange(targetVariantId, item.quantity - 1, productTitle)}
                               className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition"
                               aria-label="Decrease quantity"
                             >
@@ -351,7 +355,7 @@ export default function StoreCartPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleQuantityChange(variant.id, item.quantity + 1, productTitle)}
+                              onClick={() => handleQuantityChange(targetVariantId, item.quantity + 1, productTitle)}
                               className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition"
                               aria-label="Increase quantity"
                             >
@@ -365,7 +369,7 @@ export default function StoreCartPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleRemoveItem(variant.id, productTitle)}
+                              onClick={() => handleRemoveItem(targetVariantId, productTitle)}
                               disabled={isRemoving}
                               className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-1 transition disabled:opacity-40"
                             >
@@ -475,41 +479,6 @@ export default function StoreCartPage() {
                   </button>
                 )}
               </div>
-
-              {/* Available Coupons Quick-Pick */}
-              {!appliedCoupon && !showCouponInput && (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 animate-fadeIn">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Gift className="w-4 h-4 text-amber-600" />
-                    <span className="text-xs font-bold text-amber-900">Available Offers</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {[
-                      { code: 'WELCOME10', desc: '10% off (min ₹500)', saving: '₹200 max' },
-                      { code: 'FLAT50', desc: '₹50 off (min ₹300)', saving: '₹50' },
-                      { code: 'SAVE20', desc: '20% off (min ₹1000)', saving: '₹500 max' },
-                      { code: 'FIRST100', desc: '₹100 off (min ₹500)', saving: '₹100' },
-                    ].map((offer) => (
-                      <button
-                        key={offer.code}
-                        onClick={() => {
-                          setCouponInput(offer.code);
-                          setShowCouponInput(true);
-                        }}
-                        className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-200 hover:border-amber-400 hover:shadow-sm transition text-left group"
-                      >
-                        <div>
-                          <span className="text-xs font-bold font-mono text-amber-800">{offer.code}</span>
-                          <p className="text-[10px] text-gray-500 mt-0.5">{offer.desc}</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 group-hover:bg-emerald-100 transition">
-                          Save {offer.saving}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* RIGHT: Order Summary */}
@@ -519,6 +488,41 @@ export default function StoreCartPage() {
                   <ShoppingBag className="w-4 h-4" />
                   Order Summary
                 </h2>
+
+                {/* Free Delivery Goal Tracker */}
+                {freeShippingThresholdPaise && (
+                  <div className={`p-3.5 rounded-xl border text-xs space-y-2 transition ${
+                    isFreeDeliveryQualified
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                  }`}>
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Truck className={`w-4 h-4 ${isFreeDeliveryQualified ? 'text-emerald-600' : 'text-amber-700'}`} />
+                        {isFreeDeliveryQualified ? (
+                          <span className="font-bold text-emerald-800">🎉 FREE Delivery Unlocked!</span>
+                        ) : (
+                          <span>Add <strong className="font-mono text-amber-950 font-bold">{formatPaise(freeDeliveryRemainingPaise)}</strong> more for FREE Delivery</span>
+                        )}
+                      </span>
+                      <span className="text-[11px] font-mono opacity-75">
+                        Goal: {formatPaise(freeShippingThresholdPaise)}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200/80 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          isFreeDeliveryQualified ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.round((subtotalPaise / freeShippingThresholdPaise) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3 text-xs text-gray-600">
                   <div className="flex justify-between">
@@ -555,7 +559,20 @@ export default function StoreCartPage() {
                       <Truck className="w-3 h-3" />
                       Delivery / Shipping
                     </span>
-                    <span className="text-emerald-700 font-bold">FREE</span>
+                    {shippingPaise === 0 ? (
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                        FREE
+                        {freeShippingThresholdPaise && isFreeDeliveryQualified && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">
+                            Eligible
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="font-mono font-semibold text-gray-900">
+                        {formatPaise(shippingPaise)}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex justify-between text-[11px] text-gray-400">
@@ -623,7 +640,7 @@ export default function StoreCartPage() {
         )}
       </main>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

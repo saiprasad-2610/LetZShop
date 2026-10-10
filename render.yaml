@@ -1,0 +1,80 @@
+services:
+  # --------------------------------------------------------------------------
+  # 1. Backend REST API (NestJS Fastify)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: simply-ecommerce-api
+    runtime: node
+    plan: starter
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @simply/db generate && pnpm turbo run build --filter=@simply/api...
+    startCommand: node apps/api/dist/src/main.js
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set to your Railway Postgres connection string
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: OTP_DEV_MOCK_ENABLED
+        value: "false"
+      - key: MEDIA_STORAGE_DRIVER
+        value: local
+
+  # --------------------------------------------------------------------------
+  # 2. Buyer Storefront (Next.js)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: simply-ecommerce-storefront
+    runtime: node
+    plan: starter
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/storefront...
+    startCommand: pnpm --filter @simply/storefront start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: simply-ecommerce-api
+          property: host
+
+  # --------------------------------------------------------------------------
+  # 3. Seller / Merchant Dashboard (Next.js)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: simply-ecommerce-seller
+    runtime: node
+    plan: starter
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/seller...
+    startCommand: pnpm --filter @simply/seller start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: simply-ecommerce-api
+          property: host
+
+  # --------------------------------------------------------------------------
+  # 4. Super Admin Governance Portal (Next.js)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: simply-ecommerce-admin
+    runtime: node
+    plan: starter
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/admin...
+    startCommand: pnpm --filter @simply/admin start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: simply-ecommerce-api
+          property: host

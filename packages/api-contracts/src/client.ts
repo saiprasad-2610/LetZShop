@@ -12,8 +12,11 @@ export class SimplyApiClient {
   private isRefreshing = false;
   private onTokenRefreshed?: (accessToken: string, refreshToken: string) => void;
 
-  constructor(baseUrl = 'http://localhost:4000') {
-    this.baseUrl = (baseUrl || 'http://localhost:4000')
+  constructor(baseUrl?: string) {
+    const defaultUrl =
+      (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) ||
+      'http://localhost:4000';
+    this.baseUrl = (baseUrl || defaultUrl)
       .replace(/\/api\/v1\/?$/, '')
       .replace(/\/+$/, '');
   }
@@ -63,10 +66,13 @@ export class SimplyApiClient {
     }
 
     const reqHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
       Accept: 'application/json',
       ...headers,
     };
+
+    if (body !== undefined) {
+      reqHeaders['Content-Type'] = 'application/json';
+    }
 
     if (this.token && !reqHeaders['Authorization']) {
       reqHeaders['Authorization'] = `Bearer ${this.token}`;
@@ -151,6 +157,8 @@ export class SimplyApiClient {
       this.request('auth/recovery/request-otp', { method: 'POST', body: { phone } }),
     verifyRecoveryOtp: (phone: string, otp: string) =>
       this.request('auth/recovery/verify-otp', { method: 'POST', body: { phone, otp } }),
+    loginAdmin: (identifier: string, secret: string) =>
+      this.request('auth/admin/login', { method: 'POST', body: { identifier, secret } }),
 
     // Backward-compat aliases
     sendOtp: (phone: string) => this.request('auth/otp/send', { method: 'POST', body: { phone } }),
@@ -246,7 +254,7 @@ export class SimplyApiClient {
     updateQuantity: (cartId: string, variantId: string, quantity: number) =>
       this.request(`cart/${cartId}/items/${variantId}`, { method: 'POST', body: { quantity } }),
     removeItem: (cartId: string, variantId: string) =>
-      this.request(`cart/${cartId}/items/${variantId}/remove`, { method: 'POST' }),
+      this.request(`cart/${cartId}/items/${variantId}/remove`, { method: 'POST', body: {} }),
   };
 
   // --- Orders (Merchant Canonical: /seller/orders; Public Buyer: /orders/checkout, /orders/track) ---
@@ -269,6 +277,17 @@ export class SimplyApiClient {
       this.request(`seller/orders/${id}/status`, { method: 'PATCH', body: { status, reason } }),
     trackOrder: (orderNumber: string, token?: string) =>
       this.request(`orders/track/${orderNumber}`, { params: token ? { t: token } : undefined }),
+  };
+
+  // --- Reports ---
+  public reports = {
+    getReport: (params?: {
+      type?: 'sales' | 'orders' | 'products' | 'customers';
+      startDate?: string;
+      endDate?: string;
+      status?: string;
+      paymentStatus?: string;
+    }) => this.request('seller/reports', { params }),
   };
 
   // --- Enquiries ---
@@ -339,6 +358,14 @@ export class SimplyApiClient {
     retryOutbox: (id: string) => this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
     reconcilePayment: (paymentOrderId: string) =>
       this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, { method: 'POST' }),
+    getUsers: (search?: string, role?: string) => this.request('admin/users', { params: { search, role } }),
+    toggleUserStatus: (userId: string) =>
+      this.request(`admin/users/${userId}/toggle-status`, { method: 'POST' }),
+    getAnalytics: () => this.request('admin/analytics'),
+    getPlans: () => this.request('admin/plans'),
+    createPlan: (data: any) => this.request('admin/plans', { method: 'POST', body: data }),
+    updatePlan: (id: string, data: any) => this.request(`admin/plans/${id}`, { method: 'PUT', body: data }),
+    deletePlan: (id: string) => this.request(`admin/plans/${id}`, { method: 'DELETE' }),
   };
 
   // --- Buyer Payments (Merchant Razorpay Checkout) ---
@@ -352,6 +379,40 @@ export class SimplyApiClient {
       razorpay_signature: string;
     }) =>
       this.request('payments/verify', { method: 'POST', body: data }),
+  };
+
+  // --- Merchant Razorpay & Payment Settings ---
+  public paymentSettings = {
+    get: () => this.request('seller/payment-settings'),
+    save: (data: { keyId: string; keySecret: string; isEnabled?: boolean; codEnabled?: boolean }) =>
+      this.request('seller/payment-settings', { method: 'POST', body: data }),
+    toggleCod: (codEnabled: boolean) =>
+      this.request('seller/payment-settings/cod', { method: 'POST', body: { codEnabled } }),
+  };
+
+  // --- Merchant Shiprocket & Shipping Settings ---
+  public shippingSettings = {
+    get: () => this.request('seller/shipping-settings'),
+    save: (data: { email: string; password?: string; pickupLocation?: string; isEnabled?: boolean }) =>
+      this.request('seller/shipping-settings', { method: 'POST', body: data }),
+    test: (data: { email: string; password?: string }) =>
+      this.request('seller/shipping-settings/test', { method: 'POST', body: data }),
+    toggle: (isEnabled: boolean) =>
+      this.request('seller/shipping-settings/toggle', { method: 'POST', body: { isEnabled } }),
+  };
+
+  // --- Merchant Delivery Charges & Free Shipping Rules ---
+  public deliveryRates = {
+    get: () => this.request('seller/delivery-rates'),
+    save: (data: { deliveryChargeRupees: number; freeDeliveryThresholdRupees?: number | null; freeDeliveryEnabled?: boolean }) =>
+      this.request('seller/delivery-rates', { method: 'POST', body: data }),
+  };
+
+  // --- Orders Shipping Fulfillment & Public Tracking ---
+  public shipping = {
+    shipOrder: (orderId: string) =>
+      this.request(`shipping/orders/${orderId}/ship`, { method: 'POST' }),
+    track: (awb: string) => this.request(`shipping/track/${awb}`),
   };
 }
 

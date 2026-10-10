@@ -7,8 +7,9 @@ import {
   Package,
   ShoppingBag,
   BarChart3,
+  FileSpreadsheet,
   Palette,
-  MoreHorizontal,
+  Settings as SettingsIcon,
   LogOut,
   ExternalLink,
   Menu,
@@ -37,15 +38,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Canonical 7 Primary Navigation Items
+  // Canonical Primary Navigation Items
   const navItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
     { label: 'My Store Preview', href: '/store-preview', icon: Eye },
     { label: 'Inventory', href: '/products', icon: Package },
     { label: 'Orders', href: '/orders', icon: ShoppingBag },
     { label: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { label: 'Reports', href: '/reports', icon: FileSpreadsheet },
     { label: 'Themes', href: '/brand-studio', icon: Palette },
-    { label: 'More', href: '/more', icon: MoreHorizontal },
+    { label: 'Settings', href: '/settings', icon: SettingsIcon },
   ];
 
   // Helper for active route including nested routes
@@ -53,15 +55,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     if (itemHref === '/') return router.pathname === '/';
     if (itemHref === '/products') return router.pathname.startsWith('/products');
     if (itemHref === '/orders') return router.pathname.startsWith('/orders');
+    if (itemHref === '/reports') return router.pathname.startsWith('/reports');
     if (itemHref === '/brand-studio') {
       return router.pathname.startsWith('/brand-studio') || router.pathname.startsWith('/themes');
     }
-    if (itemHref === '/more') {
+    if (itemHref === '/settings') {
       return (
+        router.pathname.startsWith('/settings') ||
         router.pathname.startsWith('/more') ||
         router.pathname.startsWith('/coupons') ||
         router.pathname.startsWith('/marketing') ||
-        router.pathname.startsWith('/settings') ||
         router.pathname.startsWith('/subscription')
       );
     }

@@ -306,7 +306,7 @@ export default function OrderConfirmationPage() {
         </div>
       </main>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

@@ -134,6 +134,27 @@ export class StoresService {
       },
     });
 
+    const paymentAccount = fullStore?.id
+      ? await this.prisma.merchantPaymentAccount.findFirst({
+          where: { storeId: fullStore.id },
+        })
+      : null;
+    const paymentCaps = (paymentAccount?.capabilities as any) || {};
+    const codEnabled = paymentCaps.codEnabled !== false;
+    const razorpayConfigured = !!(
+      paymentAccount?.keyId &&
+      paymentAccount?.keySecretEncrypted &&
+      paymentAccount?.isEnabled !== false &&
+      !paymentAccount.keyId.includes('dummy') &&
+      !paymentAccount.keyId.includes('mock')
+    );
+
+    const shippingProfile = fullStore?.id
+      ? await this.prisma.shippingProfile.findFirst({
+          where: { storeId: fullStore.id, isDefault: true },
+        })
+      : null;
+
     const activeThemeDef = fullStore?.themeConfiguration?.themeDefinition;
     const activeLegacyConfig = fullStore?.themeConfigs?.[0];
     const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
@@ -143,6 +164,7 @@ export class StoresService {
     const sanitizedBranding = {
       logoUrl: fullStore?.branding?.logoUrl || null,
       faviconUrl: fullStore?.branding?.faviconUrl || null,
+      bannerUrl: themeJson?.pages?.home?.heroBannerUrl || (themeJson as any)?.branding?.bannerUrl || null,
       primaryColor: fullStore?.branding?.primaryColor || themeJson.palette?.primary || '#1C1917',
       accentColor: fullStore?.branding?.accentColor || themeJson.palette?.accent || '#D4AF37',
       fontHeading: fullStore?.branding?.fontHeading || themeJson.typography?.heading || 'Inter',
@@ -168,6 +190,14 @@ export class StoresService {
       businessHours: fullStore?.businessHours || [],
       branding: sanitizedBranding,
       sections: fullStore?.sections || [],
+      paymentSettings: {
+        codEnabled,
+        razorpayEnabled: razorpayConfigured,
+      },
+      shippingSettings: {
+        flatRatePaise: shippingProfile?.flatRatePaise ?? 0,
+        freeShippingThresholdPaise: shippingProfile?.freeShippingThresholdPaise ?? null,
+      },
     };
 
     return {

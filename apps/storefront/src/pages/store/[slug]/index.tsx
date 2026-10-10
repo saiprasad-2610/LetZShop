@@ -20,7 +20,8 @@ import {
   Clock,
   FileText,
   Layers,
-  Search
+  Search,
+  Building
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useToast } from '../../../components/ui/Toast';
@@ -218,6 +219,15 @@ export default function StoreHomePage() {
   };
 
   const themeCode = themeConfig?.themeId || 'atelier';
+  const homeConfig = themeConfig?.pages?.home || {};
+  const heroBadge = homeConfig.heroBadge;
+  const heroTitle = homeConfig.heroTitle;
+  const heroSubtitle = homeConfig.heroSubtitle;
+  const heroCtaText = homeConfig.heroCtaText;
+  const heroCtaLink = homeConfig.heroCtaLink ? getLink(homeConfig.heroCtaLink) : '#products';
+  const heroSecondaryCtaText = homeConfig.heroSecondaryCtaText;
+  const heroSecondaryCtaLink = homeConfig.heroSecondaryCtaLink ? getLink(homeConfig.heroSecondaryCtaLink) : getLink(`/store/${slug}/about`);
+  const heroBanner = homeConfig.heroBannerUrl || themeConfig?.branding?.bannerUrl || store?.branding?.bannerUrl || store?.bannerUrl;
 
   // Filter products by active category
   const filteredProducts = activeCategory === 'all'
@@ -260,57 +270,69 @@ export default function StoreHomePage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="space-y-16 pb-20">
+      <main className="space-y-8 sm:space-y-12 pb-16">
         {/* =========================================================================
             1. HERO COMPOSITION (GENUINELY DISTINCT ACROSS 6 THEMES)
         ========================================================================= */}
 
         {/* --- ATELIER: Luxury Editorial Split-Hero --- */}
         {themeCode === 'atelier' && (
-          <section className="relative overflow-hidden py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-              <div className="lg:col-span-7 space-y-6 text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40">
+          <section className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              <div className="lg:col-span-7 space-y-5 text-left flex flex-col justify-center">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40 bg-stone-900/40">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Artisanal Atelier • Hallmarked & Certified</span>
+                  <span className="font-bold">{store.name}</span>
+                  <span className="text-amber-500/60">•</span>
+                  <span>{heroBadge || 'Artisanal Atelier'}</span>
                 </div>
 
-                <h1 className="text-4xl sm:text-6xl font-serif tracking-tight leading-[1.1]">
-                  Timeless Elegance by <span className="text-amber-300 italic">{store.name}</span>
-                </h1>
+                <div className="space-y-1">
+                  <div className="text-xs sm:text-sm font-serif tracking-[0.2em] uppercase text-amber-600/90 font-semibold">
+                    The {store.name} Maison
+                  </div>
+                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif tracking-tight leading-[1.1] font-theme-heading text-stone-900">
+                    {heroTitle ? (
+                      heroTitle
+                    ) : (
+                      <>
+                        Timeless Elegance & Handcrafted Luxury by <span className="text-amber-600 italic underline decoration-amber-300/60 underline-offset-4">{store.name}</span>
+                      </>
+                    )}
+                  </h1>
+                </div>
 
                 <p className="text-sm sm:text-base max-w-xl font-light leading-relaxed opacity-90">
-                  Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.
+                  {heroSubtitle ||
+                    'Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.'}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-4">
                   <a
-                    href="#products"
+                    href={heroCtaLink}
                     className="px-8 py-3.5 bg-amber-400 text-stone-950 font-semibold text-xs tracking-widest uppercase hover:bg-amber-300 transition shadow-lg flex items-center gap-2"
                   >
-                    <span>Explore Haute Collection</span>
+                    <span>{heroCtaText || 'Explore Haute Collection'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
-                  <a
-                    href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20I%20would%20like%20to%20inquire%20about%20a%20bespoke%20piece`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <Link
+                    href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border border-stone-600 text-stone-200 text-xs font-semibold tracking-widest uppercase hover:border-amber-400 hover:text-amber-300 transition"
                   >
-                    Bespoke Consultation
-                  </a>
+                    {heroSecondaryCtaText || 'About Our Story'}
+                  </Link>
                 </div>
               </div>
 
               {/* Atelier Visual Frame / Mosaic */}
-              <div className="lg:col-span-5 relative">
-                <div className="aspect-[3/4] rounded-sm overflow-hidden border border-amber-500/30 shadow-2xl relative bg-stone-950">
-                  {store.bannerUrl || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url ? (
+              <div className="lg:col-span-5 relative flex justify-center">
+                <div className="w-full max-w-md lg:max-w-lg aspect-[4/3] rounded-sm overflow-hidden border border-amber-500/30 shadow-2xl relative bg-stone-950">
+                  {heroBanner || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url ? (
                     <SafeImage
-                      src={store.bannerUrl || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url}
+                      src={heroBanner || products?.[0]?.media?.[0]?.publicUrl || products?.[0]?.images?.[0]?.url}
                       alt={store.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center"
                       fallbackTitle={store.name}
                     />
                   ) : (
@@ -331,109 +353,153 @@ export default function StoreHomePage() {
 
         {/* --- PULSE: High Voltage Drop Hero --- */}
         {themeCode === 'pulse' && (
-          <section className="relative overflow-hidden py-14 sm:py-20 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
-            <div className="max-w-6xl mx-auto space-y-6 text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-pink-500 text-white font-black text-xs uppercase tracking-widest shadow-md">
-                <Zap className="w-3.5 h-3.5 fill-current" />
-                <span>NEW DROP ACTIVE • LIMITED QUANTITIES</span>
+          <section className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
+            <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'space-y-6 text-center'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white font-black text-xs uppercase tracking-widest border-2 border-pink-500 shadow-lg">
+                  <Zap className="w-4 h-4 fill-pink-500 text-pink-500" />
+                  <span className="text-pink-400">{store.name}</span>
+                  <span>•</span>
+                  <span>{heroBadge || 'OFFICIAL DROP'}</span>
+                </div>
+
+                <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none font-theme-heading">
+                  <span className="text-pink-500 block">{store.name}</span>
+                  <span>{heroTitle || 'ONLINE DROP CATALOG'}</span>
+                </h1>
+
+                <p className="text-sm sm:text-lg text-slate-300 max-w-2xl font-medium">
+                  {heroSubtitle ||
+                    'High-octane apparel, trending accessories, and limited releases. Once sold out, they never restock.'}
+                </p>
+
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-sm uppercase tracking-wider transition shadow-lg transform hover:-translate-y-0.5"
+                  >
+                    {heroCtaText || 'SHOP THE DROP NOW'}
+                  </a>
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider border border-white/20 transition"
+                  >
+                    {heroSecondaryCtaText || 'ABOUT THE BRAND'}
+                  </Link>
+                </div>
+
+                {/* Ticker Stats */}
+                <div className="grid grid-cols-3 max-w-lg pt-6 border-t border-slate-800 text-center">
+                  <div>
+                    <div className="font-black text-lg text-pink-500">EXPRESS</div>
+                    <div className="text-[10px] text-slate-400 font-mono uppercase">24-48H DISPATCH</div>
+                  </div>
+                  <div>
+                    <div className="font-black text-lg text-white">GENUINE</div>
+                    <div className="text-[10px] text-slate-400 font-mono uppercase">100% VERIFIED</div>
+                  </div>
+                  <div>
+                    <div className="font-black text-lg text-pink-500">SECURE</div>
+                    <div className="text-[10px] text-slate-400 font-mono uppercase">INSTANT CHECKOUT</div>
+                  </div>
+                </div>
               </div>
 
-              <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none">
-                {store.name} <span className="text-pink-500 block sm:inline">ONLINE DROP</span>
-              </h1>
-
-              <p className="text-sm sm:text-lg text-slate-300 max-w-2xl mx-auto font-medium">
-                High-octane apparel, trending accessories, and limited releases. Once sold out, they never restock.
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-                <a
-                  href="#products"
-                  className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-sm uppercase tracking-wider transition shadow-lg transform hover:-translate-y-0.5"
-                >
-                  SHOP THE DROP NOW
-                </a>
-                <Link
-                  href={`/store/${slug}/search`}
-                  className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider border border-white/20 transition"
-                >
-                  EXPLORE ARCHIVE
-                </Link>
-              </div>
-
-              {/* Ticker Stats */}
-              <div className="grid grid-cols-3 max-w-lg mx-auto pt-6 border-t border-slate-800 text-center">
-                <div>
-                  <div className="font-black text-lg text-pink-500">EXPRESS</div>
-                  <div className="text-[10px] text-slate-400 font-mono uppercase">24-48H DISPATCH</div>
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-sm lg:max-w-md aspect-[4/3] sm:aspect-[4/5] overflow-hidden border-4 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.3)] bg-black relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover"
+                      fallbackTitle={store.name}
+                    />
+                    <div className="absolute top-3 left-3 bg-black text-pink-400 text-[10px] font-black uppercase px-2 py-1 tracking-wider border border-pink-500">
+                      ⚡ LIVE DROP
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-black text-lg text-white">GENUINE</div>
-                  <div className="text-[10px] text-slate-400 font-mono uppercase">100% VERIFIED</div>
-                </div>
-                <div>
-                  <div className="font-black text-lg text-pink-500">SECURE</div>
-                  <div className="text-[10px] text-slate-400 font-mono uppercase">INSTANT CHECKOUT</div>
-                </div>
-              </div>
+              )}
             </div>
           </section>
         )}
 
         {/* --- HARVEST: Warm Organic Showcase Hero --- */}
         {themeCode === 'harvest' && (
-          <section className="relative overflow-hidden border-b border-amber-200 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-5xl mx-auto text-center space-y-5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                <span>🌿 Farm-Fresh & Handcrafted Daily</span>
-              </span>
+          <section className="relative overflow-hidden border-b border-amber-200 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8">
+            <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-5'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-5' : 'space-y-5'}>
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
+                  <span>🌿 Pure & Handcrafted by</span>
+                  <strong className="text-emerald-800 font-extrabold">{store.name}</strong>
+                </span>
 
-              <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight">
-                Authentic Homemade Delicacies from <span className="text-amber-800 underline decoration-amber-300">{store.name}</span>
-              </h1>
+                <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight font-theme-heading">
+                  <span className="block text-amber-800 font-bold mb-1 underline decoration-amber-300 decoration-wavy underline-offset-4">{store.name}</span>
+                  <span>{heroTitle || 'Authentic Homemade Delicacies & Fresh Daily Batches'}</span>
+                </h1>
 
-              <p className="text-sm sm:text-base text-stone-600 max-w-2xl mx-auto leading-relaxed">
-                Made using traditional recipes, pure ingredients, and zero artificial preservatives. Fresh batches prepared daily and vacuum-sealed for doorstep delivery.
-              </p>
+                <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
+                  {heroSubtitle ||
+                    'Made using traditional recipes, pure ingredients, and zero artificial preservatives. Fresh batches prepared daily and vacuum-sealed for doorstep delivery.'}
+                </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-                <a
-                  href="#products"
-                  className="px-6 py-3 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
-                >
-                  <span>Order Fresh Batch</span>
-                  <ArrowRight className="w-4 h-4" />
-                </a>
-                <a
-                  href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20what%20is%20today%27s%20fresh%20batch%3F`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-6 py-3 rounded-full bg-white border border-stone-300 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-sm flex items-center gap-2"
-                >
-                  <MessageSquare className="w-4 h-4 text-emerald-600" />
-                  <span>Ask Today&apos;s Fresh Batch</span>
-                </a>
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-6 py-3 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
+                  >
+                    <span>{heroCtaText || 'Order Fresh Batch'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-3 rounded-full bg-white border border-stone-300 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-sm flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-600" />
+                    <span>{heroSecondaryCtaText || 'Our Kitchen Story'}</span>
+                  </Link>
+                </div>
+
+                {/* Harvest Trust Badges */}
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-6 pt-6 text-xs text-stone-700 font-medium`}>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" /> 100% Pure Ghee & Natural
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" /> Zero Chemical Additives
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" /> Safe Food-Grade Packaging
+                  </span>
+                </div>
               </div>
 
-              {/* Harvest Trust Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-xs text-stone-700 font-medium">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" /> 100% Pure Ghee & Natural
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Zero Chemical Additives
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Safe Food-Grade Packaging
-                </span>
-              </div>
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-sm lg:max-w-md aspect-[4/3] sm:aspect-[4/5] rounded-3xl overflow-hidden border-2 border-amber-300/60 shadow-xl bg-amber-50 relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover"
+                      fallbackTitle={store.name}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-3 right-3 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-amber-200/60 text-center">
+                      <p className="text-[11px] font-serif font-bold text-stone-800 tracking-wide">
+                        🌿 Fresh Harvest • {store.name} Signature
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
 
         {/* --- FOUNDRY: Technical B2B Industrial Hero --- */}
         {themeCode === 'foundry' && (
-          <section className="relative overflow-hidden bg-slate-900 text-slate-100 py-14 sm:py-18 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
+          <section className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
             {/* Background Grid Pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 pointer-events-none" />
 
@@ -441,19 +507,21 @@ export default function StoreHomePage() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
                   <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
-                  <span>OEM / B2B INDUSTRIAL SUPPLY DIVISION</span>
+                  <span>{store.name.toUpperCase()} // {heroBadge || 'OEM B2B SUPPLY DIVISION'}</span>
                 </div>
                 <div className="text-xs text-slate-400">
                   STANDARD: <span className="text-white font-bold">ISO 9001:2015</span> | QC: <span className="text-emerald-400 font-bold">PASS 100%</span>
                 </div>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-mono font-bold text-white tracking-tight leading-tight">
-                {store.name} <span className="text-sky-400 block sm:inline">// INDUSTRIAL COMPONENTS</span>
+              <h1 className="text-3xl sm:text-5xl font-mono font-bold text-white tracking-tight leading-tight font-theme-heading">
+                <span className="text-sky-400 block">{store.name}</span>
+                <span>{heroTitle || '// PRECISION COMPONENTS & WHOLESALE'}</span>
               </h1>
 
               <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
-                Direct factory manufacturing, precision engineering components, and bulk industrial wholesale. Technical specifications compliant with domestic and export standards.
+                {heroSubtitle ||
+                  'Direct factory manufacturing, precision engineering components, and bulk industrial wholesale. Technical specifications compliant with domestic and export standards.'}
               </p>
 
               {/* Technical Specifications Highlights Grid */}
@@ -478,21 +546,19 @@ export default function StoreHomePage() {
 
               <div className="flex flex-wrap items-center gap-4 pt-4">
                 <a
-                  href="#products"
+                  href={heroCtaLink}
                   className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-sm transition shadow flex items-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Browse Technical Catalog</span>
+                  <span>{heroCtaText || 'Browse Technical Catalog'}</span>
                 </a>
-                <a
-                  href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20we%20require%20a%20commercial%20quotation%20for%20bulk%20supplies`}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={heroSecondaryCtaLink}
                   className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider border border-slate-600 rounded-sm transition flex items-center gap-2"
                 >
-                  <MessageSquare className="w-4 h-4 text-emerald-400" />
-                  <span>Direct RFQ Desk (WhatsApp)</span>
-                </a>
+                  <Building className="w-4 h-4 text-emerald-400" />
+                  <span>{heroSecondaryCtaText || 'Factory Infrastructure'}</span>
+                </Link>
               </div>
             </div>
           </section>
@@ -500,67 +566,425 @@ export default function StoreHomePage() {
 
         {/* --- HABITAT: Spacious Lifestyle & Interior Sanctuary Hero --- */}
         {themeCode === 'habitat' && (
-          <section className="relative overflow-hidden bg-stone-100 text-stone-900 py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-b border-stone-200">
-            <div className="max-w-5xl mx-auto text-center space-y-6">
-              <span className="text-[11px] font-serif uppercase tracking-[0.25em] text-stone-500 block">
-                Contemporary Interior Architecture & Furnishings
-              </span>
+          <section className="relative overflow-hidden bg-stone-100 text-stone-900 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-stone-200">
+            <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-6'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <span className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
+                  THE {store.name.toUpperCase()} STUDIO • {heroBadge || 'BESPOKE LIVING SPACES'}
+                </span>
 
-              <h1 className="text-4xl sm:text-6xl font-serif text-stone-900 tracking-tight leading-tight">
-                Designed for Intentional Living with <span className="italic font-normal">{store.name}</span>
-              </h1>
+                <h1 className="text-4xl sm:text-6xl font-serif text-stone-900 tracking-tight leading-tight font-theme-heading">
+                  <span className="italic block font-normal text-stone-600 mb-1">Intentional Living with</span>
+                  <span className="font-bold underline decoration-stone-300">{store.name}</span>
+                  {heroTitle && heroTitle !== store.name && (
+                    <span className="block text-xl sm:text-2xl font-light text-stone-600 mt-2">{heroTitle}</span>
+                  )}
+                </h1>
 
-              <p className="text-sm sm:text-base text-stone-600 max-w-2xl mx-auto leading-relaxed font-light">
-                Handcrafted solid wood furniture, bespoke living objects, and organic textures. Curated to bring harmony, warmth, and enduring beauty into your sanctuary.
-              </p>
+                <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed font-light">
+                  {heroSubtitle ||
+                    'Handcrafted solid wood furniture, bespoke living objects, and organic textures. Curated to bring harmony, warmth, and enduring beauty into your sanctuary.'}
+                </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
-                <a
-                  href="#products"
-                  className="px-8 py-3.5 bg-stone-900 text-stone-50 font-serif text-xs uppercase tracking-widest hover:bg-stone-800 transition"
-                >
-                  View Living Pieces
-                </a>
-                <Link
-                  href={`/store/${slug}/search?category=living`}
-                  className="px-8 py-3.5 border border-stone-400 text-stone-800 font-serif text-xs uppercase tracking-widest hover:bg-white transition"
-                >
-                  Shop by Room
-                </Link>
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-3`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-3.5 bg-stone-900 text-stone-50 font-serif text-xs uppercase tracking-widest hover:bg-stone-800 transition"
+                  >
+                    {heroCtaText || 'View Living Pieces'}
+                  </a>
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-8 py-3.5 border border-stone-400 text-stone-800 font-serif text-xs uppercase tracking-widest hover:bg-white transition"
+                  >
+                    {heroSecondaryCtaText || 'Our Design Ethos'}
+                  </Link>
+                </div>
               </div>
+
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-sm lg:max-w-md aspect-[4/3] sm:aspect-[4/5] rounded-2xl overflow-hidden border border-stone-300 shadow-xl bg-stone-200 relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover"
+                      fallbackTitle={store.name}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
 
         {/* --- LOCAL: High Density Instant Commerce Hero --- */}
         {themeCode === 'local' && (
-          <section className="bg-blue-900 text-white py-8 sm:py-12 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
+          <section className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 bg-blue-800 px-3 py-1 rounded text-xs font-semibold text-blue-200">
+                <div className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
                   <Truck className="w-3.5 h-3.5 text-green-400" />
-                  <span>Fast Neighborhood Dispatch • Same-Day Delivery</span>
+                  <strong className="text-white font-bold">{store.name}</strong>
+                  <span>•</span>
+                  <span>{heroBadge || 'Fast Neighborhood Dispatch'}</span>
                 </div>
-                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-                  {store.name} Superstore
+                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-theme-heading">
+                  <span className="text-yellow-300 block">{store.name} Superstore</span>
+                  <span className="text-lg sm:text-2xl font-medium text-blue-100">{heroTitle || 'Daily Groceries & Essentials'}</span>
                 </h1>
                 <p className="text-xs sm:text-sm text-blue-200 max-w-xl">
-                  Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.
+                  {heroSubtitle ||
+                    'Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.'}
                 </p>
+                <div className="pt-2 flex items-center gap-3">
+                  <a
+                    href={heroCtaLink}
+                    className="px-5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-lg shadow-sm hover:bg-blue-50 transition"
+                  >
+                    {heroCtaText || 'Order Online'}
+                  </a>
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-4 py-2.5 border border-blue-400 text-white font-medium text-xs rounded-lg hover:bg-blue-800 transition"
+                  >
+                    {heroSecondaryCtaText || 'Store Location'}
+                  </Link>
+                </div>
               </div>
 
-              <div className="bg-white/10 p-4 rounded-xl border border-white/20 space-y-2.5 min-w-[280px]">
-                <div className="text-xs font-bold text-white">Need it immediately?</div>
-                <p className="text-[11px] text-blue-200">Send your shopping list or tap below to chat directly with store staff.</p>
-                <a
-                  href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20here%20is%20my%20order%20list:`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
-                >
-                  ⚡ Send List on WhatsApp
-                </a>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                {heroBanner && (
+                  <div className="w-full sm:w-44 h-32 rounded-xl overflow-hidden border border-blue-700 shadow-md shrink-0">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover"
+                      fallbackTitle={store.name}
+                    />
+                  </div>
+                )}
+                <div className="bg-white/10 p-4 rounded-xl border border-white/20 space-y-2.5 min-w-[260px]">
+                  <div className="text-xs font-bold text-white">Need it immediately?</div>
+                  <p className="text-[11px] text-blue-200">Send your shopping list or tap below to chat directly with store staff.</p>
+                  <a
+                    href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20here%20is%20my%20order%20list:`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
+                  >
+                    ⚡ Send List on WhatsApp
+                  </a>
+                </div>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* --- AURA: Luminous Glow & Clean Beauty Hero --- */}
+        {themeCode === 'aura' && (
+          <section className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-pink-50/50 to-amber-50/30">
+            {/* Soft Ambient Radial Blur */}
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-900 border border-rose-300/80 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                  <strong className="font-bold text-rose-950">{store.name}</strong>
+                  <span className="text-rose-400">•</span>
+                  <span>{heroBadge || 'Luminous Clean Actives'}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-sans tracking-[0.25em] uppercase text-rose-700 font-bold block">
+                    {store.name} Clean Apothecary
+                  </span>
+                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-slate-900 tracking-tight leading-[1.12] font-theme-heading">
+                    {heroTitle ? (
+                      heroTitle
+                    ) : (
+                      <>
+                        Radiant Skin Health & <span className="text-rose-700 italic font-normal">Pure Formulations</span> by {store.name}
+                      </>
+                    )}
+                  </h1>
+                </div>
+
+                <p className="text-sm sm:text-base text-slate-600 max-w-xl leading-relaxed font-light">
+                  {heroSubtitle ||
+                    'Antioxidant-dense botanical serums, barrier-restoring moisture creams, and clean cosmetic pigments. Clinically formulated for radiant everyday distinction.'}
+                </p>
+
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-3.5 bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs tracking-wider uppercase rounded-full transition shadow-lg flex items-center gap-2"
+                  >
+                    <span>{heroCtaText || 'Explore Clean Beauty'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-3.5 border-2 border-rose-300 text-rose-900 font-semibold text-xs tracking-wider uppercase rounded-full hover:bg-rose-100/60 transition"
+                  >
+                    {heroSecondaryCtaText || 'Our Clean Story'}
+                  </Link>
+                </div>
+
+                {/* Aura Trust Strip */}
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-5 pt-4 text-xs text-rose-900/80 font-medium`}>
+                  <span className="flex items-center gap-1.5 bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-rose-200 shadow-2xs">
+                    <CheckCircle className="w-3.5 h-3.5 text-rose-500" /> 100% Vegan Actives
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-rose-200 shadow-2xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-rose-500" /> Dermatologist Tested
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-rose-200 shadow-2xs">
+                    <Sparkles className="w-3.5 h-3.5 text-rose-500" /> Clean Zero-Toxin
+                  </span>
+                </div>
+              </div>
+
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-md lg:max-w-lg aspect-[4/3] rounded-3xl overflow-hidden border-2 border-rose-200/90 shadow-2xl bg-white relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover object-center"
+                      fallbackTitle={store.name}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-rose-950/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-4 left-4 right-4 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-rose-100 text-center shadow-lg">
+                      <p className="text-[11px] font-serif font-bold text-rose-950 tracking-wider uppercase">
+                        ✨ Clinical Botanical Actives • Certified Pure
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* --- NOIR: Avant-Garde Dark Studio & Monolith Hero --- */}
+        {themeCode === 'noir' && (
+          <section className="relative overflow-hidden bg-zinc-950 text-zinc-100 pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-zinc-800">
+            {/* High-tech Matrix Grid */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
+
+            <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-4xl text-center space-y-6 mx-auto'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>{store.name.toUpperCase()} // {heroBadge || 'LIMITED MONOLITH RUN'}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-400 font-bold">
+                    SYSTEM STATUS: 100% ONLINE // DIRECT ARCHIVE
+                  </div>
+                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black uppercase tracking-tighter text-white leading-none font-theme-heading">
+                    <span className="text-emerald-400 block tracking-normal">{store.name}</span>
+                    <span>{heroTitle || 'THE MONOLITH ARCHIVE'}</span>
+                  </h1>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-400 max-w-xl font-mono leading-relaxed">
+                  {heroSubtitle ||
+                    'Precision engineered textiles, stealth utilitarian accessories, and architectural minimalism. Manufactured without excess, calibrated for performance.'}
+                </p>
+
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-4 bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs uppercase tracking-wider transition shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center gap-2"
+                  >
+                    <span>{heroCtaText || 'BROWSE ARCHIVE'}</span>
+                    <ArrowRight className="w-4 h-4 text-black" />
+                  </a>
+
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-4 border border-zinc-700 hover:border-emerald-400 text-zinc-300 hover:text-white font-mono text-xs uppercase tracking-wider transition"
+                  >
+                    {heroSecondaryCtaText || 'BRAND MANIFESTO'}
+                  </Link>
+                </div>
+
+                {/* Technical HUD Metrics */}
+                <div className="grid grid-cols-3 max-w-md pt-5 border-t border-zinc-800 font-mono text-center">
+                  <div>
+                    <div className="text-emerald-400 font-bold text-base">VERIFIED</div>
+                    <div className="text-[10px] text-zinc-500 uppercase">100% AUTHENTIC</div>
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-base">DISPATCH</div>
+                    <div className="text-[10px] text-zinc-500 uppercase">EXPRESS 24H</div>
+                  </div>
+                  <div>
+                    <div className="text-emerald-400 font-bold text-base">RESERVE</div>
+                    <div className="text-[10px] text-zinc-500 uppercase">NUMBERED RUN</div>
+                  </div>
+                </div>
+              </div>
+
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-md lg:max-w-lg aspect-[4/3] rounded-sm overflow-hidden border border-zinc-800 shadow-[0_0_50px_rgba(16,185,129,0.15)] bg-zinc-900 relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover object-center"
+                      fallbackTitle={store.name}
+                    />
+                    <div className="absolute top-3 left-3 bg-zinc-950/90 text-emerald-400 text-[10px] font-mono font-bold px-2.5 py-1 border border-emerald-500/50">
+                      SECURE ASSET // {store.name}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* --- VISTA: Earth & Craft Heritage Showcase Hero --- */}
+        {themeCode === 'vista' && (
+          <section className="relative overflow-hidden bg-[#FDFBF7] text-[#431407] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-orange-200/80">
+            <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-serif font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                  <Award className="w-3.5 h-3.5 text-amber-700" />
+                  <strong>{store.name}</strong>
+                  <span className="text-amber-400">•</span>
+                  <span>{heroBadge || 'Master Artisan Heritage'}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-serif tracking-[0.2em] uppercase text-orange-800 font-bold block">
+                    Handmade With Integrity • Est. Direct
+                  </span>
+                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#431407] tracking-tight leading-[1.14] font-theme-heading">
+                    {heroTitle ? (
+                      heroTitle
+                    ) : (
+                      <>
+                        Earth-Grown, Hand-Woven & <span className="text-orange-800 italic underline decoration-amber-400/80 decoration-wavy underline-offset-4">Heirloom Crafted</span> by {store.name}
+                      </>
+                    )}
+                  </h1>
+                </div>
+
+                <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed font-normal">
+                  {heroSubtitle ||
+                    'Celebrating indigenous artisanal lineages, natural sun-cured textures, and ethical craft communities. Each offering is made with patient attention and zero shortcuts.'}
+                </p>
+
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-3.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-md flex items-center gap-2"
+                  >
+                    <span>{heroCtaText || 'Explore Artisan Works'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-3.5 border-2 border-[#9A3412]/40 text-[#9A3412] hover:bg-orange-50 font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition"
+                  >
+                    {heroSecondaryCtaText || 'The Heritage Craft'}
+                  </Link>
+                </div>
+
+                {/* Vista Artisan Guarantee */}
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-5 pt-4 text-xs text-stone-800 font-medium`}>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-700" /> 100% Natural Earth Materials
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-700" /> Fair Artisan Trade
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-700" /> Doorstep Protective Care
+                  </span>
+                </div>
+              </div>
+
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-md lg:max-w-lg aspect-[4/3] rounded-2xl overflow-hidden border-2 border-amber-200/90 shadow-xl bg-stone-100 relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover object-center"
+                      fallbackTitle={store.name}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-3 right-3 p-3 bg-white/95 backdrop-blur-md rounded-xl border border-amber-200 text-center">
+                      <p className="text-[11px] font-serif font-bold text-[#431407] tracking-wider uppercase">
+                        🌿 Authentic Heritage Craft • {store.name}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* --- FEAST: Food-First Visual Commerce Hero --- */}
+        {themeCode === 'feast' && (
+          <section className="relative overflow-hidden bg-[#FFFBEB] text-[#451A03] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-amber-200">
+            <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
+              <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                  <span>🍫 Fresh Batch Crafted Daily •</span>
+                  <strong>{store.name}</strong>
+                </div>
+
+                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#451A03] tracking-tight leading-[1.15] font-theme-heading">
+                  <span className="text-amber-800 block">{store.name}</span>
+                  <span>{heroTitle || 'Artisanal Confections & Fresh Delicacies'}</span>
+                </h1>
+
+                <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed">
+                  {heroSubtitle ||
+                    'Prepared in small batches using pure ingredients, gourmet recipes, and zero artificial preservatives. Vacuum sealed and shipped fresh to your doorstep.'}
+                </p>
+
+                <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-3.5 bg-[#78350F] hover:bg-[#5E290C] text-white font-bold text-xs uppercase tracking-wider rounded-full transition shadow-md flex items-center gap-2"
+                  >
+                    <span>{heroCtaText || 'Order Fresh Now'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-3.5 border-2 border-[#78350F]/40 text-[#78350F] hover:bg-amber-100/50 font-bold text-xs uppercase tracking-wider rounded-full transition"
+                  >
+                    {heroSecondaryCtaText || 'Kitchen Story'}
+                  </Link>
+                </div>
+              </div>
+
+              {heroBanner && (
+                <div className="lg:col-span-5 relative flex justify-center">
+                  <div className="w-full max-w-md lg:max-w-lg aspect-[4/3] rounded-3xl overflow-hidden border-2 border-amber-300 shadow-xl bg-amber-50 relative">
+                    <SafeImage
+                      src={heroBanner}
+                      alt={store.name}
+                      className="w-full h-full object-cover object-center"
+                      fallbackTitle={store.name}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -685,10 +1109,10 @@ export default function StoreHomePage() {
                 themeCode === 'foundry' ? 'font-mono uppercase text-lg' :
                 themeCode === 'pulse' ? 'font-black uppercase tracking-tight' : ''
               }`}>
-                {themeCode === 'foundry' ? '// ACTIVE INVENTORY & SPECIFICATIONS' :
-                 themeCode === 'pulse' ? 'CURRENT DROP CATALOG' :
-                 themeCode === 'harvest' ? 'Freshly Harvested & Prepared' :
-                 themeCode === 'habitat' ? 'Sanctuary Collection' : 'Curated Selection'}
+                {themeCode === 'foundry' ? `// ${store.name.toUpperCase()} TECHNICAL INVENTORY` :
+                 themeCode === 'pulse' ? `${store.name.toUpperCase()} ACTIVE DROP` :
+                 themeCode === 'harvest' ? `Handcrafted by ${store.name}` :
+                 themeCode === 'habitat' ? `${store.name} Living Pieces` : `${store.name} Collection`}
               </h2>
               <p className="text-xs text-gray-500">
                 Showing {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} ready for dispatch
@@ -1105,6 +1529,205 @@ export default function StoreHomePage() {
                   );
                 }
 
+                {/* --- G. AURA CLEAN BEAUTY CARD (3:4 Luminous Glassmorphic Portrait) --- */}
+                if (themeCode === 'aura') {
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white/95 rounded-2xl border border-rose-200/80 overflow-hidden shadow-xs hover:shadow-xl hover:border-rose-300 transition-all duration-300 flex flex-col group relative"
+                    >
+                      <Link
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
+                        className="block relative aspect-[3/4] bg-rose-50/40 overflow-hidden"
+                      >
+                        <SafeImage
+                          src={coverImage}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          fallbackTitle={title}
+                        />
+                        <span className="absolute top-2.5 left-2.5 bg-rose-900/90 text-rose-100 text-[10px] font-sans font-semibold tracking-wider px-2.5 py-0.5 rounded-full shadow">
+                          Pure Active
+                        </span>
+                      </Link>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-gradient-to-b from-white to-rose-50/20">
+                        <div>
+                          {p.category?.name && (
+                            <span className="text-[10px] font-sans font-bold text-rose-700 uppercase tracking-widest block mb-1">
+                              {p.category.name}
+                            </span>
+                          )}
+                          <Link
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
+                            className="font-serif text-sm font-semibold text-slate-900 hover:text-rose-800 transition line-clamp-2 leading-snug"
+                          >
+                            {title}
+                          </Link>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-rose-100 flex items-center justify-between">
+                          <div>
+                            <div className="font-serif text-base font-bold text-rose-950">
+                              {formatPaise(pricePaise)}
+                            </div>
+                            {comparePaise && comparePaise > pricePaise && (
+                              <div className="text-[10px] text-slate-400 line-through">
+                                {formatPaise(comparePaise)}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={(e) => handleQuickAdd(e, p)}
+                            disabled={isAdding}
+                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-white font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-rose-300" />
+                                <span>Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                {/* --- H. NOIR CYBER MONOLITH CARD (4:5 Stealth Carbon) --- */}
+                if (themeCode === 'noir') {
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden shadow-lg hover:border-emerald-500/70 transition-all flex flex-col group relative font-mono"
+                    >
+                      <Link
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
+                        className="block relative aspect-[4/5] bg-zinc-950 overflow-hidden border-b border-zinc-800"
+                      >
+                        <SafeImage
+                          src={coverImage}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          fallbackTitle={title}
+                        />
+                        <span className="absolute top-2 left-2 bg-zinc-950/90 text-emerald-400 text-[10px] font-bold px-2 py-0.5 border border-emerald-500/40">
+                          // MONOLITH
+                        </span>
+                      </Link>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-zinc-900 text-zinc-200">
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-1">
+                            <span>#{p.id.slice(0, 6).toUpperCase()}</span>
+                            <span className="text-emerald-400 font-bold">RESERVE RUN</span>
+                          </div>
+                          <Link
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
+                            className="font-sans font-bold text-sm text-white hover:text-emerald-300 transition line-clamp-1"
+                          >
+                            {title}
+                          </Link>
+                        </div>
+
+                        <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+                          <div className="font-mono text-sm font-bold text-emerald-400">
+                            {formatPaise(pricePaise)}
+                          </div>
+                          <button
+                            onClick={(e) => handleQuickAdd(e, p)}
+                            disabled={isAdding}
+                            className="px-3 py-1.5 rounded-sm bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-black" />
+                                <span>ADDED</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>ACQUIRE</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                {/* --- I. VISTA SUN-DRENCHED ARTISAN CARD (4:3 Warm Earth Linen) --- */}
+                if (themeCode === 'vista') {
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-[#FDFBF7] rounded-2xl border-2 border-amber-200/80 overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col group relative"
+                    >
+                      <Link
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
+                        className="block relative aspect-[4/3] bg-amber-50/50 overflow-hidden"
+                      >
+                        <SafeImage
+                          src={coverImage}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          fallbackTitle={title}
+                        />
+                        <span className="absolute top-2.5 left-2.5 bg-[#431407]/90 text-amber-200 text-[10px] font-serif font-bold px-2.5 py-0.5 rounded-full shadow">
+                          Artisan Weave
+                        </span>
+                      </Link>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                          {p.category?.name && (
+                            <span className="text-[10px] font-serif font-bold text-orange-800 uppercase tracking-wider block mb-1">
+                              {p.category.name}
+                            </span>
+                          )}
+                          <Link
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
+                            className="font-serif text-sm font-bold text-[#431407] hover:text-orange-800 transition line-clamp-2 leading-snug"
+                          >
+                            {title}
+                          </Link>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-amber-200/60 flex items-center justify-between">
+                          <div className="font-serif text-base font-bold text-[#9A3412]">
+                            {formatPaise(pricePaise)}
+                          </div>
+                          <button
+                            onClick={(e) => handleQuickAdd(e, p)}
+                            disabled={isAdding}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-amber-300" />
+                                <span>Crafted</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Select</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 {/* --- F. LOCAL HIGH-DENSITY CARD (Fast Commerce with 1-Tap Buy) --- */}
                 return (
                   <div
@@ -1295,7 +1918,7 @@ export default function StoreHomePage() {
         )}
       </main>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

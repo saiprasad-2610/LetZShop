@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import {
   PrismaClient,
@@ -13,6 +14,7 @@ import {
 import { GuestCheckoutDto } from './dto/checkout.dto';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { ShippingService } from '../shipping/shipping.service';
 import { TenantContext, BuyerSafeTrackOrderDto } from '@simply/types';
 import { normalizePhone } from '@simply/validation';
 import { InvalidTrackingTokenException } from '../../common/exceptions/domain.exceptions';
@@ -74,10 +76,13 @@ export interface GetOrdersParams {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly visibilityService: SubscriptionVisibilityService,
-    private readonly inventoryService: InventoryService
+    private readonly inventoryService: InventoryService,
+    private readonly shippingService: ShippingService
   ) {}
 
   /**
@@ -125,10 +130,23 @@ export class OrdersService {
       throw new BadRequestException('Cart does not belong to this store.');
     }
 
+    // Verify payment method eligibility
+    if (dto.paymentMethod === 'COD') {
+      const paymentAccount = await this.prisma.merchantPaymentAccount.findFirst({
+        where: { storeId: store.id },
+      });
+      const paymentCaps = (paymentAccount?.capabilities as any) || {};
+      if (paymentCaps.codEnabled === false) {
+        throw new BadRequestException(
+          'Cash on Delivery (COD) is currently disabled by this seller. Please pay online with UPI or Card.'
+        );
+      }
+    }
+
     const cleanPhone = normalizePhone(dto.phone);
 
     // 3. Execute Transaction
-    return this.prisma.$transaction(async (tx) => {
+    const resultOrder = await this.prisma.$transaction(async (tx) => {
       // Step A: Concurrency-safe inventory reservation for every item
       for (const item of cart.items) {
         await this.inventoryService.reserveStock(
@@ -157,6 +175,14 @@ export class OrdersService {
             phone: cleanPhone,
             email: dto.email || null,
             isGuest: true,
+          },
+        });
+      } else if (dto.fullName && (!customer.fullName || customer.fullName === 'Guest Customer' || customer.fullName !== dto.fullName)) {
+        customer = await tx.customer.update({
+          where: { id: customer.id },
+          data: {
+            fullName: dto.fullName,
+            ...(dto.email ? { email: dto.email } : {}),
           },
         });
       }
@@ -244,6 +270,24 @@ export class OrdersService {
         },
       });
 
+      // Step E2: Create OrderAddress record snapshot
+      if (dto.deliveryAddress) {
+        await tx.orderAddress.create({
+          data: {
+            orderId: order.id,
+            fullName: dto.fullName,
+            phone: cleanPhone,
+            addressLine1: dto.deliveryAddress.addressLine1 || '',
+            addressLine2: dto.deliveryAddress.addressLine2 || null,
+            landmark: dto.deliveryAddress.landmark || null,
+            city: dto.deliveryAddress.city || '',
+            state: dto.deliveryAddress.state || '',
+            pincode: dto.deliveryAddress.pincode || '',
+            country: dto.deliveryAddress.country || 'India',
+          },
+        });
+      }
+
       // Step F: Create OrderItem records with complete historical snapshots
       for (const item of cart.items) {
         const optionSnapshot: Record<string, string> = {};
@@ -286,6 +330,30 @@ export class OrdersService {
 
       return order;
     });
+
+    // Auto-create order in Shiprocket when placed
+    try {
+      const shippingAccount = await this.prisma.merchantShippingAccount.findFirst({
+        where: { storeId: store.id, isEnabled: true },
+      });
+
+      if (shippingAccount) {
+        this.shippingService
+          .createShipmentForOrder(resultOrder.id, {
+            tenantId: store.tenantId,
+            storeId: store.id,
+          })
+          .catch((err) => {
+            this.logger.warn(
+              `[SHIPROCKET AUTO-ORDER] Order #${resultOrder.orderNumber} background manifest notice: ${err.message}`
+            );
+          });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to check auto-shipping for order #${resultOrder.orderNumber}: ${err.message}`);
+    }
+
+    return resultOrder;
   }
 
   public async getOrderById(orderId: string, tenant?: TenantContext) {
@@ -324,7 +392,32 @@ export class OrdersService {
     });
 
     if (!order) throw new NotFoundException('Order not found.');
-    return order;
+
+    const deliveryAddress = (order.deliveryAddress as any) || {};
+    const customerName =
+      order.customer?.fullName ||
+      order.orderAddress?.fullName ||
+      deliveryAddress.fullName ||
+      (order.customer?.email ? order.customer.email.split('@')[0] : null) ||
+      'Guest Customer';
+
+    const customerPhone =
+      order.customer?.phone ||
+      order.orderAddress?.phone ||
+      deliveryAddress.phone ||
+      null;
+
+    const customerEmail =
+      order.customer?.email ||
+      deliveryAddress.email ||
+      null;
+
+    return {
+      ...order,
+      customerName,
+      customerPhone,
+      customerEmail,
+    };
   }
 
   public async getOrderByOrderNumberOrId(identifier: string) {
@@ -557,8 +650,48 @@ export class OrdersService {
 
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const mappedItems = items.map((o) => {
+      const deliveryAddress = (o.deliveryAddress as any) || {};
+      const customerName =
+        o.customer?.fullName ||
+        o.orderAddress?.fullName ||
+        deliveryAddress.fullName ||
+        (o.customer?.email ? o.customer.email.split('@')[0] : null) ||
+        'Guest Customer';
+
+      const customerPhone =
+        o.customer?.phone ||
+        o.orderAddress?.phone ||
+        deliveryAddress.phone ||
+        null;
+
+      const customerEmail =
+        o.customer?.email ||
+        deliveryAddress.email ||
+        null;
+
+      const itemsCount =
+        o.items?.reduce((acc: number, it: any) => acc + (it.quantity || 1), 0) ||
+        o.items?.length ||
+        0;
+
+      const firstItem = o.items?.[0];
+      const itemsSummary = firstItem
+        ? `${firstItem.productName || 'Item'}${o.items.length > 1 ? ` +${o.items.length - 1} more` : ''}`
+        : 'Order items';
+
+      return {
+        ...o,
+        customerName,
+        customerPhone,
+        customerEmail,
+        itemsCount,
+        itemsSummary,
+      };
+    });
+
     return {
-      items,
+      items: mappedItems,
       total,
       page,
       limit,

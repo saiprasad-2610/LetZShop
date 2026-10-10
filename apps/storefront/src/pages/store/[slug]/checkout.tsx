@@ -69,6 +69,11 @@ export default function StoreCheckoutPage() {
     discountPaise,
     grandTotalPaise,
     shippingPaise,
+    flatRatePaise,
+    freeShippingThresholdPaise,
+    freeDeliveryRemainingPaise,
+    isFreeDeliveryQualified,
+    setShippingSettings,
     orderNotes,
     setOrderNotes
   } = useCart();
@@ -116,8 +121,14 @@ export default function StoreCheckoutPage() {
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
+      if (res.store?.shippingSettings) {
+        setShippingSettings(res.store.shippingSettings);
+      }
       if (res.store?.fulfillmentMode === 'PICKUP') {
         setFulfillmentType('PICKUP');
+      }
+      if (res.store?.paymentSettings?.codEnabled === false) {
+        setPaymentMethod('RAZORPAY');
       }
     } catch (err) {
       console.error('Failed to load store checkout', err);
@@ -695,38 +706,41 @@ export default function StoreCheckoutPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <label
-                      onClick={() => setPaymentMethod('COD')}
-                      className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
-                        paymentMethod === 'COD'
-                          ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          checked={paymentMethod === 'COD'}
-                          onChange={() => setPaymentMethod('COD')}
-                          className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                            Cash on Delivery (COD)
-                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                              Most Popular
-                            </span>
-                          </p>
-                          <p className="text-[11px] text-gray-500 mt-0.5">
-                            Pay in cash directly upon package delivery at your doorstep or store collection.
-                          </p>
+                    {/* Cash on Delivery (only rendered if enabled by store) */}
+                    {storeData?.store?.paymentSettings?.codEnabled !== false && (
+                      <label
+                        onClick={() => setPaymentMethod('COD')}
+                        className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                          paymentMethod === 'COD'
+                            ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            checked={paymentMethod === 'COD'}
+                            onChange={() => setPaymentMethod('COD')}
+                            className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                              Cash on Delivery (COD)
+                              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                Most Popular
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Pay in cash directly upon package delivery at your doorstep or store collection.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                        Pay on Delivery
-                      </span>
-                    </label>
+                        <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                          Pay on Delivery
+                        </span>
+                      </label>
+                    )}
 
                     <label
                       onClick={() => setPaymentMethod('RAZORPAY')}
@@ -823,6 +837,41 @@ export default function StoreCheckoutPage() {
                   </div>
                 )}
 
+                {/* Free Delivery Goal Tracker */}
+                {fulfillmentType === 'DELIVERY' && freeShippingThresholdPaise && (
+                  <div className={`p-3.5 rounded-xl border text-xs space-y-2 transition ${
+                    isFreeDeliveryQualified
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                  }`}>
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Truck className={`w-4 h-4 ${isFreeDeliveryQualified ? 'text-emerald-600' : 'text-amber-700'}`} />
+                        {isFreeDeliveryQualified ? (
+                          <span className="font-bold text-emerald-800">🎉 FREE Delivery Unlocked!</span>
+                        ) : (
+                          <span>Add <strong className="font-mono text-amber-950 font-bold">{formatPaise(freeDeliveryRemainingPaise)}</strong> more for FREE Delivery</span>
+                        )}
+                      </span>
+                      <span className="text-[11px] font-mono opacity-75">
+                        Goal: {formatPaise(freeShippingThresholdPaise)}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200/80 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          isFreeDeliveryQualified ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.round((subtotalPaise / freeShippingThresholdPaise) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Coupon Code Section */}
                 <div className="pt-3 border-t border-gray-100 space-y-2">
                   <div className="flex items-center justify-between text-xs">
@@ -855,7 +904,7 @@ export default function StoreCheckoutPage() {
                         type="text"
                         value={couponInput}
                         onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                        placeholder="e.g. WELCOME10"
+                        placeholder="Enter coupon code"
                         className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono uppercase focus:ring-2 focus:ring-emerald-500"
                       />
                       <button
@@ -887,8 +936,14 @@ export default function StoreCheckoutPage() {
 
                   <div className="flex justify-between">
                     <span>Fulfillment</span>
-                    <span className="text-emerald-700 font-semibold">
-                      {fulfillmentType === 'PICKUP' ? 'FREE STORE PICKUP' : shippingPaise === 0 ? 'FREE DELIVERY' : formatPaise(shippingPaise)}
+                    <span className="font-semibold">
+                      {fulfillmentType === 'PICKUP' ? (
+                        <span className="text-emerald-700 font-bold">FREE STORE PICKUP</span>
+                      ) : (fulfillmentType === 'DELIVERY' ? shippingPaise : 0) === 0 ? (
+                        <span className="text-emerald-700 font-bold">FREE DELIVERY</span>
+                      ) : (
+                        <span className="font-mono text-gray-900">{formatPaise(shippingPaise)}</span>
+                      )}
                     </span>
                   </div>
 
@@ -901,7 +956,13 @@ export default function StoreCheckoutPage() {
 
                   <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
                     <span>Grand Total</span>
-                    <span className="font-mono text-emerald-800">{formatPaise(grandTotalPaise)}</span>
+                    <span className="font-mono text-emerald-800">
+                      {formatPaise(
+                        Math.max(0, subtotalPaise - discountPaise) +
+                        (fulfillmentType === 'PICKUP' ? 0 : shippingPaise) +
+                        Math.round(Math.max(0, subtotalPaise - discountPaise) * 0.05)
+                      )}
+                    </span>
                   </div>
                 </div>
 
@@ -957,7 +1018,7 @@ export default function StoreCheckoutPage() {
         )}
       </main>
 
-      <StoreFooter store={store} />
+      <StoreFooter store={store} themeConfig={themeConfig} />
     </ThemeWrapper>
   );
 }

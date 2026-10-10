@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -31,7 +33,7 @@ export class CartController {
     @Param('cartId') cartId: string,
     @Body() body: { variantId: string; quantity: number }
   ) {
-    return this.cartService.addItem(cartId, body.variantId, body.quantity || 1);
+    return this.cartService.addItem(cartId, body?.variantId, Number(body?.quantity) || 1);
   }
 
   @Get(':cartId')
@@ -47,15 +49,35 @@ export class CartController {
     @Param('variantId') variantId: string,
     @Body('quantity') quantity: number
   ) {
-    return this.cartService.updateItemQuantity(cartId, variantId, quantity);
+    return this.cartService.updateItemQuantity(cartId, variantId, Number(quantity));
+  }
+
+  @Patch(':cartId/items/:variantId')
+  @ApiOperation({ summary: 'Patch cart item quantity' })
+  async patchQuantity(
+    @Param('cartId') cartId: string,
+    @Param('variantId') variantId: string,
+    @Body('quantity') quantity: number
+  ) {
+    return this.cartService.updateItemQuantity(cartId, variantId, Number(quantity));
   }
 
   @Post(':cartId/items/:variantId/remove')
-  @ApiOperation({ summary: 'Remove item from cart' })
+  @ApiOperation({ summary: 'Remove item from cart via POST' })
   async removeItem(
     @Param('cartId') cartId: string,
     @Param('variantId') variantId: string
   ) {
     return this.cartService.removeItem(cartId, variantId);
   }
+
+  @Delete(':cartId/items/:variantId')
+  @ApiOperation({ summary: 'Remove item from cart via DELETE' })
+  async deleteItem(
+    @Param('cartId') cartId: string,
+    @Param('variantId') variantId: string
+  ) {
+    return this.cartService.removeItem(cartId, variantId);
+  }
 }
+

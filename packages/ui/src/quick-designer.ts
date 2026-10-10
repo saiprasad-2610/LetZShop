@@ -37,11 +37,19 @@ export class QuickDesigner {
     let themeCode = 'atelier';
     const norm = (category || '').toLowerCase();
 
-    if (norm.includes('jewel') || norm.includes('luxury') || norm.includes('beauty')) {
+    if (norm.includes('beauty') || norm.includes('cosmetic') || norm.includes('skincare') || norm.includes('wellness')) {
+      themeCode = 'aura';
+    } else if (norm.includes('streetwear') || norm.includes('cyber') || norm.includes('techwear') || norm.includes('audio') || norm.includes('dark')) {
+      themeCode = 'noir';
+    } else if (norm.includes('craft') || norm.includes('artisan') || norm.includes('handloom') || norm.includes('ceramic') || norm.includes('coffee')) {
+      themeCode = 'vista';
+    } else if (norm.includes('baker') || norm.includes('dessert') || norm.includes('cloud kitchen')) {
+      themeCode = 'feast';
+    } else if (norm.includes('jewel') || norm.includes('luxury')) {
       themeCode = 'atelier';
     } else if (norm.includes('fashion') || norm.includes('electronic') || norm.includes('youth')) {
       themeCode = 'pulse';
-    } else if (norm.includes('food') || norm.includes('sweet') || norm.includes('baker') || norm.includes('grocer')) {
+    } else if (norm.includes('food') || norm.includes('sweet') || norm.includes('grocer') || norm.includes('organic')) {
       themeCode = 'harvest';
     } else if (norm.includes('manufact') || norm.includes('industr') || norm.includes('machin') || norm.includes('chemical')) {
       themeCode = 'foundry';

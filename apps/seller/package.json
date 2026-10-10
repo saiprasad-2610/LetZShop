@@ -10,23 +10,26 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@simply/types": "workspace:*",
     "@simply/api-contracts": "workspace:*",
     "@simply/config": "workspace:*",
+    "@simply/types": "workspace:*",
     "@simply/ui": "workspace:*",
     "@simply/validation": "workspace:*",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^0.453.0",
     "next": "14.2.24",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "lucide-react": "^0.453.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "typescript": "^5.7.3",
-    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3"
   }
 }

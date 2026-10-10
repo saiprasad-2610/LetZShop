@@ -19,7 +19,12 @@ export class CartService {
           items: {
             include: {
               variant: {
-                include: { product: true, optionValues: { include: { optionValue: true } } },
+                include: {
+                  product: {
+                    include: { media: { orderBy: { sortOrder: 'asc' } } },
+                  },
+                  optionValues: { include: { optionValue: true } },
+                },
               },
             },
           },
@@ -66,7 +71,12 @@ export class CartService {
         items: {
           include: {
             variant: {
-              include: { product: true, optionValues: { include: { optionValue: true } } },
+              include: {
+                product: {
+                  include: { media: { orderBy: { sortOrder: 'asc' } } },
+                },
+                optionValues: { include: { optionValue: true } },
+              },
             },
           },
         },
@@ -136,7 +146,9 @@ export class CartService {
           include: {
             variant: {
               include: {
-                product: true,
+                product: {
+                  include: { media: { orderBy: { sortOrder: 'asc' } } },
+                },
                 optionValues: { include: { optionValue: true } },
               },
             },
@@ -162,7 +174,8 @@ export class CartService {
   }
 
   public async updateItemQuantity(cartId: string, variantId: string, quantity: number) {
-    if (quantity <= 0) {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
       return this.removeItem(cartId, variantId);
     }
 
@@ -172,13 +185,19 @@ export class CartService {
     });
     if (!variant) throw new NotFoundException('Variant not found.');
 
-    if (variant.inventory && variant.inventory.stockOnHand < quantity && !variant.inventory.allowBackorder) {
+    if (variant.inventory && variant.inventory.stockOnHand < qty && !variant.inventory.allowBackorder) {
       throw new BadRequestException('Insufficient stock available for this quantity.');
     }
 
-    await this.prisma.cartItem.update({
+    await this.prisma.cartItem.upsert({
       where: { cartId_variantId: { cartId, variantId } },
-      data: { quantity },
+      update: { quantity: qty },
+      create: {
+        cartId,
+        variantId,
+        quantity: qty,
+        unitPricePaise: variant.pricePaise,
+      },
     });
 
     return this.getCart(cartId);

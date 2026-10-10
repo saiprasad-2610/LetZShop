@@ -10,11 +10,10 @@ import {
   FileText 
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { createApiClient } from '@simply/api-contracts';
-
-const api = createApiClient();
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 export default function AdminOperationsPage() {
+  const { api } = useAdminAuth();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [reconcileId, setReconcileId] = useState('');
