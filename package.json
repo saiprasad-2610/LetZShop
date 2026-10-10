@@ -33,7 +33,9 @@
       "@prisma/client",
       "@prisma/engines",
       "prisma",
-      "esbuild"
+      "esbuild",
+      "@scarf/scarf",
+      "core-js"
     ]
   },
   "engines": {
