@@ -999,6 +999,8 @@ export default function StoreHomePage() {
                 alt={store.name}
                 className="w-full h-full object-cover object-right md:object-center"
                 fallbackTitle={store.name}
+                loading="eager"
+                decoding="async"
               />
               {/* Gradient Scrim: Crisp white/frost on left for crystal-clear readability, seamlessly fading into the panoramic visual on right */}
               <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 sm:via-white/90 md:via-white/85 lg:via-white/75 to-transparent pointer-events-none" />
@@ -1094,6 +1096,8 @@ export default function StoreHomePage() {
                 alt={store.name}
                 className="w-full h-full object-cover object-center"
                 fallbackTitle={store.name}
+                loading="eager"
+                decoding="async"
               />
               {/* Cinematic Vignette & Dark Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40 pointer-events-none" />

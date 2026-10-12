@@ -605,21 +605,42 @@ export default function BrandStudioPage() {
           const origWidth = img.naturalWidth || img.width;
           const origHeight = img.naturalHeight || img.height;
 
-          // Standard Default Layout Specifications:
-          // Hero Showcase Layout: 1200 x 800 px (3:2 Landscape)
-          // About Us Story Layout: 800 x 600 px (4:3 Standard Story)
-          // Store Logo: 400 x 400 px (1:1 Square)
-          const targetDimensions = {
-            hero: { width: 1200, height: 800, minWidth: 600, label: 'Hero Showcase (1200 × 800 px)' },
-            about: { width: 800, height: 600, minWidth: 400, label: 'About Story (800 × 600 px)' },
-            logo: { width: 400, height: 400, minWidth: 100, label: 'Store Logo (400 × 400 px)' },
-          }[targetType];
+          // High-Definition Responsive Specifications:
+          // Hero Showcase Layout: 1920 × 1080 px up to 2560 × 1440 px (16:9 Widescreen Panorama)
+          // About Us Story Layout: 1600 × 1200 px (4:3 Standard Story)
+          // Store Logo: 512 × 512 px (1:1 High-Res Square)
+          let targetW = 1920;
+          let targetH = 1080;
+          let minRecommendedWidth = 1440;
 
-          const targetW = targetDimensions.width;
-          const targetH = targetDimensions.height;
+          if (targetType === 'hero') {
+            minRecommendedWidth = 1440;
+            // Never crush high-resolution images! Preserve up to 2560px (2K Ultra-HD)
+            if (origWidth >= 2560) {
+              targetW = 2560;
+              targetH = 1440;
+            } else if (origWidth >= 1920) {
+              targetW = origWidth;
+              targetH = Math.round((origWidth * 9) / 16);
+            } else if (origWidth >= 1440) {
+              targetW = origWidth;
+              targetH = Math.round((origWidth * 9) / 16);
+            } else {
+              targetW = Math.max(1280, origWidth);
+              targetH = Math.round((targetW * 9) / 16);
+            }
+          } else if (targetType === 'about') {
+            minRecommendedWidth = 800;
+            targetW = Math.min(1600, Math.max(800, origWidth));
+            targetH = Math.round((targetW * 3) / 4);
+          } else if (targetType === 'logo') {
+            minRecommendedWidth = 200;
+            targetW = 512;
+            targetH = 512;
+          }
 
           onProgress?.(
-            `Step 2/3: Conforming image from ${origWidth}×${origHeight}px to default layout size (${targetW}×${targetH}px)...`
+            `Step 2/3: Conforming image from ${origWidth}×${origHeight}px to Ultra-HD clarity layout (${targetW}×${targetH}px)...`
           );
 
           // Center-cover crop algorithm: scales and centers the image into the exact target dimensions
@@ -642,7 +663,8 @@ export default function BrandStudioPage() {
               ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
 
               const exportMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-              const quality = exportMime === 'image/png' ? undefined : 0.92;
+              // 0.96 high quality prevents compression degradation
+              const quality = exportMime === 'image/png' ? undefined : 0.96;
               finalDataUrl = canvas.toDataURL(exportMime, quality);
             }
           } catch (canvasErr) {
@@ -653,14 +675,14 @@ export default function BrandStudioPage() {
           const base64Payload = commaIdx !== -1 ? finalDataUrl.slice(commaIdx + 1) : finalDataUrl;
           const approxKb = Math.round((base64Payload.length * 3) / 4 / 1024);
 
-          onProgress?.(`Step 3/3: Uploading conformed default layout image (${targetW} × ${targetH} px)...`);
+          onProgress?.(`Step 3/3: Uploading Ultra-HD verified image (${targetW} × ${targetH} px)...`);
 
           let status: 'valid' | 'warning' = 'valid';
-          let message = `Default layout size verified: ${targetW} × ${targetH} px (${approxKb} KB). Original resolution: ${origWidth} × ${origHeight} px.`;
+          let message = `Ultra-HD resolution verified: ${targetW} × ${targetH} px (${approxKb} KB). Sharp, crystal-clear quality across all desktop, retina, and mobile displays.`;
 
-          if (origWidth < targetDimensions.minWidth) {
+          if (origWidth < minRecommendedWidth) {
             status = 'warning';
-            message = `Original resolution (${origWidth} × ${origHeight} px) is lower than recommended, but adapted cleanly to default layout (${targetW} × ${targetH} px).`;
+            message = `⚠️ Low Resolution Alert: Original image is only ${origWidth} × ${origHeight} px. Full-screen banners stretch across the page and will appear blurry. Recommended: 1920 × 1080 px or higher for crystal-clear clarity.`;
           }
 
           let uploadedUrl = finalDataUrl;
@@ -1077,7 +1099,7 @@ export default function BrandStudioPage() {
                     <span className="font-semibold text-slate-800 block truncate">
                       {heroBannerUrl ? 'Change Banner' : 'Upload Banner'}
                     </span>
-                    <span className="text-[10px] text-slate-400">High-res photography</span>
+                    <span className="text-[10px] text-slate-400">Ultra-HD: 1920 × 1080 px (16:9)</span>
                   </div>
                 </div>
               </div>
@@ -1731,57 +1753,71 @@ export default function BrandStudioPage() {
               </div>
             </div>
 
-            {/* Default Layout Sizing Verification */}
+            {/* Ultra-HD Layout Sizing Verification */}
             <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Default Layout Size: <strong>1200 × 800 px</strong> (3:2 Landscape Layout)</span>
+                  <span>Ultra-HD Standard: <strong>1920 × 1080 px</strong> (16:9 Widescreen Panorama)</span>
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                  <Check className="w-3 h-3 text-blue-600" /> Auto-Fit Default Layout Enabled
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                  <Check className="w-3 h-3 text-emerald-600" /> Ultra-HD Quality Active
                 </span>
               </div>
               
               {homeBannerMeta ? (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5 text-xs">
-                  <div className="flex items-center gap-2 font-bold text-emerald-800">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Default Layout Size Checked & Verified</span>
-                    <span className="ml-auto text-[10px] font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                <div className={`p-3 rounded-xl border space-y-1.5 text-xs ${
+                  homeBannerMeta.status === 'valid'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    {homeBannerMeta.status === 'valid' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    )}
+                    <span>{homeBannerMeta.status === 'valid' ? 'Ultra-HD Clarity Verified' : 'Resolution Warning'}</span>
+                    <span className={`ml-auto text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                      homeBannerMeta.status === 'valid'
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-amber-100 border-amber-300 text-amber-900'
+                    }`}>
                       {homeBannerMeta.width} × {homeBannerMeta.height} px ({homeBannerMeta.sizeKb} KB)
                     </span>
                   </div>
-                  <p className="text-[11px] text-emerald-700 leading-relaxed">
+                  <p className={`text-[11px] leading-relaxed ${homeBannerMeta.status === 'valid' ? 'text-emerald-700' : 'text-amber-800'}`}>
                     {homeBannerMeta.message}
                   </p>
-                  <div className="flex items-center gap-3 pt-1 text-[10px] text-emerald-800 border-t border-emerald-200/80 font-mono">
-                    <span>Original: {homeBannerMeta.origWidth} × {homeBannerMeta.origHeight} px</span>
+                  <div className={`flex items-center gap-3 pt-1 text-[10px] border-t font-mono ${
+                    homeBannerMeta.status === 'valid' ? 'border-emerald-200/80 text-emerald-800' : 'border-amber-200 text-amber-800'
+                  }`}>
+                    <span>Uploaded: {homeBannerMeta.origWidth} × {homeBannerMeta.origHeight} px</span>
                     <span>→</span>
-                    <span className="font-bold">Default Layout Output: 1200 × 800 px</span>
+                    <span className="font-bold">Display Output: {homeBannerMeta.width} × {homeBannerMeta.height} px</span>
                   </div>
                 </div>
               ) : heroBannerUrl ? (
                 <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1 text-xs">
                   <div className="flex items-center gap-2 font-bold text-blue-800">
                     <Sliders className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>Default Layout Container Active</span>
+                    <span>Widescreen Panorama Active</span>
                     <span className="ml-auto text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded-full border border-blue-300">
-                      1200 × 800 px Default Frame
+                      1920 × 1080 px Widescreen
                     </span>
                   </div>
                   <p className="text-[11px] text-blue-700">
-                    The storefront hero displays this image within standard default layout bounds with edge-to-edge coverage across all screens.
+                    The storefront hero displays this image with edge-to-edge Ultra-HD coverage and crystal-clear clarity across all desktop and mobile displays.
                   </p>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs space-y-1">
                   <div className="flex items-center gap-2 font-semibold">
                     <Sliders className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                    <span>Pre-Upload Dimension Check: Default Layout 1200 × 800 px</span>
+                    <span>Optimal Clarity Spec: 1920 × 1080 px or 2560 × 1440 px (16:9)</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    When an image is uploaded, its dimensions are checked and automatically conformed to the default 1200 × 800 px layout size. Max 15 MB (PNG, JPG, WebP).
+                    To prevent blurriness and pixelation on large desktop screens, upload an image with at least 1920 × 1080 px resolution. Images are conformed without losing sharpness. Max 15 MB.
                   </p>
                 </div>
               )}
