@@ -74,6 +74,8 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     aura: "'Playfair Display', Georgia, serif",
     noir: "'Space Grotesk', system-ui, sans-serif",
     vista: "'DM Serif Display', Georgia, serif",
+    horizon: "'Plus Jakarta Sans', system-ui, sans-serif",
+    canvas: "'Outfit', system-ui, sans-serif",
   };
 
   const fontBodyMap: Record<string, string> = {
@@ -87,6 +89,8 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     aura: "'Plus Jakarta Sans', system-ui, sans-serif",
     noir: "'Inter', system-ui, sans-serif",
     vista: "'Plus Jakarta Sans', system-ui, sans-serif",
+    horizon: "'Inter', system-ui, sans-serif",
+    canvas: "'Plus Jakarta Sans', system-ui, sans-serif",
   };
 
   const headingFont = presetFont?.heading || themeConfig?.typography?.fontHeading || fontHeadingMap[themeCode] || fontHeadingMap.atelier;

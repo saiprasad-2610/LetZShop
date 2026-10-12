@@ -46,6 +46,10 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         return 'Artisanal Living & Contemporary Furnishings • Pan-India White-Glove Logistics';
       case 'atelier':
         return 'Haute Joaillerie & Timeless Craftsmanship • Hallmarked 100% Certified';
+      case 'horizon':
+        return 'ENTERPRISE HERITAGE & INNOVATION • ISO CERTIFIED • PAN-INDIA & GLOBAL LOGISTICS';
+      case 'canvas':
+        return 'CINEMATIC FLAGSHIP RELEASE • DIRECT ARCHIVE DISPATCH • 100% VERIFIED AUTHENTIC';
       default:
         return 'Complimentary pan-India insured shipping on all orders';
     }
@@ -65,6 +69,10 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         return 'bg-stone-100 text-stone-700 text-[11px] tracking-wider uppercase font-serif border-b border-stone-200';
       case 'atelier':
         return 'bg-stone-900 text-amber-200/90 text-[10px] tracking-[0.2em] uppercase font-medium border-b border-amber-900/30';
+      case 'horizon':
+        return 'bg-slate-950 text-sky-300 text-[11px] font-mono tracking-wider border-b border-slate-800';
+      case 'canvas':
+        return 'bg-black text-amber-300 text-[11px] font-medium tracking-widest uppercase border-b border-amber-900/40';
       default:
         return 'bg-slate-900 text-slate-100 text-xs border-b border-slate-800';
     }
@@ -76,7 +84,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       themeCode === 'pulse' ? 'border-slate-800' :
       themeCode === 'harvest' ? 'border-amber-200' :
       themeCode === 'habitat' ? 'border-stone-200' :
-      themeCode === 'atelier' ? 'border-stone-200' : 'border-gray-200'
+      themeCode === 'atelier' ? 'border-stone-200' :
+      themeCode === 'horizon' ? 'border-slate-200' :
+      themeCode === 'canvas' ? 'border-zinc-800 bg-zinc-950/95 text-white' : 'border-gray-200'
     }`}>
       {/* 1. Universal Top Announcement Bar with Theme Styling & Floating Marquee */}
       {isAnnouncementEnabled && (
@@ -141,7 +151,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
               className={`rounded-lg flex items-center justify-center font-black text-white shadow-xs shrink-0 group-hover:scale-105 transition-all ${
                 themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
                 themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
-                themeCode === 'foundry' ? 'rounded-sm font-mono' : 'rounded-lg'
+                themeCode === 'foundry' ? 'rounded-sm font-mono' :
+                themeCode === 'horizon' ? 'rounded-lg bg-blue-600' :
+                themeCode === 'canvas' ? 'rounded-full border border-amber-400/60 bg-black text-amber-400' : 'rounded-lg'
               }`}
             >
               {wordmark.monogram}
@@ -160,6 +172,8 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
                 themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
                 themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
                 themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
+                themeCode === 'canvas' ? 'font-sans font-black uppercase text-white group-hover:text-amber-400' :
+                themeCode === 'horizon' ? 'font-sans font-bold text-slate-900 group-hover:text-blue-600' :
                 'font-bold text-gray-900 group-hover:text-blue-700'
               }`}
             >
@@ -170,7 +184,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
                themeCode === 'atelier' ? 'Haute Maison' :
                themeCode === 'pulse' ? 'Verified Drop' :
                themeCode === 'foundry' ? 'Direct OEM Supply' :
-               themeCode === 'habitat' ? 'Sanctuary Living' : 'Official Store'}
+               themeCode === 'habitat' ? 'Sanctuary Living' :
+               themeCode === 'horizon' ? 'Enterprise & Heritage' :
+               themeCode === 'canvas' ? 'Cinematic Flagship' : 'Official Store'}
             </span>
           </div>
         </Link>

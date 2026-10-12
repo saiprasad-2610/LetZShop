@@ -34,7 +34,7 @@ export default function AdminThemesPage() {
         {/* Theme Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {themes.map((th) => {
-            const isNew = ['aura', 'noir', 'vista'].includes(th.code);
+            const isNew = ['aura', 'noir', 'vista', 'horizon', 'canvas'].includes(th.code);
 
             return (
               <div

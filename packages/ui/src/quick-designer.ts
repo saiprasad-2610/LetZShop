@@ -43,6 +43,10 @@ export class QuickDesigner {
       themeCode = 'noir';
     } else if (norm.includes('craft') || norm.includes('artisan') || norm.includes('handloom') || norm.includes('ceramic') || norm.includes('coffee')) {
       themeCode = 'vista';
+    } else if (norm.includes('enterprise') || norm.includes('loom') || norm.includes('lab') || norm.includes('conglomerate') || norm.includes('horizon')) {
+      themeCode = 'horizon';
+    } else if (norm.includes('cinematic') || norm.includes('flagship') || norm.includes('canvas') || norm.includes('showcase')) {
+      themeCode = 'canvas';
     } else if (norm.includes('baker') || norm.includes('dessert') || norm.includes('cloud kitchen')) {
       themeCode = 'feast';
     } else if (norm.includes('jewel') || norm.includes('luxury')) {

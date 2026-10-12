@@ -134,6 +134,8 @@ export enum ThemeKey {
   AURA = 'AURA',
   NOIR = 'NOIR',
   VISTA = 'VISTA',
+  HORIZON = 'HORIZON',
+  CANVAS = 'CANVAS',
 }
 
 export enum FulfillmentMode {

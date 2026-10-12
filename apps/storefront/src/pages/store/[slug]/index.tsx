@@ -989,6 +989,180 @@ export default function StoreHomePage() {
           </section>
         )}
 
+        {/* --- HORIZON: Enterprise Heritage & Innovation Panorama Hero --- */}
+        {themeCode === 'horizon' && (
+          <section className="relative overflow-hidden min-h-[620px] lg:min-h-[680px] flex items-center border-b border-slate-200">
+            {/* Full-Bleed Panoramic Background Image */}
+            <div className="absolute inset-0 z-0">
+              <SafeImage
+                src={heroBanner || '/themes/horizon-hero.jpg'}
+                alt={store.name}
+                className="w-full h-full object-cover object-right md:object-center"
+                fallbackTitle={store.name}
+              />
+              {/* Gradient Scrim: Crisp white/frost on left for crystal-clear readability, seamlessly fading into the panoramic visual on right */}
+              <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 sm:via-white/90 md:via-white/85 lg:via-white/75 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-radial from-transparent to-slate-900/10 pointer-events-none" />
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10 w-full">
+              <div className="max-w-2xl space-y-6">
+                {/* Legacy Shield Trust Badge */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
+                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>{heroBadge || 'Built from 65 years of legacy'}</span>
+                </div>
+
+                {/* Monumental Dual-Color Headline */}
+                <div className="space-y-2">
+                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black tracking-tight text-slate-900 leading-[1.08] font-theme-heading">
+                    {heroTitle ? (
+                      heroTitle
+                    ) : (
+                      <>
+                        From <span className="text-amber-600">Looms</span>
+                        <br />
+                        to <span className="text-blue-600">Labs.</span>
+                      </>
+                    )}
+                  </h1>
+                </div>
+
+                {/* Subtitle */}
+                <p className="text-sm sm:text-base text-slate-700 max-w-xl font-normal leading-relaxed">
+                  {heroSubtitle ||
+                    'The same family that mastered the precision of textile manufacturing for 65 years now builds the technology infrastructure that businesses run on, oil fields depend on, and global supply chains trust.'}
+                </p>
+
+                {/* 3 Floating Frosted Glass Pillar Cards (matching user screenshot) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="bg-white/90 backdrop-blur-md p-3.5 rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition group">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-105 transition">
+                      <Building className="w-4 h-4" />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Heritage</div>
+                    <div className="text-xs font-bold text-slate-900 mt-0.5">Legacy of Precision</div>
+                  </div>
+
+                  <div className="bg-white/90 backdrop-blur-md p-3.5 rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition group">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-105 transition">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Evolution</div>
+                    <div className="text-xs font-bold text-slate-900 mt-0.5">Future of Innovation</div>
+                  </div>
+
+                  <div className="bg-white/90 backdrop-blur-md p-3.5 rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition group">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-105 transition">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scale</div>
+                    <div className="text-xs font-bold text-slate-900 mt-0.5">Technology That Powers</div>
+                  </div>
+                </div>
+
+                {/* Dual Action Buttons */}
+                <div className="flex flex-wrap items-center gap-4 pt-3">
+                  <a
+                    href={heroCtaLink}
+                    className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2 group cursor-pointer"
+                  >
+                    <span>{heroCtaText || 'Explore Our Story'}</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </a>
+
+                  <Link
+                    href={heroSecondaryCtaLink}
+                    className="px-6 py-3.5 bg-white/90 hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <span>{heroSecondaryCtaText || 'Our Services'}</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* --- CANVAS: Full-Front Cinematic Showcase Hero --- */}
+        {themeCode === 'canvas' && (
+          <section className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
+            {/* Full-Bleed Panoramic Background Image */}
+            <div className="absolute inset-0 z-0">
+              <SafeImage
+                src={heroBanner || '/themes/canvas-hero.jpg'}
+                alt={store.name}
+                className="w-full h-full object-cover object-center"
+                fallbackTitle={store.name}
+              />
+              {/* Cinematic Vignette & Dark Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40 pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/40 to-black/90 pointer-events-none" />
+            </div>
+
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full space-y-6">
+              {/* Floating Monolith Pill */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>{store.name.toUpperCase()} // {heroBadge || 'CINEMATIC PANORAMA 2026'}</span>
+              </div>
+
+              {/* Monumental Headline */}
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-sans font-black tracking-tight text-white uppercase leading-[1.02] font-theme-heading drop-shadow-md">
+                {heroTitle ? (
+                  heroTitle
+                ) : (
+                  <>
+                    Immersive <span className="text-amber-400 italic font-serif">Frontiers.</span>
+                    <br />
+                    Direct from {store.name}
+                  </>
+                )}
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-sm sm:text-base lg:text-lg text-slate-200 max-w-2xl mx-auto font-light leading-relaxed drop-shadow">
+                {heroSubtitle ||
+                  'Edge-to-edge visual excellence, archival material rigor, and timeless silhouettes. Experience the entire collection in full cinematic scale.'}
+              </p>
+
+              {/* Dual Action Buttons */}
+              <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                <a
+                  href={heroCtaLink}
+                  className="px-9 py-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-widest rounded-full transition shadow-xl shadow-amber-500/20 flex items-center gap-2 group cursor-pointer"
+                >
+                  <span>{heroCtaText || 'Explore Showcase'}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </a>
+
+                <Link
+                  href={heroSecondaryCtaLink}
+                  className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs uppercase tracking-widest rounded-full backdrop-blur-md border border-white/25 transition shadow-lg"
+                >
+                  {heroSecondaryCtaText || 'Archival Film'}
+                </Link>
+              </div>
+
+              {/* Bottom Trust Indicators */}
+              <div className="pt-8 border-t border-white/15 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-mono text-slate-300">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span>Direct Provenance</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-amber-400" />
+                  <span>Pan-India Insured Dispatch</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  <span>Master-Crafted Quality</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* =========================================================================
             2. CATEGORIES PRESENTATION (THEME DISTINCT)
         ========================================================================= */}
@@ -1714,6 +1888,150 @@ export default function StoreHomePage() {
                               <>
                                 <Check className="w-3.5 h-3.5 text-amber-300" />
                                 <span>Crafted</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Select</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                {/* --- J. HORIZON ENTERPRISE CARD (4:3 Elevated Modern with OEM Status) --- */}
+                if (themeCode === 'horizon') {
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-blue-400 transition-all duration-300 flex flex-col group relative"
+                    >
+                      <Link
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
+                        className="block relative aspect-[4/3] bg-slate-50 overflow-hidden"
+                      >
+                        <SafeImage
+                          src={coverImage}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          fallbackTitle={title}
+                        />
+                        <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-md shadow">
+                          Verified OEM
+                        </span>
+                      </Link>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
+                        <div>
+                          {p.category?.name && (
+                            <span className="text-[10px] font-sans font-bold text-blue-600 uppercase tracking-wider block mb-1">
+                              {p.category.name}
+                            </span>
+                          )}
+                          <Link
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
+                            className="font-sans text-sm font-bold text-slate-900 hover:text-blue-600 transition line-clamp-2 leading-snug"
+                          >
+                            {title}
+                          </Link>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                          <div>
+                            <div className="font-sans text-base font-bold text-slate-900">
+                              {formatPaise(pricePaise)}
+                            </div>
+                            {comparePaise && comparePaise > pricePaise && (
+                              <div className="text-[10px] text-slate-400 line-through">
+                                {formatPaise(comparePaise)}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={(e) => handleQuickAdd(e, p)}
+                            disabled={isAdding}
+                            className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-blue-200" />
+                                <span>Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                {/* --- K. CANVAS FULL-BLEED CINEMATIC CARD --- */}
+                if (themeCode === 'canvas') {
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-lg hover:border-amber-400/80 transition-all duration-300 flex flex-col group relative"
+                    >
+                      <Link
+                        href={getLink(`/store/${slug}/product/${p.id}`)}
+                        className="block relative aspect-[4/3] bg-zinc-900 overflow-hidden"
+                      >
+                        <SafeImage
+                          src={coverImage}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          fallbackTitle={title}
+                        />
+                        <span className="absolute top-2.5 left-2.5 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow">
+                          Cinematic
+                        </span>
+                      </Link>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-zinc-950 text-white">
+                        <div>
+                          {p.category?.name && (
+                            <span className="text-[10px] font-sans font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                              {p.category.name}
+                            </span>
+                          )}
+                          <Link
+                            href={getLink(`/store/${slug}/product/${p.id}`)}
+                            className="font-sans text-sm font-bold text-white hover:text-amber-400 transition line-clamp-2 leading-snug"
+                          >
+                            {title}
+                          </Link>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-zinc-800 flex items-center justify-between">
+                          <div>
+                            <div className="font-sans text-base font-bold text-amber-400">
+                              {formatPaise(pricePaise)}
+                            </div>
+                            {comparePaise && comparePaise > pricePaise && (
+                              <div className="text-[10px] text-zinc-500 line-through">
+                                {formatPaise(comparePaise)}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={(e) => handleQuickAdd(e, p)}
+                            disabled={isAdding}
+                            className="px-3.5 py-1.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-slate-900" />
+                                <span>Added</span>
                               </>
                             ) : (
                               <>

@@ -404,4 +404,78 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
       'contact',
     ],
   },
+
+  horizon: {
+    code: 'horizon',
+    name: 'Horizon',
+    tagline: 'Enterprise Panorama & Heritage Tech',
+    bestFor: 'Textile & technology conglomerates, industrial innovation, high-value enterprise brands, engineering & labs',
+    palette: {
+      primary: '#0F172A', // Deep enterprise slate
+      accent: '#2563EB',  // Electric lab blue
+      background: '#FFFFFF', // Crisp clean canvas
+      surface: '#F8FAFC', // Sleek tech surface
+      text: '#0F172A',    // Deep slate text
+      muted: '#64748B',   // Cool steel muted
+      border: '#E2E8F0',  // Minimal border
+    },
+    typography: {
+      heading: 'Plus Jakarta Sans',
+      body: 'Inter',
+    },
+    headerStyle: 'sticky-action',
+    heroStyle: 'full-banner',
+    cardStyle: 'elevated-modern',
+    buttonStyle: 'rounded-heavy',
+    imageRatio: '16/9',
+    spacingDensity: 'generous',
+    backgroundTreatment: 'clean',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'featured_products',
+      'categories',
+      'editorial_image_text',
+      'testimonials',
+      'about_business',
+      'contact',
+    ],
+  },
+
+  canvas: {
+    code: 'canvas',
+    name: 'Canvas',
+    tagline: 'Full-Bleed Cinematic Showcase',
+    bestFor: 'Flagship lifestyle apparel, luxury automotive, outdoor exploration, cinematic visual brands',
+    palette: {
+      primary: '#0B0F19', // Deep cinematic obsidian
+      accent: '#F59E0B',  // Luminous amber gold
+      background: '#0B0F19', // Theatrical dark canvas
+      surface: '#111827', // Charcoal surface
+      text: '#F9FAFB',    // Crisp titanium white
+      muted: '#9CA3AF',   // Cool platinum muted
+      border: '#1F2937',  // Hairline graphite border
+    },
+    typography: {
+      heading: 'Outfit',
+      body: 'Plus Jakarta Sans',
+    },
+    headerStyle: 'minimal-center',
+    heroStyle: 'full-banner',
+    cardStyle: 'minimal-bleed',
+    buttonStyle: 'sharp-pill',
+    imageRatio: '16/9',
+    spacingDensity: 'generous',
+    backgroundTreatment: 'high-contrast',
+    defaultSectionOrder: [
+      'announcement',
+      'hero',
+      'featured_products',
+      'categories',
+      'editorial_image_text',
+      'testimonials',
+      'about_business',
+      'contact',
+    ],
+  },
 };

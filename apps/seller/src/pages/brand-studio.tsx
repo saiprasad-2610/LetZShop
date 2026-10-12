@@ -934,7 +934,7 @@ export default function BrandStudioPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {Object.values(FOUNDATIONAL_THEMES).map((th) => {
-                const isNew = ['aura', 'noir', 'vista'].includes(th.code);
+                const isNew = ['aura', 'noir', 'vista', 'horizon', 'canvas'].includes(th.code);
                 const isSelected = selectedThemeId === th.code;
                 return (
                   <button

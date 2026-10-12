@@ -232,6 +232,40 @@ export async function runSeed() {
         spacingDensity: 'comfortable',
       },
     },
+    {
+      name: 'Horizon',
+      code: 'horizon',
+      isDefault: false,
+      configJson: {
+        tagline: 'Enterprise Panorama & Heritage Tech',
+        bestFor: 'Textile & technology conglomerates, industrial innovation, high-value enterprise brands, engineering & labs',
+        palette: { primary: '#0F172A', accent: '#2563EB', background: '#FFFFFF', surface: '#F8FAFC', text: '#0F172A', muted: '#64748B' },
+        typography: { heading: 'Plus Jakarta Sans', body: 'Inter' },
+        headerStyle: 'sticky-action',
+        heroStyle: 'full-banner',
+        cardStyle: 'elevated-modern',
+        buttonStyle: 'rounded-heavy',
+        imageRatio: '16/9',
+        spacingDensity: 'generous',
+      },
+    },
+    {
+      name: 'Canvas',
+      code: 'canvas',
+      isDefault: false,
+      configJson: {
+        tagline: 'Full-Bleed Cinematic Showcase',
+        bestFor: 'Flagship lifestyle apparel, luxury automotive, outdoor exploration, cinematic visual brands',
+        palette: { primary: '#0B0F19', accent: '#F59E0B', background: '#0B0F19', surface: '#111827', text: '#F9FAFB', muted: '#9CA3AF' },
+        typography: { heading: 'Outfit', body: 'Plus Jakarta Sans' },
+        headerStyle: 'minimal-center',
+        heroStyle: 'full-banner',
+        cardStyle: 'minimal-bleed',
+        buttonStyle: 'sharp-pill',
+        imageRatio: '16/9',
+        spacingDensity: 'generous',
+      },
+    },
   ];
 
   for (const t of foundationalThemes) {
