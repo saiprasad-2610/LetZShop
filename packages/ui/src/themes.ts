@@ -446,15 +446,15 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
     code: 'canvas',
     name: 'Canvas',
     tagline: 'Full-Bleed Cinematic Showcase',
-    bestFor: 'Flagship lifestyle apparel, luxury automotive, outdoor exploration, cinematic visual brands',
+    bestFor: 'Flagship lifestyle apparel, gourmet provisions, artisan goods, cinematic visual brands',
     palette: {
-      primary: '#0B0F19', // Deep cinematic obsidian
-      accent: '#F59E0B',  // Luminous amber gold
-      background: '#0B0F19', // Theatrical dark canvas
-      surface: '#111827', // Charcoal surface
-      text: '#F9FAFB',    // Crisp titanium white
-      muted: '#9CA3AF',   // Cool platinum muted
-      border: '#1F2937',  // Hairline graphite border
+      primary: '#0F172A', // Deep slate primary
+      accent: '#D97706',  // Warm amber gold
+      background: '#F8FAFC', // Crisp light background
+      surface: '#FFFFFF', // Clean white card surface
+      text: '#0F172A',    // Deep slate text
+      muted: '#64748B',   // Cool steel muted
+      border: '#E2E8F0',  // Minimal border
     },
     typography: {
       heading: 'Outfit',
@@ -462,11 +462,11 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
     },
     headerStyle: 'minimal-center',
     heroStyle: 'full-banner',
-    cardStyle: 'minimal-bleed',
+    cardStyle: 'rounded-soft',
     buttonStyle: 'sharp-pill',
-    imageRatio: '16/9',
+    imageRatio: '1/1',
     spacingDensity: 'generous',
-    backgroundTreatment: 'high-contrast',
+    backgroundTreatment: 'clean',
     defaultSectionOrder: [
       'announcement',
       'hero',

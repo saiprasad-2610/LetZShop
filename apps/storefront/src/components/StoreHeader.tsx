@@ -86,7 +86,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       themeCode === 'habitat' ? 'border-stone-200' :
       themeCode === 'atelier' ? 'border-stone-200' :
       themeCode === 'horizon' ? 'border-slate-200' :
-      themeCode === 'canvas' ? 'border-zinc-800 bg-zinc-950/95 text-white' : 'border-gray-200'
+      themeCode === 'canvas' ? 'border-slate-200' : 'border-gray-200'
     }`}>
       {/* 1. Universal Top Announcement Bar with Theme Styling & Floating Marquee */}
       {isAnnouncementEnabled && (
@@ -153,7 +153,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
                 themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
                 themeCode === 'foundry' ? 'rounded-sm font-mono' :
                 themeCode === 'horizon' ? 'rounded-lg bg-blue-600' :
-                themeCode === 'canvas' ? 'rounded-full border border-amber-400/60 bg-black text-amber-400' : 'rounded-lg'
+                themeCode === 'canvas' ? 'rounded-lg bg-slate-900 text-white' : 'rounded-lg'
               }`}
             >
               {wordmark.monogram}
@@ -172,7 +172,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
                 themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
                 themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
                 themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
-                themeCode === 'canvas' ? 'font-sans font-black uppercase text-white group-hover:text-amber-400' :
+                themeCode === 'canvas' ? 'font-sans font-black uppercase text-slate-900 group-hover:text-amber-600' :
                 themeCode === 'horizon' ? 'font-sans font-bold text-slate-900 group-hover:text-blue-600' :
                 'font-bold text-gray-900 group-hover:text-blue-700'
               }`}

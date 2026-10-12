@@ -1902,16 +1902,16 @@ export default function StoreHomePage() {
                   );
                 }
 
-                {/* --- J. HORIZON ENTERPRISE CARD (4:3 Elevated Modern with OEM Status) --- */}
+                {/* --- J. HORIZON ENTERPRISE CARD (Clean Elevated Modern) --- */}
                 if (themeCode === 'horizon') {
                   return (
                     <div
                       key={p.id}
-                      className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-blue-400 transition-all duration-300 flex flex-col group relative"
+                      className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 flex flex-col group relative"
                     >
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="block relative aspect-[4/3] bg-slate-50 overflow-hidden"
+                        className="block relative aspect-square bg-slate-50 overflow-hidden"
                       >
                         <SafeImage
                           src={coverImage}
@@ -1919,9 +1919,15 @@ export default function StoreHomePage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           fallbackTitle={title}
                         />
-                        <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-md shadow">
-                          Verified OEM
-                        </span>
+                        {comparePaise && comparePaise > pricePaise ? (
+                          <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                            Save ₹{Math.round((comparePaise - pricePaise) / 100)}
+                          </span>
+                        ) : p.category?.name ? (
+                          <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium tracking-wide px-2.5 py-0.5 rounded-full shadow-xs">
+                            {p.category.name}
+                          </span>
+                        ) : null}
                       </Link>
 
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
@@ -1941,7 +1947,7 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base font-bold text-slate-900">
+                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
@@ -1954,7 +1960,7 @@ export default function StoreHomePage() {
                           <button
                             onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -1974,16 +1980,16 @@ export default function StoreHomePage() {
                   );
                 }
 
-                {/* --- K. CANVAS FULL-BLEED CINEMATIC CARD --- */}
+                {/* --- K. CANVAS FULL-BLEED CINEMATIC SHOWCASE CARD (Clean Adaptive Surface) --- */}
                 if (themeCode === 'canvas') {
                   return (
                     <div
                       key={p.id}
-                      className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-lg hover:border-amber-400/80 transition-all duration-300 flex flex-col group relative"
+                      className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-amber-400 transition-all duration-300 flex flex-col group relative"
                     >
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="block relative aspect-[4/3] bg-zinc-900 overflow-hidden"
+                        className="block relative aspect-square bg-slate-50 overflow-hidden"
                       >
                         <SafeImage
                           src={coverImage}
@@ -1991,33 +1997,34 @@ export default function StoreHomePage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           fallbackTitle={title}
                         />
-                        <span className="absolute top-2.5 left-2.5 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow">
-                          Cinematic
-                        </span>
+                        {comparePaise && comparePaise > pricePaise ? (
+                          <span className="absolute top-2.5 left-2.5 bg-amber-500 text-slate-950 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                            Save ₹{Math.round((comparePaise - pricePaise) / 100)}
+                          </span>
+                        ) : p.category?.name ? (
+                          <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium tracking-wide px-2.5 py-0.5 rounded-full shadow-xs">
+                            {p.category.name}
+                          </span>
+                        ) : null}
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-zinc-950 text-white">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
                         <div>
-                          {p.category?.name && (
-                            <span className="text-[10px] font-sans font-bold text-amber-400 uppercase tracking-wider block mb-1">
-                              {p.category.name}
-                            </span>
-                          )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans text-sm font-bold text-white hover:text-amber-400 transition line-clamp-2 leading-snug"
+                            className="font-sans text-sm font-bold text-slate-900 hover:text-amber-600 transition-colors line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
                         </div>
 
-                        <div className="pt-2.5 border-t border-zinc-800 flex items-center justify-between">
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base font-bold text-amber-400">
+                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-zinc-500 line-through">
+                              <div className="text-[11px] text-slate-400 line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -2026,11 +2033,11 @@ export default function StoreHomePage() {
                           <button
                             onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-slate-900" />
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
                                 <span>Added</span>
                               </>
                             ) : (
