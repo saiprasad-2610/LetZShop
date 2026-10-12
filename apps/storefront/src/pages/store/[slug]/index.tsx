@@ -171,7 +171,7 @@ export default function StoreHomePage() {
       description = `No merchant storefront exists with the slug '${slug}'. Please check the URL and try again.`;
     } else if (errorCode === 'NETWORK_OFFLINE') {
       title = 'Unable to Connect';
-      description = 'Unable to connect to the Simply E-Commerce network. Please check your internet connection.';
+      description = 'Unable to connect to the Letz Shop network. Please check your internet connection.';
     } else if (errorCode === 'API_UNAVAILABLE') {
       title = 'Service Temporarily Unavailable';
       description = 'The storefront service is currently undergoing scheduled maintenance. Please try again in a few moments.';
@@ -193,7 +193,7 @@ export default function StoreHomePage() {
               href="/"
               className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition"
             >
-              Go to Simply Home
+              Go to Letz Shop Home
             </Link>
           </div>
         </div>

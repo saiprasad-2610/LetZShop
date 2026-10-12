@@ -300,7 +300,14 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
         <div className="pt-8 border-t border-gray-800 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>{copyrightText}</p>
           <p className="flex items-center gap-1 text-[11px]">
-            Powered by <span className="font-semibold text-gray-400">Simply E-Commerce SaaS</span>
+            Powered by{' '}
+            <a
+              href="/"
+              className="font-semibold text-gray-300 hover:text-white transition inline-flex items-center gap-1"
+            >
+              <span>Letz Shop</span>
+              <span className="text-[10px] text-gray-500 font-mono">letzshop.store</span>
+            </a>
           </p>
         </div>
       </div>
