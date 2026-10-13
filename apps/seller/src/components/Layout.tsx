@@ -17,9 +17,8 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  CheckCircle,
 } from 'lucide-react';
+import { ThemeToggle } from './ui/MerchantUi';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -104,26 +103,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     switch (status) {
       case 'LIVE':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
             {compact ? 'LIVE' : 'Store is Live'}
           </span>
         );
       case 'EXPIRED':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
             {compact ? 'EXPIRED' : 'Subscription Expired'}
           </span>
         );
       case 'SUSPENDED':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30">
             {compact ? 'SUSPENDED' : 'Store Suspended'}
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
             {compact ? 'PRIVATE' : 'Private Mode'}
           </span>
         );
@@ -137,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-merchant-bg text-merchant-text flex flex-col md:flex-row">
       {/* =========================================================================
           1. DESKTOP & TABLET LEFT SIDEBAR (Sticky/Fixed)
           - Tablet (768px-1023px): Collapsible icon rail (68px or 240px)
@@ -145,21 +144,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
       ========================================================================= */}
       <aside
         aria-label="Merchant Primary Navigation"
-        className={`hidden md:flex flex-col bg-slate-950 text-slate-100 min-h-screen fixed left-0 top-0 bottom-0 z-30 border-r border-slate-800/80 transition-all duration-200 ${
+        className={`hidden md:flex flex-col bg-merchant-sidebar text-merchant-sidebar-text min-h-screen fixed left-0 top-0 bottom-0 z-30 border-r border-merchant-sidebar-border transition-all duration-200 ${
           tabletCollapsed ? 'md:w-[68px] lg:w-60' : 'w-60'
         }`}
       >
         {/* Top Header / Store Identity */}
-        <div className="p-4 border-b border-slate-800/80 flex items-center justify-between min-h-[64px]">
+        <div className="p-4 border-b border-merchant-sidebar-border flex items-center justify-between min-h-[64px]">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+            <span className="w-8 h-8 rounded-lg bg-merchant-primary text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
               S
             </span>
             <div className={`overflow-hidden transition-opacity duration-200 ${tabletCollapsed ? 'md:hidden lg:block' : 'block'}`}>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Simply</span>
-                <span className="text-slate-600">•</span>
-                <span className="text-[10px] text-slate-400 truncate">{store?.name || 'Store'}</span>
+                <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">Simply</span>
+                <span className="text-merchant-sidebar-text-muted opacity-60">•</span>
+                <span className="text-[10px] text-merchant-sidebar-text truncate font-semibold">{store?.name || 'Store'}</span>
               </div>
               <div className="mt-0.5">{getStatusBadge(true)}</div>
             </div>
@@ -169,7 +168,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           <button
             type="button"
             onClick={() => setTabletCollapsed(!tabletCollapsed)}
-            className="hidden md:flex lg:hidden text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-900 transition-colors"
+            className="hidden md:flex lg:hidden text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text p-1 rounded-md hover:bg-merchant-sidebar-hover transition-colors"
             title={tabletCollapsed ? 'Expand Navigation' : 'Collapse Navigation'}
             aria-label={tabletCollapsed ? 'Expand Navigation' : 'Collapse Navigation'}
           >
@@ -193,8 +192,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
                   tabletCollapsed ? 'md:justify-center md:px-0 lg:justify-start lg:px-3' : 'justify-start px-3'
                 } py-2.5 ${
                   active
-                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
-                    : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+                    ? 'bg-merchant-sidebar-active text-white font-semibold shadow-xs'
+                    : 'text-merchant-sidebar-text-muted hover:bg-merchant-sidebar-hover hover:text-merchant-sidebar-text'
                 }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${tabletCollapsed ? 'md:mr-0 lg:mr-3' : 'mr-3'}`} />
@@ -213,22 +212,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           })}
         </nav>
 
-        {/* Bottom Area: Merchant Profile & Logout */}
-        <div className="p-3 border-t border-slate-800/80 space-y-2">
+        {/* Bottom Area: Merchant Profile, Theme Switcher & Logout */}
+        <div className="p-3 border-t border-merchant-sidebar-border space-y-2">
+          {/* Theme Toggle Component */}
+          <ThemeToggle
+            collapsed={tabletCollapsed}
+            showLabel={!tabletCollapsed}
+          />
+
           {/* Subscription link */}
           <button
             type="button"
             onClick={() => router.push('/subscription')}
             title="Subscription"
-            className={`w-full flex items-center rounded-xl text-xs font-medium text-amber-300 bg-amber-950/30 border border-amber-800/50 hover:bg-amber-900/40 transition-colors ${
+            className={`w-full flex items-center rounded-xl text-xs font-medium transition-colors ${
               tabletCollapsed ? 'md:justify-center md:px-0 lg:justify-between lg:px-3' : 'justify-between px-3'
-            } py-2`}
+            } py-2 text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20`}
           >
             <span className="flex items-center">
               <CreditCard className={`w-3.5 h-3.5 ${tabletCollapsed ? 'md:mr-0 lg:mr-2' : 'mr-2'}`} />
               <span className={`truncate ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>Plan</span>
             </span>
-            <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-200 ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>
+            <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-200 ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>
               {store?.status === 'LIVE' ? 'ACTIVE' : 'UPGRADE'}
             </span>
           </button>
@@ -238,7 +243,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
             type="button"
             onClick={logout}
             title="Logout"
-            className={`w-full flex items-center rounded-xl text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors ${
+            className={`w-full flex items-center rounded-xl text-xs font-medium text-merchant-sidebar-text-muted hover:text-rose-500 hover:bg-merchant-sidebar-hover transition-colors ${
               tabletCollapsed ? 'md:justify-center md:px-0 lg:justify-start lg:px-3' : 'justify-start px-3'
             } py-2`}
           >
@@ -256,25 +261,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Hamburger opens left slide-in drawer
       ========================================================================= */}
       {/* Top App Bar for Mobile */}
-      <div className="md:hidden sticky top-0 z-30 bg-slate-950 text-white px-4 py-3 border-b border-slate-800 flex items-center justify-between shadow-xs">
+      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-4 py-3 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
             aria-label="Open Navigation Drawer"
-            className="p-1.5 -ml-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-1.5 -ml-1 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text hover:bg-merchant-sidebar-hover rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+            <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs">
               S
             </span>
-            <span className="font-bold text-sm tracking-tight text-white">{title || 'Dashboard'}</span>
+            <span className="font-bold text-sm tracking-tight text-merchant-sidebar-text">{title || 'Dashboard'}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick theme toggle on mobile app bar */}
+          <ThemeToggle collapsed className="w-8 h-8 !p-1" />
           {getStatusBadge(true)}
         </div>
       </div>
@@ -284,7 +291,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         <div
           role="presentation"
           onClick={() => setMobileDrawerOpen(false)}
-          className="md:hidden fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 transition-opacity animate-in fade-in duration-200"
+          className="md:hidden fixed inset-0 bg-merchant-overlay backdrop-blur-xs z-40 transition-opacity animate-in fade-in duration-200"
         />
       )}
 
@@ -294,27 +301,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         aria-label="Mobile Left Navigation Drawer"
         aria-modal="true"
         role="dialog"
-        className={`md:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-slate-950 text-white z-50 shadow-2xl flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`md:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-merchant-sidebar text-merchant-sidebar-text z-50 shadow-2xl flex flex-col transition-transform duration-200 ease-in-out border-r border-merchant-sidebar-border ${
           mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Drawer Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-merchant-sidebar-border flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+              <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs">
                 S
               </span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Simply</span>
+              <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">Simply</span>
             </div>
-            <h2 className="text-sm font-bold text-white truncate">{store?.name || 'Merchant'}</h2>
+            <h2 className="text-sm font-bold text-merchant-sidebar-text truncate">{store?.name || 'Merchant'}</h2>
             <div className="mt-1">{getStatusBadge(false)}</div>
           </div>
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(false)}
             aria-label="Close Navigation Drawer"
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 transition-colors"
+            className="p-2 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text rounded-lg hover:bg-merchant-sidebar-hover transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -335,8 +342,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
                 }}
                 className={`w-full flex items-center px-3.5 py-3 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
                   active
-                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
-                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                    ? 'bg-merchant-sidebar-active text-white font-semibold shadow-xs'
+                    : 'text-merchant-sidebar-text-muted hover:bg-merchant-sidebar-hover hover:text-merchant-sidebar-text'
                 }`}
               >
                 <Icon className="w-5 h-5 mr-3 shrink-0" />
@@ -347,13 +354,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         </nav>
 
         {/* Drawer Bottom Actions */}
-        <div className="p-4 border-t border-slate-800 space-y-2">
+        <div className="p-4 border-t border-merchant-sidebar-border space-y-2.5">
+          <ThemeToggle showLabel />
+
           {storefrontUrl && (
             <a
               href={storefrontUrl}
               target="_blank"
               rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-blue-600/20 text-blue-300 border border-blue-500/30 hover:bg-blue-600/30 transition-colors min-h-[44px]"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-merchant-primary-soft text-merchant-primary border border-merchant-primary/30 hover:opacity-90 transition-opacity min-h-[44px]"
             >
               <ExternalLink className="w-4 h-4" />
               <span>View Storefront</span>
@@ -363,7 +372,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           <button
             type="button"
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors min-h-[44px]"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-merchant-sidebar-text-muted hover:text-rose-500 hover:bg-merchant-sidebar-hover transition-colors min-h-[44px]"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout ({user?.phone || 'Seller'})</span>
@@ -381,7 +390,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         }`}
       >
         {/* Main Content Viewport */}
-        <main className="p-4 md:p-6 lg:p-8 flex-1 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto">{children}</main>
       </div>
     </div>
   );

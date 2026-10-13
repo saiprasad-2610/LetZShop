@@ -40,7 +40,10 @@ export default function StorePreviewPage() {
 
   const storeSlug = store?.slug || 'sk-general-stores';
   const storeName = store?.name || 'SK General Stores';
-  const customerPreviewUrl = getStoreCustomerPreviewUrl(storeSlug);
+  const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
+  const customerPreviewPagePath =
+    activePreviewPage === 'products' ? '/products' : activePreviewPage === 'about' ? '/about' : '';
+  const customerPreviewUrl = `${getStoreCustomerPreviewUrl(storeSlug)}${customerPreviewPagePath}`;
   const publicShareUrl = getStorePublicShareUrl(storeSlug, isLive);
   const displayUrl = `simply.in/store/${storeSlug}`;
 
@@ -143,10 +146,10 @@ export default function StorePreviewPage() {
             Left: Title + Subtitle
             Right: Exactly 2 actions: [ Preview as Customer ] [ Customize Store ]
         ========================================================================= */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--merchant-border)]">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">My Store Preview</h1>
-            <p className="text-sm text-slate-500 mt-0.5">What your customers actually see</p>
+            <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">My Store Preview</h1>
+            <p className="text-sm text-[var(--merchant-text-muted)] mt-0.5">What your customers actually see</p>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
@@ -155,7 +158,7 @@ export default function StorePreviewPage() {
               target="_blank"
               rel="noreferrer"
               id="btn-preview-store-as-customer"
-              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-xs transition-colors"
+              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-xs transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
               Preview as Customer
@@ -165,9 +168,9 @@ export default function StorePreviewPage() {
               type="button"
               onClick={() => router.push('/brand-studio')}
               id="btn-customize-store"
-              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--merchant-surface)] border border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] transition-colors shadow-2xs"
             >
-              <Palette className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+              <Palette className="w-3.5 h-3.5 mr-1.5 text-[var(--merchant-text-muted)]" />
               Customize Store
             </button>
           </div>
@@ -175,16 +178,16 @@ export default function StorePreviewPage() {
 
         {/* Global Feedback Banner if triggered */}
         {notification && (
-          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium flex items-center justify-between animate-in fade-in">
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-xs font-medium flex items-center justify-between animate-in fade-in">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
               <span>{notification}</span>
             </div>
             {(!hasActivePlan || isExpired) && (
               <button
                 type="button"
                 onClick={() => router.push('/subscription')}
-                className="text-xs font-bold underline hover:text-amber-900 ml-4 shrink-0"
+                className="text-xs font-bold underline hover:text-amber-300 ml-4 shrink-0"
               >
                 View Plans →
               </button>
@@ -198,21 +201,21 @@ export default function StorePreviewPage() {
             Left: Dynamic Store Name, Status Badge, Store URL with copy icon.
             Right: Exactly 2 actions: [ Publish Storefront ] [ Share Store ].
         ========================================================================= */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-4 sm:p-5 shadow-xs transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Left side: Store Details */}
             <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate">
+                <h2 className="text-lg sm:text-xl font-bold text-[var(--merchant-text)] tracking-tight truncate">
                   {storeName}
                 </h2>
                 <span
                   className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
                     isLive
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                       : isExpired
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : 'bg-[var(--merchant-primary-soft)] text-[var(--merchant-primary)] border border-[var(--merchant-border)]'
                   }`}
                 >
                   {isLive ? 'LIVE' : isExpired ? 'SUBSCRIPTION REQUIRED' : 'PRIVATE PREVIEW'}
@@ -220,15 +223,15 @@ export default function StorePreviewPage() {
               </div>
 
               {/* Single Store URL with small copy icon */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
-                <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="flex items-center gap-1.5 text-xs text-[var(--merchant-text-muted)] font-mono">
+                <Globe className="w-3.5 h-3.5 text-[var(--merchant-text-muted)] shrink-0" />
                 <span className="truncate">{displayUrl}</span>
                 <button
                   type="button"
                   id="btn-copy-store-url"
                   onClick={handleCopyLink}
                   title="Copy Store URL"
-                  className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  className="p-1 hover:bg-[var(--merchant-surface-muted)] rounded text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] transition-colors shrink-0"
                 >
                   {copied ? (
                     <Check className="w-3.5 h-3.5 text-emerald-500" />
@@ -237,7 +240,7 @@ export default function StorePreviewPage() {
                   )}
                 </button>
                 {copied && (
-                  <span className="text-[10px] text-emerald-600 font-sans font-medium">Copied!</span>
+                  <span className="text-[10px] text-emerald-500 font-sans font-medium">Copied!</span>
                 )}
               </div>
             </div>
@@ -250,9 +253,9 @@ export default function StorePreviewPage() {
                   type="button"
                   id="btn-publish-storefront"
                   disabled
-                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default shadow-2xs"
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 cursor-default shadow-2xs"
                 >
-                  <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                  <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
                   Live Storefront
                 </button>
               ) : !hasActivePlan || isExpired ? (
@@ -260,10 +263,10 @@ export default function StorePreviewPage() {
                   type="button"
                   id="btn-publish-storefront"
                   onClick={handlePublish}
-                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs"
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--merchant-accent)] hover:bg-[var(--merchant-accent-hover)] text-slate-900 border border-transparent transition-colors shadow-2xs font-bold"
                   title="Subscription required to publish"
                 >
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5 text-slate-900" />
                   Subscribe to Publish
                 </button>
               ) : (
@@ -271,7 +274,7 @@ export default function StorePreviewPage() {
                   type="button"
                   id="btn-publish-storefront"
                   onClick={handlePublish}
-                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs transition-colors"
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-2xs transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                   Publish Storefront
@@ -284,23 +287,23 @@ export default function StorePreviewPage() {
                   type="button"
                   id="btn-share-store"
                   onClick={() => setShareOpen((prev) => !prev)}
-                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--merchant-surface)] border border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] transition-colors shadow-2xs"
                 >
-                  <Share2 className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                  <Share2 className="w-3.5 h-3.5 mr-1.5 text-[var(--merchant-text-muted)]" />
                   Share Store
-                  <ChevronDown className="w-3 h-3 ml-1 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 ml-1 text-[var(--merchant-text-muted)]" />
                 </button>
 
                 {shareOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-30 text-xs">
+                  <div className="absolute right-0 mt-2 w-52 bg-[var(--merchant-surface-raised)] rounded-xl shadow-lg border border-[var(--merchant-border)] py-1.5 z-30 text-xs">
                     <button
                       type="button"
                       id="opt-share-copy"
                       onClick={handleCopyLink}
-                      className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center justify-between text-slate-700 font-medium"
+                      className="w-full px-3.5 py-2 text-left hover:bg-[var(--merchant-surface-muted)] flex items-center justify-between text-[var(--merchant-text)] font-medium transition-colors"
                     >
                       <span className="flex items-center gap-2">
-                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                        <Copy className="w-3.5 h-3.5 text-[var(--merchant-text-muted)]" />
                         {copied ? 'Link Copied!' : 'Copy Link'}
                       </span>
                       {copied && <Check className="w-3.5 h-3.5 text-emerald-500" />}
@@ -309,9 +312,9 @@ export default function StorePreviewPage() {
                       type="button"
                       id="opt-share-whatsapp"
                       onClick={handleShareWhatsApp}
-                      className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium"
+                      className="w-full px-3.5 py-2 text-left hover:bg-[var(--merchant-surface-muted)] flex items-center gap-2 text-[var(--merchant-text)] font-medium transition-colors"
                     >
-                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />
                       WhatsApp
                     </button>
                     {canNativeShare && (
@@ -319,9 +322,9 @@ export default function StorePreviewPage() {
                         type="button"
                         id="opt-share-native"
                         onClick={handleNativeShare}
-                        className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium"
+                        className="w-full px-3.5 py-2 text-left hover:bg-[var(--merchant-surface-muted)] flex items-center gap-2 text-[var(--merchant-text)] font-medium transition-colors"
                       >
-                        <Share2 className="w-3.5 h-3.5 text-blue-600" />
+                        <Share2 className="w-3.5 h-3.5 text-[var(--merchant-primary)]" />
                         Native Share
                       </button>
                     )}
@@ -338,7 +341,12 @@ export default function StorePreviewPage() {
             No second toolbar, no duplicate cards, no repeated merchant headings.
         ========================================================================= */}
         <div className="w-full">
-          <MiniStorePreview store={store} products={products} />
+          <MiniStorePreview
+            store={store}
+            products={products}
+            activePage={activePreviewPage}
+            onPageChange={setActivePreviewPage}
+          />
         </div>
       </div>
     </Layout>

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Globe, RefreshCw, Smartphone, Monitor } from 'lucide-react';
+import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react';
 import { getStorefrontUrl } from '../utils/config';
 
 interface MiniStorePreviewProps {
@@ -18,30 +18,43 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   onPageChange,
 }) => {
   const router = useRouter();
-  const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [currentPage, setCurrentPage] = useState<'home' | 'products' | 'about'>(activePage || 'home');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Sync internal state if parent controls activePage
+  useEffect(() => {
+    if (activePage && activePage !== currentPage) {
+      setCurrentPage(activePage);
+    }
+  }, [activePage]);
 
   const slug = store?.slug || 'sk-general-stores';
   const storefrontUrl = getStorefrontUrl();
-  const initialTimestamp = React.useMemo(() => Date.now(), []);
-
   const pagePath =
-    activePage === 'products'
+    currentPage === 'products'
       ? `/store/${slug}/products`
-      : activePage === 'about'
+      : currentPage === 'about'
       ? `/store/${slug}/about`
       : `/store/${slug}`;
 
-  const previewIframeUrl = `${storefrontUrl}${pagePath}?preview=true&embedded=true&_t=${initialTimestamp}_${refreshKey}`;
+  const previewIframeUrl = `${storefrontUrl}${pagePath}?preview=true&embedded=true${
+    refreshKey > 0 ? `&_t=${refreshKey}` : ''
+  }`;
+
+  const handlePageSwitch = (page: 'home' | 'products' | 'about') => {
+    setCurrentPage(page);
+    onPageChange?.(page);
+  };
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
   };
 
   return (
-    <div className="w-full rounded-2xl border border-slate-200/90 overflow-hidden bg-slate-900 shadow-sm">
+    <div className="w-full rounded-2xl border border-merchant-border overflow-hidden bg-merchant-surface shadow-xs transition-colors duration-150">
       {/* Simulated Browser Header Bar */}
-      <div className="bg-slate-800/95 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80">
+      <div className="bg-merchant-surface-raised px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-merchant-border">
         <div className="flex items-center space-x-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
@@ -49,36 +62,39 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
         </div>
 
         {/* 3 Page Tabs Switcher */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-700/80 text-xs">
+        <div className="flex items-center bg-merchant-surface p-1 rounded-xl border border-merchant-border text-xs shadow-2xs">
           <button
             type="button"
-            onClick={() => onPageChange?.('home')}
-            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
-              activePage === 'home'
-                ? 'bg-blue-600 text-white font-bold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+            id="preview-nav-home"
+            onClick={() => handlePageSwitch('home')}
+            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+              currentPage === 'home'
+                ? 'bg-merchant-primary text-white font-bold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
             <span>🏠 Home</span>
           </button>
           <button
             type="button"
-            onClick={() => onPageChange?.('products')}
-            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
-              activePage === 'products'
-                ? 'bg-blue-600 text-white font-bold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+            id="preview-nav-products"
+            onClick={() => handlePageSwitch('products')}
+            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+              currentPage === 'products'
+                ? 'bg-merchant-primary text-white font-bold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
             <span>🛍️ Products</span>
           </button>
           <button
             type="button"
-            onClick={() => onPageChange?.('about')}
-            className={`px-3 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
-              activePage === 'about'
-                ? 'bg-blue-600 text-white font-bold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+            id="preview-nav-about"
+            onClick={() => handlePageSwitch('about')}
+            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+              currentPage === 'about'
+                ? 'bg-merchant-primary text-white font-bold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
             <span>📖 About Us</span>
@@ -89,33 +105,53 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
+            id="preview-device-desktop"
             onClick={() => setDeviceMode('desktop')}
-            className={`p-1.5 rounded-lg text-xs transition ${
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
               deviceMode === 'desktop'
-                ? 'bg-slate-700 text-white font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-merchant-primary text-white font-semibold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
             title="Desktop View (100% width)"
+            aria-label="Desktop View"
           >
             <Monitor className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
-            onClick={() => setDeviceMode('mobile')}
-            className={`p-1.5 rounded-lg text-xs transition ${
-              deviceMode === 'mobile'
-                ? 'bg-slate-700 text-white font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
+            id="preview-device-tablet"
+            onClick={() => setDeviceMode('tablet')}
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
+              deviceMode === 'tablet'
+                ? 'bg-merchant-primary text-white font-semibold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Mobile View (375px)"
+            title="Tablet View (768px)"
+            aria-label="Tablet View"
+          >
+            <Tablet className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            id="preview-device-mobile"
+            onClick={() => setDeviceMode('mobile')}
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
+              deviceMode === 'mobile'
+                ? 'bg-merchant-primary text-white font-semibold shadow-xs'
+                : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
+            }`}
+            title="Mobile View (390px)"
+            aria-label="Mobile View"
           >
             <Smartphone className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
+            id="preview-device-refresh"
             onClick={handleRefresh}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition"
+            className="p-1.5 rounded-lg text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface transition cursor-pointer"
             title="Refresh Preview"
+            aria-label="Refresh Preview"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -123,11 +159,13 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
       </div>
 
       {/* Interactive Buyer Storefront Viewport */}
-      <div className="bg-slate-950/40 p-2 sm:p-4 flex items-center justify-center min-h-[680px]">
+      <div className="bg-merchant-bg p-2 sm:p-4 flex items-center justify-center min-h-[680px]">
         <div
           className={`transition-all duration-300 w-full ${
             deviceMode === 'mobile'
-              ? 'max-w-[390px] h-[720px] rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-white'
+              ? 'max-w-[390px] h-[720px] rounded-2xl overflow-hidden shadow-2xl border-4 border-merchant-border-strong bg-white'
+              : deviceMode === 'tablet'
+              ? 'max-w-[768px] h-[720px] rounded-2xl overflow-hidden shadow-2xl border-4 border-merchant-border-strong bg-white'
               : 'h-[720px] rounded-xl overflow-hidden shadow-sm bg-white'
           }`}
         >

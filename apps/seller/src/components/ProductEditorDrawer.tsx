@@ -77,6 +77,9 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -128,10 +131,32 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     }
   };
 
+  const handleQuickCreateCategory = async () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    setCreatingCategory(true);
+    try {
+      const created = await api.catalog.createCategory({ name: trimmed });
+      if (created && created.id) {
+        setCategories((prev) => [...prev, created]);
+        setCategoryId(created.id);
+        setNewCatName('');
+        setShowQuickAddCategory(false);
+      }
+    } catch (err: any) {
+      console.error('Failed to create category', err);
+      alert(err.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
   const resetForm = () => {
     setName('');
     setDescription('');
     setCategoryId('');
+    setShowQuickAddCategory(false);
+    setNewCatName('');
     setMode('SELL_ONLINE');
     setBasePriceRupees('799');
     setComparePriceRupees('');
@@ -635,7 +660,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         .filter((m) => !m.isUploading && m.mediaAssetId)
         .map((m) => m.mediaAssetId as string);
 
-      if (mediaAssetIds.length === 0) {
+      if (!productId && mediaAssetIds.length === 0) {
         setImageError('Every product needs at least one image.');
         setFormErrors({ general: 'Every product needs at least one image.' });
         setSaving(false);
@@ -651,13 +676,13 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       const payload: any = {
         name: trimmedName,
         description: description.trim() || undefined,
-        categoryId: categoryId || undefined,
+        categoryId: categoryId ? categoryId : null,
         mode,
         pricePaise: basePaise,
         compareAtPricePaise: comparePaise,
         stock: Number(stock) || 0,
         sku: sku.trim() || undefined,
-        mediaAssetIds,
+        ...(mediaAssetIds.length > 0 ? { mediaAssetIds } : {}),
       };
 
       if (hasVariants && options.some((o) => o.values.length > 0)) {
@@ -681,6 +706,20 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           mediaAssetId: v.mediaAssetId || undefined,
           status: v.isActive ? 'ACTIVE' : 'INACTIVE',
         }));
+      } else if (productId) {
+        // If product was updated to simple without options, clear options explicitly
+        payload.options = [];
+        payload.variants = [
+          {
+            sku: sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-001`,
+            pricePaise: basePaise || 0,
+            compareAtPricePaise: comparePaise,
+            stock: Number(stock) || 0,
+            initialStock: Number(stock) || 0,
+            optionValues: [],
+            status: 'ACTIVE',
+          },
+        ];
       }
 
       if (productId) {
@@ -713,22 +752,22 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-drawer-title"
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs"
     >
-      <div className="w-full sm:max-w-3xl md:max-w-4xl bg-white h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-200">
+      <div className="w-full sm:max-w-3xl md:max-w-4xl bg-[var(--merchant-surface)] h-full flex flex-col shadow-2xl overflow-hidden border-l border-[var(--merchant-border)] animate-in slide-in-from-right duration-200 text-[var(--merchant-text)]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)]">
           <div>
-            <h2 id="product-drawer-title" className="text-lg font-bold text-slate-900 tracking-tight">
+            <h2 id="product-drawer-title" className="text-lg font-bold text-[var(--merchant-text)] tracking-tight">
               {productId ? 'Edit Product' : 'Add New Product'}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--merchant-text-muted)]">
               Configure product details, photo uploads, custom options & variant matrix
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200 transition"
+            className="p-2 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl hover:bg-[var(--merchant-surface-raised)] transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -746,14 +785,14 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
           {/* SECTION 1: BASIC INFORMATION */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="w-4 h-4 text-blue-600" />
+            <h3 className="text-xs font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <Tag className="w-4 h-4 text-[var(--merchant-primary)]" />
               <span>1. Basic Details</span>
             </h3>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">
                   Product Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -764,10 +803,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: '' }));
                   }}
                   placeholder="e.g. Classic Cotton Shirt"
-                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs sm:text-sm transition ${
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs sm:text-sm transition bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] ${
                     formErrors.name
-                      ? 'border-rose-300 focus:border-rose-500 bg-rose-50/30'
-                      : 'border-slate-300 focus:border-blue-500'
+                      ? 'border-rose-300 focus:border-rose-500 bg-rose-50/10'
+                      : 'border-[var(--merchant-input-border)] focus:border-[var(--merchant-focus-ring)]'
                   }`}
                 />
                 {formErrors.name && (
@@ -776,23 +815,60 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Description</label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe your product materials, fit, care instructions..."
-                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:border-blue-500 resize-none"
+                  className="w-full px-3.5 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-[var(--merchant-text)]">Category</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickAddCategory(!showQuickAddCategory)}
+                      className="text-[11px] font-semibold text-[var(--merchant-primary)] hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{showQuickAddCategory ? 'Cancel' : 'New Category'}</span>
+                    </button>
+                  </div>
+
+                  {showQuickAddCategory && (
+                    <div className="flex items-center gap-2 mb-2 p-2 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl">
+                      <input
+                        type="text"
+                        placeholder="Category name (e.g. Shirts)"
+                        value={newCatName}
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleQuickCreateCategory();
+                          }
+                        }}
+                        className="flex-1 px-2.5 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateCategory}
+                        disabled={creatingCategory || !newCatName.trim()}
+                        className="px-3 py-1.5 bg-[var(--merchant-primary)] text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-[var(--merchant-primary-hover)] transition shrink-0"
+                      >
+                        {creatingCategory ? 'Adding...' : 'Add'}
+                      </button>
+                    </div>
+                  )}
+
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm bg-white"
+                    className="w-full px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                   >
                     <option value="">Select Category (Optional)</option>
                     {categories.map((c) => (
@@ -804,11 +880,11 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Selling Mode</label>
+                  <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Selling Mode</label>
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm bg-white"
+                    className="w-full px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                   >
                     <option value="SELL_ONLINE">Sell Online (Direct Checkout)</option>
                     <option value="ENQUIRY_ONLY">Enquiry Only (Price on Request)</option>
@@ -820,12 +896,12 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           </div>
 
           {/* SECTION 2: PRODUCT PHOTOS */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
+          <div className="space-y-4 pt-4 border-t border-[var(--merchant-border)]">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)] uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-[var(--merchant-primary)]" />
                     <span>Product Photos</span>
                   </h3>
                   <span
@@ -833,14 +909,14 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                       mediaItems.length === 0
                         ? 'bg-rose-100 text-rose-700'
                         : mediaItems.length === 3
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-blue-100 text-blue-700'
+                        ? 'bg-[var(--merchant-primary-soft)] text-[var(--merchant-primary)]'
+                        : 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)]'
                     }`}
                   >
                     {mediaItems.length} / 3
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-1">
                   Add 1–3 product images. The first image is used as the primary image.
                 </p>
               </div>
@@ -858,8 +934,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${
                   isDragging
-                    ? 'border-blue-500 bg-blue-50/50'
-                    : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+                    ? 'border-[var(--merchant-primary)] bg-[var(--merchant-primary-soft)]/20'
+                    : 'border-[var(--merchant-border)] hover:border-[var(--merchant-primary)] hover:bg-[var(--merchant-surface-muted)]'
                 }`}
               >
                 <input
@@ -870,17 +946,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   onChange={(e) => processFiles(e.target.files)}
                   className="hidden"
                 />
-                <UploadCloud className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                <UploadCloud className="w-8 h-8 text-[var(--merchant-primary)] mx-auto mb-2" />
                 {uploadingImage ? (
-                  <p className="text-xs sm:text-sm font-bold text-blue-600 animate-pulse">
+                  <p className="text-xs sm:text-sm font-bold text-[var(--merchant-primary)] animate-pulse">
                     Uploading image to media library...
                   </p>
                 ) : (
-                  <p className="text-xs sm:text-sm font-bold text-slate-800">
+                  <p className="text-xs sm:text-sm font-bold text-[var(--merchant-text)]">
                     Click to upload product photo, or drag & drop file here
                   </p>
                 )}
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
                   JPG, PNG, WebP supported up to 5MB each ({mediaItems.length} / 3 uploaded).
                 </p>
                 {imageError && (
@@ -888,8 +964,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 )}
               </div>
             ) : (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                <p className="text-xs font-medium text-slate-600">
+              <div className="bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl p-3 text-center">
+                <p className="text-xs font-medium text-[var(--merchant-text-secondary)]">
                   Maximum of 3 images reached (3 / 3). Remove an image to upload a different one.
                 </p>
                 {imageError && (
@@ -901,16 +977,16 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             {/* Uploaded Photos Gallery */}
             {mediaItems.length > 0 && (
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
+                <span className="text-[11px] font-semibold text-[var(--merchant-text-muted)] uppercase tracking-wide block">
                   Uploaded Product Photos
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {mediaItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="group relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 shadow-2xs space-y-1 p-1.5"
+                      className="group relative rounded-xl border border-[var(--merchant-border)] overflow-hidden bg-[var(--merchant-surface-muted)] shadow-2xs space-y-1 p-1.5"
                     >
-                      <div className="aspect-square rounded-lg overflow-hidden bg-white relative">
+                      <div className="aspect-square rounded-lg overflow-hidden bg-[var(--merchant-surface-raised)] relative">
                         <SafeImage
                           src={item.previewUrl || item.publicUrl}
                           alt={`Product photo ${idx + 1}`}
@@ -980,19 +1056,19 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           </div>
 
           {/* SECTION 3: BASE PRICING & INVENTORY (Fallback / Baseline) */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-amber-600" />
+          <div className="space-y-4 pt-4 border-t border-[var(--merchant-border)]">
+            <h3 className="text-xs font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-[var(--merchant-accent)]" />
               <span>3. Pricing & Baseline Inventory</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">
                   Base Price (₹) {mode !== 'ENQUIRY_ONLY' && <span className="text-rose-500">*</span>}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-xs sm:text-sm">₹</span>
+                  <span className="absolute left-3 top-2.5 text-[var(--merchant-text-muted)] text-xs sm:text-sm">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1003,7 +1079,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                       if (formErrors.price) setFormErrors((prev) => ({ ...prev, price: '' }));
                     }}
                     placeholder="799.00"
-                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
+                    className="w-full pl-7 pr-3 py-2 border border-[var(--merchant-input-border)] bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] rounded-xl text-xs sm:text-sm font-mono"
                   />
                 </div>
                 {formErrors.price && (
@@ -1012,11 +1088,11 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">
                   Compare-at Price (₹)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-xs sm:text-sm">₹</span>
+                  <span className="absolute left-3 top-2.5 text-[var(--merchant-text-muted)] text-xs sm:text-sm">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1024,31 +1100,31 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     value={comparePriceRupees}
                     onChange={(e) => setComparePriceRupees(e.target.value)}
                     placeholder="999.00"
-                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
+                    className="w-full pl-7 pr-3 py-2 border border-[var(--merchant-input-border)] bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] rounded-xl text-xs sm:text-sm font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Stock Units</label>
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Stock Units</label>
                 <input
                   type="number"
                   min="0"
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
                   placeholder="10"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono"
+                  className="w-full px-3 py-2 border border-[var(--merchant-input-border)] bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] rounded-xl text-xs sm:text-sm font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Base SKU</label>
+                <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Base SKU</label>
                 <input
                   type="text"
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="e.g. SHIRT-001"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono uppercase"
+                  className="w-full px-3 py-2 border border-[var(--merchant-input-border)] bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] rounded-xl text-xs sm:text-sm font-mono uppercase"
                 />
               </div>
             </div>
@@ -1534,11 +1610,11 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)] flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+            className="px-4 py-2 text-xs font-semibold text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] transition"
           >
             Cancel
           </button>
@@ -1547,7 +1623,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             type="button"
             onClick={handleSave}
             disabled={saving || uploadingImage}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? (
               <span>Saving Product...</span>

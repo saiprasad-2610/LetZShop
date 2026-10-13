@@ -60,6 +60,8 @@ async function bootstrap() {
     }
   );
 
+  app.enableShutdownHooks();
+
   // Security Headers & Middlewares
   await app.register(fastifyHelmet as any, {
     contentSecurityPolicy: false, // Allows Swagger UI to render properly in local dev

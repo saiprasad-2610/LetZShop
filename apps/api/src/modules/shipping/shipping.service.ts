@@ -36,6 +36,30 @@ export class ShippingService {
       where: { storeId: tenant.storeId, isEnabled: true },
     });
 
+    if (merchantShipping?.accountId === 'SELF_DELIVERY') {
+      const selfShipment = await this.prisma.shipment.create({
+        data: {
+          tenantId: tenant.tenantId,
+          storeId: tenant.storeId,
+          orderId: order.id,
+          provider: ShippingProviderType.MOCK,
+          status: 'OUT_FOR_DELIVERY',
+          courierName: 'Store Owner Self-Delivery',
+          awbNumber: `OWNER_DELIVERY_${order.orderNumber}`,
+          trackingUrl: null,
+          labelUrl: null,
+          manifestUrl: null,
+        },
+      });
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'DISPATCHED' },
+      });
+
+      return selfShipment;
+    }
+
     const providerType = merchantShipping?.provider || ShippingProviderType.MOCK;
     const provider = this.getProvider(providerType);
 

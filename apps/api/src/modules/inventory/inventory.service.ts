@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaClient, InventoryMovementType } from '@prisma/client';
+import { PrismaClient, InventoryMovementType, VariantStatus, ProductStatus } from '@prisma/client';
 import { InsufficientStockException, ProductOutOfStockException } from '../../common/exceptions/domain.exceptions';
 
 @Injectable()
@@ -157,13 +157,16 @@ export class InventoryService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.inventory.findUnique({ where: { variantId } });
+      let current = await tx.inventory.findUnique({ where: { variantId } });
+      if (!current) {
+        current = await tx.inventory.findUnique({ where: { id: variantId } });
+      }
       if (!current) throw new BadRequestException('Inventory record not found for variant.');
 
       const delta = newQuantity - current.stockOnHand;
 
       const updated = await tx.inventory.update({
-        where: { variantId },
+        where: { id: current.id },
         data: { stockOnHand: newQuantity },
       });
 
@@ -171,7 +174,7 @@ export class InventoryService {
         data: {
           tenantId: current.tenantId,
           storeId: current.storeId,
-          variantId,
+          variantId: current.variantId,
           inventoryId: current.id,
           movementType: InventoryMovementType.MANUAL_ADJUSTMENT,
           quantityDelta: delta,
@@ -186,17 +189,96 @@ export class InventoryService {
   }
 
   public async getStoreInventory(tenant: any) {
-    return this.prisma.inventory.findMany({
-      where: { storeId: tenant.storeId },
+    const items = await this.prisma.inventory.findMany({
+      where: {
+        storeId: tenant.storeId,
+        variant: {
+          deletedAt: null,
+          status: { not: VariantStatus.DISCONTINUED },
+          product: {
+            deletedAt: null,
+            status: { not: ProductStatus.ARCHIVED },
+          },
+        },
+      },
       include: {
         variant: {
           include: {
-            product: { select: { id: true, name: true, slug: true } },
-            optionValues: { include: { optionValue: true } },
+            product: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+                media: {
+                  include: { mediaAsset: true },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                },
+              },
+            },
+            optionValues: {
+              include: {
+                optionValue: {
+                  include: {
+                    option: true,
+                  },
+                },
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+              },
+            },
+            cartItems: {
+              select: {
+                quantity: true,
+              },
+            },
           },
         },
       },
       orderBy: { updatedAt: 'desc' },
+    });
+
+    return items.map((inv) => {
+      const variant = inv.variant;
+      const product = variant?.product;
+      const totalSold =
+        variant?.orderItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      const inCart =
+        variant?.cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
+      const variantTitle =
+        variant?.optionValues && variant.optionValues.length > 0
+          ? variant.optionValues
+              .map((ov) => {
+                const optName = ov.optionValue?.option?.name;
+                const optVal = ov.optionValue?.value;
+                return optName ? `${optName}: ${optVal}` : optVal;
+              })
+              .filter(Boolean)
+              .join(', ')
+          : 'Standard / Default';
+
+      return {
+        ...inv,
+        sku: variant?.sku || inv.variantId || 'N/A',
+        productName: product?.name || 'Unnamed Product',
+        productSlug: product?.slug || '',
+        categoryName: product?.category?.name || 'Uncategorized',
+        categoryId: product?.category?.id || null,
+        productImage: product?.media?.[0]?.mediaAsset?.publicUrl || null,
+        variantTitle,
+        totalSold,
+        inCart,
+      };
     });
   }
 }

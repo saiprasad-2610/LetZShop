@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ['class', '[data-merchant-theme="dark"]'],
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
@@ -7,6 +8,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        merchant: {
+          bg: 'var(--merchant-bg)',
+          surface: 'var(--merchant-surface)',
+          'surface-raised': 'var(--merchant-surface-raised)',
+          'surface-muted': 'var(--merchant-surface-muted)',
+          sidebar: 'var(--merchant-sidebar)',
+          'sidebar-hover': 'var(--merchant-sidebar-hover)',
+          'sidebar-active': 'var(--merchant-sidebar-active)',
+          'sidebar-text': 'var(--merchant-sidebar-text)',
+          'sidebar-text-muted': 'var(--merchant-sidebar-text-muted)',
+          'sidebar-border': 'var(--merchant-sidebar-border)',
+          border: 'var(--merchant-border)',
+          'border-strong': 'var(--merchant-border-strong)',
+          'border-subtle': 'var(--merchant-border-subtle)',
+          text: 'var(--merchant-text)',
+          'text-secondary': 'var(--merchant-text-secondary)',
+          'text-muted': 'var(--merchant-text-muted)',
+          'text-inverse': 'var(--merchant-text-inverse)',
+          primary: 'var(--merchant-primary)',
+          'primary-hover': 'var(--merchant-primary-hover)',
+          'primary-soft': 'var(--merchant-primary-soft)',
+          'primary-text': 'var(--merchant-primary-text)',
+          accent: 'var(--merchant-accent)',
+          'accent-hover': 'var(--merchant-accent-hover)',
+          'accent-soft': 'var(--merchant-accent-soft)',
+          'accent-dark': 'var(--merchant-accent-dark)',
+          success: 'var(--merchant-success)',
+          'success-soft': 'var(--merchant-success-soft)',
+          warning: 'var(--merchant-warning)',
+          'warning-soft': 'var(--merchant-warning-soft)',
+          danger: 'var(--merchant-danger)',
+          'danger-soft': 'var(--merchant-danger-soft)',
+          info: 'var(--merchant-info)',
+          'info-soft': 'var(--merchant-info-soft)',
+          'input-bg': 'var(--merchant-input-bg)',
+          'input-border': 'var(--merchant-input-border)',
+          'focus-ring': 'var(--merchant-focus-ring)',
+          overlay: 'var(--merchant-overlay)',
+        },
         brand: {
           50: '#F0F9FF',
           100: '#E0F2FE',
@@ -15,6 +55,9 @@ module.exports = {
           700: '#0369A1',
           900: '#0C4A6E',
         },
+      },
+      boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
       },
     },
   },

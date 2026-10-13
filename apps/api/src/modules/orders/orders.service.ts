@@ -10,6 +10,7 @@ import {
   PaymentStatus,
   ShipmentStatus,
   FulfillmentStatus,
+  ShippingProviderType,
 } from '@prisma/client';
 import { GuestCheckoutDto } from './dto/checkout.dto';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
@@ -334,7 +335,7 @@ export class OrdersService {
     // Auto-create order in Shiprocket when placed
     try {
       const shippingAccount = await this.prisma.merchantShippingAccount.findFirst({
-        where: { storeId: store.id, isEnabled: true },
+        where: { storeId: store.id, isEnabled: true, provider: ShippingProviderType.SHIPROCKET },
       });
 
       if (shippingAccount) {

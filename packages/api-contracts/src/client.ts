@@ -210,6 +210,10 @@ export class SimplyApiClient {
     getCategories: () => this.request('catalog/categories'),
     createCategory: (data: { name: string; description?: string }) =>
       this.request('catalog/categories', { method: 'POST', body: data }),
+    updateCategory: (id: string, data: { name?: string; description?: string }) =>
+      this.request(`catalog/categories/${id}`, { method: 'PATCH', body: data }),
+    deleteCategory: (id: string) =>
+      this.request(`catalog/categories/${id}`, { method: 'DELETE' }),
   };
 
   // --- Inventory ---
@@ -393,7 +397,14 @@ export class SimplyApiClient {
   // --- Merchant Shiprocket & Shipping Settings ---
   public shippingSettings = {
     get: () => this.request('seller/shipping-settings'),
-    save: (data: { email: string; password?: string; pickupLocation?: string; isEnabled?: boolean }) =>
+    save: (data: {
+      email?: string;
+      password?: string;
+      pickupLocation?: string;
+      isEnabled?: boolean;
+      deliveryMode?: 'self' | 'shiprocket';
+      isSelfDelivery?: boolean;
+    }) =>
       this.request('seller/shipping-settings', { method: 'POST', body: data }),
     test: (data: { email: string; password?: string }) =>
       this.request('seller/shipping-settings/test', { method: 'POST', body: data }),

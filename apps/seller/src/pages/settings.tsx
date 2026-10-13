@@ -21,6 +21,8 @@ import {
   ChevronRight,
   ExternalLink,
   Sparkles,
+  UserCheck,
+  PackageCheck,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -52,7 +54,9 @@ export default function SettingsPage() {
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentSaveMsg, setPaymentSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Shiprocket Shipping State
+  // Delivery & Shipping State (Self-Delivery vs Shiprocket)
+  const [deliveryMode, setDeliveryMode] = useState<'self' | 'shiprocket'>('self');
+  const [isSelfDelivery, setIsSelfDelivery] = useState(false);
   const [shiprocketConnected, setShiprocketConnected] = useState(false);
   const [shiprocketEmail, setShiprocketEmail] = useState('');
   const [shiprocketPassword, setShiprocketPassword] = useState('');
@@ -235,7 +239,10 @@ export default function SettingsPage() {
       const res = await api.shippingSettings.get();
       const data = res?.data || res;
       if (data) {
-        setShiprocketConnected(Boolean(data.connected));
+        const selfActive = Boolean(data.isSelfDelivery || data.deliveryMode === 'self');
+        setIsSelfDelivery(selfActive);
+        setDeliveryMode(selfActive ? 'self' : (data.connected ? 'shiprocket' : 'self'));
+        setShiprocketConnected(Boolean(data.connected && !selfActive));
         setShiprocketEmail(data.email || '');
         setShiprocketPickupLocation(data.pickupLocation || 'Primary');
         setShiprocketPasswordConfigured(Boolean(data.passwordConfigured));
@@ -290,33 +297,53 @@ export default function SettingsPage() {
     e.preventDefault();
     setShippingSaveMsg(null);
 
-    if (!shiprocketEmail.trim()) {
-      setShippingSaveMsg({ type: 'error', text: 'Shiprocket API User Email is required.' });
-      return;
-    }
-
-    if (!shiprocketPasswordConfigured && !shiprocketPassword.trim()) {
-      setShippingSaveMsg({ type: 'error', text: 'Shiprocket API User Password is required for first-time configuration.' });
-      return;
-    }
-
     setSavingShipping(true);
     try {
-      await api.shippingSettings.save({
-        email: shiprocketEmail.trim(),
-        password: shiprocketPassword.trim() || '__KEEP_EXISTING__',
-        pickupLocation: shiprocketPickupLocation.trim() || 'Primary',
-        isEnabled: shiprocketEnabled,
-      });
-      setShippingSaveMsg({
-        type: 'success',
-        text: 'Shiprocket logistics settings saved! Your placed orders will now be dispatched and tracked via Shiprocket.',
-      });
-      setShiprocketConnected(true);
-      setShiprocketPasswordConfigured(true);
-      setShiprocketPassword('');
+      if (deliveryMode === 'self') {
+        await api.shippingSettings.save({
+          isSelfDelivery: true,
+          deliveryMode: 'self',
+          isEnabled: true,
+        });
+        setShippingSaveMsg({
+          type: 'success',
+          text: 'Self-delivery mode saved! You fulfill and deliver orders directly without 3rd-party logistics.',
+        });
+        setIsSelfDelivery(true);
+        setShiprocketConnected(false);
+      } else {
+        if (!shiprocketEmail.trim()) {
+          setShippingSaveMsg({ type: 'error', text: 'Shiprocket API User Email is required.' });
+          setSavingShipping(false);
+          return;
+        }
+
+        if (!shiprocketPasswordConfigured && !shiprocketPassword.trim()) {
+          setShippingSaveMsg({ type: 'error', text: 'Shiprocket API User Password is required for first-time configuration.' });
+          setSavingShipping(false);
+          return;
+        }
+
+        await api.shippingSettings.save({
+          isSelfDelivery: false,
+          deliveryMode: 'shiprocket',
+          email: shiprocketEmail.trim(),
+          password: shiprocketPassword.trim() || '__KEEP_EXISTING__',
+          pickupLocation: shiprocketPickupLocation.trim() || 'Primary',
+          isEnabled: shiprocketEnabled,
+        });
+        setShippingSaveMsg({
+          type: 'success',
+          text: 'Shiprocket logistics settings saved! Your placed orders will now be dispatched and tracked via Shiprocket.',
+        });
+        setIsSelfDelivery(false);
+        setShiprocketConnected(true);
+        setShiprocketPasswordConfigured(true);
+        setShiprocketPassword('');
+      }
+      await loadShippingSettings();
     } catch (err: any) {
-      setShippingSaveMsg({ type: 'error', text: err.message || 'Failed to save Shiprocket settings.' });
+      setShippingSaveMsg({ type: 'error', text: err.message || 'Failed to save delivery settings.' });
     } finally {
       setSavingShipping(false);
     }
@@ -342,23 +369,70 @@ export default function SettingsPage() {
       <div className="space-y-6 max-w-3xl">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Store Settings</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">Store Settings</h1>
+          <p className="text-sm text-[var(--merchant-text-muted)]">
             Configure your business profile, payment gateways, and logistics integrations
           </p>
         </div>
 
+        {/* Top Store Setup Requirements Status Banner */}
+        {(!razorpayConnected || (!isSelfDelivery && !shiprocketConnected)) ? (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+            <div className="flex items-start sm:items-center gap-2.5 text-amber-300">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div>
+                <span className="font-bold text-amber-200 block sm:inline">Store Setup Notice:</span>{' '}
+                <span className="text-amber-300/90">
+                  {!razorpayConnected && (!isSelfDelivery && !shiprocketConnected)
+                    ? 'Payment gateway and Delivery fulfillment require configuration.'
+                    : !razorpayConnected
+                    ? 'Payment gateway requires Razorpay credentials. (✓ Delivery setup is complete).'
+                    : 'Delivery fulfillment requires configuration. (✓ Payment setup is complete).'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                razorpayConnected
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+              }`}>
+                Payments: {razorpayConnected ? '✓ Done' : 'Pending'}
+              </span>
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                (isSelfDelivery || shiprocketConnected)
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+              }`}>
+                Delivery: {(isSelfDelivery || shiprocketConnected) ? '✓ Done' : 'Pending'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs flex items-center justify-between gap-3 transition-colors">
+            <div className="flex items-center gap-2 text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span className="font-medium">
+                <strong className="text-emerald-200">Store Setup Complete:</strong> Payments and Delivery fulfillment are fully configured and ready for customer orders.
+              </span>
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/30 shrink-0">
+              ✓ All Ready
+            </span>
+          </div>
+        )}
+
         {/* SECTION 1: Business Profile */}
-        <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+        <form onSubmit={handleSaveSettings} className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-4 transition-colors">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Building className="w-5 h-5 text-emerald-600" /> Business Profile
+            <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+              <Building className="w-5 h-5 text-[var(--merchant-primary)]" /> Business Profile
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
                 Business / Brand Name *
               </label>
               <input
@@ -366,58 +440,58 @@ export default function SettingsPage() {
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 font-medium"
+                className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
                 Industry / Category
               </label>
               <input
                 type="text"
                 value={category}
                 disabled
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-500"
+                className="w-full px-3 py-2 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-lg text-sm text-[var(--merchant-text-muted)] cursor-not-allowed"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
                 Contact Mobile (WhatsApp Support)
               </label>
               <input
                 type="tel"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
                 Contact Email
               </label>
               <input
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
               Storefront Web Slug
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 font-mono">simply.in/store/</span>
+              <span className="text-xs text-[var(--merchant-text-muted)] font-mono">simply.in/store/</span>
               <input
                 type="text"
                 disabled
                 value={store?.slug || ''}
-                className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-xs font-mono text-gray-600"
+                className="w-full px-3 py-1.5 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded text-xs font-mono text-[var(--merchant-text-muted)] cursor-not-allowed"
               />
             </div>
           </div>
@@ -426,7 +500,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm transition flex items-center gap-2"
+              className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Profile'}
@@ -435,33 +509,33 @@ export default function SettingsPage() {
         </form>
 
         {/* SECTION 2: Cash on Delivery (COD) Control */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+        <div className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Banknote className="w-5 h-5 text-emerald-600" /> Cash on Delivery (COD)
+              <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-emerald-500" /> Cash on Delivery (COD)
               </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
                 Allow customers to pay in cash upon doorstep delivery or store pickup.
               </p>
             </div>
             <span
               className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
                 codEnabled
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-gray-100 text-gray-600 border border-gray-200'
+                  ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                  : 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)]'
               }`}
             >
               {codEnabled ? 'Enabled' : 'Disabled'}
             </span>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-xl border border-gray-200/90">
+          <div className="flex items-center justify-between p-4 bg-[var(--merchant-surface-muted)] rounded-xl border border-[var(--merchant-border)]">
             <div className="space-y-0.5 pr-4">
-              <p className="text-xs font-semibold text-gray-900">
+              <p className="text-xs font-semibold text-[var(--merchant-text)]">
                 Accept Cash on Delivery Orders
               </p>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-[var(--merchant-text-muted)]">
                 {codEnabled
                   ? 'Active: Customers can choose Cash on Delivery at storefront checkout.'
                   : 'Disabled: Customers must pay online via Razorpay (UPI, Cards, Netbanking) to complete orders.'}
@@ -476,7 +550,7 @@ export default function SettingsPage() {
                 onChange={(e) => handleToggleCod(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50"></div>
+              <div className="w-11 h-6 bg-[var(--merchant-input-border)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--merchant-primary)] peer-disabled:opacity-50"></div>
             </label>
           </div>
 
@@ -484,14 +558,14 @@ export default function SettingsPage() {
             <div
               className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
                 codSaveMsg.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : 'bg-red-50 text-red-800 border border-red-200'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
               }`}
             >
               {codSaveMsg.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
               ) : (
-                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
               )}
               <p className="font-medium">{codSaveMsg.text}</p>
             </div>
@@ -499,28 +573,28 @@ export default function SettingsPage() {
         </div>
 
         {/* SECTION 3: Razorpay Payment Gateway Setup */}
-        <form onSubmit={handleSavePaymentSettings} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+        <form onSubmit={handleSavePaymentSettings} className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-5 transition-colors">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-indigo-600" /> Razorpay Payment Gateway
+              <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[var(--merchant-primary)]" /> Razorpay Payment Gateway
               </h2>
               {razorpayConnected ? (
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Connected
                 </span>
               ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-500 border border-amber-500/30 flex items-center gap-1">
                   <XCircle className="w-3.5 h-3.5" /> Not Configured
                 </span>
               )}
             </div>
 
             {/* Info banner */}
-            <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex gap-2">
-              <Info className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-[var(--merchant-primary-soft)] border border-[var(--merchant-border)] rounded-xl text-xs text-[var(--merchant-text)] flex gap-2">
+              <Info className="w-4 h-4 text-[var(--merchant-primary)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Your own Razorpay account — money goes directly to you</p>
-                <p className="text-indigo-700 mt-0.5">
+                <p className="text-[var(--merchant-text-muted)] mt-0.5">
                   Enter your Razorpay API credentials below. Every customer payment will settle directly into your verified bank account linked to your Razorpay account. We never touch your sales proceeds.
                 </p>
               </div>
@@ -528,7 +602,7 @@ export default function SettingsPage() {
 
             {/* Warning: not configured */}
             {!razorpayConnected && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-2">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-400 flex gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
                 <p>Online payments are <strong>disabled</strong> until you add your Razorpay credentials. Customers will not be able to pay online.</p>
               </div>
@@ -536,27 +610,27 @@ export default function SettingsPage() {
 
             {/* Key ID */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Razorpay Key ID <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                Razorpay Key ID <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 placeholder="rzp_live_xxxxxxxxxxxxxxxx or rzp_test_xxxxxxxxxxxxxxxx"
                 value={razorpayKeyId}
                 onChange={(e) => setRazorpayKeyId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 transition"
+                className="w-full px-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none transition"
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Found in Razorpay Dashboard → Settings → API Keys. Use <code className="bg-gray-100 px-1 rounded">rzp_live_</code> for production, <code className="bg-gray-100 px-1 rounded">rzp_test_</code> for testing.
+              <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
+                Found in Razorpay Dashboard → Settings → API Keys. Use <code className="bg-[var(--merchant-surface-muted)] px-1 rounded border border-[var(--merchant-border)]">rzp_live_</code> for production, <code className="bg-[var(--merchant-surface-muted)] px-1 rounded border border-[var(--merchant-border)]">rzp_test_</code> for testing.
               </p>
             </div>
 
             {/* Key Secret */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Razorpay Key Secret {!razorpaySecretConfigured && <span className="text-red-500">*</span>}
+              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                Razorpay Key Secret {!razorpaySecretConfigured && <span className="text-rose-500">*</span>}
                 {razorpaySecretConfigured && (
-                  <span className="ml-2 text-emerald-600 font-normal">(already configured — leave blank to keep existing)</span>
+                  <span className="ml-2 text-emerald-500 font-normal">(already configured — leave blank to keep existing)</span>
                 )}
               </label>
               <div className="relative">
@@ -565,26 +639,26 @@ export default function SettingsPage() {
                   placeholder={razorpaySecretConfigured ? '••••••••••••••••••••' : 'Enter your Razorpay Key Secret'}
                   value={razorpayKeySecret}
                   onChange={(e) => setRazorpayKeySecret(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 transition pr-10"
+                  className="w-full px-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none transition pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowSecret((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)]"
                   tabIndex={-1}
                 >
                   {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
                 Never share your Key Secret with anyone. It is stored securely on our servers and never displayed again after saving.
               </p>
             </div>
 
             {/* Supported rails */}
-            <div className="border border-gray-100 rounded-xl p-3 bg-gray-50 flex flex-wrap gap-2">
+            <div className="border border-[var(--merchant-border)] rounded-xl p-3 bg-[var(--merchant-surface-muted)] flex flex-wrap gap-2">
               {['UPI (GPay / PhonePe)', 'RuPay', 'Visa / Mastercard', 'Net Banking', 'Wallets', 'EMI'].map((rail) => (
-                <span key={rail} className="px-2.5 py-1 bg-white border border-gray-200 rounded-full text-[11px] font-medium text-gray-600 shadow-sm">
+                <span key={rail} className="px-2.5 py-1 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-full text-[11px] font-medium text-[var(--merchant-text-secondary)] shadow-xs">
                   {rail}
                 </span>
               ))}
@@ -594,8 +668,8 @@ export default function SettingsPage() {
             {paymentSaveMsg && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
                 paymentSaveMsg.type === 'success'
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                  : 'bg-red-50 border border-red-200 text-red-800'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
               }`}>
                 {paymentSaveMsg.type === 'success' ? (
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
@@ -610,7 +684,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingPayment}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-sm transition flex items-center gap-2"
+                className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
               >
                 {savingPayment ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
@@ -622,24 +696,24 @@ export default function SettingsPage() {
           </form>
 
           {/* SECTION 4: Customer Delivery Charges & Free Delivery Threshold Rules */}
-          <form onSubmit={handleSaveDeliveryRates} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+          <form onSubmit={handleSaveDeliveryRates} className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-5 transition-colors">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-emerald-600" /> Customer Delivery Charges & Free Shipping Rules
+                <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-[var(--merchant-primary)]" /> Customer Delivery Charges & Free Shipping Rules
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
                   Set standard delivery charges, and configure an automatic 100% Free Delivery threshold on larger orders.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 {freeDeliveryEnabled ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5" /> Free Delivery Active
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)]">
                     Flat Delivery Only
                   </span>
                 )}
@@ -649,11 +723,11 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
               {/* Standard Delivery Charge */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                <label className="block text-xs font-bold text-[var(--merchant-text-secondary)] uppercase tracking-wide">
                   Standard Delivery Charges (₹)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-sm font-bold text-gray-500">₹</span>
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-[var(--merchant-text-muted)]">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -662,32 +736,32 @@ export default function SettingsPage() {
                     value={deliveryChargeRupees}
                     onChange={(e) => setDeliveryChargeRupees(Math.max(0, parseInt(e.target.value, 10) || 0))}
                     placeholder="e.g. 50"
-                    className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                    className="w-full pl-8 pr-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono font-bold focus:border-[var(--merchant-primary)] focus:outline-none transition"
                   />
                 </div>
-                <p className="text-[11px] text-gray-400">
-                  Standard fee charged when cart total is below the free delivery limit (Enter <code className="bg-gray-100 px-1 rounded text-gray-600">0</code> for free delivery on all orders).
+                <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                  Standard fee charged when cart total is below the free delivery limit (Enter <code className="bg-[var(--merchant-surface-muted)] px-1 rounded border border-[var(--merchant-border)]">0</code> for free delivery on all orders).
                 </p>
               </div>
 
               {/* Free Delivery Threshold */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                  <label className="text-xs font-bold text-[var(--merchant-text-secondary)] uppercase tracking-wide">
                     Free Delivery Threshold (₹)
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-emerald-700">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-[var(--merchant-primary)]">
                     <input
                       type="checkbox"
                       checked={freeDeliveryEnabled}
                       onChange={(e) => setFreeDeliveryEnabled(e.target.checked)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5 cursor-pointer"
+                      className="rounded text-[var(--merchant-primary)] h-3.5 w-3.5 cursor-pointer"
                     />
                     Enable Free Delivery
                   </label>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-sm font-bold text-gray-500">₹</span>
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-[var(--merchant-text-muted)]">₹</span>
                   <input
                     type="number"
                     min="1"
@@ -696,22 +770,22 @@ export default function SettingsPage() {
                     value={freeDeliveryThresholdRupees}
                     onChange={(e) => setFreeDeliveryThresholdRupees(Math.max(1, parseInt(e.target.value, 10) || 0))}
                     placeholder="e.g. 499"
-                    className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition disabled:bg-gray-100 disabled:text-gray-400"
+                    className="w-full pl-8 pr-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono font-bold focus:border-[var(--merchant-primary)] focus:outline-none transition disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[11px] text-[var(--merchant-text-muted)]">
                   Orders equal to or above this cart value automatically unlock <strong>100% Free Delivery</strong> for the buyer.
                 </p>
               </div>
             </div>
 
             {/* Live Visual Summary Card */}
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] text-xs text-[var(--merchant-text-secondary)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-emerald-600" /> Buyer Checkout Delivery Summary:
+                <span className="font-bold text-[var(--merchant-text)] flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[var(--merchant-primary)]" /> Buyer Checkout Delivery Summary:
                 </span>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[var(--merchant-text-muted)]">
                   {freeDeliveryEnabled ? (
                     <>
                       Orders below <strong>₹{freeDeliveryThresholdRupees}</strong> pay <strong>₹{deliveryChargeRupees}</strong> • Orders <strong>₹{freeDeliveryThresholdRupees}+</strong> qualify for <strong>FREE DELIVERY (₹0)</strong>
@@ -725,7 +799,7 @@ export default function SettingsPage() {
               </div>
 
               {freeDeliveryEnabled && (
-                <div className="px-3 py-1.5 bg-emerald-100/80 border border-emerald-200 rounded-lg text-[11px] font-bold text-emerald-800 shrink-0 flex items-center gap-1">
+                <div className="px-3 py-1.5 bg-[var(--merchant-primary-soft)] border border-[var(--merchant-border)] rounded-lg text-[11px] font-bold text-[var(--merchant-primary)] shrink-0 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" /> Increases Average Order Value (AOV)
                 </div>
               )}
@@ -735,13 +809,13 @@ export default function SettingsPage() {
             {deliveryRatesSaveMsg && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
                 deliveryRatesSaveMsg.type === 'success'
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                  : 'bg-red-50 border border-red-200 text-red-800'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
               }`}>
                 {deliveryRatesSaveMsg.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" />
                 ) : (
-                  <XCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
+                  <XCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
                 )}
                 <span>{deliveryRatesSaveMsg.text}</span>
               </div>
@@ -751,7 +825,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingDeliveryRates}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-sm transition flex items-center gap-2"
+                className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
               >
                 {savingDeliveryRates ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
@@ -762,155 +836,313 @@ export default function SettingsPage() {
             </div>
           </form>
 
-          {/* SECTION 5: Shiprocket Logistics & Courier Delivery */}
-          <form onSubmit={handleSaveShippingSettings} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+          {/* SECTION 5: Logistics & Order Delivery Fulfillment */}
+          <form onSubmit={handleSaveShippingSettings} className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-5 transition-colors">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-amber-600" /> Shiprocket Logistics & Courier Delivery
+                <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-amber-500" /> Logistics & Order Delivery Fulfillment
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Automate courier allocation, AWB generation, doorstep pickup, and real-time tracking for all placed orders.
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+                  Choose how orders are delivered to buyers — deliver orders yourself or automate via 3rd-party Shiprocket couriers.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {shiprocketConnected ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+                {deliveryMode === 'self' || isSelfDelivery ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Self-Delivery Active
+                  </span>
+                ) : shiprocketConnected ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Shiprocket Connected
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
                     <XCircle className="w-3.5 h-3.5" /> Not Configured
                   </span>
                 )}
 
-                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-1" title="Toggle Shiprocket Auto-fulfillment">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-1" title="Toggle Shipping Fulfillment Active">
                   <input
                     type="checkbox"
                     checked={shiprocketEnabled}
                     onChange={(e) => handleToggleShipping(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                  <div className="w-9 h-5 bg-[var(--merchant-input-border)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
             </div>
 
-            {/* Shiprocket Quick Setup Guide Banner */}
-            <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 space-y-2">
-              <div className="flex items-center justify-between font-bold text-amber-950">
-                <span className="flex items-center gap-1.5">
-                  <Info className="w-4 h-4 text-amber-600" />
-                  How to get your Shiprocket API User Credentials
-                </span>
-                <a
-                  href="https://app.shiprocket.in/api-user"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-800 hover:text-amber-950 font-semibold inline-flex items-center gap-1 underline underline-offset-2"
-                >
-                  Shiprocket Panel <ExternalLink className="w-3 h-3" />
-                </a>
+            {/* TOP SHIPPING REQUIREMENT MESSAGE / BANNER */}
+            {deliveryMode === 'self' || isSelfDelivery ? (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 space-y-1.5 transition-all">
+                <div className="flex items-center gap-2 font-bold text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>Shipping Details Complete — Store Owner Self-Delivery Active</span>
+                </div>
+                <p className="text-[11px] text-emerald-300/90 leading-relaxed pl-6">
+                  You have selected to manage delivery by yourself and not depend on third-party delivery partners. All incoming orders will by default be delivered by you directly. You do not need to enter any Shiprocket account details.
+                </p>
               </div>
-              <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-900 leading-relaxed font-medium">
-                <li>Log in to your <strong>Shiprocket Panel</strong> & navigate to <strong>Settings → API</strong> on the left menu.</li>
-                <li>Click <strong>"Configure"</strong> and select <strong>"Create an API User"</strong>.</li>
-                <li>Enter a dedicated <strong>Email ID</strong> (different from your main Shiprocket registered login) and password.</li>
-                <li>Enter those credentials below and click <strong>Test Connection</strong> to verify before saving.</li>
-              </ol>
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Shiprocket API User Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="e.g. api_shipping@mystore.in"
-                value={shiprocketEmail}
-                onChange={(e) => setShiprocketEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Must match the API User email created under Shiprocket Settings → API (valid for 10-day token generation).
-              </p>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Shiprocket API User Password {!shiprocketPasswordConfigured && <span className="text-red-500">*</span>}
-                {shiprocketPasswordConfigured && (
-                  <span className="ml-2 text-emerald-600 font-normal">(configured — leave blank to keep existing password)</span>
-                )}
-              </label>
-              <div className="relative">
-                <input
-                  type={showShiprocketPassword ? 'text' : 'password'}
-                  placeholder={shiprocketPasswordConfigured ? '••••••••••••••••••••' : 'Enter API user password'}
-                  value={shiprocketPassword}
-                  onChange={(e) => setShiprocketPassword(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowShiprocketPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  tabIndex={-1}
-                >
-                  {showShiprocketPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            ) : shiprocketConnected ? (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 space-y-1.5 transition-all">
+                <div className="flex items-center gap-2 font-bold text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>Shipping Details Complete — Shiprocket Logistics Connected</span>
+                </div>
+                <p className="text-[11px] text-emerald-300/90 leading-relaxed pl-6">
+                  Shiprocket API User integration is active. Automated courier allocation, doorstep pickup, and tracking are configured for placed orders.
+                </p>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">
-                Your password is safely encrypted and used to authenticate with the Shiprocket REST API.
-              </p>
-            </div>
+            ) : (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 space-y-1.5 transition-all">
+                <div className="flex items-center gap-2 font-bold text-amber-300">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span>Shipping Requirement Incomplete: Delivery Configuration Required</span>
+                </div>
+                <p className="text-[11px] text-amber-300/90 leading-relaxed pl-6">
+                  Select <strong>"Manage delivery by myself"</strong> below to deliver orders directly without 3rd-party logistics, or enter your Shiprocket API details to automate courier shipping.
+                </p>
+              </div>
+            )}
 
-            {/* Pickup Location Field */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Pickup Location Nickname / Warehouse Code
+            {/* FULFILLMENT MODE SELECTION CARDS */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-[var(--merchant-text-secondary)] uppercase tracking-wide">
+                Select Order Delivery Option
               </label>
-              <input
-                type="text"
-                placeholder="Primary"
-                value={shiprocketPickupLocation}
-                onChange={(e) => setShiprocketPickupLocation(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
-                The exact nickname of your pickup warehouse configured in <strong>Shiprocket Settings → Pickup Addresses</strong> (default: <code className="bg-gray-100 px-1 rounded">Primary</code>).
-              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* OPTION 1: Self Delivery */}
+                <div
+                  onClick={() => setDeliveryMode('self')}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    deliveryMode === 'self'
+                      ? 'bg-emerald-500/10 border-emerald-500/60 shadow-xs ring-1 ring-emerald-500/30'
+                      : 'bg-[var(--merchant-surface-muted)]/50 border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)]'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          id="mode-self"
+                          name="deliveryMode"
+                          checked={deliveryMode === 'self'}
+                          onChange={() => setDeliveryMode('self')}
+                          className="text-emerald-500 h-4 w-4 cursor-pointer focus:ring-emerald-500"
+                        />
+                        <label htmlFor="mode-self" className="text-sm font-bold text-[var(--merchant-text)] cursor-pointer">
+                          Manage delivery by myself
+                        </label>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        Self Delivery
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--merchant-text-muted)] leading-relaxed pl-6.5">
+                      Fulfill and deliver orders directly without depending on 3rd-party delivery partners. <strong>No Shiprocket account or credentials needed.</strong>
+                    </p>
+                  </div>
+                  {deliveryMode === 'self' && (
+                    <div className="mt-3 pl-6.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Shipping details are complete with this option
+                    </div>
+                  )}
+                </div>
+
+                {/* OPTION 2: Shiprocket Couriers */}
+                <div
+                  onClick={() => setDeliveryMode('shiprocket')}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    deliveryMode === 'shiprocket'
+                      ? 'bg-amber-500/10 border-amber-500/60 shadow-xs ring-1 ring-amber-500/30'
+                      : 'bg-[var(--merchant-surface-muted)]/50 border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)]'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          id="mode-shiprocket"
+                          name="deliveryMode"
+                          checked={deliveryMode === 'shiprocket'}
+                          onChange={() => setDeliveryMode('shiprocket')}
+                          className="text-amber-500 h-4 w-4 cursor-pointer focus:ring-amber-500"
+                        />
+                        <label htmlFor="mode-shiprocket" className="text-sm font-bold text-[var(--merchant-text)] cursor-pointer">
+                          Shiprocket Logistics & Courier
+                        </label>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        3rd-Party Courier
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--merchant-text-muted)] leading-relaxed pl-6.5">
+                      Automate courier allocation, AWB generation, doorstep pickup, and live tracking across Delhivery, Blue Dart, DTDC, Shadowfax across India.
+                    </p>
+                  </div>
+                  {deliveryMode === 'shiprocket' && (
+                    <div className="mt-3 pl-6.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
+                      <Truck className="w-3.5 h-3.5" /> Requires Shiprocket API User email & password
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Supported Couriers */}
-            <div className="border border-gray-100 rounded-xl p-3 bg-gray-50 space-y-1.5">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
-                Integrated Carrier Networks (Auto-Allocated)
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {['Delhivery', 'Blue Dart', 'DTDC', 'Xpressbees', 'Shadowfax', 'Ecom Express', 'Ekart'].map((carrier) => (
-                  <span key={carrier} className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[11px] font-medium text-gray-700 shadow-2xs">
-                    {carrier}
+            {/* CONDITIONAL CONTENT BASED ON MODE */}
+            {deliveryMode === 'self' ? (
+              /* SELF DELIVERY DETAILS CARD */
+              <div className="p-4.5 rounded-xl bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-[var(--merchant-text)]">
+                  <Store className="w-4 h-4 text-emerald-500" />
+                  Owner Self-Delivery Active Settings
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg space-y-1">
+                    <span className="font-semibold text-[var(--merchant-text)] flex items-center gap-1.5 text-[11px]">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Default Order Fulfillment
+                    </span>
+                    <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                      All new customer orders will by default be delivered by the store owner without courier dependency.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg space-y-1">
+                    <span className="font-semibold text-[var(--merchant-text)] flex items-center gap-1.5 text-[11px]">
+                      <Tag className="w-3.5 h-3.5 text-[var(--merchant-primary)]" /> Customer Delivery Charges
+                    </span>
+                    <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                      Standard delivery charges and free delivery threshold configured in Section 4 above will apply at checkout.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] italic">
+                  Note: You do not need to register or enter any Shiprocket API credentials. Orders can be marked "Out for Delivery" and "Delivered" directly from your Orders drawer.
+                </p>
+              </div>
+            ) : (
+              /* SHIPROCKET CREDENTIALS FORM */
+              <div className="space-y-4 pt-1">
+                {/* Shiprocket Quick Setup Guide Banner */}
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 space-y-2">
+                  <div className="flex items-center justify-between font-bold text-amber-300">
+                    <span className="flex items-center gap-1.5">
+                      <Info className="w-4 h-4 text-amber-400" />
+                      How to get your Shiprocket API User Credentials
+                    </span>
+                    <a
+                      href="https://app.shiprocket.in/api-user"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-300 hover:text-amber-200 font-semibold inline-flex items-center gap-1 underline underline-offset-2"
+                    >
+                      Shiprocket Panel <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-300/90 leading-relaxed font-medium">
+                    <li>Log in to your <strong>Shiprocket Panel</strong> & navigate to <strong>Settings → API</strong> on the left menu.</li>
+                    <li>Click <strong>"Configure"</strong> and select <strong>"Create an API User"</strong>.</li>
+                    <li>Enter a dedicated <strong>Email ID</strong> (different from your main Shiprocket registered login) and password.</li>
+                    <li>Enter those credentials below and click <strong>Test Connection</strong> to verify before saving.</li>
+                  </ol>
+                </div>
+
+                {/* Email Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                    Shiprocket API User Email <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required={deliveryMode === 'shiprocket'}
+                    placeholder="e.g. api_shipping@mystore.in"
+                    value={shiprocketEmail}
+                    onChange={(e) => setShiprocketEmail(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none transition"
+                  />
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
+                    Must match the API User email created under Shiprocket Settings → API (valid for 10-day token generation).
+                  </p>
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                    Shiprocket API User Password {!shiprocketPasswordConfigured && <span className="text-rose-500">*</span>}
+                    {shiprocketPasswordConfigured && (
+                      <span className="ml-2 text-emerald-500 font-normal">(configured — leave blank to keep existing password)</span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showShiprocketPassword ? 'text' : 'password'}
+                      placeholder={shiprocketPasswordConfigured ? '••••••••••••••••••••' : 'Enter API user password'}
+                      value={shiprocketPassword}
+                      onChange={(e) => setShiprocketPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none transition pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowShiprocketPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)]"
+                      tabIndex={-1}
+                    >
+                      {showShiprocketPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
+                    Your password is safely encrypted and used to authenticate with the Shiprocket REST API.
+                  </p>
+                </div>
+
+                {/* Pickup Location Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                    Pickup Location Nickname / Warehouse Code
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Primary"
+                    value={shiprocketPickupLocation}
+                    onChange={(e) => setShiprocketPickupLocation(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none transition"
+                  />
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
+                    The exact nickname of your pickup warehouse configured in <strong>Shiprocket Settings → Pickup Addresses</strong> (default: <code className="bg-[var(--merchant-surface-muted)] px-1 rounded border border-[var(--merchant-border)]">Primary</code>).
+                  </p>
+                </div>
+
+                {/* Supported Couriers */}
+                <div className="border border-[var(--merchant-border)] rounded-xl p-3 bg-[var(--merchant-surface-muted)] space-y-1.5">
+                  <span className="text-[11px] font-semibold text-[var(--merchant-text-muted)] uppercase tracking-wider block">
+                    Integrated Carrier Networks (Auto-Allocated)
                   </span>
-                ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Delhivery', 'Blue Dart', 'DTDC', 'Xpressbees', 'Shadowfax', 'Ecom Express', 'Ekart'].map((carrier) => (
+                      <span key={carrier} className="px-2.5 py-1 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg text-[11px] font-medium text-[var(--merchant-text-secondary)] shadow-2xs">
+                        {carrier}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Test connection feedback */}
             {shippingTestMsg && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
                 shippingTestMsg.type === 'success'
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                  : 'bg-red-50 border border-red-200 text-red-800'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
               }`}>
                 {shippingTestMsg.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" />
                 ) : (
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-600" />
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-500" />
                 )}
                 <span>{shippingTestMsg.text}</span>
               </div>
@@ -920,92 +1152,151 @@ export default function SettingsPage() {
             {shippingSaveMsg && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
                 shippingSaveMsg.type === 'success'
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                  : 'bg-red-50 border border-red-200 text-red-800'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
               }`}>
                 {shippingSaveMsg.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" />
                 ) : (
-                  <XCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
+                  <XCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
                 )}
                 <span>{shippingSaveMsg.text}</span>
               </div>
             )}
 
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-              <button
-                type="button"
-                onClick={handleTestShipping}
-                disabled={testingShipping || savingShipping}
-                className="w-full sm:w-auto px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {testingShipping ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" /> Verifying with Shiprocket...</>
-                ) : (
-                  <><Truck className="w-3.5 h-3.5 text-amber-700" /> Test Shiprocket Connection</>
-                )}
-              </button>
+            {/* BOTTOM SHIPPING REQUIREMENT MESSAGE */}
+            {deliveryMode === 'self' || isSelfDelivery ? (
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  <span className="text-[11px]">
+                    <strong>Shipping details are complete:</strong> All customer orders will be fulfilled by you directly. No 3rd-party logistics account is required.
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded border border-emerald-500/30 shrink-0">
+                  ✓ Complete
+                </span>
+              </div>
+            ) : (
+              <div className={`p-3.5 rounded-xl text-xs flex items-center justify-between gap-3 ${
+                shiprocketConnected
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                  : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {shiprocketConnected ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  ) : (
+                    <Info className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                  )}
+                  <span className="text-[11px]">
+                    {shiprocketConnected
+                      ? 'Shipping details are complete: Shiprocket logistics account verified.'
+                      : 'Shipping requirement incomplete: Enter Shiprocket API email and password to complete setup.'}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border shrink-0 ${
+                  shiprocketConnected
+                    ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
+                    : 'text-amber-400 bg-amber-500/20 border-amber-500/30'
+                }`}>
+                  {shiprocketConnected ? '✓ Complete' : 'Action Required'}
+                </span>
+              </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={savingShipping || testingShipping}
-                className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-sm transition flex items-center justify-center gap-2"
-              >
-                {savingShipping ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : (
-                  <><Save className="w-4 h-4" /> Save Shiprocket Credentials</>
-                )}
-              </button>
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+              {deliveryMode === 'shiprocket' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleTestShipping}
+                    disabled={testingShipping || savingShipping}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] border border-[var(--merchant-border)] rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {testingShipping ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" /> Verifying with Shiprocket...</>
+                    ) : (
+                      <><Truck className="w-3.5 h-3.5 text-amber-500" /> Test Shiprocket Connection</>
+                    )}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={savingShipping || testingShipping}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {savingShipping ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="w-4 h-4" /> Save Shiprocket Credentials</>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <div className="w-full flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingShipping}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {savingShipping ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="w-4 h-4" /> Save Self-Delivery Mode</>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </form>
 
           {/* SECTION 5: Additional Store Configurations */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-600" /> Additional Store Configurations
+          <div className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-4 transition-colors">
+            <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[var(--merchant-accent)]" /> Additional Store Configurations
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <Link
                 href="/coupons"
-                className="p-4 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/30 transition group flex flex-col justify-between"
+                className="p-4 rounded-xl border border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)] bg-[var(--merchant-surface-muted)]/50 hover:bg-[var(--merchant-surface-muted)] transition group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Tag className="w-5 h-5 text-emerald-600" />
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                    <Tag className="w-5 h-5 text-[var(--merchant-primary)]" />
+                    <ChevronRight className="w-4 h-4 text-[var(--merchant-text-muted)] group-hover:translate-x-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-bold text-gray-900">Coupons & Promo Codes</h3>
-                  <p className="text-[11px] text-gray-500 mt-1">Configure discounts and checkout promotions</p>
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)]">Coupons & Promo Codes</h3>
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">Configure discounts and checkout promotions</p>
                 </div>
               </Link>
 
               <Link
                 href="/subscription"
-                className="p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 transition group flex flex-col justify-between"
+                className="p-4 rounded-xl border border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)] bg-[var(--merchant-surface-muted)]/50 hover:bg-[var(--merchant-surface-muted)] transition group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <CreditCard className="w-5 h-5 text-blue-600" />
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                    <CreditCard className="w-5 h-5 text-[var(--merchant-accent)]" />
+                    <ChevronRight className="w-4 h-4 text-[var(--merchant-text-muted)] group-hover:translate-x-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-bold text-gray-900">Billing & Subscription</h3>
-                  <p className="text-[11px] text-gray-500 mt-1">Manage plan tier, limits, and invoices</p>
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)]">Billing & Subscription</h3>
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">Manage plan tier, limits, and invoices</p>
                 </div>
               </Link>
 
               <Link
                 href="/brand-studio"
-                className="p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50/30 transition group flex flex-col justify-between"
+                className="p-4 rounded-xl border border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)] bg-[var(--merchant-surface-muted)]/50 hover:bg-[var(--merchant-surface-muted)] transition group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                    <Sparkles className="w-5 h-5 text-[var(--merchant-primary)]" />
+                    <ChevronRight className="w-4 h-4 text-[var(--merchant-text-muted)] group-hover:translate-x-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-bold text-gray-900">Theme & Brand Studio</h3>
-                  <p className="text-[11px] text-gray-500 mt-1">Customize colors, logo, and store layout</p>
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)]">Theme & Brand Studio</h3>
+                  <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">Customize colors, logo, and store layout</p>
                 </div>
               </Link>
             </div>

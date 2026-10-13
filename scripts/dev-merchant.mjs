@@ -11,7 +11,9 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const PID_FILE = path.resolve(rootDir, '.simply-dev-processes.json');
 
-// --- Port and Process Inspection Utilities ---
+const CANONICAL_PORTS = [4000, 3001, 3000];
+
+// --- Process Inspection Utilities ---
 
 export function getPortPid(port) {
   try {
@@ -93,6 +95,24 @@ export function getProcessCommandLine(pid) {
   }
 }
 
+export function isSimplyProcess(pid, cmdLine = null) {
+  if (!pid) return false;
+  const line = (cmdLine !== null ? cmdLine : getProcessCommandLine(pid)).toLowerCase();
+  if (!line) return false;
+  return (
+    line.includes('simply') ||
+    line.includes('apps/api') ||
+    line.includes('apps/seller') ||
+    line.includes('apps/storefront') ||
+    line.includes('apps\\api') ||
+    line.includes('apps\\seller') ||
+    line.includes('apps\\storefront') ||
+    line.includes('dev-merchant') ||
+    line.includes('dist/main') ||
+    line.includes('dist\\main')
+  );
+}
+
 export function killProcessTree(pid) {
   if (!pid) return;
   try {
@@ -104,7 +124,7 @@ export function killProcessTree(pid) {
   } catch {}
 }
 
-export async function verifyPortsReleased(ports = [4000, 3001, 3000], timeoutMs = 4000, trackedPids = new Set()) {
+export async function verifyPortsReleased(ports = CANONICAL_PORTS, timeoutMs = 4000, trackedPids = new Set()) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     let allFree = true;
@@ -112,7 +132,6 @@ export async function verifyPortsReleased(ports = [4000, 3001, 3000], timeoutMs 
       const pid = getPortPid(port);
       if (pid !== null) {
         allFree = false;
-        // ONLY kill if this PID was positively tracked as belonging to this launcher
         if (trackedPids.has(pid)) {
           killProcessTree(pid);
         }
@@ -124,7 +143,7 @@ export async function verifyPortsReleased(ports = [4000, 3001, 3000], timeoutMs 
   return ports.every((p) => getPortPid(p) === null);
 }
 
-// --- Stale Process Cleanup ---
+// --- Stale Process & Registry Cleanup ---
 
 export function cleanStaleProcesses() {
   if (!fs.existsSync(PID_FILE)) return;
@@ -155,19 +174,8 @@ export function cleanStaleProcesses() {
         continue; // Process no longer exists
       }
 
-      // Verify the process actually belonged to Simply
-      const cmdLine = getProcessCommandLine(pid).toLowerCase();
-      const isSimply =
-        cmdLine.includes('simply') ||
-        cmdLine.includes('nest') ||
-        cmdLine.includes('next') ||
-        cmdLine.includes('apps/api') ||
-        cmdLine.includes('apps/seller') ||
-        cmdLine.includes('apps/storefront') ||
-        cmdLine.includes('dev-merchant') ||
-        cmdLine.includes('dist/src/main');
-
-      if (isSimply) {
+      // Verify before killing to avoid PID-reuse killing an unrelated app
+      if (isSimplyProcess(pid)) {
         killProcessTree(pid);
       }
     }
@@ -196,17 +204,36 @@ async function checkDatabase() {
   }
 }
 
-function checkPortPreflight(ports = [4000, 3001, 3000]) {
+async function checkPortPreflight(ports = CANONICAL_PORTS) {
   for (const port of ports) {
     const pid = getPortPid(port);
     if (pid) {
+      const cmdLine = getProcessCommandLine(pid);
       const procInfo = getProcessInfo(pid);
-      console.error('\nSIMPLY E-COMMERCE — STARTUP BLOCKED\n');
-      console.error(`Port ${port} is already in use.`);
-      console.error(`PID: ${pid}`);
-      console.error(`Process: ${procInfo.name}\n`);
-      console.error('Inspect:');
-      console.error(`Get-Process -Id ${pid}\n`);
+
+      // If it belongs to a previous Simply process, clean it safely
+      if (isSimplyProcess(pid, cmdLine)) {
+        console.log(`Cleaning previous Simply process (PID ${pid}) on port ${port}...`);
+        killProcessTree(pid);
+        const free = await verifyPortsReleased([port], 3000);
+        if (!free) {
+          console.error(`Failed to release port ${port} from PID ${pid}`);
+          return false;
+        }
+        continue;
+      }
+
+      // UNKNOWN / EXTERNAL process: DO NOT KILL IT
+      console.error('\n==================================================');
+      console.error(`ERROR:`);
+      console.error(`Port ${port} is already occupied by PID ${pid}.\n`);
+      console.error(`Process:`);
+      console.error(`${procInfo.name}\n`);
+      console.error(`Command:`);
+      console.error(`${cmdLine || '(not available)'}\n`);
+      console.error(`This process was not started by the Simply development launcher.\n`);
+      console.error(`Please stop it manually or choose the correct development command.`);
+      console.error('==================================================\n');
       return false;
     }
   }
@@ -249,6 +276,73 @@ async function waitForServicesReady(timeoutMs = 120000) {
     await new Promise((r) => setTimeout(r, 600));
   }
   return false;
+}
+
+// --- CLI Commands: --status and --stop ---
+
+async function handleStatus() {
+  console.log('\n==================================================');
+  console.log('SIMPLY / LETZSHOP DEVELOPMENT STATUS');
+  console.log('==================================================');
+
+  let launcherPid = null;
+  if (fs.existsSync(PID_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(PID_FILE, 'utf8'));
+      launcherPid = data.launcherPid;
+    } catch {}
+  }
+
+  const isLauncherAlive = Boolean(launcherPid && (() => {
+    try { process.kill(launcherPid, 0); return true; } catch { return false; }
+  })());
+
+  console.log(`Launcher:   ${isLauncherAlive ? `Active (PID ${launcherPid})` : 'Offline'}\n`);
+
+  const [apiOk, sellerOk, platformOk] = await Promise.all([
+    checkPortReady(4000, '/health'),
+    checkPortReady(3001, '/'),
+    checkPortReady(3000, '/')
+  ]);
+
+  const apiPid = getPortPid(4000);
+  const sellerPid = getPortPid(3001);
+  const platformPid = getPortPid(3000);
+
+  console.log(`API         (Port 4000, PID ${apiPid || 'None'}): ${apiOk ? '✓ Healthy' : '✗ Offline'}`);
+  console.log(`Seller      (Port 3001, PID ${sellerPid || 'None'}): ${sellerOk ? '✓ Healthy' : '✗ Offline'}`);
+  console.log(`Storefront  (Port 3000, PID ${platformPid || 'None'}): ${platformOk ? '✓ Healthy' : '✗ Offline'}`);
+  console.log('==================================================\n');
+  process.exit(0);
+}
+
+async function handleStop() {
+  console.log('\nStopping Simply development services...');
+  cleanStaleProcesses();
+
+  // Also clean any Simply processes currently listening on canonical ports
+  for (const port of CANONICAL_PORTS) {
+    const pid = getPortPid(port);
+    if (pid && isSimplyProcess(pid)) {
+      killProcessTree(pid);
+    }
+  }
+
+  const free = await verifyPortsReleased(CANONICAL_PORTS, 4000);
+  if (fs.existsSync(PID_FILE)) {
+    try { fs.unlinkSync(PID_FILE); } catch {}
+  }
+
+  console.log('✓ API stopped');
+  console.log('✓ Merchant Portal stopped');
+  console.log('✓ Storefront stopped');
+  if (free) {
+    console.log('✓ Ports released (4000, 3001, 3000)');
+  } else {
+    console.log('⚠ Ports released with delay');
+  }
+  console.log('Done.\n');
+  process.exit(0);
 }
 
 // --- Noise Filtering ---
@@ -318,37 +412,81 @@ function isNoise(line) {
 // --- Main Application Lifecycle ---
 
 async function main() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const devOtpEnabled = !isProduction;
+  // Handle CLI utility flags
+  if (process.argv.includes('--status')) {
+    await handleStatus();
+    return;
+  }
+  if (process.argv.includes('--stop')) {
+    await handleStop();
+    return;
+  }
 
-  // 1. Preflight database
+  // 1. Prevent duplicate launcher run
+  if (fs.existsSync(PID_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(PID_FILE, 'utf8'));
+      if (data.launcherPid && data.launcherPid !== process.pid) {
+        try {
+          process.kill(data.launcherPid, 0);
+          const cmd = getProcessCommandLine(data.launcherPid).toLowerCase();
+          if (cmd.includes('dev-merchant')) {
+            console.log('\n==================================================');
+            console.log('SIMPLY / LETZSHOP — ALREADY RUNNING');
+            console.log('==================================================');
+            console.log(`A Simply development environment is already running (PID ${data.launcherPid}).\n`);
+            console.log('To view status:  pnpm dev:status');
+            console.log('To stop:        pnpm dev:stop');
+            console.log('==================================================\n');
+            process.exit(0);
+          }
+        } catch {
+          // Stale launcher PID, proceed to clean
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Preflight database
   const dbOk = await checkDatabase();
   if (!dbOk) {
     process.exit(1);
   }
 
-  // 2. Clean stale Simply processes from previous runs
+  // 3. Clean stale Simply processes from previous runs
   cleanStaleProcesses();
 
-  // 3. Preflight required ports
-  const portsOk = checkPortPreflight([4000, 3001, 3000]);
+  // 4. Preflight required ports (cleans stale Simply processes, halts on unknown external)
+  const portsOk = await checkPortPreflight(CANONICAL_PORTS);
   if (!portsOk) {
     process.exit(1);
   }
 
-  // 4. Process Spawning Configuration
-  const pnpmCmd = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-  const spawnOpts = {
-    cwd: rootDir,
-    shell: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FORCE_COLOR: '1' }
-  };
+  // 5. Direct Child Process Spawning (shell: false on Windows to avoid cmd.exe / batch Ctrl+C traps)
+  const nodeBinary = process.execPath;
+  const nestBin = path.resolve(rootDir, 'apps/api/node_modules/@nestjs/cli/bin/nest.js');
+  const nextSellerBin = path.resolve(rootDir, 'apps/seller/node_modules/next/dist/bin/next');
+  const nextStorefrontBin = path.resolve(rootDir, 'apps/storefront/node_modules/next/dist/bin/next');
 
   const children = {
-    api: spawn(pnpmCmd, ['--filter', '@simply/api', 'dev'], spawnOpts),
-    seller: spawn(pnpmCmd, ['--filter', '@simply/seller', 'dev'], spawnOpts),
-    platform: spawn(pnpmCmd, ['--filter', '@simply/storefront', 'dev'], spawnOpts)
+    api: spawn(nodeBinary, [nestBin, 'start', '--watch'], {
+      cwd: path.resolve(rootDir, 'apps/api'),
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '1' }
+    }),
+    seller: spawn(nodeBinary, [nextSellerBin, 'dev', '-p', '3001'], {
+      cwd: path.resolve(rootDir, 'apps/seller'),
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '1' }
+    }),
+    platform: spawn(nodeBinary, [nextStorefrontBin, 'dev', '-p', '3000'], {
+      cwd: path.resolve(rootDir, 'apps/storefront'),
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '1' }
+    })
   };
 
   const trackedListeningPids = new Set();
@@ -370,18 +508,18 @@ async function main() {
 
   savePidFile();
 
-  // 5. Shutdown Logic (Idempotent)
+  // 6. Shutdown Logic (Idempotent, Single Ctrl+C clean exit)
   let shuttingDown = false;
 
   async function shutdown(reason = 'SIGINT', exitCode = 0) {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    if (reason === 'SIGINT' || reason === 'SIGTERM') {
+    if (reason === 'SIGINT' || reason === 'SIGTERM' || reason === 'SIGBREAK') {
       console.log('\nStopping Simply development services...');
     }
 
-    // Stop tracked root processes
+    // Stop tracked direct child processes
     for (const [name, child] of Object.entries(children)) {
       if (child && child.pid) {
         killProcessTree(child.pid);
@@ -393,10 +531,10 @@ async function main() {
       killProcessTree(pid);
     }
 
-    // Also collect any listening PIDs on our ports that match our children
-    for (const port of [4000, 3001, 3000]) {
+    // Also collect any listening PIDs on canonical ports
+    for (const port of CANONICAL_PORTS) {
       const p = getPortPid(port);
-      if (p && trackedListeningPids.has(p)) {
+      if (p && isSimplyProcess(p)) {
         killProcessTree(p);
       }
     }
@@ -407,23 +545,23 @@ async function main() {
     ]);
 
     // Verify all ports released
-    const released = await verifyPortsReleased([4000, 3001, 3000], 4000, allTracked);
+    const released = await verifyPortsReleased(CANONICAL_PORTS, 4000, allTracked);
 
     // Remove runtime PID file
     try {
       if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
     } catch {}
 
-    if (reason === 'SIGINT' || reason === 'SIGTERM') {
+    if (reason === 'SIGINT' || reason === 'SIGTERM' || reason === 'SIGBREAK') {
       console.log('✓ API stopped');
-      console.log('✓ Seller stopped');
-      console.log('✓ Platform stopped');
+      console.log('✓ Merchant Portal stopped');
+      console.log('✓ Storefront stopped');
       if (released) {
-        console.log('✓ Ports released\n');
+        console.log('✓ Ports released');
       } else {
-        console.log('⚠ Ports released with delay\n');
+        console.log('⚠ Ports released with delay');
       }
-      console.log('Done.');
+      console.log('Done.\n');
     }
 
     process.exit(exitCode);
@@ -441,8 +579,10 @@ async function main() {
     shutdown('unhandledRejection', 1);
   });
 
-  if (process.stdin) {
+  if (process.stdin && process.stdin.isTTY) {
     try {
+      process.stdin.setRawMode?.(true);
+      process.stdin.resume();
       process.stdin.setEncoding('utf8');
       process.stdin.on('data', (data) => {
         const s = data.toString();
@@ -453,27 +593,33 @@ async function main() {
     } catch {}
   }
 
-  // 6. Child Stream & Exit Handling
+  // 7. Child Stream & Output Banner
   let bannerPrinted = false;
 
   const printSummary = () => {
     if (bannerPrinted) return;
     bannerPrinted = true;
 
-    // Track listening PIDs once ready
-    for (const port of [4000, 3001, 3000]) {
+    for (const port of CANONICAL_PORTS) {
       const p = getPortPid(port);
       if (p) trackedListeningPids.add(p);
     }
     savePidFile();
 
-    console.log('\nSIMPLY E-COMMERCE — MERCHANT DEV\n');
-    console.log('✓ Database connected');
-    console.log('✓ API          http://localhost:4000');
-    console.log('✓ Platform     http://localhost:3000');
-    console.log('✓ Seller       http://localhost:3001');
-    console.log(`✓ Dev OTP      ${devOtpEnabled ? 'enabled' : 'disabled'}\n`);
-    console.log('Watching for changes...\n');
+    console.log('\n==================================================');
+    console.log('SIMPLY / LETZSHOP DEVELOPMENT');
+    console.log('==================================================\n');
+    console.log('API');
+    console.log('http://localhost:4000');
+    console.log('✓ Healthy\n');
+    console.log('Merchant Portal');
+    console.log('http://localhost:3001');
+    console.log('✓ Healthy\n');
+    console.log('Storefront');
+    console.log('http://localhost:3000');
+    console.log('✓ Healthy\n');
+    console.log('Press Ctrl+C once to stop all services.');
+    console.log('==================================================\n');
   };
 
   const processStream = (chunk, isStderr = false) => {
@@ -511,7 +657,7 @@ async function main() {
     });
   }
 
-  // 7. Wait for all services to become healthy before declaring success
+  // 8. Wait for all services to become healthy before declaring success
   const allReady = await waitForServicesReady(120000);
   if (allReady && !bannerPrinted && !shuttingDown) {
     printSummary();

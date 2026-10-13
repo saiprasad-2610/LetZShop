@@ -268,10 +268,10 @@ export default function OrdersPage() {
         {/* ================================================== */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--merchant-text)] tracking-tight">
               Orders
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <p className="text-xs sm:text-sm text-[var(--merchant-text-muted)] mt-0.5">
               Manage customer orders and fulfillment
             </p>
           </div>
@@ -279,9 +279,9 @@ export default function OrdersPage() {
             <button
               onClick={() => fetchOrders(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200/90 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition shadow-2xs disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] active:bg-[var(--merchant-surface-raised)] transition shadow-2xs disabled:opacity-60"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
               <span>Refresh</span>
             </button>
           </div>
@@ -309,18 +309,18 @@ export default function OrdersPage() {
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
                   isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    ? 'bg-[var(--merchant-primary)] text-white border-[var(--merchant-primary)] shadow-xs font-bold'
+                    : 'bg-[var(--merchant-surface)] text-[var(--merchant-text)] border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-muted)]'
                 }`}
               >
                 <span>{pill.label}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold font-mono ${
                     isSelected
-                      ? 'bg-slate-700 text-white'
+                      ? 'bg-black/20 text-white'
                       : pill.highlight
                       ? 'bg-amber-100 text-amber-800'
-                      : 'bg-slate-100 text-slate-600'
+                      : 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)]'
                   }`}
                 >
                   {pill.count}
@@ -333,23 +333,23 @@ export default function OrdersPage() {
         {/* ================================================== */}
         {/* SECTION 5: SEARCH + FILTER BAR (DESKTOP + MOBILE)  */}
         {/* ================================================== */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-2xs space-y-3">
+        <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-3 shadow-2xs space-y-3">
           {/* Main search and quick filters row */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-[var(--merchant-text-muted)] absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by order #, customer name, phone..."
-                className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                className="w-full pl-9 pr-8 py-2 text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20 focus:border-[var(--merchant-focus-ring)] transition"
               />
               {searchInput && (
                 <button
                   onClick={() => setSearchInput('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2.5 top-2.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)]"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -365,7 +365,7 @@ export default function OrdersPage() {
                   setStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
                 <option value="">All Statuses</option>
                 <option value="NEEDS_ACTION">Needs Action (New/Accepted)</option>
@@ -385,7 +385,7 @@ export default function OrdersPage() {
                   setPaymentStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
                 <option value="">All Payments</option>
                 <option value="PAID">Paid</option>
@@ -403,7 +403,7 @@ export default function OrdersPage() {
                   setDateRange(e.target.value);
                   setPage(1);
                 }}
-                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
                 <option value="ALL">All Time</option>
                 <option value="TODAY">Today</option>
@@ -415,7 +415,7 @@ export default function OrdersPage() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={handleClearFilters}
-                  className="px-2.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition flex items-center gap-1"
+                  className="px-2.5 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 rounded-xl transition flex items-center gap-1"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>Clear</span>
@@ -429,8 +429,8 @@ export default function OrdersPage() {
                 onClick={() => setMobileFilterOpen(true)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-semibold transition ${
                   activeFilterCount > 0
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-white text-slate-700 border-slate-200'
+                    ? 'bg-[var(--merchant-primary-soft)] text-[var(--merchant-primary)] border-[var(--merchant-primary)]'
+                    : 'bg-[var(--merchant-surface)] text-[var(--merchant-text)] border-[var(--merchant-border)]'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -440,7 +440,7 @@ export default function OrdersPage() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={handleClearFilters}
-                  className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl"
+                  className="px-3 py-2 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-xl"
                 >
                   Reset
                 </button>
@@ -451,16 +451,16 @@ export default function OrdersPage() {
 
         {/* Mobile Filters Modal / Sheet */}
         {mobileFilterOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/40 backdrop-blur-xs p-0 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-in slide-in-from-bottom duration-200">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+            <div className="bg-[var(--merchant-surface)] rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-[var(--merchant-border)] animate-in slide-in-from-bottom duration-200 text-[var(--merchant-text)]">
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--merchant-border)]">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-bold text-slate-900 text-sm">Filter Orders</h3>
+                  <Filter className="w-4 h-4 text-[var(--merchant-primary)]" />
+                  <h3 className="font-bold text-[var(--merchant-text)] text-sm">Filter Orders</h3>
                 </div>
                 <button
                   onClick={() => setMobileFilterOpen(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                  className="p-1 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-lg"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -468,13 +468,13 @@ export default function OrdersPage() {
 
               {/* Status Filter */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
                   Order Status
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium"
+                  className="w-full text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl p-2.5 font-medium"
                 >
                   <option value="">All Statuses</option>
                   <option value="NEEDS_ACTION">Needs Action (New/Accepted)</option>
@@ -490,13 +490,13 @@ export default function OrdersPage() {
 
               {/* Payment Filter */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
                   Payment Status
                 </label>
                 <select
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium"
+                  className="w-full text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl p-2.5 font-medium"
                 >
                   <option value="">All Payments</option>
                   <option value="PAID">Paid</option>
@@ -510,7 +510,7 @@ export default function OrdersPage() {
 
               {/* Date Range Filter */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
                   Date Range
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -526,8 +526,8 @@ export default function OrdersPage() {
                       onClick={() => setDateRange(d.key)}
                       className={`py-2 px-3 text-xs font-semibold rounded-xl border text-center transition ${
                         dateRange === d.key
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          ? 'bg-[var(--merchant-primary)] text-white border-[var(--merchant-primary)] font-bold'
+                          : 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-raised)]'
                       }`}
                     >
                       {d.label}
@@ -540,7 +540,7 @@ export default function OrdersPage() {
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                  className="flex-1 py-2 text-xs font-semibold text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] rounded-xl transition"
                 >
                   Reset All
                 </button>
@@ -550,7 +550,7 @@ export default function OrdersPage() {
                     setPage(1);
                     setMobileFilterOpen(false);
                   }}
-                  className="flex-1 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition"
+                  className="flex-1 py-2 text-xs font-bold text-white bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] rounded-xl shadow-xs transition"
                 >
                   Apply Filters
                 </button>
@@ -563,15 +563,15 @@ export default function OrdersPage() {
         {/* SECTION 31: ERROR STATE                           */}
         {/* ================================================== */}
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-800 text-xs">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-3 text-rose-600 text-xs">
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">Unable to load orders</p>
-              <p className="text-rose-600 mt-0.5">{error}</p>
+              <p className="font-semibold text-[var(--merchant-text)]">Unable to load orders</p>
+              <p className="text-rose-500 mt-0.5">{error}</p>
             </div>
             <button
               onClick={() => fetchOrders()}
-              className="px-3 py-1 bg-white border border-rose-300 text-rose-700 hover:bg-rose-100 rounded-lg font-semibold shrink-0"
+              className="px-3 py-1 bg-[var(--merchant-surface)] border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 rounded-lg font-semibold shrink-0"
             >
               Retry
             </button>
@@ -585,20 +585,20 @@ export default function OrdersPage() {
           <TableSkeleton columns={7} rows={6} />
         ) : orders.length === 0 ? (
           /* SECTION 10: EMPTY STATES */
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-8 sm:p-12 text-center shadow-2xs">
-            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
+          <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-8 sm:p-12 text-center shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-[var(--merchant-surface-muted)] flex items-center justify-center mx-auto mb-3 text-[var(--merchant-text-muted)]">
               <ShoppingBag className="w-6 h-6" />
             </div>
             {activeFilterCount > 0 ? (
               <>
-                <h3 className="text-base font-bold text-slate-900">No orders match these filters</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-[var(--merchant-text)]">No orders match these filters</h3>
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-sm mx-auto">
                   Try adjusting or clearing your search criteria, order status, or date range.
                 </p>
                 <div className="mt-4">
                   <button
                     onClick={handleClearFilters}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition shadow-xs"
+                    className="px-4 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-semibold transition shadow-xs"
                   >
                     Clear Filters
                   </button>
@@ -606,14 +606,14 @@ export default function OrdersPage() {
               </>
             ) : (
               <>
-                <h3 className="text-base font-bold text-slate-900">No orders yet</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-[var(--merchant-text)]">No orders yet</h3>
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-sm mx-auto">
                   Customer orders will appear here once your store starts receiving them.
                 </p>
                 <div className="mt-4">
                   <Link
                     href="/store-preview"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-semibold transition shadow-xs"
                   >
                     <span>Preview Store</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -627,10 +627,10 @@ export default function OrdersPage() {
             {/* -------------------------------------------------- */}
             {/* SECTION 6 & 7: DESKTOP TABLE (1024px and up)      */}
             {/* -------------------------------------------------- */}
-            <div className="hidden lg:block bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+            <div className="hidden lg:block bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                  <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="py-3 px-4">Order</th>
                       <th className="py-3 px-4">Customer</th>
@@ -642,7 +642,7 @@ export default function OrdersPage() {
                       <th className="py-3 px-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[var(--merchant-border)]">
                     {orders.map((o) => {
                       const dt = formatDate(o.createdAt);
                       const itemsCount = o.itemsCount || o.items?.length || 1;
@@ -669,35 +669,35 @@ export default function OrdersPage() {
                         <tr
                           key={o.id}
                           onClick={() => setSelectedOrder(o)}
-                          className="hover:bg-slate-50/80 transition cursor-pointer group"
+                          className="hover:bg-[var(--merchant-surface-muted)] transition cursor-pointer group"
                         >
                           {/* Order Number */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                          <td className="py-3.5 px-4 font-mono font-bold text-[var(--merchant-text)]">
                             #{o.orderNumber}
                           </td>
 
                           {/* Customer */}
                           <td className="py-3.5 px-4">
-                            <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition">
+                            <div className="font-semibold text-[var(--merchant-text)] group-hover:text-[var(--merchant-primary)] transition">
                               {customerDisplayName}
                             </div>
-                            <div className="text-[11px] text-slate-400 font-mono">
+                            <div className="text-[11px] text-[var(--merchant-text-muted)] font-mono">
                               {customerDisplayPhone}
                             </div>
                           </td>
 
                           {/* Items */}
-                          <td className="py-3.5 px-4 max-w-xs truncate text-slate-600">
-                            <span className="font-semibold text-slate-800">
+                          <td className="py-3.5 px-4 max-w-xs truncate text-[var(--merchant-text-secondary)]">
+                            <span className="font-semibold text-[var(--merchant-text)]">
                               {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                             </span>
-                            <span className="text-slate-400 block text-[11px] truncate">
+                            <span className="text-[var(--merchant-text-muted)] block text-[11px] truncate">
                               {summary}
                             </span>
                           </td>
 
                           {/* Amount */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
+                          <td className="py-3.5 px-4 font-mono font-bold text-[var(--merchant-text)] text-sm whitespace-nowrap">
                             {formatPaise(o.totalAmountPaise ?? o.totalPaise ?? 0)}
                           </td>
 
@@ -712,9 +712,9 @@ export default function OrdersPage() {
                           </td>
 
                           {/* Date */}
-                          <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap">
-                            <div className="font-medium text-slate-700">{dt.date}</div>
-                            <div className="text-[10px] text-slate-400">{dt.time}</div>
+                          <td className="py-3.5 px-4 text-[var(--merchant-text-muted)] whitespace-nowrap">
+                            <div className="font-medium text-[var(--merchant-text)]">{dt.date}</div>
+                            <div className="text-[10px] text-[var(--merchant-text-muted)]">{dt.time}</div>
                           </td>
 
                           {/* Action */}
@@ -724,7 +724,7 @@ export default function OrdersPage() {
                                 e.stopPropagation();
                                 setSelectedOrder(o);
                               }}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold text-xs transition inline-flex items-center gap-1 group-hover:bg-blue-50 group-hover:text-blue-700"
+                              className="px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] rounded-lg font-semibold text-xs transition inline-flex items-center gap-1 group-hover:bg-[var(--merchant-primary-soft)] group-hover:text-[var(--merchant-primary)]"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>View</span>
@@ -768,16 +768,16 @@ export default function OrdersPage() {
                   <div
                     key={o.id}
                     onClick={() => setSelectedOrder(o)}
-                    className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-3 hover:border-slate-300 transition cursor-pointer"
+                    className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-4 shadow-2xs space-y-3 hover:border-[var(--merchant-border-strong)] transition cursor-pointer"
                   >
                     {/* Header Row: Order # and Total */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-slate-900 text-sm">
+                        <span className="font-mono font-bold text-[var(--merchant-text)] text-sm">
                           #{o.orderNumber}
                         </span>
                       </div>
-                      <span className="font-mono font-bold text-slate-900 text-sm">
+                      <span className="font-mono font-bold text-[var(--merchant-text)] text-sm">
                         {formatPaise(o.totalAmountPaise ?? o.totalPaise ?? 0)}
                       </span>
                     </div>
@@ -785,25 +785,25 @@ export default function OrdersPage() {
                     {/* Middle Row: Customer and Items */}
                     <div className="text-xs space-y-0.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-[var(--merchant-text)]">
                           {customerDisplayName}
                         </span>
-                        <span className="text-[11px] text-slate-500 font-medium">
+                        <span className="text-[11px] text-[var(--merchant-text-muted)] font-medium">
                           {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                         </span>
                       </div>
                       {customerDisplayPhone !== '—' && (
-                        <p className="text-[11px] text-slate-400 font-mono">
+                        <p className="text-[11px] text-[var(--merchant-text-muted)] font-mono">
                           {customerDisplayPhone}
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-500 truncate pt-0.5">
+                      <p className="text-[11px] text-[var(--merchant-text-muted)] truncate pt-0.5">
                         {summary}
                       </p>
                     </div>
 
                     {/* Badges Row */}
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 flex-wrap gap-2">
+                    <div className="flex items-center justify-between pt-1 border-t border-[var(--merchant-border)] flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         {getPaymentStatusBadge(o.paymentStatus, o.paymentMethod)}
                         {getOrderStatusBadge(o.status)}
@@ -812,7 +812,7 @@ export default function OrdersPage() {
 
                     {/* Footer Row: Timestamp & View Order Button */}
                     <div className="flex items-center justify-between pt-2 text-xs">
-                      <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1 text-[11px] text-[var(--merchant-text-muted)]">
                         <Clock className="w-3.5 h-3.5" />
                         <span>
                           {dt.date} · {dt.time}
@@ -824,7 +824,7 @@ export default function OrdersPage() {
                           e.stopPropagation();
                           setSelectedOrder(o);
                         }}
-                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold text-xs transition inline-flex items-center gap-1"
+                        className="px-3 py-1 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] rounded-lg font-semibold text-xs transition inline-flex items-center gap-1"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>View Order</span>
@@ -839,37 +839,37 @@ export default function OrdersPage() {
             {/* SECTION 9: SERVER-SIDE PAGINATION                 */}
             {/* ================================================== */}
             {totalPages > 1 && (
-              <div className="bg-white border border-slate-200/90 rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
-                <p className="text-xs text-slate-500 order-2 sm:order-1">
+              <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                <p className="text-xs text-[var(--merchant-text-muted)] order-2 sm:order-1">
                   Showing{' '}
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-[var(--merchant-text)]">
                     {(page - 1) * pageSize + 1}
                   </span>{' '}
                   to{' '}
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-[var(--merchant-text)]">
                     {Math.min(page * pageSize, totalCount)}
                   </span>{' '}
-                  of <span className="font-semibold text-slate-800">{totalCount}</span> orders
+                  of <span className="font-semibold text-[var(--merchant-text)]">{totalCount}</span> orders
                 </p>
 
                 <div className="flex items-center gap-2 order-1 sm:order-2">
                   <button
                     onClick={() => setPage((p) => Math.max(p - 1, 1))}
                     disabled={page <= 1}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
+                    className="px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
                     <span>Previous</span>
                   </button>
 
-                  <span className="text-xs font-semibold text-slate-700 px-2 font-mono">
+                  <span className="text-xs font-semibold text-[var(--merchant-text)] px-2 font-mono">
                     Page {page} of {totalPages}
                   </span>
 
                   <button
                     onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
                     disabled={page >= totalPages}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
+                    className="px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
                   >
                     <span>Next</span>
                     <ChevronRight className="w-3.5 h-3.5" />

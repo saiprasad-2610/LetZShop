@@ -73,20 +73,20 @@ export function IndianPhoneInput({
   return (
     <div className={`w-full ${className}`}>
       {label && (
-        <label htmlFor={id} className="block text-xs font-medium text-slate-300 mb-1.5">
-          {label}
+        <label htmlFor={id} className="block text-xs font-semibold text-merchant-text-secondary mb-1.5">
+          {label} {required && <span className="text-rose-500">*</span>}
         </label>
       )}
       <div
-        className={`flex items-center rounded-lg bg-slate-950 border transition-colors ${
+        className={`flex items-center rounded-xl bg-merchant-input-bg border transition-colors ${
           isInvalid || isRequiredMissing
             ? 'border-rose-500/80 focus-within:ring-2 focus-within:ring-rose-500/30'
-            : 'border-slate-700 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent'
+            : 'border-merchant-input-border focus-within:ring-2 focus-within:ring-merchant-focus-ring focus-within:border-merchant-primary'
         }`}
       >
-        <div className="flex items-center pl-3.5 pr-2.5 text-slate-400 font-semibold text-sm select-none border-r border-slate-800 shrink-0">
+        <div className="flex items-center pl-3.5 pr-2.5 text-merchant-text-muted font-semibold text-sm select-none border-r border-merchant-border shrink-0">
           <span>+91</span>
-          <span className="mx-2 text-slate-600 font-light">|</span>
+          <span className="mx-2 text-merchant-border-strong font-light">|</span>
         </div>
         <input
           id={id}
@@ -102,14 +102,14 @@ export function IndianPhoneInput({
           onPaste={handlePaste}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="block w-full px-3 py-2.5 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none tracking-wider font-mono font-medium disabled:opacity-50"
+          className="block w-full px-3 py-2.5 bg-transparent text-sm text-merchant-text placeholder-merchant-text-muted focus:outline-none tracking-wider font-mono font-medium disabled:opacity-50"
         />
       </div>
       {showError && isInvalid && (
-        <p className="mt-1 text-xs text-rose-400 font-medium">Enter a valid 10-digit mobile number.</p>
+        <p className="mt-1 text-xs text-rose-500 font-medium">Enter a valid 10-digit mobile number.</p>
       )}
       {showError && isRequiredMissing && (
-        <p className="mt-1 text-xs text-rose-400 font-medium">Mobile number is required.</p>
+        <p className="mt-1 text-xs text-rose-500 font-medium">Mobile number is required.</p>
       )}
     </div>
   );

@@ -938,7 +938,7 @@ export default function BrandStudioPage() {
 
   // Render controls content
   const renderControls = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 brand-studio-controls">
       {/* ======================================================== */}
       {/* TAB 1: THEME & GLOBAL STYLING */}
       {/* ======================================================== */}
@@ -2605,10 +2605,10 @@ export default function BrandStudioPage() {
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--merchant-text)' }}>
               Brand Studio & Store Customizer
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--merchant-text-muted)' }}>
               Customize colors, fonts, layouts, pages, and footer with social media accounts
             </p>
           </div>
@@ -2619,7 +2619,8 @@ export default function BrandStudioPage() {
                 href={`http://localhost:3000/store/${store.slug}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 hover:border-slate-400 bg-white text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs"
+                style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-bold transition shadow-2xs hover:opacity-90"
               >
                 <span>View Live Store</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -2629,7 +2630,8 @@ export default function BrandStudioPage() {
             <button
               onClick={handleSaveThemeConfig}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer"
+              style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Publishing Design...' : 'Publish Design'}
@@ -2639,9 +2641,9 @@ export default function BrandStudioPage() {
 
         {/* Success Alert Banner */}
         {saveSuccess && (
-          <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 p-4 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div className="text-xs">
                 <span className="font-bold block">Storefront Published Successfully!</span>
                 <span>Your dynamic design, custom texts, colors, footer, and social media links are now live for customers across all pages.</span>
@@ -2661,26 +2663,31 @@ export default function BrandStudioPage() {
         )}
 
         {/* 5 Page / Module Navigation Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 bg-slate-200/80 p-1 rounded-xl max-w-3xl gap-1">
+        <div
+          className="grid grid-cols-2 sm:grid-cols-5 p-1 rounded-xl max-w-3xl gap-1 border transition-colors"
+          style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
+        >
           <button
             onClick={() => handleTabSwitch('THEME')}
-            className={`py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            style={
               activeTab === 'THEME'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+                ? { backgroundColor: 'var(--merchant-surface)', color: 'var(--merchant-text)' }
+                : { color: 'var(--merchant-text-secondary)' }
+            }
+            className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <Palette className="w-3.5 h-3.5 text-blue-600" />
+            <Palette className="w-3.5 h-3.5" style={{ color: 'var(--merchant-primary)' }} />
             <span className="truncate">Theme & Colors</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('HOME')}
-            className={`py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            style={
               activeTab === 'HOME'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+                ? { backgroundColor: 'var(--merchant-surface)', color: 'var(--merchant-text)' }
+                : { color: 'var(--merchant-text-secondary)' }
+            }
+            className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <Home className="w-3.5 h-3.5 text-amber-500" />
             <span className="truncate">Home Page</span>
@@ -2688,37 +2695,40 @@ export default function BrandStudioPage() {
 
           <button
             onClick={() => handleTabSwitch('PRODUCTS')}
-            className={`py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            style={
               activeTab === 'PRODUCTS'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+                ? { backgroundColor: 'var(--merchant-surface)', color: 'var(--merchant-text)' }
+                : { color: 'var(--merchant-text-secondary)' }
+            }
+            className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+            <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
             <span className="truncate">Products Page</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('ABOUT')}
-            className={`py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            style={
               activeTab === 'ABOUT'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+                ? { backgroundColor: 'var(--merchant-surface)', color: 'var(--merchant-text)' }
+                : { color: 'var(--merchant-text-secondary)' }
+            }
+            className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+            <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
             <span className="truncate">About Us</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('FOOTER')}
-            className={`py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            style={
               activeTab === 'FOOTER'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+                ? { backgroundColor: 'var(--merchant-surface)', color: 'var(--merchant-text)' }
+                : { color: 'var(--merchant-text-secondary)' }
+            }
+            className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <Share2 className="w-3.5 h-3.5 text-pink-600" />
+            <Share2 className="w-3.5 h-3.5 text-pink-500" />
             <span className="truncate">Footer & Socials</span>
           </button>
         </div>
@@ -2728,9 +2738,17 @@ export default function BrandStudioPage() {
           {/* Controls Column */}
           <div className="lg:col-span-6 hidden lg:block">
             {loading ? (
-              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-                <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-slate-500">Loading customizer settings...</p>
+              <div
+                className="p-12 text-center rounded-2xl border"
+                style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+              >
+                <div
+                  className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin mx-auto mb-3"
+                  style={{ borderColor: 'var(--merchant-primary)', borderTopColor: 'transparent' }}
+                />
+                <p className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>
+                  Loading customizer settings...
+                </p>
               </div>
             ) : (
               renderControls()
@@ -2739,11 +2757,17 @@ export default function BrandStudioPage() {
 
           {/* Live Storefront Interactive Preview Column */}
           <div className="lg:col-span-6 sticky top-20">
-            <div className="bg-slate-950 rounded-2xl p-4 shadow-xl text-white space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div
+              className="rounded-2xl p-4 shadow-xl border space-y-4 transition-colors"
+              style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+            >
+              <div
+                className="flex items-center justify-between border-b pb-3"
+                style={{ borderColor: 'var(--merchant-border)' }}
+              >
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text)' }}>
                     Live Storefront Preview ({currentThemeObj.name})
                   </span>
                 </div>
@@ -2752,7 +2776,8 @@ export default function BrandStudioPage() {
                   {/* Mobile Controls Drawer Trigger for < 1024px */}
                   <button
                     onClick={() => setMobileDrawerOpen(true)}
-                    className="lg:hidden px-2.5 py-1 rounded bg-blue-600 text-white text-xs font-semibold flex items-center gap-1"
+                    style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
+                    className="lg:hidden px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 hover:opacity-90"
                   >
                     <Sliders className="w-3 h-3" /> Edit Fields
                   </button>
@@ -2782,22 +2807,35 @@ export default function BrandStudioPage() {
 
       {/* Mobile Drawer for Controls (on screens < 1024px) */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl max-h-[85vh] h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
-              <span className="text-sm font-bold text-slate-900">Customizer Controls</span>
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs">
+          <div
+            className="rounded-t-3xl max-h-[85vh] h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 border-t"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+          >
+            <div
+              className="flex items-center justify-between p-4 border-b"
+              style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
+            >
+              <span className="text-sm font-bold" style={{ color: 'var(--merchant-text)' }}>
+                Customizer Controls
+              </span>
               <button
                 onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+                className="p-1.5 opacity-60 hover:opacity-100 rounded-lg"
+                style={{ color: 'var(--merchant-text)' }}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">{renderControls()}</div>
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex gap-2">
+            <div
+              className="p-4 border-t flex gap-2"
+              style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
+            >
               <button
                 onClick={() => setMobileDrawerOpen(false)}
-                className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold"
+                style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold hover:opacity-90"
               >
                 Close & View Preview
               </button>

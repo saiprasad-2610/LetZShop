@@ -2,30 +2,259 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+/* =========================================================================
+   SIMPLY E-COMMERCE — MERCHANT PORTAL THEME SYSTEM
+   
+   THEME 1 — DARK: "Graphite + Violet"
+   Background: #1A1B23 (page #17181F - #1A1B23)
+   Raised Surface: #2D2F3A | Cards: #22242D
+   Primary Violet: #8B5CF6 | Hover: #7C3AED
+   Secondary Violet: #A78BFA
+   Attention Accent / Gold: #F59E0B
+   Text: Primary #F3F4F6, Secondary #CBD5E1, Muted #94A3B8
+   Borders: rgba(255, 255, 255, 0.08) - 0.12
+
+   THEME 2 — LIGHT: "Sage + Gold"
+   Page Background: #F7FAF5 / #F4F8F3 (warm pale sage)
+   Sidebar: #ECFDF5 (very pale sage)
+   Cards / Surface: #FFFFFF (clean white cards)
+   Secondary Surface: #F0F5F1
+   Primary CTA: #65A30D (sage green) | Hover: #4D7C0F
+   Primary Soft: #D1FAE5
+   Gold Accent: #EAB308 | Deep Gold: #A16207
+   Text: Primary #1F2937, Secondary #475569, Muted #94A3B8
+   Borders: #DDE7DF (soft sage-gray)
+   ========================================================================= */
+
+:root,
+[data-merchant-theme="light"] {
+  /* Page & Surfaces */
+  --merchant-bg: #F7FAF5;
+  --merchant-surface: #FFFFFF;
+  --merchant-surface-raised: #F0F5F1;
+  --merchant-surface-muted: #E6EFE8;
+
+  /* Sidebar */
+  --merchant-sidebar: #ECFDF5;
+  --merchant-sidebar-hover: #D1FAE5;
+  --merchant-sidebar-active: #65A30D;
+  --merchant-sidebar-text: #1F2937;
+  --merchant-sidebar-text-muted: #4B6354;
+  --merchant-sidebar-border: #DDE7DF;
+
+  /* Borders */
+  --merchant-border: #DDE7DF;
+  --merchant-border-strong: #C4D4C7;
+  --merchant-border-subtle: #EBF2EC;
+
+  /* Typography */
+  --merchant-text: #1F2937;
+  --merchant-text-secondary: #475569;
+  --merchant-text-muted: #94A3B8;
+  --merchant-text-inverse: #FFFFFF;
+
+  /* Primary Interactive — Sage Green */
+  --merchant-primary: #65A30D;
+  --merchant-primary-hover: #4D7C0F;
+  --merchant-primary-soft: #D1FAE5;
+  --merchant-primary-text: #FFFFFF;
+
+  /* Attention / Plan Accent — Gold */
+  --merchant-accent: #EAB308;
+  --merchant-accent-hover: #CA8A04;
+  --merchant-accent-soft: #FEF9C3;
+  --merchant-accent-dark: #A16207;
+
+  /* Status Colors (Semantic) */
+  --merchant-success: #16A34A;
+  --merchant-success-soft: #DCFCE7;
+  --merchant-warning: #F59E0B;
+  --merchant-warning-soft: #FEF3C7;
+  --merchant-danger: #EF4444;
+  --merchant-danger-soft: #FEE2E2;
+  --merchant-info: #0284C7;
+  --merchant-info-soft: #E0F2FE;
+
+  /* Form Elements */
+  --merchant-input-bg: #FFFFFF;
+  --merchant-input-border: #DDE7DF;
+  --merchant-focus-ring: rgba(101, 163, 13, 0.25);
+
+  /* Shadows & Overlays */
+  --merchant-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --merchant-overlay: rgba(15, 23, 42, 0.45);
+
+  /* Scrollbars */
+  --merchant-scrollbar-track: #F0F5F1;
+  --merchant-scrollbar-thumb: #CBD5E1;
+  --merchant-scrollbar-hover: #94A3B8;
+
+  --foreground-rgb: 31, 41, 55;
+  --background-rgb: 247, 250, 245;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+[data-merchant-theme="dark"],
+.dark {
+  /* Page & Surfaces */
+  --merchant-bg: #1A1B23;
+  --merchant-surface: #22242D;
+  --merchant-surface-raised: #2D2F3A;
+  --merchant-surface-muted: #1F202A;
+
+  /* Sidebar (slightly darker graphite) */
+  --merchant-sidebar: #13141C;
+  --merchant-sidebar-hover: #22242F;
+  --merchant-sidebar-active: #8B5CF6;
+  --merchant-sidebar-text: #E5E7EB;
+  --merchant-sidebar-text-muted: #94A3B8;
+  --merchant-sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* Borders */
+  --merchant-border: rgba(255, 255, 255, 0.08);
+  --merchant-border-strong: rgba(255, 255, 255, 0.16);
+  --merchant-border-subtle: rgba(255, 255, 255, 0.05);
+
+  /* Typography */
+  --merchant-text: #F3F4F6;
+  --merchant-text-secondary: #CBD5E1;
+  --merchant-text-muted: #94A3B8;
+  --merchant-text-inverse: #111219;
+
+  /* Primary Interactive — Violet */
+  --merchant-primary: #8B5CF6;
+  --merchant-primary-hover: #7C3AED;
+  --merchant-primary-soft: rgba(139, 92, 246, 0.16);
+  --merchant-primary-text: #FFFFFF;
+
+  /* Attention / Plan Accent — Gold/Amber */
+  --merchant-accent: #F59E0B;
+  --merchant-accent-hover: #D97706;
+  --merchant-accent-soft: rgba(245, 158, 11, 0.16);
+  --merchant-accent-dark: #B45309;
+
+  /* Status Colors (Semantic) */
+  --merchant-success: #10B981;
+  --merchant-success-soft: rgba(16, 185, 129, 0.15);
+  --merchant-warning: #F59E0B;
+  --merchant-warning-soft: rgba(245, 158, 11, 0.15);
+  --merchant-danger: #F43F5E;
+  --merchant-danger-soft: rgba(244, 63, 94, 0.15);
+  --merchant-info: #A78BFA;
+  --merchant-info-soft: rgba(167, 139, 250, 0.15);
+
+  /* Form Elements */
+  --merchant-input-bg: #2D2F3A;
+  --merchant-input-border: rgba(255, 255, 255, 0.12);
+  --merchant-focus-ring: rgba(139, 92, 246, 0.35);
+
+  /* Shadows & Overlays */
+  --merchant-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --merchant-overlay: rgba(10, 11, 16, 0.75);
+
+  /* Scrollbars */
+  --merchant-scrollbar-track: #1A1B23;
+  --merchant-scrollbar-thumb: #373946;
+  --merchant-scrollbar-hover: #4B4E5F;
+
+  --foreground-rgb: 243, 244, 246;
+  --background-rgb: 26, 27, 35;
+}
+
+html,
+body,
+#__next {
+  min-height: 100vh;
+  background-color: var(--merchant-bg);
+  color: var(--merchant-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbars */
+/* Polished subtle transitions for theme switches (150-200ms) */
+body,
+aside,
+nav,
+main,
+header,
+footer {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* Custom themed scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--merchant-scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--merchant-scrollbar-thumb);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--merchant-scrollbar-hover);
 }
+
+/* Universal Merchant Form Elements */
+[data-merchant-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+[data-merchant-theme="dark"] select,
+[data-merchant-theme="dark"] textarea,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.dark select,
+.dark textarea {
+  background-color: var(--merchant-input-bg) !important;
+  border-color: var(--merchant-input-border) !important;
+  color: var(--merchant-text) !important;
+}
+
+[data-merchant-theme="dark"] input::placeholder,
+[data-merchant-theme="dark"] textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--merchant-text-muted) !important;
+  opacity: 0.6;
+}
+
+/* Customizer & Controls Theme Adaptation */
+[data-merchant-theme="dark"] .brand-studio-controls .bg-white,
+.dark .brand-studio-controls .bg-white {
+  background-color: var(--merchant-surface) !important;
+  border-color: var(--merchant-border) !important;
+  color: var(--merchant-text) !important;
+}
+
+[data-merchant-theme="dark"] .brand-studio-controls .text-slate-900,
+[data-merchant-theme="dark"] .brand-studio-controls .text-slate-800,
+[data-merchant-theme="dark"] .brand-studio-controls .text-slate-700,
+.dark .brand-studio-controls .text-slate-900,
+.dark .brand-studio-controls .text-slate-800,
+.dark .brand-studio-controls .text-slate-700 {
+  color: var(--merchant-text) !important;
+}
+
+[data-merchant-theme="dark"] .brand-studio-controls .text-slate-500,
+[data-merchant-theme="dark"] .brand-studio-controls .text-slate-600,
+.dark .brand-studio-controls .text-slate-500,
+.dark .brand-studio-controls .text-slate-600 {
+  color: var(--merchant-text-muted) !important;
+}
+
+[data-merchant-theme="dark"] .brand-studio-controls .border-slate-200,
+[data-merchant-theme="dark"] .brand-studio-controls .border-slate-200\/80,
+[data-merchant-theme="dark"] .brand-studio-controls .border-slate-200\/90,
+[data-merchant-theme="dark"] .brand-studio-controls .border-slate-300,
+.dark .brand-studio-controls .border-slate-200,
+.dark .brand-studio-controls .border-slate-200\/80,
+.dark .brand-studio-controls .border-slate-200\/90,
+.dark .brand-studio-controls .border-slate-300 {
+  border-color: var(--merchant-border) !important;
+}
+
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-50,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100,
+.dark .brand-studio-controls .bg-slate-50,
+.dark .brand-studio-controls .bg-slate-100 {
+  background-color: var(--merchant-surface-raised) !important;
+}
+

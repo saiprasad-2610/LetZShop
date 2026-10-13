@@ -44,43 +44,10 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const u = localStorage.getItem('simply_seller_user');
-        return u ? JSON.parse(u) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  const [store, setStore] = useState<any | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const s = localStorage.getItem('simply_seller_store');
-        return s ? JSON.parse(s) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  const [token, setToken] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('simply_seller_token');
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return !localStorage.getItem('simply_seller_token');
-    }
-    return true;
-  });
+  const [user, setUser] = useState<any | null>(null);
+  const [store, setStore] = useState<any | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -103,8 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedRefreshToken) {
         apiClient.setRefreshToken(savedRefreshToken);
       }
-      if (savedUser) setUser(JSON.parse(savedUser));
-      if (savedStore) setStore(JSON.parse(savedStore));
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch {
+          setUser(null);
+        }
+      }
+      if (savedStore) {
+        try {
+          setStore(JSON.parse(savedStore));
+        } catch {
+          setStore(null);
+        }
+      }
+      setLoading(false);
 
       // Validate session and refresh current store
       apiClient.stores
@@ -112,7 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .then((s) => {
           setStore(s);
           localStorage.setItem('simply_seller_store', JSON.stringify(s));
-          setLoading(false);
         })
         .catch(async (err) => {
           if (err?.status === 404) {

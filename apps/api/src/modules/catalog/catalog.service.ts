@@ -51,13 +51,23 @@ export class CatalogService {
       slug = `${baseSlug}-${counter}`;
     }
 
+    // Validate category belongs to this store if provided
+    if (dto.categoryId) {
+      const categoryExists = await this.prisma.category.findFirst({
+        where: { id: dto.categoryId, storeId: tenant.storeId },
+      });
+      if (!categoryExists) {
+        throw new BadRequestException(`Category with ID "${dto.categoryId}" does not exist in this store.`);
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // 1. Create Product root
       const product = await tx.product.create({
         data: {
           tenantId: tenant.tenantId,
           storeId: tenant.storeId,
-          categoryId: dto.categoryId,
+          categoryId: dto.categoryId ? dto.categoryId : null,
           name: dto.name,
           slug,
           description: dto.description,
@@ -365,7 +375,11 @@ export class CatalogService {
     };
 
     if (params.categoryId) {
-      where.categoryId = params.categoryId;
+      if (params.categoryId === 'uncategorized') {
+        where.categoryId = null;
+      } else {
+        where.categoryId = params.categoryId;
+      }
     }
 
     if (params.search) {
@@ -382,6 +396,7 @@ export class CatalogService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
+          category: true,
           media: { orderBy: { sortOrder: 'asc' } },
           attributes: { orderBy: { sortOrder: 'asc' } },
           documents: { orderBy: { sortOrder: 'asc' } },
@@ -446,7 +461,12 @@ export class CatalogService {
 
       await tx.productVariant.updateMany({
         where: { productId: product.id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), status: VariantStatus.DISCONTINUED },
+      });
+
+      await tx.inventory.updateMany({
+        where: { variant: { productId: product.id } },
+        data: { stockOnHand: 0 },
       });
 
       await tx.auditLog.create({
@@ -482,17 +502,26 @@ export class CatalogService {
       }
     }
 
+    if (dto.categoryId !== undefined && dto.categoryId) {
+      const categoryExists = await this.prisma.category.findFirst({
+        where: { id: dto.categoryId, storeId: tenant.storeId },
+      });
+      if (!categoryExists) {
+        throw new BadRequestException(`Category with ID "${dto.categoryId}" does not exist in this store.`);
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.product.update({
         where: { id: product.id },
         data: {
           name: dto.name ?? product.name,
-          description: dto.description ?? product.description,
+          description: dto.description !== undefined ? dto.description : product.description,
           mode: (dto.mode as any) ?? product.mode,
-          categoryId: dto.categoryId ?? product.categoryId,
+          categoryId: dto.categoryId !== undefined ? (dto.categoryId || null) : product.categoryId,
           minOrderQuantity: dto.minOrderQuantity ?? product.minOrderQuantity,
-          leadTimeDays: dto.leadTimeDays ?? product.leadTimeDays,
-          brochureUrl: dto.brochureUrl ?? product.brochureUrl,
+          leadTimeDays: dto.leadTimeDays !== undefined ? dto.leadTimeDays : product.leadTimeDays,
+          brochureUrl: dto.brochureUrl !== undefined ? (dto.brochureUrl || null) : product.brochureUrl,
           specifications: (dto.specifications as any) ?? product.specifications,
           enquiryCtaText: dto.enquiryCtaText ?? product.enquiryCtaText,
         },
@@ -727,12 +756,21 @@ export class CatalogService {
                 where: { id: ev.id },
                 data: { deletedAt: new Date(), status: VariantStatus.DISCONTINUED },
               });
+              await tx.inventory.updateMany({
+                where: { variantId: ev.id },
+                data: { stockOnHand: 0 },
+              });
             }
           }
         }
       } else {
-        // Fallback: update variant price or stock if base fields are supplied
-        if (dto.pricePaise !== undefined || dto.compareAtPricePaise !== undefined || dto.stock !== undefined) {
+        // Fallback: update variant price, stock or SKU if base fields are supplied
+        if (
+          dto.pricePaise !== undefined ||
+          dto.compareAtPricePaise !== undefined ||
+          dto.stock !== undefined ||
+          dto.sku !== undefined
+        ) {
           const firstVariant = await tx.productVariant.findFirst({
             where: { productId: product.id, deletedAt: null },
             orderBy: { sortOrder: 'asc' },
@@ -741,6 +779,7 @@ export class CatalogService {
             const varUpdate: any = {};
             if (dto.pricePaise !== undefined) varUpdate.pricePaise = dto.pricePaise;
             if (dto.compareAtPricePaise !== undefined) varUpdate.compareAtPricePaise = dto.compareAtPricePaise;
+            if (dto.sku !== undefined && dto.sku.trim()) varUpdate.sku = dto.sku.trim();
             if (Object.keys(varUpdate).length > 0) {
               await tx.productVariant.update({
                 where: { id: firstVariant.id },
@@ -748,9 +787,18 @@ export class CatalogService {
               });
             }
             if (dto.stock !== undefined) {
-              await tx.inventory.updateMany({
+              await tx.inventory.upsert({
                 where: { variantId: firstVariant.id },
-                data: { stockOnHand: dto.stock },
+                create: {
+                  tenantId: tenant.tenantId,
+                  storeId: tenant.storeId,
+                  variantId: firstVariant.id,
+                  stockOnHand: dto.stock,
+                  stockReserved: 0,
+                },
+                update: {
+                  stockOnHand: dto.stock,
+                },
               });
             }
           }
@@ -974,7 +1022,15 @@ export class CatalogService {
     return this.prisma.category.findMany({
       where: { storeId: tenant.storeId, isActive: true },
       orderBy: { sortOrder: 'asc' },
-      include: { _count: { select: { products: true } } },
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: { deletedAt: null },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -994,6 +1050,54 @@ export class CatalogService {
         slug,
         description: dto.description,
       },
+    });
+  }
+
+  public async updateCategory(
+    tenant: TenantContext,
+    categoryId: string,
+    dto: { name?: string; description?: string }
+  ) {
+    const existing = await this.prisma.category.findFirst({
+      where: { id: categoryId, storeId: tenant.storeId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const data: any = {};
+    if (dto.name !== undefined) {
+      data.name = dto.name;
+      data.slug = normalizeSlug(dto.name);
+    }
+    if (dto.description !== undefined) {
+      data.description = dto.description;
+    }
+
+    return this.prisma.category.update({
+      where: { id: categoryId },
+      data,
+    });
+  }
+
+  public async deleteCategory(tenant: TenantContext, categoryId: string) {
+    const existing = await this.prisma.category.findFirst({
+      where: { id: categoryId, storeId: tenant.storeId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Unlink products so they become Uncategorized
+      await tx.product.updateMany({
+        where: { categoryId, storeId: tenant.storeId },
+        data: { categoryId: null },
+      });
+
+      return tx.category.delete({
+        where: { id: categoryId },
+      });
     });
   }
 }

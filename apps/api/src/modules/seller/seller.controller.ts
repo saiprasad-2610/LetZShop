@@ -752,19 +752,41 @@ export class SellerController {
   }
 
   // ============================================================================
-  // SHIPROCKET SHIPPING SETTINGS
+  // ============================================================================
+  // LOGISTICS & SHIPPING SETTINGS (SELF-DELIVERY & SHIPROCKET)
   // ============================================================================
 
   @Get('shipping-settings')
-  @ApiOperation({ summary: 'Get merchant Shiprocket shipping configuration status' })
+  @ApiOperation({ summary: 'Get merchant shipping configuration status' })
   async getShippingSettings(@CurrentTenant() tenant: TenantContext) {
-    const account = await this.prisma.merchantShippingAccount.findFirst({
+    const selfAccount = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.MOCK, accountId: 'SELF_DELIVERY' },
+    });
+
+    const shiprocketAccount = await this.prisma.merchantShippingAccount.findFirst({
       where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
     });
 
-    if (!account) {
+    const isSelfDelivery = Boolean(selfAccount && selfAccount.isEnabled);
+
+    if (isSelfDelivery) {
+      return {
+        connected: true,
+        isSelfDelivery: true,
+        deliveryMode: 'self',
+        provider: 'SELF',
+        email: shiprocketAccount?.apiKeyEncrypted || '',
+        pickupLocation: shiprocketAccount?.accountId || 'Primary',
+        isEnabled: true,
+        passwordConfigured: Boolean(shiprocketAccount?.apiSecretEncrypted),
+      };
+    }
+
+    if (!shiprocketAccount) {
       return {
         connected: false,
+        isSelfDelivery: false,
+        deliveryMode: 'none',
         provider: 'SHIPROCKET',
         email: '',
         pickupLocation: 'Primary',
@@ -773,23 +795,98 @@ export class SellerController {
       };
     }
 
+    const isShiprocketConnected = Boolean(shiprocketAccount.apiKeyEncrypted && shiprocketAccount.apiSecretEncrypted);
+
     return {
-      connected: Boolean(account.apiKeyEncrypted && account.apiSecretEncrypted),
+      connected: isShiprocketConnected,
+      isSelfDelivery: false,
+      deliveryMode: isShiprocketConnected ? 'shiprocket' : 'none',
       provider: 'SHIPROCKET',
-      email: account.apiKeyEncrypted,
-      pickupLocation: account.accountId || 'Primary',
-      isEnabled: account.isEnabled,
-      passwordConfigured: Boolean(account.apiSecretEncrypted),
+      email: shiprocketAccount.apiKeyEncrypted,
+      pickupLocation: shiprocketAccount.accountId || 'Primary',
+      isEnabled: shiprocketAccount.isEnabled,
+      passwordConfigured: Boolean(shiprocketAccount.apiSecretEncrypted),
     };
   }
 
   @Post('shipping-settings')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Save or update merchant Shiprocket API User credentials and pickup location' })
+  @ApiOperation({ summary: 'Save or update merchant shipping configuration (Self-Delivery or Shiprocket)' })
   async saveShippingSettings(
     @CurrentTenant() tenant: TenantContext,
-    @Body() body: { email: string; password?: string; pickupLocation?: string; isEnabled?: boolean }
+    @Body() body: {
+      email?: string;
+      password?: string;
+      pickupLocation?: string;
+      isEnabled?: boolean;
+      deliveryMode?: 'self' | 'shiprocket';
+      isSelfDelivery?: boolean;
+    }
   ) {
+    const isSelfDelivery = Boolean(body.isSelfDelivery || body.deliveryMode === 'self');
+
+    if (isSelfDelivery) {
+      // 1. Upsert Self-Delivery (MOCK) shipping account
+      await this.prisma.merchantShippingAccount.upsert({
+        where: {
+          storeId_provider: { storeId: tenant.storeId, provider: ShippingProviderType.MOCK },
+        },
+        create: {
+          tenantId: tenant.tenantId,
+          storeId: tenant.storeId,
+          provider: ShippingProviderType.MOCK,
+          apiKeyEncrypted: 'self_delivery_by_owner',
+          apiSecretEncrypted: 'self_delivery_by_owner',
+          accountId: 'SELF_DELIVERY',
+          isEnabled: true,
+        },
+        update: {
+          apiKeyEncrypted: 'self_delivery_by_owner',
+          apiSecretEncrypted: 'self_delivery_by_owner',
+          accountId: 'SELF_DELIVERY',
+          isEnabled: true,
+        },
+      });
+
+      // 2. Disable Shiprocket account if present
+      const shiprocketExisting = await this.prisma.merchantShippingAccount.findFirst({
+        where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
+      });
+      if (shiprocketExisting) {
+        await this.prisma.merchantShippingAccount.update({
+          where: { id: shiprocketExisting.id },
+          data: { isEnabled: false },
+        });
+      }
+
+      // 3. Ensure a default shipping profile exists so shipping setup is completely verified
+      const existingProfile = await this.prisma.shippingProfile.findFirst({
+        where: { storeId: tenant.storeId, isDefault: true },
+      });
+      if (!existingProfile) {
+        await this.prisma.shippingProfile.create({
+          data: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            name: 'Self-Delivery Standard',
+            flatRatePaise: 0,
+            freeShippingThresholdPaise: null,
+            isDefault: true,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: 'Self-delivery mode enabled successfully! You can manage and deliver orders directly without 3rd-party logistics.',
+        connected: true,
+        isSelfDelivery: true,
+        deliveryMode: 'self',
+        isEnabled: true,
+      };
+    }
+
+    // Otherwise, Shiprocket configuration
     const { email, password, pickupLocation = 'Primary', isEnabled = true } = body;
     const keepExisting = !password || password === '__KEEP_EXISTING__';
 
@@ -830,10 +927,40 @@ export class SellerController {
       },
     });
 
+    // Disable MOCK self-delivery account if present
+    const selfExisting = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.MOCK, accountId: 'SELF_DELIVERY' },
+    });
+    if (selfExisting) {
+      await this.prisma.merchantShippingAccount.update({
+        where: { id: selfExisting.id },
+        data: { isEnabled: false },
+      });
+    }
+
+    // Ensure shipping profile exists
+    const existingProfile = await this.prisma.shippingProfile.findFirst({
+      where: { storeId: tenant.storeId, isDefault: true },
+    });
+    if (!existingProfile) {
+      await this.prisma.shippingProfile.create({
+        data: {
+          tenantId: tenant.tenantId,
+          storeId: tenant.storeId,
+          name: 'Standard Delivery',
+          flatRatePaise: 0,
+          freeShippingThresholdPaise: null,
+          isDefault: true,
+        },
+      });
+    }
+
     return {
       success: true,
       message: 'Shiprocket logistics settings saved successfully.',
       connected: true,
+      isSelfDelivery: false,
+      deliveryMode: 'shiprocket',
       email: cleanEmail,
       pickupLocation: cleanPickup,
       isEnabled,
@@ -867,18 +994,35 @@ export class SellerController {
 
   @Post('shipping-settings/toggle')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Toggle Shiprocket fulfillment enabled / disabled' })
+  @ApiOperation({ summary: 'Toggle shipping fulfillment enabled / disabled' })
   async toggleShippingEnabled(
     @CurrentTenant() tenant: TenantContext,
     @Body() body: { isEnabled: boolean }
   ) {
     const { isEnabled } = body;
+
+    const selfAccount = await this.prisma.merchantShippingAccount.findFirst({
+      where: { storeId: tenant.storeId, provider: ShippingProviderType.MOCK, accountId: 'SELF_DELIVERY' },
+    });
+
+    if (selfAccount) {
+      await this.prisma.merchantShippingAccount.update({
+        where: { id: selfAccount.id },
+        data: { isEnabled },
+      });
+      return {
+        success: true,
+        isEnabled,
+        message: `Self-delivery fulfillment is now ${isEnabled ? 'enabled' : 'disabled'}.`,
+      };
+    }
+
     const existing = await this.prisma.merchantShippingAccount.findFirst({
       where: { storeId: tenant.storeId, provider: ShippingProviderType.SHIPROCKET },
     });
 
     if (!existing) {
-      throw new NotFoundException('Shiprocket account not configured yet.');
+      throw new NotFoundException('Shipping account not configured yet.');
     }
 
     await this.prisma.merchantShippingAccount.update({

@@ -59,5 +59,6 @@ backups/
 
 # Runtime & Process files
 *.pid
+.simply-dev-processes.json
 
 

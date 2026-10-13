@@ -385,9 +385,28 @@ export class DashboardService {
       label: string;
       revenuePaise: number;
       orders: number;
+      customers?: number;
+      aovPaise?: number;
+      enquiries?: number;
     }
 
     const bucketMap = new Map<string, Bucket>();
+    const customerBucketMap = new Map<string, Set<string>>();
+
+    const recordOrder = (bucketKey: string, order: any) => {
+      const bucket = bucketMap.get(bucketKey);
+      if (bucket) {
+        bucket.revenuePaise += order.totalPaise;
+        bucket.orders += 1;
+        const buyerKey = order.customerId || order.customerPhone || order.customer?.phone || order.customer?.fullName || order.id;
+        if (buyerKey) {
+          if (!customerBucketMap.has(bucketKey)) {
+            customerBucketMap.set(bucketKey, new Set());
+          }
+          customerBucketMap.get(bucketKey)!.add(buyerKey);
+        }
+      }
+    };
 
     if (period.groupBy === 'hour') {
       // 24 hours: 00:00 to 23:00
@@ -403,11 +422,7 @@ export class DashboardService {
 
       for (const order of eligibleOrders) {
         const hourKey = formatIstHour(order.createdAt);
-        const bucket = bucketMap.get(hourKey);
-        if (bucket) {
-          bucket.revenuePaise += order.totalPaise;
-          bucket.orders += 1;
-        }
+        recordOrder(hourKey, order);
       }
     } else if (period.groupBy === 'day') {
       // Continuous days from startDate to endDate
@@ -431,11 +446,7 @@ export class DashboardService {
 
       for (const order of eligibleOrders) {
         const dateKey = formatIstDate(order.createdAt);
-        const bucket = bucketMap.get(dateKey);
-        if (bucket) {
-          bucket.revenuePaise += order.totalPaise;
-          bucket.orders += 1;
-        }
+        recordOrder(dateKey, order);
       }
     } else if (period.groupBy === 'month') {
       // Month buckets
@@ -457,11 +468,7 @@ export class DashboardService {
 
       for (const order of eligibleOrders) {
         const monthKey = formatIstMonth(order.createdAt);
-        const bucket = bucketMap.get(monthKey);
-        if (bucket) {
-          bucket.revenuePaise += order.totalPaise;
-          bucket.orders += 1;
-        }
+        recordOrder(monthKey, order);
       }
     } else {
       // Weekly buckets
@@ -487,15 +494,21 @@ export class DashboardService {
             matchedKey = key;
           }
         }
-        const bucket = bucketMap.get(matchedKey);
-        if (bucket) {
-          bucket.revenuePaise += order.totalPaise;
-          bucket.orders += 1;
-        }
+        recordOrder(matchedKey, order);
       }
     }
 
-    return Array.from(bucketMap.values());
+    return Array.from(bucketMap.values()).map((b) => {
+      const customerSet = customerBucketMap.get(b.date);
+      const customers = customerSet ? customerSet.size : 0;
+      const aovPaise = b.orders > 0 ? Math.round(b.revenuePaise / b.orders) : 0;
+      return {
+        ...b,
+        customers,
+        aovPaise,
+        enquiries: 0,
+      };
+    });
   }
 
   /**

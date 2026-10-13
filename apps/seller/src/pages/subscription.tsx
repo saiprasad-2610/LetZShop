@@ -159,22 +159,22 @@ export default function SubscriptionPage() {
       <div className="space-y-8 max-w-5xl mx-auto">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">
             Store Publishing & Subscription
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--merchant-text-muted)]">
             Transparent pricing with zero hidden commissions. Keep 100% of your customer revenue.
           </p>
         </div>
 
         {/* Current Status Card */}
         <div
-          className={`p-6 rounded-2xl border shadow-sm ${
+          className={`p-6 rounded-2xl border shadow-xs transition-colors ${
             isLive
-              ? 'bg-emerald-50/70 border-emerald-200'
+              ? 'bg-emerald-500/10 border-emerald-500/30'
               : isExpired
-              ? 'bg-red-50/70 border-red-200'
-              : 'bg-amber-50/70 border-amber-200'
+              ? 'bg-rose-500/10 border-rose-500/30'
+              : 'bg-amber-500/10 border-amber-500/30'
           }`}
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -182,23 +182,23 @@ export default function SubscriptionPage() {
               <div className="flex items-center gap-2">
                 {isLive ? (
                   <>
-                    <Globe className="w-5 h-5 text-emerald-600" />
-                    <span className="font-bold text-emerald-900 text-base">Your Store is LIVE</span>
+                    <Globe className="w-5 h-5 text-emerald-500" />
+                    <span className="font-bold text-[var(--merchant-text)] text-base">Your Store is LIVE</span>
                   </>
                 ) : isExpired ? (
                   <>
-                    <AlertCircle className="w-5 h-5 text-red-600" />
-                    <span className="font-bold text-red-900 text-base">Store Offline (Subscription Expired)</span>
+                    <AlertCircle className="w-5 h-5 text-rose-500" />
+                    <span className="font-bold text-[var(--merchant-text)] text-base">Store Offline (Subscription Expired)</span>
                   </>
                 ) : (
                   <>
-                    <Lock className="w-5 h-5 text-amber-600" />
-                    <span className="font-bold text-amber-900 text-base">Your Store is Private</span>
+                    <Lock className="w-5 h-5 text-amber-500" />
+                    <span className="font-bold text-[var(--merchant-text)] text-base">Your Store is Private</span>
                   </>
                 )}
               </div>
 
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-[var(--merchant-text-muted)]">
                 {isLive
                   ? `Active on the ${currentSub?.plan?.name || 'Pro'} plan. Valid through ${new Date(
                       currentSub?.currentPeriodEnd
@@ -218,7 +218,7 @@ export default function SubscriptionPage() {
                 href={`http://localhost:3000/store/${store?.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto"
               >
                 Visit Public Storefront
               </a>
@@ -228,7 +228,7 @@ export default function SubscriptionPage() {
 
         {/* Pricing Plans Grid */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-gray-900">Choose a Merchant Plan</h2>
+          <h2 className="text-lg font-bold text-[var(--merchant-text)]">Choose a Merchant Plan</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((p) => {
@@ -238,57 +238,57 @@ export default function SubscriptionPage() {
               return (
                 <div
                   key={p.id}
-                  className={`bg-white rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 shadow-sm relative ${
+                  className={`bg-[var(--merchant-surface)] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative ${
                     isCurrent
-                      ? 'border-emerald-600 ring-2 ring-emerald-500/20'
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/20'
                       : isPopular
-                      ? 'border-gray-900 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-[var(--merchant-accent)] ring-1 ring-[var(--merchant-accent)]/30 shadow-md'
+                      : 'border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)]'
                   }`}
                 >
                   {isPopular && !isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--merchant-accent)] text-slate-900 text-[11px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                       Most Popular
                     </span>
                   )}
                   {isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                       Current Plan
                     </span>
                   )}
 
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-bold text-lg text-gray-900">{p.name}</h3>
-                      <p className="text-xs text-gray-500 mt-1">{p.description}</p>
+                      <h3 className="font-bold text-lg text-[var(--merchant-text)]">{p.name}</h3>
+                      <p className="text-xs text-[var(--merchant-text-muted)] mt-1">{p.description}</p>
                     </div>
 
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-gray-900 font-mono">
+                      <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
                         {formatPaise(p.pricePaise)}
                       </span>
-                      <span className="text-xs text-gray-500 font-medium">/ month</span>
+                      <span className="text-xs text-[var(--merchant-text-muted)] font-medium">/ month</span>
                     </div>
 
-                    <div className="border-t border-gray-100 pt-4 space-y-2 text-xs text-gray-600">
+                    <div className="border-t border-[var(--merchant-border)] pt-4 space-y-2 text-xs text-[var(--merchant-text-secondary)]">
                       <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <span>Up to {p.maxProducts} active products</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <span>0% transaction fees on all orders</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <span>All 6 foundational themes + Brand Studio</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <span>Razorpay + COD payment gateway</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <span>Shiprocket shipping integration</span>
                       </div>
                     </div>
@@ -299,19 +299,19 @@ export default function SubscriptionPage() {
                       type="button"
                       disabled={isCurrent || activating === p.id}
                       onClick={() => handleActivatePlan(p)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                         isCurrent
-                          ? 'bg-emerald-100 text-emerald-800 cursor-default'
+                          ? 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] cursor-default'
                           : isPopular
-                          ? 'bg-gray-900 hover:bg-gray-800 text-white shadow'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          ? 'bg-[var(--merchant-accent)] hover:bg-[var(--merchant-accent-hover)] text-slate-900 shadow-xs'
+                          : 'bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-xs'
                       }`}
                     >
                       {activating === p.id ? (
                         'Activating...'
                       ) : isCurrent ? (
                         <>
-                          <Check className="w-4 h-4" /> Active
+                          <Check className="w-4 h-4 text-emerald-500" /> Active
                         </>
                       ) : (
                         <>
@@ -329,45 +329,45 @@ export default function SubscriptionPage() {
 
         {/* Subscription Details & Billing History (Requirement: Production-Level History & Validation) */}
         {currentSub && (
-          <div className="space-y-4 pt-8 border-t border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <History className="w-5 h-5 text-gray-500" /> Subscription Details & Billing History
+          <div className="space-y-4 pt-8 border-t border-[var(--merchant-border)]">
+            <h2 className="text-lg font-bold text-[var(--merchant-text)] flex items-center gap-2">
+              <History className="w-5 h-5 text-[var(--merchant-text-muted)]" /> Subscription Details & Billing History
             </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
               {/* Active Plan Details */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between">
+              <div className="bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] p-6 shadow-xs flex flex-col justify-between transition-colors">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--merchant-text)] flex items-center gap-2 mb-4">
                     <CreditCard className="w-4 h-4 text-emerald-500" /> Current Subscription
                   </h3>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-500">Plan</span>
-                      <span className="font-semibold text-gray-900">{currentSub.plan?.name || 'Unknown'}</span>
+                    <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
+                      <span className="text-[var(--merchant-text-muted)]">Plan</span>
+                      <span className="font-semibold text-[var(--merchant-text)]">{currentSub.plan?.name || 'Unknown'}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-500">Status</span>
-                      <span className={`font-bold ${isLive ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
+                      <span className="text-[var(--merchant-text-muted)]">Status</span>
+                      <span className={`font-bold ${isLive ? 'text-emerald-500' : 'text-amber-500'}`}>
                         {currentSub.status}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-500">Period Start</span>
-                      <span className="font-medium text-gray-800">
+                    <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
+                      <span className="text-[var(--merchant-text-muted)]">Period Start</span>
+                      <span className="font-medium text-[var(--merchant-text-secondary)]">
                         {new Date(currentSub.currentPeriodStart).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-500">Period End</span>
-                      <span className="font-medium text-gray-800">
+                    <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
+                      <span className="text-[var(--merchant-text-muted)]">Period End</span>
+                      <span className="font-medium text-[var(--merchant-text-secondary)]">
                         {new Date(currentSub.currentPeriodEnd).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Auto-Renew</span>
-                      <span className="font-medium text-gray-800">
+                      <span className="text-[var(--merchant-text-muted)]">Auto-Renew</span>
+                      <span className="font-medium text-[var(--merchant-text-secondary)]">
                         {!currentSub.cancelAtPeriodEnd ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
@@ -376,22 +376,22 @@ export default function SubscriptionPage() {
               </div>
 
               {/* Invoices */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-500" /> Invoice History
+              <div className="lg:col-span-2 bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] shadow-xs overflow-hidden flex flex-col transition-colors">
+                <div className="px-6 py-4 border-b border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)]">
+                  <h3 className="text-sm font-semibold text-[var(--merchant-text)] flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[var(--merchant-primary)]" /> Invoice History
                   </h3>
                 </div>
                 
                 {(!currentSub.invoices || currentSub.invoices.length === 0) ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-gray-400">
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-[var(--merchant-text-muted)]">
                     <FileText className="w-8 h-8 mb-2 opacity-50" />
                     <p className="text-sm">No billing history available yet.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50/50 text-gray-500 border-b border-gray-100">
+                      <thead className="bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border-b border-[var(--merchant-border)]">
                         <tr>
                           <th className="px-6 py-3 font-medium">Invoice #</th>
                           <th className="px-6 py-3 font-medium">Date</th>
@@ -400,21 +400,21 @@ export default function SubscriptionPage() {
                           <th className="px-6 py-3 font-medium text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-[var(--merchant-border)]">
                         {currentSub.invoices.map((inv: any) => (
-                          <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4 font-mono text-xs text-gray-600">{inv.invoiceNumber}</td>
-                            <td className="px-6 py-4 text-gray-600">
+                          <tr key={inv.id} className="hover:bg-[var(--merchant-surface-muted)]/50 transition-colors">
+                            <td className="px-6 py-4 font-mono text-xs text-[var(--merchant-text-secondary)]">{inv.invoiceNumber}</td>
+                            <td className="px-6 py-4 text-[var(--merchant-text-secondary)]">
                               {new Date(inv.createdAt).toLocaleDateString()}
                             </td>
-                            <td className="px-6 py-4 font-medium text-gray-900">
+                            <td className="px-6 py-4 font-medium text-[var(--merchant-text)]">
                               {formatPaise(inv.amountPaise)}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
-                                inv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                'bg-gray-100 text-gray-700'
+                                inv.status === 'PAID' ? 'bg-emerald-500/15 text-emerald-500' :
+                                inv.status === 'PENDING' ? 'bg-amber-500/15 text-amber-500' :
+                                'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)]'
                               }`}>
                                 {inv.status}
                               </span>
@@ -425,8 +425,8 @@ export default function SubscriptionPage() {
                                 disabled={!inv.invoicePdfUrl}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
                                   inv.invoicePdfUrl 
-                                    ? 'text-blue-600 hover:text-blue-700' 
-                                    : 'text-gray-400 cursor-not-allowed'
+                                    ? 'text-[var(--merchant-primary)] hover:underline' 
+                                    : 'text-[var(--merchant-text-muted)] cursor-not-allowed'
                                 }`}
                                 onClick={() => inv.invoicePdfUrl && window.open(inv.invoicePdfUrl, '_blank')}
                                 title={!inv.invoicePdfUrl ? "Invoice PDF not generated yet" : "Download PDF"}
@@ -447,25 +447,25 @@ export default function SubscriptionPage() {
         )}
 
         {/* Value Proposition Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-          <div className="p-4 bg-gray-50 rounded-xl space-y-1">
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <h4 className="text-xs font-bold text-gray-900">Strict Tenant Privacy</h4>
-            <p className="text-[11px] text-gray-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-[var(--merchant-border)]">
+          <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
+            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Strict Tenant Privacy</h4>
+            <p className="text-[11px] text-[var(--merchant-text-muted)]">
               Your customer data, margins, and sales records are isolated and encrypted per tenant.
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-xl space-y-1">
-            <Zap className="w-5 h-5 text-amber-500" />
-            <h4 className="text-xs font-bold text-gray-900">Lightning Fast PWA</h4>
-            <p className="text-[11px] text-gray-500">
+          <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
+            <Zap className="w-5 h-5 text-[var(--merchant-accent)]" />
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Lightning Fast PWA</h4>
+            <p className="text-[11px] text-[var(--merchant-text-muted)]">
               Built on Next.js 14 and Fastify for sub-second load times across 4G and 5G networks.
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-xl space-y-1">
-            <CreditCard className="w-5 h-5 text-indigo-600" />
-            <h4 className="text-xs font-bold text-gray-900">Direct Merchant Settlement</h4>
-            <p className="text-[11px] text-gray-500">
+          <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
+            <CreditCard className="w-5 h-5 text-[var(--merchant-primary)]" />
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Direct Merchant Settlement</h4>
+            <p className="text-[11px] text-[var(--merchant-text-muted)]">
               All buyer payments route directly into your verified bank account via Razorpay.
             </p>
           </div>

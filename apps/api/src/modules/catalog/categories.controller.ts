@@ -2,6 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
+  Param,
   Body,
   UseGuards,
 } from '@nestjs/common';
@@ -31,5 +34,24 @@ export class CategoriesController {
     @Body() body: { name: string; description?: string; imageUrl?: string }
   ) {
     return this.catalogService.createCategory(tenant, body);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update an existing category' })
+  async updateCategory(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { name?: string; description?: string }
+  ) {
+    return this.catalogService.updateCategory(tenant, id, body);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a category' })
+  async deleteCategory(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.catalogService.deleteCategory(tenant, id);
   }
 }

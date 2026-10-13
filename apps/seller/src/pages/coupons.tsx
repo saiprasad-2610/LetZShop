@@ -250,12 +250,12 @@ export default function CouponsManagementPage() {
 
       <div className="space-y-6 max-w-5xl pb-16">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--merchant-border)' }}>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-              <Tag className="w-6 h-6 text-emerald-600" /> Promotional Coupons & Discounts
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5" style={{ color: 'var(--merchant-text)' }}>
+              <Tag className="w-6 h-6" style={{ color: 'var(--merchant-primary)' }} /> Promotional Coupons & Discounts
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm mt-1" style={{ color: 'var(--merchant-text-muted)' }}>
               Create and manage promo codes, festive discounts, and loyalty offers for your store.
             </p>
           </div>
@@ -265,7 +265,8 @@ export default function CouponsManagementPage() {
               resetForm();
               setModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition shrink-0"
+            style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xs transition shrink-0 hover:opacity-90"
           >
             <Plus className="w-4 h-4" /> Create New Coupon
           </button>
@@ -273,75 +274,93 @@ export default function CouponsManagementPage() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Coupons</span>
-            <div className="text-2xl font-black text-slate-900">{activeCount} of {coupons.length}</div>
-            <p className="text-xs text-emerald-600 font-medium">Ready for buyer checkout</p>
+          <div
+            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Active Coupons</span>
+            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>{activeCount} of {coupons.length}</div>
+            <p className="text-xs text-emerald-400 font-medium">Ready for buyer checkout</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Redemptions</span>
-            <div className="text-2xl font-black text-slate-900">{totalUsages}</div>
-            <p className="text-xs text-slate-500 font-medium">Orders placed with coupon codes</p>
+          <div
+            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Total Redemptions</span>
+            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>{totalUsages}</div>
+            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>Orders placed with coupon codes</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Storefront Sync</span>
-            <div className="text-2xl font-black text-emerald-600 flex items-center gap-1.5">
+          <div
+            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Storefront Sync</span>
+            <div className="text-2xl font-black text-emerald-400 flex items-center gap-1.5">
               <CheckCircle2 className="w-6 h-6" /> Live
             </div>
-            <p className="text-xs text-slate-500 font-medium">Auto-validated during checkout</p>
+            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>Auto-validated during checkout</p>
           </div>
         </div>
 
         {/* Quick Launch Templates */}
-        <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-sm space-y-4">
+        <div
+          className="p-6 rounded-2xl shadow-sm space-y-4 border"
+          style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+        >
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-400" />
-            <h2 className="text-sm font-bold tracking-wider uppercase text-amber-300">Quick Campaign Launchers</h2>
+            <h2 className="text-sm font-bold tracking-wider uppercase text-amber-400">Quick Campaign Launchers</h2>
           </div>
-          <p className="text-xs text-slate-300">
+          <p className="text-xs" style={{ color: 'var(--merchant-text-secondary)' }}>
             One-click create proven promotional campaigns designed for Indian festive & seasonal buying:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <button
               onClick={() => applyTemplate('FESTIVE25', 'PERCENTAGE', '25', 'Festive Season 25% Off', '800', '400')}
-              className="text-left p-3.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/10 transition"
+              style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
             >
-              <div className="text-xs font-bold text-amber-300 font-mono">FESTIVE25</div>
-              <div className="text-xs font-semibold text-white mt-1">25% Festive Discount</div>
-              <div className="text-[11px] text-slate-400">Min Order ₹800 • Max ₹400 off</div>
+              <div className="text-xs font-bold text-amber-400 font-mono">FESTIVE25</div>
+              <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>25% Festive Discount</div>
+              <div className="text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>Min Order ₹800 • Max ₹400 off</div>
             </button>
 
             <button
               onClick={() => applyTemplate('VIP150', 'FLAT', '150', 'VIP Customer ₹150 Flat Off', '1200')}
-              className="text-left p-3.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/10 transition"
+              style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
             >
-              <div className="text-xs font-bold text-emerald-300 font-mono">VIP150</div>
-              <div className="text-xs font-semibold text-white mt-1">Flat ₹150 Off</div>
-              <div className="text-[11px] text-slate-400">Min Order ₹1,200</div>
+              <div className="text-xs font-bold text-emerald-400 font-mono">VIP150</div>
+              <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>Flat ₹150 Off</div>
+              <div className="text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>Min Order ₹1,200</div>
             </button>
 
             <button
               onClick={() => applyTemplate('WEEKEND15', 'PERCENTAGE', '15', '15% Weekend Flash Sale', '500', '200')}
-              className="text-left p-3.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/10 transition"
+              style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
             >
-              <div className="text-xs font-bold text-pink-300 font-mono">WEEKEND15</div>
-              <div className="text-xs font-semibold text-white mt-1">15% Flash Sale</div>
-              <div className="text-[11px] text-slate-400">Min Order ₹500 • Max ₹200 off</div>
+              <div className="text-xs font-bold text-pink-400 font-mono">WEEKEND15</div>
+              <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>15% Flash Sale</div>
+              <div className="text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>Min Order ₹500 • Max ₹200 off</div>
             </button>
           </div>
         </div>
 
         {/* Coupons List */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Configured Coupons ({coupons.length})</h2>
-            <span className="text-xs text-slate-500">Buyer applies code at Cart or Checkout</span>
+        <div
+          className="border rounded-2xl shadow-2xs overflow-hidden transition-colors"
+          style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+        >
+          <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--merchant-border)' }}>
+            <h2 className="text-base font-bold" style={{ color: 'var(--merchant-text)' }}>Configured Coupons ({coupons.length})</h2>
+            <span className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>Buyer applies code at Cart or Checkout</span>
           </div>
 
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y" style={{ borderColor: 'var(--merchant-border)' }}>
             {coupons.map((c) => {
               const isCopied = copiedCode === c.code;
               const discDisplay = c.type === 'PERCENTAGE' 
@@ -349,42 +368,46 @@ export default function CouponsManagementPage() {
                 : c.value === 0 ? 'FREE DELIVERY' : `₹${(c.value / 100).toFixed(0)} FLAT OFF`;
 
               return (
-                <div key={c.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                <div key={c.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--merchant-surface-raised)] transition-colors">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2.5">
-                      <span className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 tracking-wider">
+                      <span
+                        className="px-3 py-1 border rounded-lg text-xs font-mono font-bold tracking-wider"
+                        style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                      >
                         {c.code}
                       </span>
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                         {discDisplay}
                       </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                           c.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'opacity-60 border'
                         }`}
+                        style={!c.isActive ? { backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text-muted)' } : undefined}
                       >
                         {c.isActive ? 'Active' : 'Disabled'}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-700 font-medium">
+                    <p className="text-xs font-medium" style={{ color: 'var(--merchant-text)' }}>
                       {c.label}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                    <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>
                       {c.minOrderPaise ? (
-                        <span>Min Order: <strong className="text-slate-700">{formatPaise(c.minOrderPaise)}</strong></span>
+                        <span>Min Order: <strong style={{ color: 'var(--merchant-text)' }}>{formatPaise(c.minOrderPaise)}</strong></span>
                       ) : (
                         <span>No minimum order</span>
                       )}
                       {c.maxDiscountPaise && (
-                        <span>• Max Cap: <strong className="text-slate-700">{formatPaise(c.maxDiscountPaise)}</strong></span>
+                        <span>• Max Cap: <strong style={{ color: 'var(--merchant-text)' }}>{formatPaise(c.maxDiscountPaise)}</strong></span>
                       )}
-                      <span>• Used: <strong className="text-slate-700">{c.usageCount || 0} times</strong></span>
+                      <span>• Used: <strong style={{ color: 'var(--merchant-text)' }}>{c.usageCount || 0} times</strong></span>
                       {c.expiresAt && (
-                        <span>• Expires: <strong className="text-slate-700">{new Date(c.expiresAt).toLocaleDateString('en-IN')}</strong></span>
+                        <span>• Expires: <strong style={{ color: 'var(--merchant-text)' }}>{new Date(c.expiresAt).toLocaleDateString('en-IN')}</strong></span>
                       )}
                     </div>
                   </div>
@@ -393,10 +416,11 @@ export default function CouponsManagementPage() {
                   <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
                     <button
                       onClick={() => handleCopyCode(c.code)}
-                      className="px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1"
+                      style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                      className="px-2.5 py-1.5 text-xs font-medium border rounded-lg transition flex items-center gap-1 hover:opacity-90"
                       title="Copy code"
                     >
-                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{isCopied ? 'Copied' : 'Copy'}</span>
                     </button>
 
@@ -404,7 +428,7 @@ export default function CouponsManagementPage() {
                       href={getWhatsAppShareUrl(c)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 text-xs font-medium text-[#25D366] bg-[#25D366]/10 border border-[#25D366]/30 hover:bg-[#25D366]/20 rounded-lg transition flex items-center gap-1"
                       title="Share to WhatsApp"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
@@ -415,8 +439,8 @@ export default function CouponsManagementPage() {
                       onClick={() => handleToggleStatus(c.id)}
                       className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition ${
                         c.isActive
-                          ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
                       }`}
                     >
                       {c.isActive ? 'Disable' : 'Enable'}
@@ -424,7 +448,7 @@ export default function CouponsManagementPage() {
 
                     <button
                       onClick={() => handleDeleteCoupon(c.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                      className="p-1.5 opacity-60 hover:opacity-100 hover:text-rose-400 rounded-lg transition"
                       title="Delete coupon"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -439,22 +463,26 @@ export default function CouponsManagementPage() {
 
       {/* CREATE COUPON MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-600" /> Create Promotional Coupon
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className="rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-scaleUp border"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--merchant-border)' }}>
+              <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--merchant-text)' }}>
+                <Tag className="w-4 h-4" style={{ color: 'var(--merchant-primary)' }} /> Create Promotional Coupon
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="opacity-60 hover:opacity-100 p-1"
+                style={{ color: 'var(--merchant-text)' }}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
@@ -462,8 +490,8 @@ export default function CouponsManagementPage() {
 
             <form onSubmit={handleCreateCoupon} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Coupon Code * <span className="text-slate-400 font-normal">(Auto-capitalized)</span>
+                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
+                  Coupon Code * <span className="opacity-60 font-normal">(Auto-capitalized)</span>
                 </label>
                 <input
                   type="text"
@@ -471,19 +499,29 @@ export default function CouponsManagementPage() {
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="e.g. DIWALI20 or SAVE100"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    backgroundColor: 'var(--merchant-input-bg)',
+                    borderColor: 'var(--merchant-input-border)',
+                    color: 'var(--merchant-text)',
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                     Discount Type *
                   </label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
+                    style={{
+                      backgroundColor: 'var(--merchant-input-bg)',
+                      borderColor: 'var(--merchant-input-border)',
+                      color: 'var(--merchant-text)',
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-[var(--merchant-focus-ring)] font-medium"
                   >
                     <option value="PERCENTAGE">Percentage (%)</option>
                     <option value="FLAT">Flat Rupees (₹)</option>
@@ -491,7 +529,7 @@ export default function CouponsManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                     {type === 'PERCENTAGE' ? 'Discount % *' : 'Discount Amount (₹) *'}
                   </label>
                   <input
@@ -502,13 +540,18 @@ export default function CouponsManagementPage() {
                     value={valAmount}
                     onChange={(e) => setValAmount(e.target.value)}
                     placeholder={type === 'PERCENTAGE' ? 'e.g. 15' : 'e.g. 100'}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
+                    style={{
+                      backgroundColor: 'var(--merchant-input-bg)',
+                      borderColor: 'var(--merchant-input-border)',
+                      color: 'var(--merchant-text)',
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                   Promotional Title / Description
                 </label>
                 <input
@@ -516,13 +559,18 @@ export default function CouponsManagementPage() {
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="e.g. 15% Off on All Orders this Festive Week"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    backgroundColor: 'var(--merchant-input-bg)',
+                    borderColor: 'var(--merchant-input-border)',
+                    color: 'var(--merchant-text)',
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                     Minimum Order (₹)
                   </label>
                   <input
@@ -531,13 +579,18 @@ export default function CouponsManagementPage() {
                     value={minOrderRupees}
                     onChange={(e) => setMinOrderRupees(e.target.value)}
                     placeholder="e.g. 500"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
+                    style={{
+                      backgroundColor: 'var(--merchant-input-bg)',
+                      borderColor: 'var(--merchant-input-border)',
+                      color: 'var(--merchant-text)',
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
 
                 {type === 'PERCENTAGE' ? (
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                       Max Discount Cap (₹)
                     </label>
                     <input
@@ -546,35 +599,47 @@ export default function CouponsManagementPage() {
                       value={maxDiscountRupees}
                       onChange={(e) => setMaxDiscountRupees(e.target.value)}
                       placeholder="e.g. 300"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
+                      style={{
+                        backgroundColor: 'var(--merchant-input-bg)',
+                        borderColor: 'var(--merchant-input-border)',
+                        color: 'var(--merchant-text)',
+                      }}
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                     />
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
                       Expiry Date
                     </label>
                     <input
                       type="date"
                       value={expiresAt}
                       onChange={(e) => setExpiresAt(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                      style={{
+                        backgroundColor: 'var(--merchant-input-bg)',
+                        borderColor: 'var(--merchant-input-border)',
+                        color: 'var(--merchant-text)',
+                      }}
+                      className="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                     />
                   </div>
                 )}
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-2 flex justify-end gap-2 border-t" style={{ borderColor: 'var(--merchant-border)' }}>
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition"
+                  style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                  className="px-4 py-2 border rounded-xl text-xs font-semibold hover:opacity-90 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                  style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
+                  className="px-5 py-2 rounded-xl text-xs font-bold transition shadow-sm hover:opacity-90"
                 >
                   Save & Activate Coupon
                 </button>
