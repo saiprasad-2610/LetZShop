@@ -20,6 +20,8 @@ import { TenantContext, BuyerSafeTrackOrderDto } from '@simply/types';
 import { normalizePhone } from '@simply/validation';
 import { InvalidTrackingTokenException } from '../../common/exceptions/domain.exceptions';
 import * as crypto from 'crypto';
+import { MailService } from '../notifications/mail.service';
+import { WhatsAppService } from '../notifications/whatsapp.service';
 
 /**
  * Full Domain Order Lifecycle:
@@ -83,7 +85,9 @@ export class OrdersService {
     private readonly prisma: PrismaClient,
     private readonly visibilityService: SubscriptionVisibilityService,
     private readonly inventoryService: InventoryService,
-    private readonly shippingService: ShippingService
+    private readonly shippingService: ShippingService,
+    private readonly mailService: MailService,
+    private readonly whatsappService: WhatsAppService
   ) {}
 
   /**
@@ -352,6 +356,54 @@ export class OrdersService {
       }
     } catch (err: any) {
       this.logger.warn(`Failed to check auto-shipping for order #${resultOrder.orderNumber}: ${err.message}`);
+    }
+
+    // Trigger asynchronous notifications (Order Placed Email to Buyer + Alert to Vendor)
+    try {
+      const fullOrder = await this.prisma.order.findUnique({
+        where: { id: resultOrder.id },
+        include: { items: true, customer: true, orderAddress: true, store: true },
+      });
+
+      if (fullOrder) {
+        const customerEmail = fullOrder.customer?.email || (fullOrder.deliveryAddress as any)?.email;
+        const customerPhone = fullOrder.customer?.phone || (fullOrder.deliveryAddress as any)?.phone;
+        const customerName = fullOrder.customer?.fullName || (fullOrder.deliveryAddress as any)?.fullName || 'Customer';
+        const trackingUrl = fullOrder.trackingToken
+          ? `${process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
+          : undefined;
+
+        const emailContext = {
+          order: fullOrder,
+          store: {
+            id: store.id,
+            name: store.name,
+            supportEmail: store.supportEmail || undefined,
+            supportPhone: store.supportPhone || undefined,
+          },
+          customer: {
+            fullName: customerName,
+            email: customerEmail || '',
+            phone: customerPhone,
+          },
+          trackingUrl,
+        };
+
+        if (customerEmail) {
+          this.mailService.sendOrderPlacedEmail(emailContext).catch((err) => {
+            this.logger.warn(`Failed to send order placed email: ${err.message}`);
+          });
+        }
+
+        const vendorAlertEmail = store.supportEmail || process.env.ORDERS_ALERT_EMAIL;
+        if (vendorAlertEmail) {
+          this.mailService.sendVendorNewOrderAlert(emailContext, vendorAlertEmail).catch((err) => {
+            this.logger.warn(`Failed to send vendor order alert: ${err.message}`);
+          });
+        }
+      }
+    } catch (notifErr: any) {
+      this.logger.warn(`Notification trigger error on checkout: ${notifErr.message}`);
     }
 
     return resultOrder;
@@ -720,7 +772,7 @@ export class OrdersService {
   ) {
     const order = await this.getOrderById(orderId, tenant);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Concurrency Safety: Acquire pessimistic row-level exclusive lock on the order
       await tx.$executeRaw`SELECT 1 FROM "orders" WHERE "id" = ${order.id} FOR UPDATE;`;
 
@@ -853,5 +905,64 @@ export class OrdersService {
 
       return updated;
     });
+
+    // Trigger status transition notifications asynchronously
+    if (toStatus === OrderStatus.DISPATCHED || toStatus === OrderStatus.COMPLETED) {
+      this.triggerStatusNotifications(order.id, toStatus).catch((err) => {
+        this.logger.warn(`Failed to trigger status notification: ${err.message}`);
+      });
+    }
+
+    return result;
+  }
+
+  private async triggerStatusNotifications(orderId: string, toStatus: OrderStatus) {
+    try {
+      const fullOrder = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true, customer: true, orderAddress: true, store: true, shipments: true },
+      });
+
+      if (!fullOrder) return;
+
+      const store = fullOrder.store;
+      const deliveryAddress = (fullOrder.deliveryAddress as any) || fullOrder.orderAddress || {};
+      const customerEmail = fullOrder.customer?.email || deliveryAddress.email;
+      const customerPhone = fullOrder.customer?.phone || deliveryAddress.phone;
+      const customerName = fullOrder.customer?.fullName || deliveryAddress.fullName || 'Valued Customer';
+      const trackingUrl = fullOrder.trackingToken
+        ? `${process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
+        : undefined;
+
+      const shipment = fullOrder.shipments?.[0];
+      const deliveryMode = shipment?.provider === 'SELF_DELIVERY' ? 'SELF_DELIVERY' : 'SHIPROCKET';
+
+      const emailContext = {
+        order: fullOrder,
+        store: {
+          id: store.id,
+          name: store.name,
+          supportEmail: store.supportEmail || undefined,
+          supportPhone: store.supportPhone || undefined,
+        },
+        customer: {
+          fullName: customerName,
+          email: customerEmail || '',
+          phone: customerPhone,
+        },
+        trackingUrl,
+        courierName: shipment?.courierName || undefined,
+        awbNumber: shipment?.awbNumber || undefined,
+        deliveryMode: deliveryMode as any,
+      };
+
+      if (toStatus === OrderStatus.DISPATCHED && customerEmail) {
+        await this.mailService.sendOrderDispatchedEmail(emailContext);
+      } else if (toStatus === OrderStatus.COMPLETED && customerEmail) {
+        await this.mailService.sendOrderDeliveredEmail(emailContext);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to dispatch status update email: ${err.message}`);
+    }
   }
 }

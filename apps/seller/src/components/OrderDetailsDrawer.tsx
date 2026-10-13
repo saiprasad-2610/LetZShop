@@ -18,6 +18,9 @@ import {
   Store as StoreIcon,
   Printer,
   Loader2,
+  RefreshCw,
+  Copy,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatPaise } from '@simply/ui';
@@ -75,6 +78,10 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // In-line Confirmation State (prevents popup vanishing bugs)
+  const [confirmDeliveryInline, setConfirmDeliveryInline] = useState(false);
+  const [confirmPickupInline, setConfirmPickupInline] = useState(false);
+
   // Confirmation Modals State
   const [confirmModal, setConfirmModal] = useState<{
     type: 'CANCEL' | 'COMPLETE';
@@ -83,20 +90,51 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   const [cancellationReason, setCancellationReason] = useState(CANCELLATION_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
 
+  // Shipping & Dispatch Mode State
+  const [selectedFulfillmentMode, setSelectedFulfillmentMode] = useState<'SELF_DELIVERY' | 'SHIPROCKET'>('SELF_DELIVERY');
+  const [riderName, setRiderName] = useState('');
+  const [riderPhone, setRiderPhone] = useState('');
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [syncingTracking, setSyncingTracking] = useState(false);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [copiedTracking, setCopiedTracking] = useState(false);
 
   if (!isOpen || !order) return null;
 
-  const handleShipWithShiprocket = async () => {
+  const handleDispatch = async (mode: 'SELF_DELIVERY' | 'SHIPROCKET') => {
     setShippingLoading(true);
     setActionError(null);
+    setSyncSuccessMessage(null);
     try {
-      await api.shipping.shipOrder(order.id);
+      await api.shipping.shipOrder(order.id, {
+        mode,
+        riderName: mode === 'SELF_DELIVERY' && riderName.trim() ? riderName.trim() : undefined,
+        riderPhone: mode === 'SELF_DELIVERY' && riderPhone.trim() ? riderPhone.trim() : undefined,
+      });
       onStatusUpdated();
     } catch (err: any) {
-      setActionError(err.message || 'Failed to dispatch via Shiprocket');
+      setActionError(err.message || `Failed to dispatch via ${mode === 'SHIPROCKET' ? 'Shiprocket' : 'Self-Delivery'}`);
     } finally {
       setShippingLoading(false);
+    }
+  };
+
+  const handleSyncTracking = async () => {
+    setSyncingTracking(true);
+    setActionError(null);
+    setSyncSuccessMessage(null);
+    try {
+      const res: any = await api.shipping.syncTracking(order.id);
+      setSyncSuccessMessage(
+        res?.tracking?.status
+          ? `Status pulled from Shiprocket: ${res.tracking.status}${res.tracking.location ? ` (${res.tracking.location})` : ''}`
+          : 'Live tracking synchronized successfully.'
+      );
+      onStatusUpdated();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to pull live tracking from Shiprocket API.');
+    } finally {
+      setSyncingTracking(false);
     }
   };
 
@@ -106,6 +144,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     try {
       await api.orders.updateStatus(order.id, newStatus, reason);
       setConfirmModal(null);
+      setConfirmDeliveryInline(false);
+      setConfirmPickupInline(false);
       onStatusUpdated();
     } catch (err: any) {
       console.error('Failed to update status', err);
@@ -122,6 +162,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
   const customerName =
     order.customerName ||
+    order.customer?.fullName ||
     order.customer?.name ||
     order.orderAddress?.fullName ||
     order.deliveryAddress?.fullName ||
@@ -131,12 +172,15 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     order.customerPhone ||
     order.customer?.phone ||
     order.orderAddress?.phoneNumber ||
+    order.orderAddress?.phone ||
     order.deliveryAddress?.phoneNumber ||
+    order.deliveryAddress?.phone ||
     '';
 
   const customerEmail =
     order.customerEmail ||
     order.customer?.email ||
+    order.deliveryAddress?.email ||
     '';
 
   const addr =
@@ -145,15 +189,69 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     {};
 
   const isPickup = order.fulfillmentMode === 'PICKUP';
+  const shipment = order.shipments?.[0];
 
-  const getWhatsAppLink = () => {
+  const trackingUrl = order.trackingToken
+    ? (typeof window !== 'undefined'
+        ? `${window.location.origin.replace(':3000', ':3001')}/track/${order.orderNumber}?t=${order.trackingToken}`
+        : `https://letzshop.com/track/${order.orderNumber}?t=${order.trackingToken}`)
+    : undefined;
+
+  const handleCopyTrackingLink = async () => {
+    if (!trackingUrl) return;
+    try {
+      await navigator.clipboard.writeText(trackingUrl);
+      setCopiedTracking(true);
+      setTimeout(() => setCopiedTracking(false), 2500);
+    } catch (e) {
+      // ignore clipboard error
+    }
+  };
+
+  const getWhatsAppLink = (type: 'GENERIC' | 'DISPATCHED' | 'DELIVERED' = 'GENERIC') => {
     const phone = cleanPhone(customerPhone);
-    const text = encodeURIComponent(
-      `Hello ${customerName},\n\nUpdate regarding your order #${order.orderNumber} from our store:\nStatus: ${
-        ORDER_STATUS_CONFIG[order.status]?.label || order.status
-      }\nTotal: ${formatPaise(order.totalPaise)}\n\nThank you for choosing us!`
-    );
-    return `https://wa.me/91${phone}?text=${text}`;
+    if (!phone) return '#';
+
+    let text = '';
+    const itemsSummary =
+      order.itemsSummary ||
+      (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
+      'Items';
+
+    if (type === 'DISPATCHED') {
+      const isSelf = shipment?.provider === 'SELF_DELIVERY' || shipment?.courierName?.includes('Store');
+      const deliveryInfo = isSelf
+        ? `🛵 *Delivery By:* ${shipment?.courierName || 'Our Store Team'}`
+        : `🚚 *Courier Partner:* ${shipment?.courierName || 'Shiprocket Logistics'}\n🏷️ *AWB Tracking:* ${shipment?.awbNumber || 'Available Online'}`;
+
+      text =
+        `*Order Dispatched! 🚀 - #${order.orderNumber}*\n\n` +
+        `Hello *${customerName}*,\n` +
+        `Great news! Your order has been dispatched and is on its way to your delivery address.\n\n` +
+        `📦 *Items:* ${itemsSummary}\n` +
+        `💰 *Total Amount:* ${formatPaise(order.totalPaise)}\n` +
+        `${deliveryInfo}\n` +
+        (trackingUrl ? `🔗 *Track your order:* ${trackingUrl}\n\n` : '\n') +
+        `Thank you for shopping with us! Reply to this message if you have any questions.`;
+    } else if (type === 'DELIVERED') {
+      text =
+        `*Order Delivered! 🎉 - #${order.orderNumber}*\n\n` +
+        `Hello *${customerName}*,\n` +
+        `Your order #${order.orderNumber} has been successfully delivered!\n\n` +
+        `📦 *Items:* ${itemsSummary}\n` +
+        `💰 *Total Paid:* ${formatPaise(order.totalPaise)}\n` +
+        (trackingUrl ? `🧾 *Receipt & Order Details:* ${trackingUrl}\n\n` : '\n') +
+        `We hope you loved your purchase! Have a wonderful day.`;
+    } else {
+      text =
+        `Hello *${customerName}*,\n\nUpdate regarding your order #${order.orderNumber} from our store:\n` +
+        `Status: *${ORDER_STATUS_CONFIG[order.status]?.label || order.status}*\n` +
+        `Total: *${formatPaise(order.totalPaise)}*\n` +
+        (trackingUrl ? `Track order: ${trackingUrl}\n\n` : '\n') +
+        `Thank you for choosing us!`;
+    }
+
+    return `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
   };
 
   const statusMeta = ORDER_STATUS_CONFIG[order.status] || {
@@ -175,9 +273,6 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     paymentTransaction?.paymentMethod?.toUpperCase() ||
     paymentOrder?.provider ||
     'ONLINE';
-
-  // Shipping details
-  const shipment = order.shipments?.[0];
 
   return (
     <>
@@ -320,27 +415,89 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                       <Truck className="w-4 h-4" /> Dispatch Order
                     </button>
                     {isPickup && (
-                      <button
-                        type="button"
-                        disabled={updating}
-                        onClick={() => setConfirmModal({ type: 'COMPLETE', targetStatus: 'COMPLETED' })}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Mark Picked Up
-                      </button>
+                      confirmPickupInline ? (
+                        <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2 animate-in fade-in duration-150">
+                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            Confirm customer has picked up the package?
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={updating}
+                              onClick={() => handleUpdateStatus('COMPLETED', 'Customer picked up the order')}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                            >
+                              {updating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              Confirm Picked Up
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updating}
+                              onClick={() => setConfirmPickupInline(false)}
+                              className="px-3 py-1.5 bg-merchant-surface text-merchant-text border border-merchant-border rounded-lg text-xs font-medium transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={updating}
+                          onClick={() => setConfirmPickupInline(true)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Mark Picked Up
+                        </button>
+                      )
                     )}
                   </>
                 )}
 
                 {order.status === 'DISPATCHED' && (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={() => setConfirmModal({ type: 'COMPLETE', targetStatus: 'COMPLETED' })}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
-                  >
-                    <CheckCircle className="w-4 h-4" /> Complete Order (Delivered)
-                  </button>
+                  confirmDeliveryInline ? (
+                    <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="flex items-start gap-2.5 text-xs text-merchant-text">
+                        <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                            Mark Order Delivered / Completed?
+                          </p>
+                          <p className="text-[11px] text-merchant-text-muted mt-0.5">
+                            Confirm that customer has received the package. This will finalize inventory fulfillment and send a delivery confirmation email to the buyer via Letzshop SMTP.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={updating}
+                          onClick={() => handleUpdateStatus('COMPLETED', 'Confirmed delivered to customer')}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                        >
+                          {updating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Confirm Delivery & Complete
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updating}
+                          onClick={() => setConfirmDeliveryInline(false)}
+                          className="px-3.5 py-2 bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border rounded-xl text-xs font-medium transition cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() => setConfirmDeliveryInline(true)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Complete Order (Delivered)
+                    </button>
+                  )
                 )}
 
                 {/* Cancel Action available for unfulfilled active orders */}
@@ -554,29 +711,54 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
             {/* SHIPPING & LOGISTICS DETAILS */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-amber-500" />
-                  Logistics & Shiprocket Fulfillment
-                </span>
+                  <span>Logistics & Fulfillment</span>
+                </h3>
                 {shipment && (
                   <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    AWB Active
+                    {shipment.provider === 'SELF_DELIVERY' ? 'Self Delivery Active' : 'Shiprocket AWB Active'}
                   </span>
                 )}
-              </h3>
+              </div>
 
-              <div className="bg-merchant-surface-raised p-4 rounded-xl border border-merchant-border text-xs space-y-2.5">
+              {/* Sync Success Message */}
+              {syncSuccessMessage && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-600 dark:text-emerald-400 flex items-center justify-between animate-in fade-in">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <CheckCircle className="w-4 h-4 shrink-0" />
+                    {syncSuccessMessage}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSyncSuccessMessage(null)}
+                    className="text-emerald-500 hover:text-emerald-700 ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <div className="bg-merchant-surface-raised p-4 rounded-xl border border-merchant-border text-xs space-y-3">
                 {shipment ? (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className="text-merchant-text-secondary">Assigned Courier</span>
-                      <span className="font-bold text-merchant-text">{shipment.courierName || 'Shiprocket Delivery'}</span>
+                      <span className="text-merchant-text-secondary">Delivery Mode</span>
+                      <span className="font-bold text-merchant-text">
+                        {shipment.provider === 'SELF_DELIVERY' ? '🛵 Store Team / Self Delivery' : '🚀 Shiprocket Logistics'}
+                      </span>
                     </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-merchant-text-secondary">Assigned Courier / Rider</span>
+                      <span className="font-bold text-merchant-text">{shipment.courierName || 'Store In-house Team'}</span>
+                    </div>
+
                     {shipment.awbNumber && (
                       <div className="flex justify-between items-center">
                         <span className="text-merchant-text-secondary">AWB / Reference</span>
-                        {shipment.awbNumber.startsWith('OWNER_DELIVERY_') ? (
+                        {shipment.awbNumber.startsWith('SELF_') || shipment.provider === 'SELF_DELIVERY' ? (
                           <span className="font-mono font-bold text-emerald-500">{shipment.awbNumber}</span>
                         ) : (
                           <a
@@ -591,70 +773,217 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         )}
                       </div>
                     )}
+
                     <div className="flex justify-between items-center">
                       <span className="text-merchant-text-secondary">Logistics Status</span>
                       <span className="font-semibold text-merchant-text uppercase px-2 py-0.5 bg-merchant-surface rounded text-[10px] border border-merchant-border">
-                        {shipment.status === 'OUT_FOR_DELIVERY' ? 'Out for Delivery (Owner)' : shipment.status}
+                        {shipment.status === 'OUT_FOR_DELIVERY' ? 'Out for Delivery' : shipment.status}
                       </span>
                     </div>
 
-                    {(shipment.labelUrl || shipment.manifestUrl) && (
-                      <div className="pt-2 border-t border-merchant-border flex flex-wrap gap-2">
-                        {shipment.labelUrl && (
-                          <a
-                            href={shipment.labelUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-lg text-[11px] font-semibold text-merchant-text shadow-2xs"
+                    {/* Pull Live Tracking from Shiprocket Button */}
+                    <div className="pt-2 border-t border-merchant-border flex flex-wrap gap-2 items-center">
+                      {shipment.provider !== 'SELF_DELIVERY' && (
+                        <button
+                          type="button"
+                          onClick={handleSyncTracking}
+                          disabled={syncingTracking}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-lg text-xs font-semibold text-merchant-text shadow-2xs transition disabled:opacity-50 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${syncingTracking ? 'animate-spin' : ''}`} />
+                          {syncingTracking ? 'Pulling Shiprocket API...' : 'Pull Live Tracking from Shiprocket'}
+                        </button>
+                      )}
+
+                      {/* WhatsApp Quick Updates */}
+                      {order.status === 'DISPATCHED' && (
+                        <a
+                          href={getWhatsAppLink('DISPATCHED')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Send Dispatch Alert on WhatsApp
+                        </a>
+                      )}
+
+                      {order.status === 'COMPLETED' && (
+                        <a
+                          href={getWhatsAppLink('DELIVERED')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Send Delivered Receipt on WhatsApp
+                        </a>
+                      )}
+
+                      {shipment.labelUrl && (
+                        <a
+                          href={shipment.labelUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-lg text-[11px] font-semibold text-merchant-text shadow-2xs"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-merchant-text-muted" /> Print Label
+                        </a>
+                      )}
+
+                      {shipment.manifestUrl && (
+                        <a
+                          href={shipment.manifestUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-lg text-[11px] font-semibold text-merchant-text shadow-2xs"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-merchant-text-muted" /> Print Manifest
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Zero-Login Tracking Link Banner */}
+                    {trackingUrl && (
+                      <div className="p-2.5 bg-merchant-surface border border-merchant-border rounded-xl space-y-1.5 mt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-merchant-text-muted uppercase">
+                            Zero-Login Customer Tracking Link
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCopyTrackingLink}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-merchant-primary hover:underline cursor-pointer"
                           >
-                            <Printer className="w-3.5 h-3.5 text-merchant-text-muted" /> Print Label
-                          </a>
-                        )}
-                        {shipment.manifestUrl && (
-                          <a
-                            href={shipment.manifestUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-lg text-[11px] font-semibold text-merchant-text shadow-2xs"
-                          >
-                            <Printer className="w-3.5 h-3.5 text-merchant-text-muted" /> Print Manifest
-                          </a>
-                        )}
+                            <Copy className="w-3 h-3" />
+                            {copiedTracking ? 'Copied to Clipboard!' : 'Copy Link'}
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-merchant-text-muted truncate font-mono">
+                          {trackingUrl}
+                        </p>
+                        <p className="text-[10px] text-merchant-text-muted">
+                          Customer does not need to log in — this link directly displays live order status, courier info, and receipt.
+                        </p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div>
-                      <p className="font-semibold text-merchant-text">Direct Owner Delivery / Courier</p>
-                      <p className="text-[11px] text-merchant-text-muted mt-0.5">
-                        Deliver directly by store owner, or manifest with 3rd-party Shiprocket courier.
-                      </p>
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <p className="font-bold text-merchant-text">Select Fulfillment & Dispatch Method</p>
+                        <p className="text-[11px] text-merchant-text-muted">
+                          Choose whether to self-deliver via your store rider/staff, or ship through Shiprocket.
+                        </p>
+                      </div>
                     </div>
 
                     {!['CANCELLED', 'COMPLETED'].includes(order.status) && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus('DISPATCHED')}
-                          disabled={updating}
-                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
-                        >
-                          <StoreIcon className="w-3.5 h-3.5" /> Self-Deliver Order
-                        </button>
+                      <div className="space-y-3 pt-1">
+                        {/* Delivery Method Selector Tabs */}
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-merchant-surface rounded-xl border border-merchant-border">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFulfillmentMode('SELF_DELIVERY')}
+                            className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                              selectedFulfillmentMode === 'SELF_DELIVERY'
+                                ? 'bg-merchant-primary text-white shadow-xs'
+                                : 'text-merchant-text-muted hover:text-merchant-text'
+                            }`}
+                          >
+                            <StoreIcon className="w-3.5 h-3.5" />
+                            Self / Store Team
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={handleShipWithShiprocket}
-                          disabled={shippingLoading}
-                          className="px-3 py-2 bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
-                        >
-                          {shippingLoading ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Manifesting...</>
-                          ) : (
-                            <><Truck className="w-3.5 h-3.5 text-amber-500" /> Shiprocket</>
-                          )}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFulfillmentMode('SHIPROCKET')}
+                            className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                              selectedFulfillmentMode === 'SHIPROCKET'
+                                ? 'bg-amber-600 text-white shadow-xs'
+                                : 'text-merchant-text-muted hover:text-merchant-text'
+                            }`}
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            Shiprocket Logistics
+                          </button>
+                        </div>
+
+                        {/* Self Delivery Options */}
+                        {selectedFulfillmentMode === 'SELF_DELIVERY' && (
+                          <div className="p-3 bg-merchant-surface rounded-xl border border-merchant-border space-y-2.5 animate-in fade-in duration-150">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                                  Rider / Staff Name (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Ramesh / Store Owner"
+                                  value={riderName}
+                                  onChange={(e) => setRiderName(e.target.value)}
+                                  className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                                  Rider Phone Number (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 9876543210"
+                                  value={riderPhone}
+                                  onChange={(e) => setRiderPhone(e.target.value)}
+                                  className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-1">
+                              <p className="text-[10px] text-merchant-text-muted">
+                                Sends dispatch email to customer via Letzshop SMTP with rider contact & tracking link.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => handleDispatch('SELF_DELIVERY')}
+                                disabled={shippingLoading}
+                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {shippingLoading ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Dispatching...</>
+                                ) : (
+                                  <><StoreIcon className="w-3.5 h-3.5" /> Dispatch with Store Team</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Shiprocket Delivery Options */}
+                        {selectedFulfillmentMode === 'SHIPROCKET' && (
+                          <div className="p-3 bg-merchant-surface rounded-xl border border-merchant-border space-y-2.5 animate-in fade-in duration-150">
+                            <p className="text-xs text-merchant-text">
+                              Connects directly to Shiprocket REST API, assigns real-time courier AWB, schedules pickup, and emails shipping updates to the customer.
+                            </p>
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                Requires Shiprocket API credentials configured in Shipping Settings.
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDispatch('SHIPROCKET')}
+                                disabled={shippingLoading}
+                                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {shippingLoading ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Manifesting with Shiprocket...</>
+                                ) : (
+                                  <><Truck className="w-3.5 h-3.5" /> Ship via Shiprocket API</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -711,8 +1040,16 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
           CONFIRMATION MODAL
       ========================================================================= */}
       {confirmModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-merchant-overlay backdrop-blur-xs">
-          <div className="bg-merchant-surface border border-merchant-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-merchant-text">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-merchant-overlay/80 backdrop-blur-xs"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirmModal(null);
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-merchant-surface border border-merchant-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-merchant-text"
+          >
             {confirmModal.type === 'CANCEL' ? (
               <>
                 <div className="w-10 h-10 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">

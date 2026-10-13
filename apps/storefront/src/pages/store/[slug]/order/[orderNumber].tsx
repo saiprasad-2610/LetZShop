@@ -114,9 +114,22 @@ export default function OrderConfirmationPage() {
 
   const addr = order.shippingAddress || {};
   const cleanPhone = (store.contactPhone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
-  const waHelpLink = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
-    `Hello ${store.name}, I would like to ask about my order #${order.orderNumber}.`
-  )}`;
+
+  const itemsSummary = (order.items || [])
+    .map((it: any) => `${it.quantity}x ${it.titleSnapshot || it.productName || 'Item'}`)
+    .join(', ');
+
+  const buyerToVendorWaText =
+    `*New Order Placed - #${order.orderNumber}*\n\n` +
+    `Hello *${store.name}*,\n` +
+    `I have just placed an order on your store!\n\n` +
+    `📦 *Items:* ${itemsSummary}\n` +
+    `💰 *Total Amount:* ${formatPaise(order.totalPaise || order.totalAmountPaise || 0)}\n` +
+    `👤 *Customer:* ${order.customerName || 'Customer'} (${order.customerPhone || ''})\n` +
+    `📍 *Delivery City / PIN:* ${addr.city || ''} ${addr.postalCode ? `- ${addr.postalCode}` : ''}\n\n` +
+    `Please confirm my order and let me know when it is dispatched. Thank you!`;
+
+  const waOrderDetailsLink = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(buyerToVendorWaText)}`;
 
   // Status step calculation
   const statusSteps = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
@@ -152,16 +165,26 @@ export default function OrderConfirmationPage() {
             </p>
           </div>
 
-          {/* WhatsApp Support CTA */}
+          {/* Email Confirmation Notice (Zero Login Required) */}
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 max-w-lg mx-auto text-center space-y-1">
+            <p className="font-bold flex items-center justify-center gap-1.5">
+              <span>✉️</span> Confirmation & Live Tracking Sent to Your Email
+            </p>
+            <p className="text-[11px] text-emerald-700">
+              No login required. You can check order status, delivery progress, and previous receipts anytime via the direct link sent to your email and WhatsApp.
+            </p>
+          </div>
+
+          {/* WhatsApp Send to Vendor CTA */}
           {cleanPhone && (
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap justify-center gap-3">
               <a
-                href={waHelpLink}
+                href={waOrderDetailsLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold shadow-sm transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold shadow-sm transition"
               >
-                <MessageSquare className="w-4 h-4" /> Have questions? Chat on WhatsApp
+                <MessageSquare className="w-4 h-4" /> Send Order Details to Store on WhatsApp
               </a>
             </div>
           )}

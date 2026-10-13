@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { ShippingService } from './shipping.service';
+import { ShippingService, DispatchOptions } from './shipping.service';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentTenant, Public } from '../../common/decorators';
 import { TenantContext } from '@simply/types';
@@ -13,12 +13,24 @@ export class ShippingController {
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
   @Post('orders/:orderId/ship')
-  @ApiOperation({ summary: 'Create shipment & manifest for an accepted order' })
+  @ApiOperation({ summary: 'Create shipment & manifest for an accepted order (Shiprocket or Self-Delivery)' })
   async createShipment(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string,
+    @Body() body?: DispatchOptions
+  ) {
+    return this.shippingService.createShipmentForOrder(orderId, tenant, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(TenantGuard)
+  @Post('orders/:orderId/sync-tracking')
+  @ApiOperation({ summary: 'Pull latest real-time tracking status from Shiprocket API' })
+  async syncTracking(
     @CurrentTenant() tenant: TenantContext,
     @Param('orderId') orderId: string
   ) {
-    return this.shippingService.createShipmentForOrder(orderId, tenant);
+    return this.shippingService.syncShiprocketTracking(orderId, tenant);
   }
 
   @Public()

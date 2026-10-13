@@ -23,6 +23,7 @@ import { HealthModule } from './modules/health/health.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SellerModule } from './modules/seller/seller.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -65,6 +66,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     CustomersModule,
     AdminModule,
     SellerModule,
+    NotificationsModule,
   ],
   providers: [
     {

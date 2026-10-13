@@ -421,8 +421,21 @@ export class SimplyApiClient {
 
   // --- Orders Shipping Fulfillment & Public Tracking ---
   public shipping = {
-    shipOrder: (orderId: string) =>
-      this.request(`shipping/orders/${orderId}/ship`, { method: 'POST' }),
+    shipOrder: (
+      orderId: string,
+      options?: {
+        mode?: 'SHIPROCKET' | 'SELF_DELIVERY';
+        riderName?: string;
+        riderPhone?: string;
+        notes?: string;
+      }
+    ) =>
+      this.request(`shipping/orders/${orderId}/ship`, {
+        method: 'POST',
+        body: options,
+      }),
+    syncTracking: (orderId: string) =>
+      this.request(`shipping/orders/${orderId}/sync-tracking`, { method: 'POST' }),
     track: (awb: string) => this.request(`shipping/track/${awb}`),
   };
 }
