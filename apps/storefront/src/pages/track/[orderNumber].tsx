@@ -65,7 +65,7 @@ export default function DirectOrderTrackingPage() {
   return (
     <>
       <Head>
-        <title>Track Order #{orderNumber || ''} | LetzShop</title>
+        <title>{`Track Order #${orderNumber || ''} | LetzShop`}</title>
         <meta name="description" content="Track your order status live on LetzShop." />
       </Head>
 

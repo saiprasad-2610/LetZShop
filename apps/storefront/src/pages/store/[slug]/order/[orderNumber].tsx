@@ -141,7 +141,7 @@ export default function OrderConfirmationPage() {
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
       <Head>
-        <title>Order #{order.orderNumber} Confirmed | {store.name}</title>
+        <title>{`Order #${order.orderNumber} Confirmed | ${store.name}`}</title>
       </Head>
 
       <StoreHeader store={store} themeConfig={themeConfig} />
