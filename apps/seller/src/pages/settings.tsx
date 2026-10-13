@@ -23,6 +23,11 @@ import {
   Sparkles,
   UserCheck,
   PackageCheck,
+  UserPlus,
+  Phone,
+  Trash2,
+  Star,
+  MessageSquare,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -76,12 +81,34 @@ export default function SettingsPage() {
   const [savingDeliveryRates, setSavingDeliveryRates] = useState<boolean>(false);
   const [deliveryRatesSaveMsg, setDeliveryRatesSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Delivery Partners & Riders Directory State
+  const [deliveryPartners, setDeliveryPartners] = useState<
+    Array<{
+      id: string;
+      name: string;
+      phone: string;
+      vehicle?: string;
+      notes?: string;
+      isDefault?: boolean;
+    }>
+  >([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [savingPartner, setSavingPartner] = useState(false);
+  const [partnerSaveMsg, setPartnerSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showAddPartnerForm, setShowAddPartnerForm] = useState(false);
+  const [partnerName, setPartnerName] = useState('');
+  const [partnerPhone, setPartnerPhone] = useState('');
+  const [partnerVehicle, setPartnerVehicle] = useState('Motorcycle');
+  const [partnerNotes, setPartnerNotes] = useState('');
+  const [partnerIsDefault, setPartnerIsDefault] = useState(false);
+
   useEffect(() => {
     if (authLoading && !token) return;
     loadSettings();
     loadPaymentSettings();
     loadDeliveryRates();
     loadShippingSettings();
+    loadDeliveryPartners();
   }, [authLoading, token]);
 
   const loadSettings = async () => {
@@ -252,6 +279,75 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error('Failed to load shipping settings', err);
+    }
+  };
+
+  const loadDeliveryPartners = async () => {
+    setLoadingPartners(true);
+    try {
+      const res = await api.deliveryPartners.list();
+      if (res?.data && Array.isArray(res.data)) {
+        setDeliveryPartners(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load delivery partners', err);
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
+
+  const handleSavePartner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!partnerName.trim() || !partnerPhone.trim()) {
+      setPartnerSaveMsg({ type: 'error', text: 'Partner name and contact number are required.' });
+      return;
+    }
+    const cleanNumber = partnerPhone.replace(/[^0-9]/g, '');
+    if (cleanNumber.length < 10) {
+      setPartnerSaveMsg({ type: 'error', text: 'Please enter a valid 10-digit mobile number.' });
+      return;
+    }
+
+    setSavingPartner(true);
+    setPartnerSaveMsg(null);
+    try {
+      await api.deliveryPartners.save({
+        name: partnerName.trim(),
+        phone: cleanNumber,
+        vehicle: partnerVehicle.trim(),
+        notes: partnerNotes.trim(),
+        isDefault: partnerIsDefault || deliveryPartners.length === 0,
+      });
+      setPartnerSaveMsg({ type: 'success', text: `Delivery partner "${partnerName.trim()}" saved to directory!` });
+      setPartnerName('');
+      setPartnerPhone('');
+      setPartnerNotes('');
+      setPartnerIsDefault(false);
+      setShowAddPartnerForm(false);
+      await loadDeliveryPartners();
+    } catch (err: any) {
+      setPartnerSaveMsg({ type: 'error', text: err.message || 'Failed to save delivery partner.' });
+    } finally {
+      setSavingPartner(false);
+    }
+  };
+
+  const handleDeletePartner = async (id: string, name: string) => {
+    if (!confirm(`Remove "${name}" from your delivery partners directory?`)) return;
+    try {
+      await api.deliveryPartners.delete(id);
+      await loadDeliveryPartners();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete partner.');
+    }
+  };
+
+  const handleSetDefaultPartner = async (partner: any) => {
+    try {
+      await api.deliveryPartners.save({ ...partner, isDefault: true });
+      await loadDeliveryPartners();
+    } catch (err: any) {
+      alert(err.message || 'Failed to set default partner.');
     }
   };
 
@@ -1251,6 +1347,255 @@ export default function SettingsPage() {
               )}
             </div>
           </form>
+
+          {/* SECTION 6: Delivery Partners & Riders Directory */}
+          <div className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-5 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-emerald-500" /> Delivery Partners & Riders Directory
+                </h2>
+                <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+                  Save your in-house riders or store staff. When fulfilling an order, select who is delivering with 1-click and the buyer will be automatically notified with their name and phone number.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddPartnerForm(!showAddPartnerForm);
+                  setPartnerSaveMsg(null);
+                }}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                {showAddPartnerForm ? 'Cancel' : '+ Add Delivery Partner'}
+              </button>
+            </div>
+
+            {/* Partner Save Feedback Message */}
+            {partnerSaveMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  partnerSaveMsg.type === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                }`}
+              >
+                {partnerSaveMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                )}
+                <p className="font-medium">{partnerSaveMsg.text}</p>
+              </div>
+            )}
+
+            {/* ADD PARTNER INLINE FORM */}
+            {showAddPartnerForm && (
+              <form onSubmit={handleSavePartner} className="p-4 rounded-xl bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] space-y-3.5 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)] uppercase tracking-wider">
+                    New Delivery Partner Profile
+                  </h3>
+                  <span className="text-[10px] text-[var(--merchant-text-muted)]">
+                    Directly linked to order fulfillment drawer
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                      Partner / Rider Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ramesh Kumar"
+                      value={partnerName}
+                      onChange={(e) => setPartnerName(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                      Mobile / WhatsApp Number <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="e.g. 9876543210"
+                      value={partnerPhone}
+                      onChange={(e) => setPartnerPhone(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs font-mono focus:border-[var(--merchant-primary)] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                      Vehicle / Mode
+                    </label>
+                    <select
+                      value={partnerVehicle}
+                      onChange={(e) => setPartnerVehicle(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
+                    >
+                      <option value="Motorcycle">Motorcycle / Bike</option>
+                      <option value="Scooter">Scooter / Moped</option>
+                      <option value="Electric Bike">EV / Electric Scooter</option>
+                      <option value="Store Van">Van / Auto</option>
+                      <option value="Bicycle">Bicycle</option>
+                      <option value="Store Staff">Store Staff (Walking)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                      Notes / Area (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Local Area / Daytime delivery"
+                      value={partnerNotes}
+                      onChange={(e) => setPartnerNotes(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-4">
+                    <input
+                      type="checkbox"
+                      id="partner-default"
+                      checked={partnerIsDefault}
+                      onChange={(e) => setPartnerIsDefault(e.target.checked)}
+                      className="h-4 w-4 text-emerald-500 rounded focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <label htmlFor="partner-default" className="text-xs text-[var(--merchant-text)] font-medium cursor-pointer">
+                      Set as default rider for self-delivery orders
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1 border-t border-[var(--merchant-border)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPartnerForm(false)}
+                    className="px-3.5 py-1.5 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] text-[var(--merchant-text)] rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPartner}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    {savingPartner ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Save Rider to Directory
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* SAVED PARTNERS LIST / DIRECTORY */}
+            {loadingPartners ? (
+              <div className="p-6 text-center text-xs text-[var(--merchant-text-muted)] flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                Loading delivery partners...
+              </div>
+            ) : deliveryPartners.length === 0 ? (
+              <div className="p-6 rounded-xl border border-dashed border-[var(--merchant-border)] text-center space-y-2 bg-[var(--merchant-surface-muted)]/30">
+                <Truck className="w-8 h-8 text-[var(--merchant-text-muted)] mx-auto opacity-50" />
+                <p className="text-xs font-bold text-[var(--merchant-text)]">No Delivery Partners Saved Yet</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] max-w-md mx-auto">
+                  Add your delivery boys or staff members above. Once saved, they appear in your order drawer so you can assign orders in 1 click and automatically pass their details to the buyer.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {deliveryPartners.map((partner) => (
+                  <div
+                    key={partner.id}
+                    className={`p-4 rounded-xl border transition-all space-y-2.5 flex flex-col justify-between ${
+                      partner.isDefault
+                        ? 'bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/20'
+                        : 'bg-[var(--merchant-surface-muted)] border-[var(--merchant-border)]'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-[var(--merchant-text)] truncate">
+                            {partner.name}
+                          </h4>
+                          <p className="text-xs text-[var(--merchant-text-secondary)] font-mono flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3 text-emerald-500" />
+                            {partner.phone}
+                          </p>
+                        </div>
+                        {partner.isDefault ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-current" /> Default
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetDefaultPartner(partner)}
+                            className="text-[10px] text-[var(--merchant-text-muted)] hover:text-emerald-400 hover:underline shrink-0 cursor-pointer"
+                          >
+                            Set Default
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1.5">
+                        <span className="px-2 py-0.5 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded text-[10px] font-medium text-[var(--merchant-text-muted)]">
+                          {partner.vehicle || 'Motorcycle'}
+                        </span>
+                        {partner.notes && (
+                          <span className="px-2 py-0.5 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded text-[10px] font-medium text-[var(--merchant-text-muted)] truncate max-w-[140px]">
+                            {partner.notes}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--merchant-border)] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`tel:${partner.phone}`}
+                          className="p-1.5 bg-[var(--merchant-surface)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] rounded border border-[var(--merchant-border)] text-[10px] inline-flex items-center gap-1"
+                          title="Call partner"
+                        >
+                          <Phone className="w-3 h-3 text-merchant-primary" /> Call
+                        </a>
+                        <a
+                          href={`https://wa.me/91${partner.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-emerald-600 dark:text-emerald-400 rounded border border-[#25D366]/30 text-[10px] inline-flex items-center gap-1"
+                          title="Message on WhatsApp"
+                        >
+                          <MessageSquare className="w-3 h-3 text-[#25D366]" /> WA
+                        </a>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePartner(partner.id, partner.name)}
+                        className="p-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition cursor-pointer"
+                        title="Delete partner"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* SECTION 5: Additional Store Configurations */}
           <div className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-4 transition-colors">

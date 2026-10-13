@@ -20,6 +20,7 @@ export interface WhatsAppOrderContext {
   awbNumber?: string;
   riderName?: string;
   riderPhone?: string;
+  customMessage?: string;
 }
 
 @Injectable()
@@ -66,6 +67,7 @@ export class WhatsAppService {
       : `🚚 *Courier Partner:* ${ctx.courierName || 'Shiprocket Logistics'}\n🏷️ *AWB Tracking:* ${ctx.awbNumber || 'Available Online'}`;
 
     const trackingLine = ctx.trackingUrl ? `\n🔗 *Live Tracking Link:* ${ctx.trackingUrl}` : '';
+    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
 
     const text =
       `*Order Dispatched! 🚀 - #${ctx.orderNumber}*\n\n` +
@@ -73,7 +75,9 @@ export class WhatsAppService {
       `Great news! Your order from *${ctx.storeName}* has been dispatched and is on its way to your address.\n\n` +
       `📦 *Items:* ${ctx.itemsSummary}\n` +
       `💰 *Total:* ${formatPaise(ctx.totalPaise)}\n` +
-      `${deliveryDetail}${trackingLine}\n\n` +
+      `${deliveryDetail}\n` +
+      `${noteLine}` +
+      `${trackingLine}\n\n` +
       `Thank you for shopping with us! Reply to this message if you have any questions.`;
 
     const buyerPhone = this.cleanPhone(ctx.customerPhone);
@@ -86,14 +90,63 @@ export class WhatsAppService {
    * Generates a pre-filled WhatsApp update for Vendor -> Buyer when order is delivered.
    */
   public generateOrderDeliveredMessage(ctx: WhatsAppOrderContext): { url: string; text: string } {
+    const trackingLine = ctx.trackingUrl ? `\n🧾 *Receipt & Order Details:* ${ctx.trackingUrl}` : '';
+    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
+
     const text =
       `*Order Delivered! 🎉 - #${ctx.orderNumber}*\n\n` +
       `Hello *${ctx.customerName}*,\n` +
       `Your order from *${ctx.storeName}* has been successfully delivered!\n\n` +
       `📦 *Items:* ${ctx.itemsSummary}\n` +
-      `💰 *Total:* ${formatPaise(ctx.totalPaise)}\n\n` +
+      `💰 *Total:* ${formatPaise(ctx.totalPaise)}\n` +
+      `${noteLine}` +
+      `${trackingLine}\n\n` +
       `We hope you love your purchase! If you have any feedback or need support, reply right here.\n` +
       `Have a wonderful day!`;
+
+    const buyerPhone = this.cleanPhone(ctx.customerPhone);
+    const url = `https://wa.me/${buyerPhone}?text=${encodeURIComponent(text)}`;
+
+    return { url, text };
+  }
+
+  /**
+   * Generates a pre-filled WhatsApp update for Vendor -> Buyer for ANY status milestone.
+   */
+  public generateOrderStatusUpdateMessage(ctx: WhatsAppOrderContext, status: string): { url: string; text: string } {
+    if (status === 'DISPATCHED') {
+      return this.generateOrderDispatchedMessage(ctx);
+    }
+    if (status === 'COMPLETED') {
+      return this.generateOrderDeliveredMessage(ctx);
+    }
+
+    let statusHeader = `*Order Update - #${ctx.orderNumber}*`;
+    let statusDesc = `Your order status has been updated to *${status}*.`;
+
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      statusHeader = `*Order Confirmed & Preparing! 👨‍🍳 - #${ctx.orderNumber}*`;
+      statusDesc = `Great news! Your order from *${ctx.storeName}* has been accepted and is currently being packed.`;
+    } else if (status === 'READY') {
+      statusHeader = `*Order Packed & Ready! 🎁 - #${ctx.orderNumber}*`;
+      statusDesc = `Your order from *${ctx.storeName}* is packed and ready for delivery/pickup.`;
+    } else if (status === 'CANCELLED') {
+      statusHeader = `*Order Cancelled - #${ctx.orderNumber}*`;
+      statusDesc = `Your order from *${ctx.storeName}* has been cancelled.`;
+    }
+
+    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
+    const trackingLine = ctx.trackingUrl ? `\n🔗 *Track Live:* ${ctx.trackingUrl}` : '';
+
+    const text =
+      `${statusHeader}\n\n` +
+      `Hello *${ctx.customerName}*,\n` +
+      `${statusDesc}\n\n` +
+      `📦 *Items:* ${ctx.itemsSummary}\n` +
+      `💰 *Total Amount:* ${formatPaise(ctx.totalPaise)}\n` +
+      `${noteLine}` +
+      `${trackingLine}\n\n` +
+      `Thank you for shopping with *${ctx.storeName}*!`;
 
     const buyerPhone = this.cleanPhone(ctx.customerPhone);
     const url = `https://wa.me/${buyerPhone}?text=${encodeURIComponent(text)}`;

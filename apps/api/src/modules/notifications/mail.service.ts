@@ -25,6 +25,7 @@ export interface OrderEmailContext {
   riderName?: string;
   riderPhone?: string;
   deliveryMode?: 'SHIPROCKET' | 'SELF_DELIVERY';
+  customMessage?: string;
 }
 
 @Injectable()
@@ -221,6 +222,12 @@ export class MailService {
           </p>
         </div>`;
 
+    const customMessageHtml = ctx.customMessage ? `
+      <div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 18px 0; border-radius: 4px; border: 1px solid #e2e8f0; border-left-width: 4px; border-left-color: #2563eb;">
+        <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; display: block; margin-bottom: 4px;">Personal Note from ${store.name}</span>
+        <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #1e293b; font-style: italic;">"${ctx.customMessage}"</p>
+      </div>` : '';
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -249,6 +256,7 @@ export class MailService {
             </p>
 
             ${deliveryDetailHtml}
+            ${customMessageHtml}
 
             ${trackingUrl ? `
             <div style="text-align: center; margin: 24px 0;">
@@ -279,6 +287,12 @@ export class MailService {
     const recipient = customer.email;
     const subject = `Order Delivered! #${order.orderNumber} - ${store.name}`;
 
+    const customMessageHtml = ctx.customMessage ? `
+      <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; margin: 18px 0; border-radius: 4px; border: 1px solid #bbf7d0; border-left-width: 4px; border-left-color: #16a34a;">
+        <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #16a34a; display: block; margin-bottom: 4px;">Personal Note from ${store.name}</span>
+        <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #166534; font-style: italic;">"${ctx.customMessage}"</p>
+      </div>` : '';
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -305,6 +319,8 @@ export class MailService {
               Your order <strong>#${order.orderNumber}</strong> has been successfully delivered. We hope you enjoy your purchase!
             </p>
 
+            ${customMessageHtml}
+
             <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin: 20px 0; border: 1px solid #e2e8f0;">
               <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #0f172a;">
                 <span>Total Paid:</span>
@@ -323,6 +339,112 @@ export class MailService {
           </div>
           <div class="footer">
             <p style="margin: 0;">Thank you for supporting <strong>${store.name}</strong>!</p>
+            <p style="margin: 6px 0 0; color: #94a3b8;">Powered by Letzshop Commerce</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendEmail(recipient, subject, html);
+  }
+
+  /**
+   * Order Status Update Email to Buyer (CONFIRMED, ACCEPTED, READY, CANCELLED)
+   */
+  public async sendOrderStatusUpdateEmail(ctx: OrderEmailContext, status: string): Promise<boolean> {
+    const { order, store, customer, trackingUrl } = ctx;
+    const recipient = customer.email;
+
+    let statusTitle = 'Order Update';
+    let statusBadgeText = status;
+    let badgeBg = '#eff6ff';
+    let badgeColor = '#2563eb';
+    let headerBg = '#0f172a';
+    let bodyIntro = `Your order <strong>#${order.orderNumber}</strong> has been updated to <strong>${status}</strong>.`;
+
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      statusTitle = 'Order Accepted & Preparing';
+      statusBadgeText = 'ACCEPTED';
+      badgeBg = '#ecfeff';
+      badgeColor = '#0891b2';
+      headerBg = '#0e7490';
+      bodyIntro = `Good news! Your order <strong>#${order.orderNumber}</strong> has been accepted by <strong>${store.name}</strong> and is currently being prepared with care.`;
+    } else if (status === 'READY') {
+      statusTitle = 'Order Packed & Ready';
+      statusBadgeText = 'READY TO SHIP';
+      badgeBg = '#fef3c7';
+      badgeColor = '#d97706';
+      headerBg = '#b45309';
+      bodyIntro = `Your order <strong>#${order.orderNumber}</strong> has been carefully packed and is ready for pickup/dispatch.`;
+    } else if (status === 'CANCELLED') {
+      statusTitle = 'Order Cancelled';
+      statusBadgeText = 'CANCELLED';
+      badgeBg = '#ffe4e6';
+      badgeColor = '#e11d48';
+      headerBg = '#881337';
+      bodyIntro = `Your order <strong>#${order.orderNumber}</strong> has been cancelled. Any pre-payments or reservations are being reconciled.`;
+    }
+
+    const subject = `${statusTitle}: #${order.orderNumber} - ${store.name}`;
+
+    const customMessageHtml = ctx.customMessage ? `
+      <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; margin: 18px 0; border-radius: 4px; border: 1px solid #e2e8f0; border-left-width: 4px; border-left-color: #0284c7;">
+        <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #0284c7; display: block; margin-bottom: 4px;">Note from ${store.name}</span>
+        <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #1e293b; font-style: italic;">"${ctx.customMessage}"</p>
+      </div>` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
+          .header { background: ${headerBg}; padding: 28px 24px; text-align: center; color: #ffffff; }
+          .content { padding: 28px 24px; }
+          .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; }
+          .btn { display: inline-block; padding: 12px 24px; background: #0284c7; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; text-align: center; }
+          .footer { background: #f8fafc; padding: 20px 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 22px; font-weight: 800;">${store.name}</h1>
+            <p style="margin: 6px 0 0; color: #e2e8f0; font-size: 13px;">${statusTitle}</p>
+          </div>
+          <div class="content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div>
+                <span style="font-size: 12px; color: #64748b;">Order Number</span>
+                <h3 style="margin: 2px 0 0; font-family: monospace; font-size: 16px; color: #0f172a;">#${order.orderNumber}</h3>
+              </div>
+              <span class="badge">${statusBadgeText}</span>
+            </div>
+
+            <p style="font-size: 14px; line-height: 1.5; color: #334155;">
+              Hi <strong>${customer.fullName}</strong>,<br/>
+              ${bodyIntro}
+            </p>
+
+            ${customMessageHtml}
+
+            <div style="background: #f8fafc; border-radius: 12px; padding: 14px; margin: 18px 0; border: 1px solid #e2e8f0;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569;">
+                <span>Total Amount:</span>
+                <strong style="color: #0f172a;">${formatPaise(order.totalPaise)}</strong>
+              </div>
+            </div>
+
+            ${trackingUrl ? `
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${trackingUrl}" class="btn" style="color: #ffffff;">Check Live Status</a>
+            </div>` : ''}
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">Need help? Contact ${store.name} at ${store.supportPhone || store.supportEmail || 'support'}.</p>
             <p style="margin: 6px 0 0; color: #94a3b8;">Powered by Letzshop Commerce</p>
           </div>
         </div>

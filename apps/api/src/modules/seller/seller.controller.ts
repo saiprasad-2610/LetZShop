@@ -501,7 +501,14 @@ export class SellerController {
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body() body: { status: OrderStatus; reason?: string }
+    @Body()
+    body: {
+      status: OrderStatus;
+      reason?: string;
+      customMessage?: string;
+      riderName?: string;
+      riderPhone?: string;
+    }
   ) {
     return this.ordersService.updateOrderStatus(
       id,
@@ -509,8 +516,117 @@ export class SellerController {
       tenant,
       body.reason,
       user.userId,
-      true
+      true,
+      body.customMessage,
+      body.riderName,
+      body.riderPhone
     );
+  }
+
+  // ============================================================================
+  // DELIVERY PARTNERS / RIDERS DIRECTORY
+  // ============================================================================
+
+  @Get('delivery-partners')
+  @ApiOperation({ summary: 'Get list of configured delivery partners / riders for the store' })
+  async getDeliveryPartners(@CurrentTenant() tenant: TenantContext) {
+    const store = await this.prisma.store.findUnique({
+      where: { id: tenant.storeId },
+      select: { socialLinks: true },
+    });
+    const social = (store?.socialLinks as any) || {};
+    const partners = Array.isArray(social.deliveryPartners) ? social.deliveryPartners : [];
+    return { success: true, data: partners };
+  }
+
+  @Post('delivery-partners')
+  @ApiOperation({ summary: 'Add or update a delivery partner in the store directory' })
+  async saveDeliveryPartner(
+    @CurrentTenant() tenant: TenantContext,
+    @Body()
+    body: {
+      id?: string;
+      name: string;
+      phone: string;
+      vehicle?: string;
+      notes?: string;
+      isDefault?: boolean;
+    }
+  ) {
+    if (!body.name || !body.phone) {
+      throw new BadRequestException('Delivery partner name and phone are required.');
+    }
+
+    const store = await this.prisma.store.findUnique({
+      where: { id: tenant.storeId },
+      select: { socialLinks: true },
+    });
+    const social = (store?.socialLinks as any) || {};
+    let partners: any[] = Array.isArray(social.deliveryPartners) ? [...social.deliveryPartners] : [];
+
+    const partnerId = body.id || `rider_${Date.now()}`;
+    const cleanPhone = body.phone.replace(/[^0-9]/g, '');
+
+    const partnerObj = {
+      id: partnerId,
+      name: body.name.trim(),
+      phone: cleanPhone,
+      vehicle: body.vehicle?.trim() || 'Motorcycle',
+      notes: body.notes?.trim() || '',
+      isDefault: Boolean(body.isDefault),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (body.isDefault) {
+      partners = partners.map((p) => ({ ...p, isDefault: false }));
+    }
+
+    const existingIdx = partners.findIndex((p) => p.id === partnerId);
+    if (existingIdx >= 0) {
+      partners[existingIdx] = partnerObj;
+    } else {
+      partners.push(partnerObj);
+    }
+
+    await this.prisma.store.update({
+      where: { id: tenant.storeId },
+      data: {
+        socialLinks: {
+          ...social,
+          deliveryPartners: partners,
+        },
+      },
+    });
+
+    return { success: true, data: partnerObj, all: partners };
+  }
+
+  @Delete('delivery-partners/:id')
+  @ApiOperation({ summary: 'Delete a delivery partner from the store directory' })
+  async deleteDeliveryPartner(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    const store = await this.prisma.store.findUnique({
+      where: { id: tenant.storeId },
+      select: { socialLinks: true },
+    });
+    const social = (store?.socialLinks as any) || {};
+    let partners: any[] = Array.isArray(social.deliveryPartners) ? [...social.deliveryPartners] : [];
+
+    partners = partners.filter((p) => p.id !== id);
+
+    await this.prisma.store.update({
+      where: { id: tenant.storeId },
+      data: {
+        socialLinks: {
+          ...social,
+          deliveryPartners: partners,
+        },
+      },
+    });
+
+    return { success: true, data: partners };
   }
 
   @Post('orders/:id/confirm')

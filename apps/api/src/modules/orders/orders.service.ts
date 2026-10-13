@@ -768,7 +768,10 @@ export class OrdersService {
     tenant: TenantContext,
     reason?: string,
     actorId?: string,
-    isSellerContext: boolean = true
+    isSellerContext: boolean = true,
+    customMessage?: string,
+    riderName?: string,
+    riderPhone?: string
   ) {
     const order = await this.getOrderById(orderId, tenant);
 
@@ -879,18 +882,74 @@ export class OrdersService {
         data: updateData,
       });
 
-      // Step D: Create OrderStatusHistory record
+      // Step D: If DISPATCHED and rider info is supplied, record shipment details atomically
+      if (toStatus === OrderStatus.DISPATCHED && (riderName || riderPhone)) {
+        const courierName = riderName ? `Store Team: ${riderName.trim()}` : 'Store Team Self-Delivery';
+        const awbNumber = riderPhone
+          ? `SELF_${lockedOrder.orderNumber}_${riderPhone.replace(/[^0-9]/g, '').slice(-4)}`
+          : `SELF_${lockedOrder.orderNumber}`;
+
+        const existingShipment = await tx.shipment.findFirst({ where: { orderId: lockedOrder.id } });
+        let sId = existingShipment?.id;
+
+        if (existingShipment) {
+          await tx.shipment.update({
+            where: { id: existingShipment.id },
+            data: {
+              provider: 'SELF_DELIVERY',
+              status: ShipmentStatus.IN_TRANSIT,
+              fulfillmentStatus: FulfillmentStatus.SHIPPED,
+              courierName,
+              awbNumber: existingShipment.awbNumber || awbNumber,
+            },
+          });
+        } else {
+          const newShipment = await tx.shipment.create({
+            data: {
+              tenantId: tenant.tenantId,
+              storeId: tenant.storeId,
+              orderId: lockedOrder.id,
+              provider: 'SELF_DELIVERY',
+              status: ShipmentStatus.IN_TRANSIT,
+              fulfillmentStatus: FulfillmentStatus.SHIPPED,
+              courierName,
+              awbNumber,
+            },
+          });
+          sId = newShipment.id;
+        }
+
+        if (sId) {
+          await tx.shipmentEvent.create({
+            data: {
+              shipmentId: sId,
+              status: 'OUT_FOR_DELIVERY',
+              description: `Dispatched with ${courierName}${riderPhone ? ` (${riderPhone})` : ''}.${customMessage ? ` Note: ${customMessage}` : ''}`,
+            },
+          });
+        }
+      }
+
+      // Step E: Create OrderStatusHistory record
+      const fullReason = reason
+        ? customMessage
+          ? `${reason} - "${customMessage}"`
+          : reason
+        : customMessage
+          ? `Note: ${customMessage}`
+          : undefined;
+
       await tx.orderStatusHistory.create({
         data: {
           orderId: lockedOrder.id,
           fromStatus: lockedOrder.status,
           toStatus,
-          reason,
+          reason: fullReason,
           actorId,
         },
       });
 
-      // Step E: Create AuditLog record
+      // Step F: Create AuditLog record
       await tx.auditLog.create({
         data: {
           actorId,
@@ -899,24 +958,28 @@ export class OrdersService {
           action: 'ORDER_STATUS_CHANGED',
           entityType: 'Order',
           entityId: lockedOrder.id,
-          metadata: { fromStatus: lockedOrder.status, toStatus, reason },
+          metadata: { fromStatus: lockedOrder.status, toStatus, reason: fullReason, customMessage, riderName, riderPhone },
         },
       });
 
       return updated;
     });
 
-    // Trigger status transition notifications asynchronously
-    if (toStatus === OrderStatus.DISPATCHED || toStatus === OrderStatus.COMPLETED) {
-      this.triggerStatusNotifications(order.id, toStatus).catch((err) => {
-        this.logger.warn(`Failed to trigger status notification: ${err.message}`);
-      });
-    }
+    // Trigger status transition notifications asynchronously to buyer at EVERY step
+    this.triggerStatusNotifications(order.id, toStatus, customMessage, riderName, riderPhone).catch((err) => {
+      this.logger.warn(`Failed to trigger status notification: ${err.message}`);
+    });
 
     return result;
   }
 
-  private async triggerStatusNotifications(orderId: string, toStatus: OrderStatus) {
+  private async triggerStatusNotifications(
+    orderId: string,
+    toStatus: OrderStatus,
+    customMessage?: string,
+    riderName?: string,
+    riderPhone?: string
+  ) {
     try {
       const fullOrder = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -951,15 +1014,22 @@ export class OrdersService {
           phone: customerPhone,
         },
         trackingUrl,
-        courierName: shipment?.courierName || undefined,
+        courierName: shipment?.courierName || (riderName ? `Store Team: ${riderName}` : undefined),
         awbNumber: shipment?.awbNumber || undefined,
+        riderName: riderName || undefined,
+        riderPhone: riderPhone || undefined,
         deliveryMode: deliveryMode as any,
+        customMessage,
       };
 
-      if (toStatus === OrderStatus.DISPATCHED && customerEmail) {
+      if (!customerEmail) return;
+
+      if (toStatus === OrderStatus.DISPATCHED) {
         await this.mailService.sendOrderDispatchedEmail(emailContext);
-      } else if (toStatus === OrderStatus.COMPLETED && customerEmail) {
+      } else if (toStatus === OrderStatus.COMPLETED) {
         await this.mailService.sendOrderDeliveredEmail(emailContext);
+      } else {
+        await this.mailService.sendOrderStatusUpdateEmail(emailContext, toStatus);
       }
     } catch (err: any) {
       this.logger.warn(`Failed to dispatch status update email: ${err.message}`);

@@ -277,8 +277,20 @@ export class SimplyApiClient {
       endDate?: string;
     }) => this.request('seller/orders', { params }),
     getOrder: (id: string) => this.request(`seller/orders/${id}`),
-    updateStatus: (id: string, status: string, reason?: string) =>
-      this.request(`seller/orders/${id}/status`, { method: 'PATCH', body: { status, reason } }),
+    updateStatus: (
+      id: string,
+      status: string,
+      reason?: string,
+      extra?: {
+        customMessage?: string;
+        riderName?: string;
+        riderPhone?: string;
+      }
+    ) =>
+      this.request(`seller/orders/${id}/status`, {
+        method: 'PATCH',
+        body: { status, reason, ...(extra || {}) },
+      }),
     trackOrder: (orderNumber: string, token?: string) =>
       this.request(`orders/track/${orderNumber}`, { params: token ? { t: token } : undefined }),
   };
@@ -437,6 +449,38 @@ export class SimplyApiClient {
     syncTracking: (orderId: string) =>
       this.request(`shipping/orders/${orderId}/sync-tracking`, { method: 'POST' }),
     track: (awb: string) => this.request(`shipping/track/${awb}`),
+  };
+
+  // --- Delivery Partners & Riders Directory ---
+  public deliveryPartners = {
+    list: () =>
+      this.request<{
+        success: boolean;
+        data: Array<{
+          id: string;
+          name: string;
+          phone: string;
+          vehicle?: string;
+          notes?: string;
+          isDefault?: boolean;
+        }>;
+      }>('seller/delivery-partners'),
+    save: (data: {
+      id?: string;
+      name: string;
+      phone: string;
+      vehicle?: string;
+      notes?: string;
+      isDefault?: boolean;
+    }) =>
+      this.request<{ success: boolean; data: any; all: any[] }>('seller/delivery-partners', {
+        method: 'POST',
+        body: data,
+      }),
+    delete: (id: string) =>
+      this.request<{ success: boolean; data: any[] }>(`seller/delivery-partners/${id}`, {
+        method: 'DELETE',
+      }),
   };
 }
 

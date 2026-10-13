@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Package,
@@ -21,6 +21,10 @@ import {
   RefreshCw,
   Copy,
   UserCheck,
+  Send,
+  Mail,
+  UserPlus,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatPaise } from '@simply/ui';
@@ -61,12 +65,40 @@ const PAYMENT_STATUS_CONFIG: Record<
 };
 
 const CANCELLATION_REASONS = [
-  'Customer requested',
+  'Customer requested cancellation',
   'Out of stock',
-  'Unable to fulfill',
+  'Unable to fulfill at this time',
   'Duplicate order',
   'Other',
 ];
+
+const STATUS_MESSAGE_SUGGESTIONS: Record<string, string[]> = {
+  ACCEPTED: [
+    'Order accepted! We are packing your items right now.',
+    'Items confirmed in stock. Will prepare and pack shortly.',
+  ],
+  CONFIRMED: [
+    'Order confirmed by our store! Packing has begun.',
+    'Thank you! Your order is confirmed and in progress.',
+  ],
+  READY: [
+    'Order is packed and ready for delivery/pickup!',
+    'All items checked and sealed. Awaiting rider handover.',
+  ],
+  DISPATCHED: [
+    'Out for delivery now! Expected arrival in 15-20 minutes.',
+    'Please keep exact cash ready for COD payment.',
+    'Delivery rider will call upon arriving at your gate/door.',
+  ],
+  COMPLETED: [
+    'Package delivered! Thank you for supporting our local business.',
+    'Order delivered successfully! Hope you enjoy your purchase.',
+  ],
+  CANCELLED: [
+    'Order cancelled as requested by customer.',
+    'Item temporarily out of stock. Apologies for the inconvenience.',
+  ],
+};
 
 export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   order,
@@ -78,81 +110,92 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // In-line Confirmation State (prevents popup vanishing bugs)
-  const [confirmDeliveryInline, setConfirmDeliveryInline] = useState(false);
-  const [confirmPickupInline, setConfirmPickupInline] = useState(false);
+  // Delivery Partners Directory from Store
+  const [deliveryPartners, setDeliveryPartners] = useState<
+    Array<{ id: string; name: string; phone: string; vehicle?: string; isDefault?: boolean }>
+  >([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
+  const [isAddingNewRiderInline, setIsAddingNewRiderInline] = useState(false);
+  const [saveRiderToDirectory, setSaveRiderToDirectory] = useState(true);
 
-  // Confirmation Modals State
-  const [confirmModal, setConfirmModal] = useState<{
-    type: 'CANCEL' | 'COMPLETE';
+  // Two-Step Status Confirmation & Automated Notification Modal State
+  const [statusConfirmModal, setStatusConfirmModal] = useState<{
     targetStatus: string;
+    title: string;
+    subtitle: string;
+    badgeLabel?: string;
+    defaultReason: string;
+    themeColor: 'blue' | 'cyan' | 'amber' | 'purple' | 'emerald' | 'rose';
   } | null>(null);
+
+  const [customMessage, setCustomMessage] = useState('');
   const [cancellationReason, setCancellationReason] = useState(CANCELLATION_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
+  const [sendEmailNotification, setSendEmailNotification] = useState(true);
+  const [sendWhatsAppNotification, setSendWhatsAppNotification] = useState(true);
 
   // Shipping & Dispatch Mode State
   const [selectedFulfillmentMode, setSelectedFulfillmentMode] = useState<'SELF_DELIVERY' | 'SHIPROCKET'>('SELF_DELIVERY');
   const [riderName, setRiderName] = useState('');
   const [riderPhone, setRiderPhone] = useState('');
-  const [shippingLoading, setShippingLoading] = useState(false);
   const [syncingTracking, setSyncingTracking] = useState(false);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
 
+  // Load registered delivery partners when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchPartners = async () => {
+      try {
+        const res = await api.deliveryPartners.list();
+        if (res?.data && Array.isArray(res.data)) {
+          setDeliveryPartners(res.data);
+          const def = res.data.find((p: any) => p.isDefault) || res.data[0];
+          if (def) {
+            setSelectedPartnerId(def.id);
+            setRiderName(def.name);
+            setRiderPhone(def.phone);
+          } else {
+            setSelectedPartnerId('NEW');
+            setIsAddingNewRiderInline(true);
+          }
+        }
+      } catch (e) {
+        // ignore fallback
+      }
+    };
+    fetchPartners();
+  }, [isOpen]);
+
   if (!isOpen || !order) return null;
 
-  const handleDispatch = async (mode: 'SELF_DELIVERY' | 'SHIPROCKET') => {
-    setShippingLoading(true);
-    setActionError(null);
-    setSyncSuccessMessage(null);
-    try {
-      await api.shipping.shipOrder(order.id, {
-        mode,
-        riderName: mode === 'SELF_DELIVERY' && riderName.trim() ? riderName.trim() : undefined,
-        riderPhone: mode === 'SELF_DELIVERY' && riderPhone.trim() ? riderPhone.trim() : undefined,
-      });
-      onStatusUpdated();
-    } catch (err: any) {
-      setActionError(err.message || `Failed to dispatch via ${mode === 'SHIPROCKET' ? 'Shiprocket' : 'Self-Delivery'}`);
-    } finally {
-      setShippingLoading(false);
+  const handlePartnerSelect = (partnerId: string) => {
+    setSelectedPartnerId(partnerId);
+    if (partnerId === 'NEW') {
+      setIsAddingNewRiderInline(true);
+      setRiderName('');
+      setRiderPhone('');
+    } else {
+      setIsAddingNewRiderInline(false);
+      const found = deliveryPartners.find((p) => p.id === partnerId);
+      if (found) {
+        setRiderName(found.name);
+        setRiderPhone(found.phone);
+      }
     }
   };
 
-  const handleSyncTracking = async () => {
-    setSyncingTracking(true);
+  const openStatusConfirmation = (config: {
+    targetStatus: string;
+    title: string;
+    subtitle: string;
+    badgeLabel?: string;
+    defaultReason: string;
+    themeColor: 'blue' | 'cyan' | 'amber' | 'purple' | 'emerald' | 'rose';
+  }) => {
     setActionError(null);
-    setSyncSuccessMessage(null);
-    try {
-      const res: any = await api.shipping.syncTracking(order.id);
-      setSyncSuccessMessage(
-        res?.tracking?.status
-          ? `Status pulled from Shiprocket: ${res.tracking.status}${res.tracking.location ? ` (${res.tracking.location})` : ''}`
-          : 'Live tracking synchronized successfully.'
-      );
-      onStatusUpdated();
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to pull live tracking from Shiprocket API.');
-    } finally {
-      setSyncingTracking(false);
-    }
-  };
-
-  const handleUpdateStatus = async (newStatus: string, reason?: string) => {
-    setUpdating(true);
-    setActionError(null);
-    try {
-      await api.orders.updateStatus(order.id, newStatus, reason);
-      setConfirmModal(null);
-      setConfirmDeliveryInline(false);
-      setConfirmPickupInline(false);
-      onStatusUpdated();
-    } catch (err: any) {
-      console.error('Failed to update status', err);
-      setActionError(err.message || 'Status transition rejected by server.');
-    } finally {
-      setUpdating(false);
-    }
+    setCustomMessage('');
+    setStatusConfirmModal(config);
   };
 
   const cleanPhone = (p?: string) => {
@@ -208,50 +251,158 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     }
   };
 
-  const getWhatsAppLink = (type: 'GENERIC' | 'DISPATCHED' | 'DELIVERED' = 'GENERIC') => {
+  const getWhatsAppLinkForStatus = (
+    status: string,
+    customMsg?: string,
+    riderN?: string,
+    riderP?: string
+  ) => {
     const phone = cleanPhone(customerPhone);
     if (!phone) return '#';
 
-    let text = '';
     const itemsSummary =
       order.itemsSummary ||
       (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
       'Items';
 
-    if (type === 'DISPATCHED') {
-      const isSelf = shipment?.provider === 'SELF_DELIVERY' || shipment?.courierName?.includes('Store');
-      const deliveryInfo = isSelf
-        ? `🛵 *Delivery By:* ${shipment?.courierName || 'Our Store Team'}`
-        : `🚚 *Courier Partner:* ${shipment?.courierName || 'Shiprocket Logistics'}\n🏷️ *AWB Tracking:* ${shipment?.awbNumber || 'Available Online'}`;
+    let header = `*Order Update - #${order.orderNumber}*`;
+    let detail = `Your order status is now *${ORDER_STATUS_CONFIG[status]?.label || status}*.`;
 
-      text =
-        `*Order Dispatched! 🚀 - #${order.orderNumber}*\n\n` +
-        `Hello *${customerName}*,\n` +
-        `Great news! Your order has been dispatched and is on its way to your delivery address.\n\n` +
-        `📦 *Items:* ${itemsSummary}\n` +
-        `💰 *Total Amount:* ${formatPaise(order.totalPaise)}\n` +
-        `${deliveryInfo}\n` +
-        (trackingUrl ? `🔗 *Track your order:* ${trackingUrl}\n\n` : '\n') +
-        `Thank you for shopping with us! Reply to this message if you have any questions.`;
-    } else if (type === 'DELIVERED') {
-      text =
-        `*Order Delivered! 🎉 - #${order.orderNumber}*\n\n` +
-        `Hello *${customerName}*,\n` +
-        `Your order #${order.orderNumber} has been successfully delivered!\n\n` +
-        `📦 *Items:* ${itemsSummary}\n` +
-        `💰 *Total Paid:* ${formatPaise(order.totalPaise)}\n` +
-        (trackingUrl ? `🧾 *Receipt & Order Details:* ${trackingUrl}\n\n` : '\n') +
-        `We hope you loved your purchase! Have a wonderful day.`;
-    } else {
-      text =
-        `Hello *${customerName}*,\n\nUpdate regarding your order #${order.orderNumber} from our store:\n` +
-        `Status: *${ORDER_STATUS_CONFIG[order.status]?.label || order.status}*\n` +
-        `Total: *${formatPaise(order.totalPaise)}*\n` +
-        (trackingUrl ? `Track order: ${trackingUrl}\n\n` : '\n') +
-        `Thank you for choosing us!`;
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      header = `*Order Confirmed & Preparing! 👨‍🍳 - #${order.orderNumber}*`;
+      detail = `Great news! Your order has been accepted and is currently being packed.`;
+    } else if (status === 'READY') {
+      header = `*Order Packed & Ready! 🎁 - #${order.orderNumber}*`;
+      detail = `Your order has been packed and is ready for delivery/pickup.`;
+    } else if (status === 'DISPATCHED') {
+      const activeRider = riderN || riderName || shipment?.courierName;
+      const activeRiderPhone = riderP || riderPhone;
+      header = `*Order Dispatched! 🚀 - #${order.orderNumber}*`;
+      detail =
+        `Great news! Your order has been dispatched and is on its way to your delivery address.\n` +
+        (activeRider
+          ? `🛵 *Delivery Partner:* ${activeRider}${activeRiderPhone ? ` (${activeRiderPhone})` : ''}`
+          : `🚚 *Shipped via Logistics Partner*`);
+    } else if (status === 'COMPLETED') {
+      header = `*Order Delivered! 🎉 - #${order.orderNumber}*`;
+      detail = `Your order #${order.orderNumber} has been successfully delivered! We hope you love your purchase.`;
+    } else if (status === 'CANCELLED') {
+      header = `*Order Cancelled - #${order.orderNumber}*`;
+      detail = `Your order #${order.orderNumber} has been cancelled.`;
     }
 
+    const noteLine = customMsg?.trim() ? `\n\n💬 *Note from Store:* "${customMsg.trim()}"` : '';
+    const trackingLine = trackingUrl ? `\n\n🔗 *Track Live Order:* ${trackingUrl}` : '';
+
+    const text =
+      `${header}\n\n` +
+      `Hello *${customerName}*,\n` +
+      `${detail}\n\n` +
+      `📦 *Items:* ${itemsSummary}\n` +
+      `💰 *Total Amount:* ${formatPaise(order.totalPaise)}` +
+      `${noteLine}` +
+      `${trackingLine}\n\n` +
+      `Thank you for shopping with us! Reply here for any questions.`;
+
     return `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+  };
+
+  const handleConfirmStatusUpdate = async () => {
+    if (!statusConfirmModal) return;
+    setUpdating(true);
+    setActionError(null);
+
+    const { targetStatus, defaultReason } = statusConfirmModal;
+    const effectiveReason =
+      targetStatus === 'CANCELLED' && cancellationReason === 'Other' && customReason
+        ? customReason
+        : defaultReason;
+
+    const effectiveRiderName =
+      targetStatus === 'DISPATCHED' && selectedFulfillmentMode === 'SELF_DELIVERY'
+        ? riderName.trim()
+        : undefined;
+
+    const effectiveRiderPhone =
+      targetStatus === 'DISPATCHED' && selectedFulfillmentMode === 'SELF_DELIVERY'
+        ? riderPhone.trim()
+        : undefined;
+
+    try {
+      // 1. If adding a new rider on the fly and saving to store directory
+      if (
+        targetStatus === 'DISPATCHED' &&
+        selectedFulfillmentMode === 'SELF_DELIVERY' &&
+        isAddingNewRiderInline &&
+        effectiveRiderName &&
+        effectiveRiderPhone &&
+        saveRiderToDirectory
+      ) {
+        api.deliveryPartners
+          .save({
+            name: effectiveRiderName,
+            phone: effectiveRiderPhone,
+            vehicle: 'Motorcycle',
+            isDefault: deliveryPartners.length === 0,
+          })
+          .catch(() => {});
+      }
+
+      // 2. If dispatching via Shiprocket
+      if (targetStatus === 'DISPATCHED' && selectedFulfillmentMode === 'SHIPROCKET') {
+        await api.shipping.shipOrder(order.id, {
+          mode: 'SHIPROCKET',
+          notes: customMessage.trim() || undefined,
+        });
+      }
+
+      // 3. Atomically update order status, reason, custom note, and rider info
+      await api.orders.updateStatus(order.id, targetStatus, effectiveReason, {
+        customMessage: customMessage.trim() || undefined,
+        riderName: effectiveRiderName,
+        riderPhone: effectiveRiderPhone,
+      });
+
+      // 4. If WhatsApp toggle enabled, launch pre-filled WhatsApp message
+      if (sendWhatsAppNotification && customerPhone) {
+        const waUrl = getWhatsAppLinkForStatus(
+          targetStatus,
+          customMessage.trim() || undefined,
+          effectiveRiderName,
+          effectiveRiderPhone
+        );
+        if (waUrl && waUrl !== '#') {
+          window.open(waUrl, '_blank');
+        }
+      }
+
+      setStatusConfirmModal(null);
+      onStatusUpdated();
+    } catch (err: any) {
+      console.error('Failed to update status', err);
+      setActionError(err.message || 'Status transition rejected by server.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSyncTracking = async () => {
+    setSyncingTracking(true);
+    setActionError(null);
+    setSyncSuccessMessage(null);
+    try {
+      const res: any = await api.shipping.syncTracking(order.id);
+      setSyncSuccessMessage(
+        res?.tracking?.status
+          ? `Status pulled from Shiprocket: ${res.tracking.status}${res.tracking.location ? ` (${res.tracking.location})` : ''}`
+          : 'Live tracking synchronized successfully.'
+      );
+      onStatusUpdated();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to pull live tracking from Shiprocket API.');
+    } finally {
+      setSyncingTracking(false);
+    }
   };
 
   const statusMeta = ORDER_STATUS_CONFIG[order.status] || {
@@ -320,7 +471,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-merchant-text-muted hover:text-merchant-text rounded-xl hover:bg-merchant-surface transition shrink-0"
+              className="p-2 text-merchant-text-muted hover:text-merchant-text rounded-xl hover:bg-merchant-surface transition shrink-0 cursor-pointer"
               aria-label="Close Order Details Drawer"
             >
               <X className="w-5 h-5" />
@@ -337,7 +488,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
               <button
                 type="button"
                 onClick={() => setActionError(null)}
-                className="text-rose-500 hover:text-rose-700 ml-2"
+                className="text-rose-500 hover:text-rose-700 ml-2 cursor-pointer"
               >
                 ✕
               </button>
@@ -359,23 +510,41 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                 </span>
               </div>
 
-              {/* Action Buttons based strictly on canonical OrderStatus transition graph */}
+              {/* Action Buttons: 2-step confirmation with auto-notify */}
               <div className="flex flex-wrap gap-2.5 pt-1">
                 {order.status === 'NEW' && (
                   <>
                     <button
                       type="button"
                       disabled={updating}
-                      onClick={() => handleUpdateStatus('ACCEPTED', 'Order accepted by merchant')}
-                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'ACCEPTED',
+                          title: 'Accept & Prepare Order',
+                          subtitle: 'Confirm order receipt and begin packing. Buyer will receive email and WhatsApp alerts.',
+                          badgeLabel: 'ACCEPTED',
+                          defaultReason: 'Order accepted by merchant',
+                          themeColor: 'cyan',
+                        })
+                      }
+                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
                     >
                       <Check className="w-4 h-4" /> Accept Order
                     </button>
                     <button
                       type="button"
                       disabled={updating}
-                      onClick={() => handleUpdateStatus('CONFIRMED', 'Order confirmed by merchant')}
-                      className="px-4 py-2 bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border rounded-xl text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'CONFIRMED',
+                          title: 'Confirm Order',
+                          subtitle: 'Confirm order and lock stock.',
+                          badgeLabel: 'CONFIRMED',
+                          defaultReason: 'Order confirmed by merchant',
+                          themeColor: 'blue',
+                        })
+                      }
+                      className="px-4 py-2 bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border rounded-xl text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
                     >
                       Confirm Order
                     </button>
@@ -386,8 +555,17 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   <button
                     type="button"
                     disabled={updating}
-                    onClick={() => handleUpdateStatus('ACCEPTED', 'Order accepted for preparation')}
-                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+                    onClick={() =>
+                      openStatusConfirmation({
+                        targetStatus: 'ACCEPTED',
+                        title: 'Start Preparation',
+                        subtitle: 'Notify buyer that packing and preparing items has begun.',
+                        badgeLabel: 'PREPARING',
+                        defaultReason: 'Order accepted for preparation',
+                        themeColor: 'cyan',
+                      })
+                    }
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     <Check className="w-4 h-4" /> Start Preparation
                   </button>
@@ -397,8 +575,17 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   <button
                     type="button"
                     disabled={updating}
-                    onClick={() => handleUpdateStatus('READY', 'Items packed and ready for dispatch')}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+                    onClick={() =>
+                      openStatusConfirmation({
+                        targetStatus: 'READY',
+                        title: 'Mark Ready to Ship',
+                        subtitle: 'Confirm items are packed and waiting for delivery partner pickup.',
+                        badgeLabel: 'READY TO SHIP',
+                        defaultReason: 'Items packed and ready for dispatch',
+                        themeColor: 'amber',
+                      })
+                    }
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     <Package className="w-4 h-4" /> Mark Ready to Ship
                   </button>
@@ -409,95 +596,60 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     <button
                       type="button"
                       disabled={updating}
-                      onClick={() => handleUpdateStatus('DISPATCHED', 'Handed over to courier')}
-                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'DISPATCHED',
+                          title: 'Dispatch Order & Assign Rider',
+                          subtitle: 'Assign a delivery partner and send live delivery details to the buyer.',
+                          badgeLabel: 'DISPATCHED',
+                          defaultReason: 'Handed over for delivery',
+                          themeColor: 'purple',
+                        })
+                      }
+                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
                     >
                       <Truck className="w-4 h-4" /> Dispatch Order
                     </button>
                     {isPickup && (
-                      confirmPickupInline ? (
-                        <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2 animate-in fade-in duration-150">
-                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                            Confirm customer has picked up the package?
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={updating}
-                              onClick={() => handleUpdateStatus('COMPLETED', 'Customer picked up the order')}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
-                            >
-                              {updating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              Confirm Picked Up
-                            </button>
-                            <button
-                              type="button"
-                              disabled={updating}
-                              onClick={() => setConfirmPickupInline(false)}
-                              className="px-3 py-1.5 bg-merchant-surface text-merchant-text border border-merchant-border rounded-lg text-xs font-medium transition cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={updating}
-                          onClick={() => setConfirmPickupInline(true)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
-                        >
-                          <CheckCircle className="w-4 h-4" /> Mark Picked Up
-                        </button>
-                      )
+                      <button
+                        type="button"
+                        disabled={updating}
+                        onClick={() =>
+                          openStatusConfirmation({
+                            targetStatus: 'COMPLETED',
+                            title: 'Confirm Order Picked Up',
+                            subtitle: 'Confirm customer collected the package from your physical store.',
+                            badgeLabel: 'COMPLETED',
+                            defaultReason: 'Customer picked up the order',
+                            themeColor: 'emerald',
+                          })
+                        }
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Mark Picked Up
+                      </button>
                     )}
                   </>
                 )}
 
                 {order.status === 'DISPATCHED' && (
-                  confirmDeliveryInline ? (
-                    <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 space-y-2.5 animate-in fade-in duration-150">
-                      <div className="flex items-start gap-2.5 text-xs text-merchant-text">
-                        <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold text-emerald-600 dark:text-emerald-400">
-                            Mark Order Delivered / Completed?
-                          </p>
-                          <p className="text-[11px] text-merchant-text-muted mt-0.5">
-                            Confirm that customer has received the package. This will finalize inventory fulfillment and send a delivery confirmation email to the buyer via Letzshop SMTP.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          disabled={updating}
-                          onClick={() => handleUpdateStatus('COMPLETED', 'Confirmed delivered to customer')}
-                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
-                        >
-                          {updating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          Confirm Delivery & Complete
-                        </button>
-                        <button
-                          type="button"
-                          disabled={updating}
-                          onClick={() => setConfirmDeliveryInline(false)}
-                          className="px-3.5 py-2 bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border rounded-xl text-xs font-medium transition cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={updating}
-                      onClick={() => setConfirmDeliveryInline(true)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
-                    >
-                      <CheckCircle className="w-4 h-4" /> Complete Order (Delivered)
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() =>
+                      openStatusConfirmation({
+                        targetStatus: 'COMPLETED',
+                        title: 'Confirm Delivery & Complete Order',
+                        subtitle: 'Confirm package was received by customer. Sends delivery receipt and finalizes order.',
+                        badgeLabel: 'DELIVERED',
+                        defaultReason: 'Confirmed delivered to customer',
+                        themeColor: 'emerald',
+                      })
+                    }
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Complete Order (Delivered)
+                  </button>
                 )}
 
                 {/* Cancel Action available for unfulfilled active orders */}
@@ -505,8 +657,17 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   <button
                     type="button"
                     disabled={updating}
-                    onClick={() => setConfirmModal({ type: 'CANCEL', targetStatus: 'CANCELLED' })}
-                    className="px-3.5 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50 ml-auto"
+                    onClick={() =>
+                      openStatusConfirmation({
+                        targetStatus: 'CANCELLED',
+                        title: 'Cancel Order',
+                        subtitle: 'Cancel this order and release reserved stock back to available inventory.',
+                        badgeLabel: 'CANCELLED',
+                        defaultReason: 'Order cancelled by merchant',
+                        themeColor: 'rose',
+                      })
+                    }
+                    className="px-3.5 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50 ml-auto cursor-pointer"
                   >
                     <Ban className="w-3.5 h-3.5" /> Cancel Order
                   </button>
@@ -556,7 +717,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         Call
                       </a>
                       <a
-                        href={getWhatsAppLink()}
+                        href={getWhatsAppLinkForStatus(order.status)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold shadow-2xs transition"
@@ -648,34 +809,27 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
             {/* FINANCIAL BREAKDOWN */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4" />
-                <span>Order Totals</span>
+                <span>Billing & Totals</span>
               </h3>
 
               <div className="bg-merchant-surface-raised p-4 rounded-xl border border-merchant-border text-xs space-y-2">
                 <div className="flex justify-between text-merchant-text-secondary">
                   <span>Subtotal</span>
-                  <span className="font-mono font-medium">{formatPaise(order.subtotalPaise)}</span>
+                  <span className="font-mono">{formatPaise(order.subtotalPaise)}</span>
                 </div>
+                {order.shippingPaise > 0 && (
+                  <div className="flex justify-between text-merchant-text-secondary">
+                    <span>Delivery Charge</span>
+                    <span className="font-mono">{formatPaise(order.shippingPaise)}</span>
+                  </div>
+                )}
                 {order.discountPaise > 0 && (
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <div className="flex justify-between text-emerald-500 font-semibold">
                     <span>Discount</span>
                     <span className="font-mono">-{formatPaise(order.discountPaise)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-merchant-text-secondary">
-                  <span>Shipping & Delivery</span>
-                  <span className="font-mono font-medium">
-                    {order.shippingPaise > 0 ? formatPaise(order.shippingPaise) : 'Free'}
-                  </span>
-                </div>
-                {order.taxPaise > 0 && (
-                  <div className="flex justify-between text-merchant-text-secondary">
-                    <span>Tax (GST)</span>
-                    <span className="font-mono font-medium">{formatPaise(order.taxPaise)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-sm text-merchant-text pt-2 border-t border-merchant-border">
+                <div className="flex justify-between text-merchant-text font-bold text-sm pt-2 border-t border-merchant-border">
                   <span>Total Amount</span>
                   <span className="font-mono">{formatPaise(order.totalPaise)}</span>
                 </div>
@@ -733,7 +887,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   <button
                     type="button"
                     onClick={() => setSyncSuccessMessage(null)}
-                    className="text-emerald-500 hover:text-emerald-700 ml-2"
+                    className="text-emerald-500 hover:text-emerald-700 ml-2 cursor-pointer"
                   >
                     ✕
                   </button>
@@ -796,27 +950,15 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                       )}
 
                       {/* WhatsApp Quick Updates */}
-                      {order.status === 'DISPATCHED' && (
+                      {customerPhone && (
                         <a
-                          href={getWhatsAppLink('DISPATCHED')}
+                          href={getWhatsAppLinkForStatus(order.status)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
-                          Send Dispatch Alert on WhatsApp
-                        </a>
-                      )}
-
-                      {order.status === 'COMPLETED' && (
-                        <a
-                          href={getWhatsAppLink('DELIVERED')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          Send Delivered Receipt on WhatsApp
+                          Send Status Update on WhatsApp
                         </a>
                       )}
 
@@ -869,283 +1011,348 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     )}
                   </>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                      <div>
-                        <p className="font-bold text-merchant-text">Select Fulfillment & Dispatch Method</p>
-                        <p className="text-[11px] text-merchant-text-muted">
-                          Choose whether to self-deliver via your store rider/staff, or ship through Shiprocket.
-                        </p>
-                      </div>
-                    </div>
-
-                    {!['CANCELLED', 'COMPLETED'].includes(order.status) && (
-                      <div className="space-y-3 pt-1">
-                        {/* Delivery Method Selector Tabs */}
-                        <div className="grid grid-cols-2 gap-2 p-1 bg-merchant-surface rounded-xl border border-merchant-border">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedFulfillmentMode('SELF_DELIVERY')}
-                            className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                              selectedFulfillmentMode === 'SELF_DELIVERY'
-                                ? 'bg-merchant-primary text-white shadow-xs'
-                                : 'text-merchant-text-muted hover:text-merchant-text'
-                            }`}
-                          >
-                            <StoreIcon className="w-3.5 h-3.5" />
-                            Self / Store Team
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setSelectedFulfillmentMode('SHIPROCKET')}
-                            className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                              selectedFulfillmentMode === 'SHIPROCKET'
-                                ? 'bg-amber-600 text-white shadow-xs'
-                                : 'text-merchant-text-muted hover:text-merchant-text'
-                            }`}
-                          >
-                            <Truck className="w-3.5 h-3.5" />
-                            Shiprocket Logistics
-                          </button>
-                        </div>
-
-                        {/* Self Delivery Options */}
-                        {selectedFulfillmentMode === 'SELF_DELIVERY' && (
-                          <div className="p-3 bg-merchant-surface rounded-xl border border-merchant-border space-y-2.5 animate-in fade-in duration-150">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                                  Rider / Staff Name (Optional)
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. Ramesh / Store Owner"
-                                  value={riderName}
-                                  onChange={(e) => setRiderName(e.target.value)}
-                                  className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                                  Rider Phone Number (Optional)
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. 9876543210"
-                                  value={riderPhone}
-                                  onChange={(e) => setRiderPhone(e.target.value)}
-                                  className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between pt-1">
-                              <p className="text-[10px] text-merchant-text-muted">
-                                Sends dispatch email to customer via Letzshop SMTP with rider contact & tracking link.
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => handleDispatch('SELF_DELIVERY')}
-                                disabled={shippingLoading}
-                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
-                              >
-                                {shippingLoading ? (
-                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Dispatching...</>
-                                ) : (
-                                  <><StoreIcon className="w-3.5 h-3.5" /> Dispatch with Store Team</>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Shiprocket Delivery Options */}
-                        {selectedFulfillmentMode === 'SHIPROCKET' && (
-                          <div className="p-3 bg-merchant-surface rounded-xl border border-merchant-border space-y-2.5 animate-in fade-in duration-150">
-                            <p className="text-xs text-merchant-text">
-                              Connects directly to Shiprocket REST API, assigns real-time courier AWB, schedules pickup, and emails shipping updates to the customer.
-                            </p>
-                            <div className="flex items-center justify-between pt-1">
-                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                                Requires Shiprocket API credentials configured in Shipping Settings.
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleDispatch('SHIPROCKET')}
-                                disabled={shippingLoading}
-                                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 cursor-pointer"
-                              >
-                                {shippingLoading ? (
-                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Manifesting with Shiprocket...</>
-                                ) : (
-                                  <><Truck className="w-3.5 h-3.5" /> Ship via Shiprocket API</>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  <div className="space-y-2">
+                    <p className="font-bold text-merchant-text">No Shipment Created Yet</p>
+                    <p className="text-[11px] text-merchant-text-muted">
+                      When this order is ready, click <strong>"Dispatch Order"</strong> above. You will be able to select your saved delivery partner and send live updates to the buyer.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* ORDER TIMELINE / STATUS HISTORY */}
-            {order.statusHistory && order.statusHistory.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-4 h-4" />
-                  <span>Order Timeline</span>
-                </h3>
-
-                <div className="border border-merchant-border rounded-2xl p-4 bg-merchant-surface space-y-3">
-                  {order.statusHistory.map((h: any, idx: number) => {
-                    const toMeta = ORDER_STATUS_CONFIG[h.toStatus] || {
-                      label: h.toStatus,
-                      bgClass: 'bg-merchant-surface-raised',
-                      textClass: 'text-merchant-text',
-                    };
-
-                    return (
-                      <div key={h.id || idx} className="flex items-start gap-3 text-xs">
-                        <div className="w-2 h-2 rounded-full bg-merchant-primary mt-1.5 shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="font-bold text-merchant-text">
-                              Status changed to <span className={toMeta.textClass}>{toMeta.label}</span>
-                            </span>
-                            <span className="text-merchant-text-muted font-mono text-[10px]">
-                              {new Date(h.createdAt).toLocaleTimeString('en-IN', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                          {h.reason && (
-                            <p className="text-merchant-text-muted text-[11px] mt-0.5 italic">"{h.reason}"</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          CONFIRMATION MODAL
+          TWO-STEP STATUS CONFIRMATION & NOTIFICATION MODAL
       ========================================================================= */}
-      {confirmModal && (
+      {statusConfirmModal && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-merchant-overlay/80 backdrop-blur-xs"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setConfirmModal(null);
-          }}
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !updating && setStatusConfirmModal(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-merchant-surface border border-merchant-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-merchant-text"
+            className="bg-merchant-surface border border-merchant-border rounded-2xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-merchant-text max-h-[90vh] overflow-y-auto"
           >
-            {confirmModal.type === 'CANCEL' ? (
-              <>
-                <div className="w-10 h-10 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                  <Ban className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-merchant-text">Cancel Order #{order.orderNumber}?</h3>
-                  <p className="text-xs text-merchant-text-muted mt-1">
-                    This order will be cancelled and reserved inventory stock will be released back to available quantity.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-merchant-text-secondary block">
-                    Cancellation Reason:
-                  </label>
-                  <select
-                    value={cancellationReason}
-                    onChange={(e) => setCancellationReason(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-hidden focus:ring-2 focus:ring-merchant-focus-ring"
-                  >
-                    {CANCELLATION_REASONS.map((r) => (
-                      <option key={r} value={r} className="bg-merchant-surface text-merchant-text">
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-
-                  {cancellationReason === 'Other' && (
-                    <input
-                      type="text"
-                      placeholder="Specify custom reason..."
-                      value={customReason}
-                      onChange={(e) => setCustomReason(e.target.value)}
-                      className="w-full text-xs p-2.5 mt-2 rounded-xl border border-merchant-input-border bg-merchant-input-bg text-merchant-text placeholder-merchant-text-muted focus:outline-hidden focus:ring-2 focus:ring-merchant-focus-ring"
-                    />
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-merchant-border pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    statusConfirmModal.targetStatus === 'CANCELLED'
+                      ? 'bg-rose-500/15 text-rose-500'
+                      : statusConfirmModal.targetStatus === 'COMPLETED'
+                      ? 'bg-emerald-500/15 text-emerald-500'
+                      : statusConfirmModal.targetStatus === 'DISPATCHED'
+                      ? 'bg-purple-500/15 text-purple-500'
+                      : 'bg-cyan-500/15 text-cyan-500'
+                  }`}
+                >
+                  {statusConfirmModal.targetStatus === 'CANCELLED' ? (
+                    <Ban className="w-5 h-5" />
+                  ) : statusConfirmModal.targetStatus === 'COMPLETED' ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : statusConfirmModal.targetStatus === 'DISPATCHED' ? (
+                    <Truck className="w-5 h-5" />
+                  ) : (
+                    <Check className="w-5 h-5" />
                   )}
                 </div>
-
-                <div className="flex items-center justify-end gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmModal(null)}
-                    disabled={updating}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-merchant-surface-raised hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border transition"
-                  >
-                    Keep Order
-                  </button>
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={() =>
-                      handleUpdateStatus(
-                        'CANCELLED',
-                        cancellationReason === 'Other' && customReason
-                          ? customReason
-                          : cancellationReason
-                      )
-                    }
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition disabled:opacity-50"
-                  >
-                    {updating ? 'Cancelling...' : 'Confirm Cancellation'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5" />
-                </div>
                 <div>
-                  <h3 className="text-base font-bold text-merchant-text">Mark Order Delivered / Completed?</h3>
-                  <p className="text-xs text-merchant-text-muted mt-1">
-                    Confirm that customer has received the package. This will finalize stock and complete the order.
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-merchant-text">
+                      {statusConfirmModal.title}
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-merchant-surface-raised border border-merchant-border text-merchant-text-muted">
+                      Review & Confirm
+                    </span>
+                  </div>
+                  <p className="text-xs text-merchant-text-muted mt-0.5">
+                    {statusConfirmModal.subtitle}
                   </p>
                 </div>
+              </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => !updating && setStatusConfirmModal(null)}
+                className="text-merchant-text-muted hover:text-merchant-text p-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Order Snapshot */}
+            <div className="p-3 rounded-xl bg-merchant-surface-raised border border-merchant-border text-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] text-merchant-text-muted block">Order & Buyer</span>
+                <span className="font-mono font-bold text-merchant-text">#{order.orderNumber}</span> • {customerName}
+                {customerPhone && <span className="font-mono text-merchant-text-muted"> ({customerPhone})</span>}
+              </div>
+              <div className="text-right">
+                <span className="text-[11px] text-merchant-text-muted block">Total Amount</span>
+                <span className="font-mono font-bold text-emerald-500">{formatPaise(order.totalPaise)}</span>
+              </div>
+            </div>
+
+            {/* Cancellation reason if CANCELLED */}
+            {statusConfirmModal.targetStatus === 'CANCELLED' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-merchant-text-secondary block">
+                  Select Reason:
+                </label>
+                <select
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                >
+                  {CANCELLATION_REASONS.map((r) => (
+                    <option key={r} value={r} className="bg-merchant-surface text-merchant-text">
+                      {r}
+                    </option>
+                  ))}
+                </select>
+                {cancellationReason === 'Other' && (
+                  <input
+                    type="text"
+                    placeholder="Specify custom reason..."
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    className="w-full text-xs p-2.5 mt-2 rounded-xl border border-merchant-input-border bg-merchant-input-bg text-merchant-text placeholder-merchant-text-muted focus:outline-none"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* DELIVERY PARTNER ASSIGNMENT (When target is DISPATCHED) */}
+            {statusConfirmModal.targetStatus === 'DISPATCHED' && (
+              <div className="space-y-2.5 p-3.5 rounded-xl bg-merchant-surface-raised border border-merchant-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-merchant-text flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-amber-500" />
+                    Assign Delivery Partner
+                  </label>
+                  <span className="text-[10px] text-merchant-text-muted">
+                    Buyer will receive rider name & contact
+                  </span>
+                </div>
+
+                {/* Delivery Mode Toggle */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-merchant-surface rounded-lg border border-merchant-border text-xs">
                   <button
                     type="button"
-                    onClick={() => setConfirmModal(null)}
-                    disabled={updating}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-merchant-surface-raised hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border transition"
+                    onClick={() => setSelectedFulfillmentMode('SELF_DELIVERY')}
+                    className={`py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                      selectedFulfillmentMode === 'SELF_DELIVERY'
+                        ? 'bg-merchant-primary text-white shadow-2xs'
+                        : 'text-merchant-text-muted hover:text-merchant-text'
+                    }`}
                   >
-                    Back
+                    <StoreIcon className="w-3 h-3" /> Store / In-House Rider
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleUpdateStatus('COMPLETED', 'Confirmed delivered to customer')}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition disabled:opacity-50"
+                    onClick={() => setSelectedFulfillmentMode('SHIPROCKET')}
+                    className={`py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                      selectedFulfillmentMode === 'SHIPROCKET'
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'text-merchant-text-muted hover:text-merchant-text'
+                    }`}
                   >
-                    {updating ? 'Completing...' : 'Confirm Delivery & Complete'}
+                    <Truck className="w-3 h-3" /> Shiprocket Logistics
                   </button>
                 </div>
-              </>
+
+                {selectedFulfillmentMode === 'SELF_DELIVERY' ? (
+                  <div className="space-y-2 pt-1">
+                    {/* Saved Riders Dropdown */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-merchant-text-secondary block mb-1">
+                        Select from Registered Delivery Partners:
+                      </label>
+                      <select
+                        value={isAddingNewRiderInline ? 'NEW' : selectedPartnerId}
+                        onChange={(e) => handlePartnerSelect(e.target.value)}
+                        className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                      >
+                        {deliveryPartners.length > 0 ? (
+                          <>
+                            {deliveryPartners.map((dp) => (
+                              <option key={dp.id} value={dp.id}>
+                                {dp.name} — {dp.phone} {dp.vehicle ? `(${dp.vehicle})` : ''} {dp.isDefault ? '★ Default' : ''}
+                              </option>
+                            ))}
+                            <option value="NEW">+ Enter Different / New Rider</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="NEW">No saved partners yet — Enter rider details below</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    {/* Inline Rider Details Inputs if adding new or editing */}
+                    {(isAddingNewRiderInline || deliveryPartners.length === 0) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                            Rider Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Ramesh"
+                            value={riderName}
+                            onChange={(e) => setRiderName(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                            Rider Mobile Number
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="e.g. 9876543210"
+                            value={riderPhone}
+                            onChange={(e) => setRiderPhone(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text font-mono focus:outline-none"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center gap-1.5 pt-1">
+                          <input
+                            type="checkbox"
+                            id="save-rider-dir"
+                            checked={saveRiderToDirectory}
+                            onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
+                            className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
+                          />
+                          <label htmlFor="save-rider-dir" className="text-[11px] text-merchant-text-muted cursor-pointer">
+                            Save this rider to store directory for future 1-click selection
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-500 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+                    Will request doorstep pickup and generate AWB via configured Shiprocket courier network.
+                  </p>
+                )}
+              </div>
             )}
+
+            {/* CUSTOM MESSAGE TO BUYER */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-merchant-text flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-merchant-primary" />
+                  Custom Note / Message for Buyer (Optional)
+                </label>
+                <span className="text-[10px] text-merchant-text-muted">Included in email & WhatsApp</span>
+              </div>
+
+              <textarea
+                rows={2}
+                placeholder="Type any personal message, ETA, or instructions for the buyer..."
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-xl border border-merchant-input-border bg-merchant-input-bg text-merchant-text placeholder-merchant-text-muted focus:outline-none focus:ring-1 focus:ring-merchant-primary resize-none"
+              />
+
+              {/* Suggestion Chips */}
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {(STATUS_MESSAGE_SUGGESTIONS[statusConfirmModal.targetStatus] || []).map((sugg, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCustomMessage(sugg)}
+                    className="text-[10px] px-2 py-0.5 bg-merchant-surface-raised hover:bg-merchant-surface-muted text-merchant-text-muted hover:text-merchant-text border border-merchant-border rounded-md transition cursor-pointer"
+                  >
+                    + {sugg}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AUTOMATED NOTIFICATION CHANNELS TOGGLE */}
+            <div className="p-3 rounded-xl bg-merchant-surface-raised border border-merchant-border space-y-2">
+              <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider block">
+                Automated Customer Updates
+              </span>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sendEmailNotification}
+                    onChange={(e) => setSendEmailNotification(e.target.checked)}
+                    className="h-4 w-4 text-merchant-primary rounded cursor-pointer"
+                  />
+                  <span className="flex items-center gap-1 text-merchant-text">
+                    <Mail className="w-3.5 h-3.5 text-blue-500" />
+                    Send Email via Letzshop SMTP
+                  </span>
+                </label>
+
+                {customerPhone && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendWhatsAppNotification}
+                      onChange={(e) => setSendWhatsAppNotification(e.target.checked)}
+                      className="h-4 w-4 text-emerald-500 rounded cursor-pointer"
+                    />
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                      <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
+                      Open WhatsApp Chat to Buyer
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Error banner if action fails */}
+            {actionError && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            {/* STEP 2: CONFIRMATION FOOTER BUTTONS */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-merchant-border">
+              <button
+                type="button"
+                onClick={() => setStatusConfirmModal(null)}
+                disabled={updating}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updating}
+                onClick={handleConfirmStatusUpdate}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-merchant-primary hover:bg-merchant-primary-hover text-white shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {updating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Updating & Notifying...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Confirm & Notify Buyer
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
