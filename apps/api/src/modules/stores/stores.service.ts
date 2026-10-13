@@ -418,7 +418,15 @@ export class StoresService {
         where: { storeId },
       }),
       this.prisma.inventory.count({
-        where: { storeId, stockOnHand: { lte: 5 } },
+        where: {
+          storeId,
+          stockOnHand: { lte: 5 },
+          variant: {
+            deletedAt: null,
+            status: 'ACTIVE',
+            product: { deletedAt: null },
+          },
+        },
       }),
       this.prisma.subscription.findFirst({
         where: { tenantId, status: 'ACTIVE' },

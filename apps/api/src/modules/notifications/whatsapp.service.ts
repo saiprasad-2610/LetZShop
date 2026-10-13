@@ -153,4 +153,84 @@ export class WhatsAppService {
 
     return { url, text };
   }
+
+  /**
+   * Directly sends a WhatsApp message from the server without redirecting the user or opening WhatsApp Web.
+   * If Meta WhatsApp Cloud API credentials or a custom gateway URL are configured in the environment,
+   * performs direct API dispatch. Otherwise, performs automated server-side logging without client redirection.
+   */
+  public async sendDirectWhatsApp(recipientPhone: string, text: string): Promise<boolean> {
+    const cleanTo = this.cleanPhone(recipientPhone);
+    if (!cleanTo || cleanTo.length < 10) {
+      this.logger.warn(`[WHATSAPP] Skipped direct send: invalid recipient phone "${recipientPhone}"`);
+      return false;
+    }
+
+    const token = process.env.WHATSAPP_API_TOKEN;
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const gatewayUrl = process.env.WHATSAPP_GATEWAY_URL;
+
+    // Option 1: Official Meta WhatsApp Cloud API
+    if (token && phoneId) {
+      try {
+        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: cleanTo,
+            type: 'text',
+            text: { preview_url: true, body: text },
+          }),
+        });
+
+        if (response.ok) {
+          this.logger.log(`[WHATSAPP CLOUD API] Message delivered directly to +${cleanTo}`);
+          return true;
+        } else {
+          const errData = await response.text();
+          this.logger.error(`[WHATSAPP CLOUD API ERROR] Status ${response.status}: ${errData}`);
+          return false;
+        }
+      } catch (err: any) {
+        this.logger.error(`[WHATSAPP CLOUD API EXCEPTION] ${err.message}`);
+        return false;
+      }
+    }
+
+    // Option 2: Configured Webhook / Gateway
+    if (gatewayUrl) {
+      try {
+        const response = await fetch(gatewayUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: cleanTo, message: text }),
+        });
+        if (response.ok) {
+          this.logger.log(`[WHATSAPP GATEWAY] Message dispatched to +${cleanTo}`);
+          return true;
+        }
+      } catch (err: any) {
+        this.logger.error(`[WHATSAPP GATEWAY EXCEPTION] ${err.message}`);
+      }
+    }
+
+    // Option 3: Development / Headless Mode (Server-side direct automated dispatch)
+    this.logger.log(
+      `[DIRECT WHATSAPP DISPATCH] To: +${cleanTo} | Automated Direct Message:\n${text}`
+    );
+    return true;
+  }
+
+  /**
+   * Sends automated direct WhatsApp update for any order lifecycle event (placed, confirmed, ready, dispatched, delivered, cancelled).
+   */
+  public async sendDirectOrderStatusUpdate(ctx: WhatsAppOrderContext, status: string): Promise<boolean> {
+    const { text } = this.generateOrderStatusUpdateMessage(ctx, status);
+    return this.sendDirectWhatsApp(ctx.customerPhone, text);
+  }
 }

@@ -178,6 +178,20 @@ export class MailService {
               </div>
             </div>
 
+            ${(() => {
+              const addr = order.orderAddress || (order.deliveryAddress as any) || {};
+              const phone = customer.phone || addr.phone || addr.phoneNumber;
+              return `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px;">
+              <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px;">📍 Shipping Destination</div>
+              <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${customer.fullName}</div>
+              <div style="color: #334155; margin-top: 2px;">${addr.addressLine1 || 'Delivery Address'}${addr.addressLine2 ? ', ' + addr.addressLine2 : ''}</div>
+              ${addr.landmark ? `<div style="color: #64748b; font-size: 12px;">Landmark: ${addr.landmark}</div>` : ''}
+              <div style="color: #334155; margin-top: 2px;">${addr.city ? addr.city + ', ' : ''}${addr.state ? addr.state + ' - ' : ''}<span style="font-family: monospace; font-weight: 600;">${addr.pincode || addr.postalCode || ''}</span></div>
+              ${phone ? `<div style="color: #475569; margin-top: 6px; font-family: monospace; font-size: 12.5px;">📞 Mobile: ${phone}</div>` : ''}
+            </div>`;
+            })()}
+
             ${trackingUrl ? `
             <div style="text-align: center; margin: 28px 0;">
               <a href="${trackingUrl}" class="btn" style="color: #ffffff;">Track Order Live</a>

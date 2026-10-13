@@ -307,6 +307,35 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     return `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
   };
 
+  const getDeliveryPartnerAssignmentWhatsApp = (pPhone: string, pName: string) => {
+    const cleanRider = (pPhone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
+    if (!cleanRider) return '#';
+
+    const itemsSummary =
+      order.itemsSummary ||
+      (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
+      'Items';
+
+    const paymentText =
+      order.paymentStatus === 'PAID'
+        ? 'PREPAID (₹0 to collect)'
+        : `COD / Collect ${formatPaise(order.totalPaise)}`;
+
+    const text =
+      `🛵 *Delivery Assignment - Order #${order.orderNumber}*\n\n` +
+      `Hello *${pName || 'Delivery Partner'}*,\n` +
+      `You have been assigned to deliver the following order:\n\n` +
+      `👤 *Customer:* ${customerName}\n` +
+      `📞 *Customer Phone:* ${customerPhone}\n` +
+      `📍 *Delivery Address:* ${addr.addressLine1 || ''}${addr.addressLine2 ? ', ' + addr.addressLine2 : ''}, ${addr.city || ''} (${addr.pincode || addr.postalCode || ''})\n` +
+      `📦 *Items:* ${itemsSummary}\n` +
+      `💰 *Payment Status:* ${paymentText}\n` +
+      (trackingUrl ? `\n🔗 *Order Tracking:* ${trackingUrl}\n\n` : '\n\n') +
+      `Please collect the package from store and deliver to recipient. Thank you!`;
+
+    return `https://wa.me/91${cleanRider}?text=${encodeURIComponent(text)}`;
+  };
+
   const handleConfirmStatusUpdate = async () => {
     if (!statusConfirmModal) return;
     setUpdating(true);
@@ -363,19 +392,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
         riderPhone: effectiveRiderPhone,
       });
 
-      // 4. If WhatsApp toggle enabled, launch pre-filled WhatsApp message
-      if (sendWhatsAppNotification && customerPhone) {
-        const waUrl = getWhatsAppLinkForStatus(
-          targetStatus,
-          customMessage.trim() || undefined,
-          effectiveRiderName,
-          effectiveRiderPhone
-        );
-        if (waUrl && waUrl !== '#') {
-          window.open(waUrl, '_blank');
-        }
-      }
-
+      // Headless Automated Notifications: Server automatically dispatches email and direct WhatsApp without client popups or redirects
       setStatusConfirmModal(null);
       onStatusUpdated();
     } catch (err: any) {
@@ -1011,11 +1028,126 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     )}
                   </>
                 ) : (
-                  <div className="space-y-2">
-                    <p className="font-bold text-merchant-text">No Shipment Created Yet</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-merchant-text text-xs flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-merchant-primary" />
+                        Assign Delivery Partner (Prior to Dispatch)
+                      </p>
+                      <span className="text-[10px] text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        Pre-Dispatch Setup
+                      </span>
+                    </div>
                     <p className="text-[11px] text-merchant-text-muted">
-                      When this order is ready, click <strong>"Dispatch Order"</strong> above. You will be able to select your saved delivery partner and send live updates to the buyer.
+                      Select or add a delivery person below. You can assign and notify them regarding pickup and delivery details before marking dispatched.
                     </p>
+
+                    <div className="p-3.5 bg-merchant-surface border border-merchant-border rounded-xl space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-merchant-text-secondary block mb-1">
+                          Select Delivery Partner:
+                        </label>
+                        <select
+                          value={isAddingNewRiderInline ? 'NEW' : selectedPartnerId}
+                          onChange={(e) => handlePartnerSelect(e.target.value)}
+                          className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                        >
+                          {deliveryPartners.length > 0 ? (
+                            <>
+                              {deliveryPartners.map((dp) => (
+                                <option key={dp.id} value={dp.id}>
+                                  {dp.name} — {dp.phone} {dp.vehicle ? `(${dp.vehicle})` : ''} {dp.isDefault ? '★ Default' : ''}
+                                </option>
+                              ))}
+                              <option value="NEW">+ Enter Different / New Delivery Person</option>
+                            </>
+                          ) : (
+                            <option value="NEW">No saved partners yet — Enter rider details below</option>
+                          )}
+                        </select>
+                      </div>
+
+                      {(isAddingNewRiderInline || deliveryPartners.length === 0) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                          <div>
+                            <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                              Delivery Person Name
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Ramesh"
+                              value={riderName}
+                              onChange={(e) => setRiderName(e.target.value)}
+                              className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                              Mobile Number
+                            </label>
+                            <input
+                              type="tel"
+                              placeholder="e.g. 9876543210"
+                              value={riderPhone}
+                              onChange={(e) => setRiderPhone(e.target.value)}
+                              className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-2 flex items-center justify-between pt-1">
+                            <label className="flex items-center gap-1.5 text-[11px] text-merchant-text-muted cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={saveRiderToDirectory}
+                                onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
+                                className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
+                              />
+                              Save to store directory
+                            </label>
+                            {riderName.trim() && riderPhone.trim() && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  api.deliveryPartners
+                                    .save({
+                                      name: riderName.trim(),
+                                      phone: riderPhone.trim(),
+                                      vehicle: 'Motorcycle',
+                                      isDefault: deliveryPartners.length === 0,
+                                    })
+                                    .then(() => {
+                                      api.deliveryPartners.list().then((r: any) => {
+                                        if (r?.data) setDeliveryPartners(r.data);
+                                      });
+                                    })
+                                    .catch(() => {});
+                                }}
+                                className="text-[11px] text-merchant-primary font-semibold hover:underline cursor-pointer"
+                              >
+                                Save Partner Now
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action to notify assigned delivery partner */}
+                      {riderPhone.trim() && (
+                        <div className="pt-2 border-t border-merchant-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <span className="text-[11px] text-merchant-text-muted">
+                            Assigned: <strong className="text-merchant-text">{riderName || 'Partner'}</strong> ({riderPhone})
+                          </span>
+                          <a
+                            href={getDeliveryPartnerAssignmentWhatsApp(riderPhone, riderName)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            Notify Delivery Person on WhatsApp
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1279,39 +1411,28 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
               </div>
             </div>
 
-            {/* AUTOMATED NOTIFICATION CHANNELS TOGGLE */}
-            <div className="p-3 rounded-xl bg-merchant-surface-raised border border-merchant-border space-y-2">
-              <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider block">
-                Automated Customer Updates
-              </span>
+            {/* AUTOMATED NOTIFICATION CHANNELS (HEADLESS 1-CLICK) */}
+            <div className="p-3.5 rounded-xl bg-merchant-surface-raised border border-merchant-border space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider block">
+                  Direct Buyer Notifications (1-Click)
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  ⚡ Sent Directly (No Redirects)
+                </span>
+              </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sendEmailNotification}
-                    onChange={(e) => setSendEmailNotification(e.target.checked)}
-                    className="h-4 w-4 text-merchant-primary rounded cursor-pointer"
-                  />
-                  <span className="flex items-center gap-1 text-merchant-text">
-                    <Mail className="w-3.5 h-3.5 text-blue-500" />
-                    Send Email via Letzshop SMTP
-                  </span>
-                </label>
+                <span className="flex items-center gap-1.5 text-merchant-text">
+                  <Mail className="w-3.5 h-3.5 text-blue-500" />
+                  Direct Email via Letzshop SMTP
+                </span>
 
                 {customerPhone && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sendWhatsAppNotification}
-                      onChange={(e) => setSendWhatsAppNotification(e.target.checked)}
-                      className="h-4 w-4 text-emerald-500 rounded cursor-pointer"
-                    />
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                      <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
-                      Open WhatsApp Chat to Buyer
-                    </span>
-                  </label>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
+                    Direct WhatsApp to {customerPhone}
+                  </span>
                 )}
               </div>
             </div>

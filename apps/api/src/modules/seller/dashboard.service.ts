@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaClient, OrderStatus, PaymentStatus, ProductStatus, StoreStatus } from '@prisma/client';
+import { PrismaClient, OrderStatus, PaymentStatus, ProductStatus, StoreStatus, VariantStatus } from '@prisma/client';
 import {
   parseDashboardPeriod,
   formatIstDate,
@@ -169,13 +169,20 @@ export class DashboardService {
         },
       }),
 
-      // Low stock variants (canonical threshold <= 5)
+      // Low stock variants (canonical threshold <= 5, excluding deleted/inactive variants and deleted products)
       this.prisma.inventory?.count
         ? this.prisma.inventory.count({
             where: {
               tenantId,
               storeId,
               stockOnHand: { lte: 5 },
+              variant: {
+                deletedAt: null,
+                status: VariantStatus.ACTIVE,
+                product: {
+                  deletedAt: null,
+                },
+              },
             },
           })
         : Promise.resolve(0),

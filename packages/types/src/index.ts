@@ -287,6 +287,23 @@ export interface BuyerSafeTrackOrderDto {
     supportPhone?: string | null;
     supportEmail?: string | null;
   } | null;
+  customerName?: string;
+  customerPhone?: string;
+  paymentMethod?: string;
+  shippingAddress?: {
+    fullName?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    landmark?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  riderName?: string | null;
+  riderPhone?: string | null;
   history?: Array<{
     status: string;
     reason?: string | null;

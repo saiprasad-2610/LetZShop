@@ -112,7 +112,12 @@ export default function OrderConfirmationPage() {
     );
   }
 
-  const addr = order.shippingAddress || {};
+  const addr = order.shippingAddress || (order.deliveryAddress as any) || (order.orderAddress as any) || {};
+  const customerName = order.customerName || order.customer?.fullName || addr.fullName || 'Customer';
+  const customerPhone = order.customerPhone || order.customer?.phone || addr.phone || '';
+  const city = addr.city || order.deliveryCity || '';
+  const state = addr.state || order.deliveryState || '';
+  const pincode = addr.postalCode || addr.pincode || order.deliveryPincode || '';
   const cleanPhone = (store.contactPhone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
 
   const itemsSummary = (order.items || [])
@@ -125,8 +130,8 @@ export default function OrderConfirmationPage() {
     `I have just placed an order on your store!\n\n` +
     `📦 *Items:* ${itemsSummary}\n` +
     `💰 *Total Amount:* ${formatPaise(order.totalPaise || order.totalAmountPaise || 0)}\n` +
-    `👤 *Customer:* ${order.customerName || 'Customer'} (${order.customerPhone || ''})\n` +
-    `📍 *Delivery City / PIN:* ${addr.city || ''} ${addr.postalCode ? `- ${addr.postalCode}` : ''}\n\n` +
+    `👤 *Customer:* ${customerName} (${customerPhone})\n` +
+    `📍 *Delivery City / PIN:* ${city} ${pincode ? `- ${pincode}` : ''}\n\n` +
     `Please confirm my order and let me know when it is dispatched. Thank you!`;
 
   const waOrderDetailsLink = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(buyerToVendorWaText)}`;
@@ -298,6 +303,38 @@ export default function OrderConfirmationPage() {
                 <p className="text-gray-500 font-mono">Mobile: {order.customerPhone}</p>
               </div>
             </div>
+
+            {/* Delivery Partner Assigned Card (Recipient visibility) */}
+            {(order.riderName || order.riderPhone || order.carrier) && (
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5 shadow-sm space-y-3 text-xs">
+                <h2 className="font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-emerald-600" /> Assigned Delivery Partner
+                </h2>
+                <div className="space-y-2 text-emerald-950">
+                  <div className="flex items-center justify-between">
+                    <span className="text-emerald-700">Delivery Person:</span>
+                    <span className="font-bold text-gray-900">{order.riderName || order.carrier || 'Store Delivery Partner'}</span>
+                  </div>
+                  {order.riderPhone && (
+                    <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60">
+                      <span className="text-emerald-700">Direct Contact:</span>
+                      <a
+                        href={`tel:${order.riderPhone}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-emerald-300 rounded-lg text-emerald-800 font-mono font-bold shadow-2xs hover:bg-emerald-50 transition"
+                      >
+                        📞 Call {order.riderPhone}
+                      </a>
+                    </div>
+                  )}
+                  {order.trackingNumber && (
+                    <div className="flex items-center justify-between pt-0.5 text-[11px] text-emerald-800 font-mono">
+                      <span>Tracking Ref:</span>
+                      <span>{order.trackingNumber}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3 text-xs">
               <h2 className="font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">

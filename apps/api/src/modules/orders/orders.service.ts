@@ -395,6 +395,26 @@ export class OrdersService {
           });
         }
 
+        if (customerPhone) {
+          const itemsSummary = (fullOrder.items || [])
+            .map((it: any) => `${it.quantity}x ${it.productName}`)
+            .join(', ');
+          const waContext = {
+            orderNumber: fullOrder.orderNumber,
+            storeName: store.name,
+            storePhone: store.supportPhone || undefined,
+            customerName,
+            customerPhone,
+            totalPaise: fullOrder.totalPaise,
+            itemsSummary,
+            status: OrderStatus.NEW,
+            trackingUrl,
+          };
+          this.whatsappService.sendDirectOrderStatusUpdate(waContext, 'NEW').catch((err) => {
+            this.logger.warn(`Failed to send order placed WhatsApp: ${err.message}`);
+          });
+        }
+
         const vendorAlertEmail = store.supportEmail || process.env.ORDERS_ALERT_EMAIL;
         if (vendorAlertEmail) {
           this.mailService.sendVendorNewOrderAlert(emailContext, vendorAlertEmail).catch((err) => {
@@ -512,6 +532,8 @@ export class OrdersService {
           },
         },
         statusHistory: { orderBy: { createdAt: 'asc' } },
+        orderAddress: true,
+        customer: true,
       },
     });
 
@@ -527,19 +549,37 @@ export class OrdersService {
       }
     }
 
-    const deliveryAddress = (order.deliveryAddress as any) || {};
-    const rawPincode = String(deliveryAddress.pincode || '');
+    const deliveryAddress = (order.deliveryAddress as any) || fullOrder.orderAddress || {};
+    const rawPincode = String(deliveryAddress.pincode || fullOrder.orderAddress?.pincode || '');
     const maskedPincode =
       rawPincode.length >= 6
         ? `${rawPincode.slice(0, 2)}**${rawPincode.slice(4)}`
         : '******';
 
+    const customerName = fullOrder.customer?.fullName || fullOrder.orderAddress?.fullName || 'Customer';
+    const customerPhone = fullOrder.customer?.phone || fullOrder.orderAddress?.phone || '';
+
     return {
       orderNumber: order.orderNumber,
       status: order.status,
       paymentStatus: order.paymentStatus,
+      paymentMethod: (fullOrder as any).paymentMethod || (fullOrder as any).paymentOrders?.[0]?.transactions?.[0]?.paymentMethod || 'Online',
       shipmentStatus: order.shipmentStatus,
       createdAt: order.createdAt,
+      customerName,
+      customerPhone,
+      shippingAddress: {
+        fullName: customerName,
+        phone: customerPhone,
+        addressLine1: fullOrder.orderAddress?.addressLine1 || deliveryAddress.addressLine1 || '',
+        addressLine2: fullOrder.orderAddress?.addressLine2 || deliveryAddress.addressLine2 || '',
+        landmark: fullOrder.orderAddress?.landmark || deliveryAddress.landmark || '',
+        city: fullOrder.orderAddress?.city || deliveryAddress.city || '',
+        state: fullOrder.orderAddress?.state || deliveryAddress.state || '',
+        pincode: rawPincode,
+        postalCode: rawPincode,
+        country: fullOrder.orderAddress?.country || deliveryAddress.country || 'India',
+      },
       deliveryCity: deliveryAddress.city || 'Confidential',
       deliveryState: deliveryAddress.state || 'Confidential',
       deliveryPincode: maskedPincode,
@@ -562,6 +602,25 @@ export class OrdersService {
       })),
       trackingNumber: fullOrder.shipments?.[0]?.awbNumber || null,
       carrier: fullOrder.shipments?.[0]?.courierName || null,
+      riderName: (() => {
+        const s = fullOrder.shipments?.[0];
+        if (!s) return null;
+        if (s.provider === 'SELF_DELIVERY' || s.courierName?.includes('Store Team')) {
+          const match = (s.courierName || '').match(/Store Team:\s*([^(]+)(?:\(([^)]+)\))?/);
+          return match ? match[1]?.trim() : (s.courierName || '').replace(/^Store Team:\s*/, '').trim() || null;
+        }
+        return null;
+      })(),
+      riderPhone: (() => {
+        const s = fullOrder.shipments?.[0];
+        if (!s) return null;
+        if (s.provider === 'SELF_DELIVERY' || s.courierName?.includes('Store Team')) {
+          const match = (s.courierName || '').match(/Store Team:\s*([^(]+)(?:\(([^)]+)\))?/);
+          if (match && match[2]) return match[2]?.trim();
+          if (s.trackingUrl?.startsWith('tel:')) return s.trackingUrl.replace(/^tel:/, '');
+        }
+        return null;
+      })(),
       estimatedDelivery: null,
     };
   }
@@ -901,10 +960,13 @@ export class OrdersService {
 
       // Step D: If DISPATCHED and rider info is supplied, record shipment details atomically
       if (toStatus === OrderStatus.DISPATCHED && (riderName || riderPhone)) {
-        const courierName = riderName ? `Store Team: ${riderName.trim()}` : 'Store Team Self-Delivery';
+        const courierName = riderName
+          ? (riderPhone ? `Store Team: ${riderName.trim()} (${riderPhone.trim()})` : `Store Team: ${riderName.trim()}`)
+          : 'Store Team Self-Delivery';
         const awbNumber = riderPhone
           ? `SELF_${lockedOrder.orderNumber}_${riderPhone.replace(/[^0-9]/g, '').slice(-4)}`
           : `SELF_${lockedOrder.orderNumber}`;
+        const trackingUrl = riderPhone ? `tel:${riderPhone.trim()}` : undefined;
 
         const existingShipment = await tx.shipment.findFirst({ where: { orderId: lockedOrder.id } });
         let sId = existingShipment?.id;
@@ -918,6 +980,7 @@ export class OrdersService {
               fulfillmentStatus: FulfillmentStatus.SHIPPED,
               courierName,
               awbNumber: existingShipment.awbNumber || awbNumber,
+              trackingUrl: trackingUrl || existingShipment.trackingUrl,
             },
           });
         } else {
@@ -931,6 +994,7 @@ export class OrdersService {
               fulfillmentStatus: FulfillmentStatus.SHIPPED,
               courierName,
               awbNumber,
+              trackingUrl,
             },
           });
           sId = newShipment.id;
@@ -1039,17 +1103,41 @@ export class OrdersService {
         customMessage,
       };
 
-      if (!customerEmail) return;
+      if (customerEmail) {
+        if (toStatus === OrderStatus.DISPATCHED) {
+          await this.mailService.sendOrderDispatchedEmail(emailContext);
+        } else if (toStatus === OrderStatus.COMPLETED) {
+          await this.mailService.sendOrderDeliveredEmail(emailContext);
+        } else {
+          await this.mailService.sendOrderStatusUpdateEmail(emailContext, toStatus);
+        }
+      }
 
-      if (toStatus === OrderStatus.DISPATCHED) {
-        await this.mailService.sendOrderDispatchedEmail(emailContext);
-      } else if (toStatus === OrderStatus.COMPLETED) {
-        await this.mailService.sendOrderDeliveredEmail(emailContext);
-      } else {
-        await this.mailService.sendOrderStatusUpdateEmail(emailContext, toStatus);
+      if (customerPhone) {
+        const itemsSummary = (fullOrder.items || [])
+          .map((it: any) => `${it.quantity}x ${it.productName}`)
+          .join(', ');
+        const waContext = {
+          orderNumber: fullOrder.orderNumber,
+          storeName: store.name,
+          storePhone: store.supportPhone || undefined,
+          customerName,
+          customerPhone,
+          totalPaise: fullOrder.totalPaise,
+          itemsSummary,
+          status: toStatus,
+          trackingUrl,
+          deliveryMode: deliveryMode as any,
+          courierName: shipment?.courierName || (riderName ? `Store Team: ${riderName}` : undefined),
+          awbNumber: shipment?.awbNumber || undefined,
+          riderName: riderName || undefined,
+          riderPhone: riderPhone || undefined,
+          customMessage,
+        };
+        await this.whatsappService.sendDirectOrderStatusUpdate(waContext, toStatus);
       }
     } catch (err: any) {
-      this.logger.warn(`Failed to dispatch status update email: ${err.message}`);
+      this.logger.warn(`Failed to dispatch status update notifications: ${err.message}`);
     }
   }
 }
