@@ -9,6 +9,12 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+const rootEnvPath = path.resolve(rootDir, '.env');
+if (fs.existsSync(rootEnvPath) && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile(rootEnvPath);
+  } catch {}
+}
 const PID_FILE = path.resolve(rootDir, '.simply-dev-processes.json');
 
 const CANONICAL_PORTS = [4000, 3001, 3000];
