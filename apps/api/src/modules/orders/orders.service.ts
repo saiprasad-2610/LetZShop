@@ -370,7 +370,7 @@ export class OrdersService {
         const customerPhone = fullOrder.customer?.phone || (fullOrder.deliveryAddress as any)?.phone;
         const customerName = fullOrder.customer?.fullName || (fullOrder.deliveryAddress as any)?.fullName || 'Customer';
         const trackingUrl = fullOrder.trackingToken
-          ? `${process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
+          ? `${process.env.STOREFRONT_BASE_URL || process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
           : undefined;
 
         const emailContext = {
@@ -502,10 +502,21 @@ export class OrdersService {
       include: {
         items: true,
         shipments: { orderBy: { createdAt: 'desc' } },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            supportPhone: true,
+            supportEmail: true,
+          },
+        },
+        statusHistory: { orderBy: { createdAt: 'asc' } },
       },
     });
 
     if (!order) throw new NotFoundException('Order not found with the provided details.');
+    const fullOrder = order as any;
 
     // Enforce token verification if trackingToken exists on the order
     if (order.trackingToken) {
@@ -532,19 +543,25 @@ export class OrdersService {
       deliveryCity: deliveryAddress.city || 'Confidential',
       deliveryState: deliveryAddress.state || 'Confidential',
       deliveryPincode: maskedPincode,
-      itemCount: order.items.reduce((acc, it) => acc + it.quantity, 0),
+      itemCount: fullOrder.items.reduce((acc: number, it: any) => acc + it.quantity, 0),
       subtotalPaise: order.subtotalPaise,
       discountPaise: order.discountPaise,
       shippingPaise: order.shippingPaise,
       totalPaise: order.totalPaise,
       currency: order.currency,
-      items: order.items.map((it) => ({
+      store: fullOrder.store,
+      history: fullOrder.statusHistory?.map((h: any) => ({
+        status: h.toStatus,
+        reason: h.reason,
+        timestamp: h.createdAt,
+      })) || [],
+      items: fullOrder.items.map((it: any) => ({
         productName: it.productName,
         variantTitle: it.variantTitle,
         quantity: it.quantity,
       })),
-      trackingNumber: order.shipments[0]?.awbNumber || null,
-      carrier: order.shipments[0]?.courierName || null,
+      trackingNumber: fullOrder.shipments?.[0]?.awbNumber || null,
+      carrier: fullOrder.shipments?.[0]?.courierName || null,
       estimatedDelivery: null,
     };
   }
@@ -994,7 +1011,7 @@ export class OrdersService {
       const customerPhone = fullOrder.customer?.phone || deliveryAddress.phone;
       const customerName = fullOrder.customer?.fullName || deliveryAddress.fullName || 'Valued Customer';
       const trackingUrl = fullOrder.trackingToken
-        ? `${process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
+        ? `${process.env.STOREFRONT_BASE_URL || process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
         : undefined;
 
       const shipment = fullOrder.shipments?.[0];

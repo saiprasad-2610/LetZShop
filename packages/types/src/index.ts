@@ -280,6 +280,18 @@ export interface BuyerSafeTrackOrderDto {
   trackingNumber?: string | null;
   carrier?: string | null;
   estimatedDelivery?: string | Date | null;
+  store?: {
+    id: string;
+    name: string;
+    slug: string;
+    supportPhone?: string | null;
+    supportEmail?: string | null;
+  } | null;
+  history?: Array<{
+    status: string;
+    reason?: string | null;
+    timestamp: string | Date;
+  }>;
 }
 
 export interface CreatePaymentOrderInput {

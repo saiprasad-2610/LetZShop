@@ -1,3 +1,22 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Canonical Environment Bootstrap: Ensure root .env is loaded in development
+const candidateRoots = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../../.env'),
+  path.resolve(__dirname, '../../../.env'),
+  path.resolve(__dirname, '../../../../.env'),
+];
+for (const envPath of candidateRoots) {
+  if (fs.existsSync(envPath) && typeof (process as any).loadEnvFile === 'function') {
+    try {
+      (process as any).loadEnvFile(envPath);
+      break;
+    } catch {}
+  }
+}
+
 import { NestFactory } from '@nestjs/core';
 import {
   FastifyAdapter,

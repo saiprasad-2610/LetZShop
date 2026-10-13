@@ -48,14 +48,13 @@ export class MailService {
           port,
           secure: port === 465,
           auth: { user, pass },
-          tls: { rejectUnauthorized: false },
         });
         this.logger.log(`[SMTP] Transporter configured for host: ${host}:${port}`);
       } catch (err: any) {
         this.logger.warn(`[SMTP] Failed to initialize transporter: ${err.message}. Emails will be logged to console.`);
       }
     } else {
-      this.logger.log('[SMTP] No SMTP credentials provided. Running in development simulation mode (logging outgoing emails).');
+      this.logger.log('[SMTP] Transporter not configured. Running in development simulation mode (logging outgoing emails).');
     }
   }
 

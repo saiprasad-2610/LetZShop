@@ -54,7 +54,7 @@ export class ShippingService {
     const customerPhone = order.customer?.phone || deliveryAddress.phone || '';
     const customerName = order.customer?.fullName || deliveryAddress.fullName || 'Valued Customer';
     const trackingUrl = order.trackingToken
-      ? `${process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${order.orderNumber}?t=${order.trackingToken}`
+      ? `${process.env.STOREFRONT_BASE_URL || process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${order.orderNumber}?t=${order.trackingToken}`
       : undefined;
 
     // Check if merchant explicitly requested Self-Delivery or configured it
