@@ -129,6 +129,13 @@ export default function ProductsPage() {
     loadData('', '');
   };
 
+  const handleResetInventoryFilters = () => {
+    setInventorySearch('');
+    setInventoryCategoryFilter('');
+    setInventoryStockFilter('ALL');
+    loadData();
+  };
+
   const displayedProducts = products.filter((p) => {
     if (stockFilter === 'ALL') return true;
     const totalStock =
@@ -267,11 +274,20 @@ export default function ProductsPage() {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => loadData()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-[var(--merchant-surface)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold shadow-xs transition disabled:opacity-60 cursor-pointer"
+              title="Refresh catalog data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-[var(--merchant-text-muted)] ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
+              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+            <button
               onClick={() => {
                 setEditingProductId(null);
                 setEditorOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add Product
@@ -640,7 +656,9 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            {categories.length === 0 ? (
+            {loading ? (
+              <TableSkeleton columns={3} rows={2} />
+            ) : categories.length === 0 ? (
               <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-8 text-center space-y-3">
                 <Tag className="w-8 h-8 text-[var(--merchant-text-muted)] mx-auto" />
                 <h3 className="text-sm font-bold text-[var(--merchant-text)]">No categories created yet</h3>
@@ -742,11 +760,12 @@ export default function ProductsPage() {
                 <div className="flex items-center gap-2 self-start md:self-auto">
                   <button
                     onClick={() => loadData()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold transition"
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold transition disabled:opacity-60 cursor-pointer"
                     title="Refresh stock levels"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
+                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
                   </button>
                 </div>
               </div>
@@ -837,15 +856,12 @@ export default function ProductsPage() {
 
                 {(inventorySearch || inventoryCategoryFilter || inventoryStockFilter !== 'ALL') && (
                   <button
-                    onClick={() => {
-                      setInventorySearch('');
-                      setInventoryCategoryFilter('');
-                      setInventoryStockFilter('ALL');
-                    }}
-                    className="px-2.5 py-2 border border-[var(--merchant-border)] text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition flex items-center justify-center gap-1"
-                    title="Reset filters"
+                    onClick={handleResetInventoryFilters}
+                    disabled={loading}
+                    className="px-2.5 py-2 border border-[var(--merchant-border)] text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition flex items-center justify-center gap-1 disabled:opacity-60 cursor-pointer"
+                    title="Reset filters and refresh"
                   >
-                    <RefreshCw className="w-3 h-3" />
+                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
                     <span>Reset</span>
                   </button>
                 )}
@@ -881,40 +897,39 @@ export default function ProductsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl shadow-xs overflow-hidden transition-colors">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[750px]">
-                  <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3.5 px-4">Product & Item</th>
-                      <th className="py-3.5 px-4">SKU</th>
-                      <th className="py-3.5 px-4">Available to Sell</th>
-                      <th className="py-3.5 px-4">Reserved (In Orders)</th>
-                      <th className="py-3.5 px-4 text-center">In Carts</th>
-                      <th className="py-3.5 px-4 text-center">Units Sold</th>
-                      <th className="py-3.5 px-4 text-right">Quick Restock</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--merchant-border)]">
-                    {displayedInventory.length === 0 ? (
+            {loading ? (
+              <TableSkeleton columns={7} rows={4} />
+            ) : (
+              <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl shadow-xs overflow-hidden transition-colors">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[750px]">
+                    <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider">
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-[var(--merchant-text-muted)]">
-                          <p className="font-semibold">No inventory records matching your filter.</p>
-                          {(inventorySearch || inventoryCategoryFilter || inventoryStockFilter !== 'ALL') && (
-                            <button
-                              onClick={() => {
-                                setInventorySearch('');
-                                setInventoryCategoryFilter('');
-                                setInventoryStockFilter('ALL');
-                              }}
-                              className="mt-2 text-xs text-[var(--merchant-primary)] hover:underline font-semibold"
-                            >
-                              Reset filters
-                            </button>
-                          )}
-                        </td>
+                        <th className="py-3.5 px-4">Product & Item</th>
+                        <th className="py-3.5 px-4">SKU</th>
+                        <th className="py-3.5 px-4">Available to Sell</th>
+                        <th className="py-3.5 px-4">Reserved (In Orders)</th>
+                        <th className="py-3.5 px-4 text-center">In Carts</th>
+                        <th className="py-3.5 px-4 text-center">Units Sold</th>
+                        <th className="py-3.5 px-4 text-right">Quick Restock</th>
                       </tr>
-                    ) : (
+                    </thead>
+                    <tbody className="divide-y divide-[var(--merchant-border)]">
+                      {displayedInventory.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-[var(--merchant-text-muted)]">
+                            <p className="font-semibold">No inventory records matching your filter.</p>
+                            {(inventorySearch || inventoryCategoryFilter || inventoryStockFilter !== 'ALL') && (
+                              <button
+                                onClick={handleResetInventoryFilters}
+                                className="mt-2 text-xs text-[var(--merchant-primary)] hover:underline font-semibold cursor-pointer"
+                              >
+                                Reset filters & Refresh
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ) : (
                       displayedInventory.map((inv) => {
                         const avail = inv.availableQuantity ?? inv.stockOnHand ?? 0;
                         const reserved = inv.reservedQuantity ?? inv.stockReserved ?? 0;
@@ -1038,6 +1053,7 @@ export default function ProductsPage() {
                 </table>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
