@@ -20,11 +20,35 @@ export interface OrderEmailContext {
     phone?: string;
   };
   trackingUrl?: string;
+  reviewUrl?: string;
   courierName?: string;
   awbNumber?: string;
   riderName?: string;
   riderPhone?: string;
   deliveryMode?: 'SHIPROCKET' | 'SELF_DELIVERY';
+  customMessage?: string;
+}
+
+export interface DeliveryPartnerEmailContext {
+  order: any;
+  store: {
+    id: string;
+    name: string;
+    address?: string;
+    supportEmail?: string;
+    supportPhone?: string;
+  };
+  customer: {
+    fullName: string;
+    email?: string;
+    phone?: string;
+    address?: any;
+  };
+  rider: {
+    name: string;
+    phone: string;
+    email: string;
+  };
   customMessage?: string;
 }
 
@@ -341,9 +365,16 @@ export class MailService {
               </div>
             </div>
 
+            ${order.reviewUrl || ctx.reviewUrl ? `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 22px 20px; text-align: center; margin: 24px 0;">
+              <h3 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: #166534;">How was your purchase?</h3>
+              <p style="margin: 0 0 16px 0; font-size: 13.5px; color: #15803d; line-height: 1.4;">Your feedback helps ${store.name} improve and helps other customers make confident choices.</p>
+              <a href="${order.reviewUrl || ctx.reviewUrl}" class="btn" style="background: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: bold; font-size: 13.5px; display: inline-block;">Write a Review</a>
+            </div>` : ''}
+
             ${trackingUrl ? `
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${trackingUrl}" class="btn" style="color: #ffffff;">View Order Receipt</a>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${trackingUrl}" style="display: inline-block; padding: 10px 20px; background: #f1f5f9; color: #334155; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 13px;">View Order Receipt</a>
             </div>` : ''}
 
             <p style="font-size: 13px; color: #64748b;">
@@ -485,6 +516,166 @@ export class MailService {
         <p><strong>Total Amount:</strong> ${formatPaise(order.totalPaise)}</p>
         <p>Please open your merchant portal to accept and dispatch this order.</p>
       </div>
+    `;
+
+    return this.sendEmail(recipient, subject, html);
+  }
+
+  /**
+   * Order Dispatched Notification Email to Delivery Partner
+   */
+  public async sendDeliveryPartnerDispatchedEmail(ctx: DeliveryPartnerEmailContext): Promise<boolean> {
+    const recipient = ctx.rider.email;
+    if (!recipient) return false;
+
+    const { order, store, customer, rider, customMessage } = ctx;
+    const subject = `New Delivery Task 🛵: Order #${order.orderNumber} - ${store.name}`;
+
+    const isCod = order.paymentMethod === 'COD' || order.paymentStatus === 'PENDING';
+    const itemsSummaryHtml = (order.items || [])
+      .map((it: any) => `<li style="margin-bottom: 4px;"><strong>${it.quantity}x</strong> ${it.productName}</li>`)
+      .join('');
+
+    const addr = customer.address || {};
+    const addressStr = [
+      addr.addressLine1 || addr.address1 || addr.street,
+      addr.addressLine2 || addr.address2,
+      addr.city,
+      addr.state,
+      addr.pincode || addr.postalCode,
+    ].filter(Boolean).join(', ');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
+          .header { background: #0f172a; padding: 24px; text-align: center; color: #ffffff; }
+          .content { padding: 24px; }
+          .footer { background: #f8fafc; padding: 18px 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 800;">New Delivery Assignment 🛵</h1>
+            <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">${store.name}</p>
+          </div>
+          <div class="content">
+            <p style="font-size: 14px; margin-top: 0;">
+              Hi <strong>${rider.name}</strong>,<br/>
+              You have been assigned to deliver order <strong>#${order.orderNumber}</strong>.
+            </p>
+
+            <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #e2e8f0;">
+              <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📍 Store / Pickup Location:</h4>
+              <p style="margin: 0; font-size: 13px; color: #334155;">
+                <strong>${store.name}</strong><br/>
+                ${store.address ? `${store.address}<br/>` : ''}
+                📞 Contact: ${store.supportPhone || store.supportEmail || 'Store Manager'}
+              </p>
+            </div>
+
+            <div style="background: #f0fdf4; border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #bbf7d0;">
+              <h4 style="margin: 0 0 8px; color: #166534; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">🏠 Customer / Delivery Destination:</h4>
+              <p style="margin: 0; font-size: 13px; color: #15803d;">
+                <strong>${customer.fullName}</strong><br/>
+                ${addressStr || 'Address provided in order details'}<br/>
+                📞 Mobile: <strong>${customer.phone || 'N/A'}</strong>
+              </p>
+            </div>
+
+            <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #e2e8f0;">
+              <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 13px;">📦 Items to Deliver:</h4>
+              <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #334155;">
+                ${itemsSummaryHtml}
+              </ul>
+            </div>
+
+            <div style="background: ${isCod ? '#fffbeb' : '#eff6ff'}; border: 1px solid ${isCod ? '#fde68a' : '#bfdbfe'}; border-radius: 12px; padding: 14px 16px; margin: 16px 0;">
+              <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: ${isCod ? '#b45309' : '#1d4ed8'}; display: block; margin-bottom: 4px;">Payment Instructions</span>
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: ${isCod ? '#92400e' : '#1e40af'};">
+                ${isCod ? `💵 COD Order: Collect ${formatPaise(order.totalPaise)} upon delivery.` : `💳 Prepaid Order: ${formatPaise(order.totalPaise)} paid online. Do NOT collect cash.`}
+              </p>
+            </div>
+
+            ${customMessage ? `
+            <div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 10px 14px; margin: 16px 0; border-radius: 4px; border: 1px solid #e2e8f0; border-left-width: 4px; border-left-color: #3b82f6;">
+              <span style="font-size: 11px; font-weight: bold; color: #3b82f6; display: block;">Note from Merchant:</span>
+              <p style="margin: 4px 0 0; font-size: 13px; color: #1e293b; font-style: italic;">"${customMessage}"</p>
+            </div>` : ''}
+
+            <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+              Please collect the package from the store and ensure prompt delivery.
+            </p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">Dispatched by <strong>${store.name}</strong></p>
+            <p style="margin: 4px 0 0; color: #94a3b8;">Powered by Letzshop Commerce</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendEmail(recipient, subject, html);
+  }
+
+  /**
+   * Order Delivered Confirmation Email to Delivery Partner
+   */
+  public async sendDeliveryPartnerDeliveredEmail(ctx: DeliveryPartnerEmailContext): Promise<boolean> {
+    const recipient = ctx.rider.email;
+    if (!recipient) return false;
+
+    const { order, store, customer, rider } = ctx;
+    const subject = `Delivery Complete 🎉: Order #${order.orderNumber} - ${store.name}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
+          .header { background: #065f46; padding: 24px; text-align: center; color: #ffffff; }
+          .content { padding: 24px; }
+          .footer { background: #f8fafc; padding: 18px 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 800;">Delivery Completed 🎉</h1>
+            <p style="margin: 4px 0 0; color: #a7f3d0; font-size: 13px;">${store.name}</p>
+          </div>
+          <div class="content">
+            <p style="font-size: 14px; margin-top: 0;">
+              Hi <strong>${rider.name}</strong>,<br/>
+              Order <strong>#${order.orderNumber}</strong> for <strong>${customer.fullName}</strong> has been marked as successfully delivered and settled.
+            </p>
+
+            <div style="background: #f0fdf4; border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #bbf7d0;">
+              <div style="display: flex; justify-content: space-between; font-size: 14px; color: #166534; font-weight: bold;">
+                <span>Total Settled:</span>
+                <span>${formatPaise(order.totalPaise)}</span>
+              </div>
+            </div>
+
+            <p style="font-size: 13px; color: #334155;">
+              Thank you for delivering with <strong>${store.name}</strong>!
+            </p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">Powered by Letzshop Commerce</p>
+          </div>
+        </div>
+      </body>
+      </html>
     `;
 
     return this.sendEmail(recipient, subject, html);

@@ -24,6 +24,7 @@ import { StoreFooter } from '../../../../components/StoreFooter';
 import { SafeImage } from '../../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../../utils/config';
+import { ProductReviewsSection } from '../../../../components/ProductReviewsSection';
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -641,6 +642,13 @@ export default function ProductDetailPage() {
 
           </div>
         </div>
+
+        {/* Customer Reviews Section (Requirements 31, 32, 33, 64) */}
+        <ProductReviewsSection
+          slug={String(slug)}
+          productId={product.id}
+          productName={product.name || product.title}
+        />
       </main>
 
       {/* MODAL: Request Quotation / Product Enquiry */}

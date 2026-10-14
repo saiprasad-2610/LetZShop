@@ -17,6 +17,7 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  Star,
 } from 'lucide-react';
 import { ThemeToggle } from './ui/MerchantUi';
 import { getStorefrontUrl } from '../utils/config';
@@ -44,6 +45,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     { label: 'My Store Preview', href: '/store-preview', icon: Eye },
     { label: 'Inventory', href: '/products', icon: Package },
     { label: 'Orders', href: '/orders', icon: ShoppingBag },
+    { label: 'Reviews', href: '/reviews', icon: Star },
     { label: 'Analytics', href: '/analytics', icon: BarChart3 },
     { label: 'Reports', href: '/reports', icon: FileSpreadsheet },
     { label: 'Themes', href: '/brand-studio', icon: Palette },
@@ -55,6 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     if (itemHref === '/') return router.pathname === '/';
     if (itemHref === '/products') return router.pathname.startsWith('/products');
     if (itemHref === '/orders') return router.pathname.startsWith('/orders');
+    if (itemHref === '/reviews') return router.pathname.startsWith('/reviews');
     if (itemHref === '/reports') return router.pathname.startsWith('/reports');
     if (itemHref === '/brand-studio') {
       return router.pathname.startsWith('/brand-studio') || router.pathname.startsWith('/themes');

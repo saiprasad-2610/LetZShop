@@ -1,4 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  buildOrderAcceptedMessage,
+  buildOrderReadyMessage,
+  buildOrderDispatchedBuyerMessage,
+  buildOrderDeliveredMessage,
+  buildOrderCancelledMessage,
+  buildRiderAssignmentMessage,
+  buildWhatsAppDeepLink,
+  normalizeIndianPhone,
+} from '@simply/api-contracts';
 
 const formatPaise = (paise: number) => {
   if (typeof paise !== 'number') return '₹0.00';
@@ -14,7 +24,11 @@ export interface WhatsAppOrderContext {
   totalPaise: number;
   itemsSummary: string;
   status: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  codCollectionMethod?: string;
   trackingUrl?: string;
+  reviewUrl?: string;
   deliveryMode?: 'SHIPROCKET' | 'SELF_DELIVERY';
   courierName?: string;
   awbNumber?: string;
@@ -23,17 +37,32 @@ export interface WhatsAppOrderContext {
   customMessage?: string;
 }
 
+export interface DeliveryPartnerWhatsAppContext {
+  orderNumber: string;
+  storeName: string;
+  storePhone?: string;
+  storeAddress?: string;
+  customerName: string;
+  customerPhone?: string;
+  deliveryAddressStr?: string;
+  address?: any;
+  totalPaise: number;
+  itemsSummary: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  codCollectionMethod?: string;
+  isCod?: boolean;
+  riderName: string;
+  riderPhone: string;
+  customMessage?: string;
+}
+
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
 
-  private cleanPhone(phone?: string): string {
-    if (!phone) return '';
-    const digits = phone.replace(/[^0-9]/g, '');
-    if (digits.length === 10) return `91${digits}`;
-    if (digits.startsWith('91') && digits.length === 12) return digits;
-    if (digits.startsWith('0') && digits.length === 11) return `91${digits.slice(1)}`;
-    return digits;
+  public cleanPhone(phone?: string): string {
+    return normalizeIndianPhone(phone);
   }
 
   /**
@@ -41,19 +70,16 @@ export class WhatsAppService {
    */
   public generateBuyerToVendorOrderMessage(ctx: WhatsAppOrderContext): { url: string; text: string } {
     const text =
-      `*New Order Alert - #${ctx.orderNumber}*\n\n` +
-      `Hello *${ctx.storeName}*,\n` +
+      `*New Order Alert — #${ctx.orderNumber}*\n\n` +
+      `Hello *${ctx.storeName}*,\n\n` +
       `I have just placed an order on your store!\n\n` +
-      `📦 *Items:* ${ctx.itemsSummary}\n` +
-      `💰 *Total Amount:* ${formatPaise(ctx.totalPaise)}\n` +
-      `👤 *Customer:* ${ctx.customerName} (${ctx.customerPhone})\n\n` +
+      `*Items:* ${ctx.itemsSummary}\n` +
+      `*Total Amount:* ${formatPaise(ctx.totalPaise)}\n` +
+      `*Customer:* ${ctx.customerName} (${ctx.customerPhone})\n\n` +
       `Please confirm once my order is accepted & dispatched. Thank you!`;
 
     const targetPhone = this.cleanPhone(ctx.storePhone || process.env.SUPPORT_WHATSAPP || '');
-    const url = targetPhone
-      ? `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-
+    const url = buildWhatsAppDeepLink(targetPhone, text);
     return { url, text };
   }
 
@@ -61,28 +87,27 @@ export class WhatsAppService {
    * Generates a pre-filled WhatsApp update for Vendor -> Buyer when order is dispatched.
    */
   public generateOrderDispatchedMessage(ctx: WhatsAppOrderContext): { url: string; text: string } {
-    const isSelf = ctx.deliveryMode === 'SELF_DELIVERY';
-    const deliveryDetail = isSelf
-      ? `🛵 *Delivery By:* ${ctx.riderName || 'Our Store Team'}${ctx.riderPhone ? ` (${ctx.riderPhone})` : ''}`
-      : `🚚 *Courier Partner:* ${ctx.courierName || 'Shiprocket Logistics'}\n🏷️ *AWB Tracking:* ${ctx.awbNumber || 'Available Online'}`;
-
-    const trackingLine = ctx.trackingUrl ? `\n🔗 *Live Tracking Link:* ${ctx.trackingUrl}` : '';
-    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
-
-    const text =
-      `*Order Dispatched! 🚀 - #${ctx.orderNumber}*\n\n` +
-      `Hello *${ctx.customerName}*,\n` +
-      `Great news! Your order from *${ctx.storeName}* has been dispatched and is on its way to your address.\n\n` +
-      `📦 *Items:* ${ctx.itemsSummary}\n` +
-      `💰 *Total:* ${formatPaise(ctx.totalPaise)}\n` +
-      `${deliveryDetail}\n` +
-      `${noteLine}` +
-      `${trackingLine}\n\n` +
-      `Thank you for shopping with us! Reply to this message if you have any questions.`;
+    const text = buildOrderDispatchedBuyerMessage({
+      orderNumber: ctx.orderNumber,
+      storeName: ctx.storeName,
+      customerName: ctx.customerName,
+      customerPhone: ctx.customerPhone,
+      totalPaise: ctx.totalPaise,
+      itemsSummary: ctx.itemsSummary,
+      paymentMethod: ctx.paymentMethod,
+      paymentStatus: ctx.paymentStatus,
+      codCollectionMethod: ctx.codCollectionMethod,
+      trackingUrl: ctx.trackingUrl,
+      deliveryMode: ctx.deliveryMode,
+      courierName: ctx.courierName,
+      awbNumber: ctx.awbNumber,
+      riderName: ctx.riderName,
+      riderPhone: ctx.riderPhone,
+      customMessage: ctx.customMessage,
+    });
 
     const buyerPhone = this.cleanPhone(ctx.customerPhone);
-    const url = `https://wa.me/${buyerPhone}?text=${encodeURIComponent(text)}`;
-
+    const url = buildWhatsAppDeepLink(buyerPhone, text);
     return { url, text };
   }
 
@@ -90,23 +115,23 @@ export class WhatsAppService {
    * Generates a pre-filled WhatsApp update for Vendor -> Buyer when order is delivered.
    */
   public generateOrderDeliveredMessage(ctx: WhatsAppOrderContext): { url: string; text: string } {
-    const trackingLine = ctx.trackingUrl ? `\n🧾 *Receipt & Order Details:* ${ctx.trackingUrl}` : '';
-    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
-
-    const text =
-      `*Order Delivered! 🎉 - #${ctx.orderNumber}*\n\n` +
-      `Hello *${ctx.customerName}*,\n` +
-      `Your order from *${ctx.storeName}* has been successfully delivered!\n\n` +
-      `📦 *Items:* ${ctx.itemsSummary}\n` +
-      `💰 *Total:* ${formatPaise(ctx.totalPaise)}\n` +
-      `${noteLine}` +
-      `${trackingLine}\n\n` +
-      `We hope you love your purchase! If you have any feedback or need support, reply right here.\n` +
-      `Have a wonderful day!`;
+    const text = buildOrderDeliveredMessage({
+      orderNumber: ctx.orderNumber,
+      storeName: ctx.storeName,
+      customerName: ctx.customerName,
+      customerPhone: ctx.customerPhone,
+      totalPaise: ctx.totalPaise,
+      itemsSummary: ctx.itemsSummary,
+      paymentMethod: ctx.paymentMethod,
+      paymentStatus: ctx.paymentStatus,
+      codCollectionMethod: ctx.codCollectionMethod,
+      trackingUrl: ctx.trackingUrl,
+      reviewUrl: ctx.reviewUrl,
+      customMessage: ctx.customMessage,
+    });
 
     const buyerPhone = this.cleanPhone(ctx.customerPhone);
-    const url = `https://wa.me/${buyerPhone}?text=${encodeURIComponent(text)}`;
-
+    const url = buildWhatsAppDeepLink(buyerPhone, text);
     return { url, text };
   }
 
@@ -114,43 +139,69 @@ export class WhatsAppService {
    * Generates a pre-filled WhatsApp update for Vendor -> Buyer for ANY status milestone.
    */
   public generateOrderStatusUpdateMessage(ctx: WhatsAppOrderContext, status: string): { url: string; text: string } {
+    let text = '';
     if (status === 'DISPATCHED') {
       return this.generateOrderDispatchedMessage(ctx);
     }
     if (status === 'COMPLETED') {
       return this.generateOrderDeliveredMessage(ctx);
     }
-
-    let statusHeader = `*Order Update - #${ctx.orderNumber}*`;
-    let statusDesc = `Your order status has been updated to *${status}*.`;
-
     if (status === 'ACCEPTED' || status === 'CONFIRMED') {
-      statusHeader = `*Order Confirmed & Preparing! 👨‍🍳 - #${ctx.orderNumber}*`;
-      statusDesc = `Great news! Your order from *${ctx.storeName}* has been accepted and is currently being packed.`;
+      text = buildOrderAcceptedMessage({
+        orderNumber: ctx.orderNumber,
+        storeName: ctx.storeName,
+        customerName: ctx.customerName,
+        customerPhone: ctx.customerPhone,
+        totalPaise: ctx.totalPaise,
+        itemsSummary: ctx.itemsSummary,
+        paymentMethod: ctx.paymentMethod,
+        paymentStatus: ctx.paymentStatus,
+        codCollectionMethod: ctx.codCollectionMethod,
+        trackingUrl: ctx.trackingUrl,
+        customMessage: ctx.customMessage,
+      });
     } else if (status === 'READY') {
-      statusHeader = `*Order Packed & Ready! 🎁 - #${ctx.orderNumber}*`;
-      statusDesc = `Your order from *${ctx.storeName}* is packed and ready for delivery/pickup.`;
+      text = buildOrderReadyMessage({
+        orderNumber: ctx.orderNumber,
+        storeName: ctx.storeName,
+        customerName: ctx.customerName,
+        customerPhone: ctx.customerPhone,
+        totalPaise: ctx.totalPaise,
+        itemsSummary: ctx.itemsSummary,
+        paymentMethod: ctx.paymentMethod,
+        paymentStatus: ctx.paymentStatus,
+        codCollectionMethod: ctx.codCollectionMethod,
+        trackingUrl: ctx.trackingUrl,
+        customMessage: ctx.customMessage,
+      });
     } else if (status === 'CANCELLED') {
-      statusHeader = `*Order Cancelled - #${ctx.orderNumber}*`;
-      statusDesc = `Your order from *${ctx.storeName}* has been cancelled.`;
+      text = buildOrderCancelledMessage({
+        orderNumber: ctx.orderNumber,
+        storeName: ctx.storeName,
+        customerName: ctx.customerName,
+        customerPhone: ctx.customerPhone,
+        totalPaise: ctx.totalPaise,
+        itemsSummary: ctx.itemsSummary,
+        cancellationReason: ctx.customMessage,
+      });
+    } else {
+      text = buildOrderAcceptedMessage({
+        orderNumber: ctx.orderNumber,
+        storeName: ctx.storeName,
+        customerName: ctx.customerName,
+        customerPhone: ctx.customerPhone,
+        totalPaise: ctx.totalPaise,
+        itemsSummary: ctx.itemsSummary,
+        paymentMethod: ctx.paymentMethod,
+        paymentStatus: ctx.paymentStatus,
+        codCollectionMethod: ctx.codCollectionMethod,
+        trackingUrl: ctx.trackingUrl,
+        customMessage: ctx.customMessage,
+      });
     }
 
-    const noteLine = ctx.customMessage ? `\n💬 *Note from ${ctx.storeName}:* "${ctx.customMessage}"\n` : '';
-    const trackingLine = ctx.trackingUrl ? `\n🔗 *Track Live:* ${ctx.trackingUrl}` : '';
-
-    const text =
-      `${statusHeader}\n\n` +
-      `Hello *${ctx.customerName}*,\n` +
-      `${statusDesc}\n\n` +
-      `📦 *Items:* ${ctx.itemsSummary}\n` +
-      `💰 *Total Amount:* ${formatPaise(ctx.totalPaise)}\n` +
-      `${noteLine}` +
-      `${trackingLine}\n\n` +
-      `Thank you for shopping with *${ctx.storeName}*!`;
-
     const buyerPhone = this.cleanPhone(ctx.customerPhone);
-    const url = `https://wa.me/${buyerPhone}?text=${encodeURIComponent(text)}`;
-
+    const url = buildWhatsAppDeepLink(buyerPhone, text);
     return { url, text };
   }
 
@@ -232,5 +283,65 @@ export class WhatsAppService {
   public async sendDirectOrderStatusUpdate(ctx: WhatsAppOrderContext, status: string): Promise<boolean> {
     const { text } = this.generateOrderStatusUpdateMessage(ctx, status);
     return this.sendDirectWhatsApp(ctx.customerPhone, text);
+  }
+
+  /**
+   * Generates a pre-filled WhatsApp task assignment message for Delivery Partner.
+   */
+  public generateDeliveryPartnerAssignmentMessage(ctx: DeliveryPartnerWhatsAppContext): { url: string; text: string } {
+    const text = buildRiderAssignmentMessage({
+      orderNumber: ctx.orderNumber,
+      storeName: ctx.storeName,
+      storePhone: ctx.storePhone,
+      riderName: ctx.riderName,
+      riderPhone: ctx.riderPhone,
+      customerName: ctx.customerName,
+      customerPhone: ctx.customerPhone || '',
+      address: ctx.address || {
+        addressLine1: ctx.deliveryAddressStr,
+      },
+      itemsSummary: ctx.itemsSummary,
+      totalPaise: ctx.totalPaise,
+      paymentMethod: ctx.paymentMethod || (ctx.isCod ? 'COD' : 'ONLINE'),
+      paymentStatus: ctx.paymentStatus || (ctx.isCod ? 'PENDING' : 'PAID'),
+      codCollectionMethod: ctx.codCollectionMethod,
+      deliveryNote: ctx.customMessage,
+    });
+
+    const url = buildWhatsAppDeepLink(ctx.riderPhone, text);
+    return { url, text };
+  }
+
+  /**
+   * Directly sends WhatsApp task assignment to Delivery Partner.
+   */
+  public async sendDirectDeliveryPartnerAssignment(ctx: DeliveryPartnerWhatsAppContext): Promise<boolean> {
+    const { text } = this.generateDeliveryPartnerAssignmentMessage(ctx);
+    return this.sendDirectWhatsApp(ctx.riderPhone, text);
+  }
+
+  /**
+   * Generates a pre-filled WhatsApp delivery completion message for Delivery Partner.
+   */
+  public generateDeliveryPartnerCompletedMessage(ctx: DeliveryPartnerWhatsAppContext): { url: string; text: string } {
+    const text =
+      `*Delivery Completed Successfully! 🎉 - Order #${ctx.orderNumber}*\n\n` +
+      `Hello *${ctx.riderName}*,\n` +
+      `Order *#${ctx.orderNumber}* for *${ctx.customerName}* has been marked successfully delivered and settled.\n\n` +
+      `Store: *${ctx.storeName}*\n` +
+      `Total Settled: ${formatPaise(ctx.totalPaise)}\n\n` +
+      `Thank you for your service!`;
+
+    const riderCleanPhone = this.cleanPhone(ctx.riderPhone);
+    const url = `https://wa.me/${riderCleanPhone}?text=${encodeURIComponent(text)}`;
+    return { url, text };
+  }
+
+  /**
+   * Directly sends WhatsApp delivery completion confirmation to Delivery Partner.
+   */
+  public async sendDirectDeliveryPartnerCompleted(ctx: DeliveryPartnerWhatsAppContext): Promise<boolean> {
+    const { text } = this.generateDeliveryPartnerCompletedMessage(ctx);
+    return this.sendDirectWhatsApp(ctx.riderPhone, text);
   }
 }

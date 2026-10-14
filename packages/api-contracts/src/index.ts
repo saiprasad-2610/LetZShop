@@ -100,3 +100,4 @@ export enum ErrorCode {
 }
 
 export * from './client';
+export * from './notifications';

@@ -25,10 +25,25 @@ import {
   Mail,
   UserPlus,
   Sparkles,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatPaise } from '@simply/ui';
+import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode } from '@simply/ui';
+import {
+  buildOrderAcceptedMessage,
+  buildOrderReadyMessage,
+  buildOrderDispatchedBuyerMessage,
+  buildOrderDeliveredMessage,
+  buildOrderCancelledMessage,
+  buildRiderAssignmentMessage,
+  buildWhatsAppDeepLink,
+  normalizeIndianPhone,
+  buildPublicTrackingUrl,
+  buildPublicReviewUrl,
+  buildGoogleMapsUrl,
+} from '@simply/api-contracts';
 import { SafeImage } from './ui/SafeImage';
+import { InvoiceModal } from './InvoiceModal';
 
 interface OrderDetailsDrawerProps {
   order: any | null;
@@ -106,17 +121,36 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   onClose,
   onStatusUpdated,
 }) => {
-  const { api } = useAuth();
+  const { api, store } = useAuth();
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // WhatsApp manual sending follow-up panel state after dispatch
+  const [whatsappFollowUp, setWhatsappFollowUp] = useState<{
+    orderNumber: string;
+    customerName: string;
+    customerPhone: string;
+    buyerWaUrl: string;
+    buyerOpened: boolean;
+    riderName?: string;
+    riderPhone?: string;
+    riderWaUrl?: string;
+    riderOpened: boolean;
+  } | null>(null);
+
   // Delivery Partners Directory from Store
   const [deliveryPartners, setDeliveryPartners] = useState<
-    Array<{ id: string; name: string; phone: string; vehicle?: string; isDefault?: boolean }>
+    Array<{ id: string; name: string; phone: string; email?: string; vehicle?: string; isDefault?: boolean }>
   >([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [isAddingNewRiderInline, setIsAddingNewRiderInline] = useState(false);
   const [saveRiderToDirectory, setSaveRiderToDirectory] = useState(true);
+  const [riderName, setRiderName] = useState('');
+  const [riderPhone, setRiderPhone] = useState('');
+  const [riderEmail, setRiderEmail] = useState('');
+  const [riderVehicle, setRiderVehicle] = useState('Motorcycle');
+  const [isSavingPartnerInline, setIsSavingPartnerInline] = useState(false);
+  const [inlinePartnerMsg, setInlinePartnerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Two-Step Status Confirmation & Automated Notification Modal State
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
@@ -136,36 +170,102 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
   // Shipping & Dispatch Mode State
   const [selectedFulfillmentMode, setSelectedFulfillmentMode] = useState<'SELF_DELIVERY' | 'SHIPROCKET'>('SELF_DELIVERY');
-  const [riderName, setRiderName] = useState('');
-  const [riderPhone, setRiderPhone] = useState('');
   const [syncingTracking, setSyncingTracking] = useState(false);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
+
+  // Invoice & COD Collection Modal State
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [codModalOpen, setCodModalOpen] = useState(false);
+  const [codMethod, setCodMethod] = useState<'CASH' | 'UPI' | 'CARD' | 'OTHER'>('CASH');
+  const [isCollectingCod, setIsCollectingCod] = useState(false);
+  const [codActionError, setCodActionError] = useState<string | null>(null);
+
+  const handleCollectCodPayment = async () => {
+    if (!order) return;
+    setIsCollectingCod(true);
+    setCodActionError(null);
+    try {
+      await api.orders.collectCod(order.id, { collectionMethod: codMethod });
+      setCodModalOpen(false);
+      onStatusUpdated();
+    } catch (err: any) {
+      console.error('Failed to collect COD payment', err);
+      setCodActionError(err.message || 'Failed to record COD payment collection.');
+    } finally {
+      setIsCollectingCod(false);
+    }
+  };
 
   // Load registered delivery partners when drawer opens
   useEffect(() => {
     if (!isOpen) return;
     const fetchPartners = async () => {
       try {
-        const res = await api.deliveryPartners.list();
-        if (res?.data && Array.isArray(res.data)) {
-          setDeliveryPartners(res.data);
-          const def = res.data.find((p: any) => p.isDefault) || res.data[0];
+        const res: any = await api.deliveryPartners.list();
+        const list: any[] = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        if (list.length > 0) {
+          const uniqueMap = new Map();
+          for (const p of list) {
+            const key = `${(p.name || '').trim().toLowerCase()}_${(p.phone || '').replace(/[^0-9]/g, '')}`;
+            if (!uniqueMap.has(key) || p.isDefault) {
+              uniqueMap.set(key, p);
+            }
+          }
+          const uniquePartners = Array.from(uniqueMap.values());
+          setDeliveryPartners(uniquePartners);
+
+          // Check if order already has an assigned rider in shipment
+          const existingCourier = order?.shipments?.[0]?.courierName;
+          let matchedExisting = null;
+          if (existingCourier) {
+            const cleanCourier = existingCourier.replace('Store Team:', '').trim().toLowerCase();
+            matchedExisting = uniquePartners.find(
+              (p: any) => p.name?.trim().toLowerCase() === cleanCourier
+            );
+          }
+
+          const def = matchedExisting || uniquePartners.find((p: any) => p.isDefault) || uniquePartners[0];
           if (def) {
             setSelectedPartnerId(def.id);
             setRiderName(def.name);
             setRiderPhone(def.phone);
+            setRiderEmail(def.email || '');
+            setRiderVehicle(def.vehicle || 'Motorcycle');
+            setIsAddingNewRiderInline(false);
           } else {
             setSelectedPartnerId('NEW');
             setIsAddingNewRiderInline(true);
           }
+        } else {
+          setDeliveryPartners([]);
+          setSelectedPartnerId('NEW');
+          setIsAddingNewRiderInline(true);
         }
       } catch (e) {
         // ignore fallback
       }
     };
     fetchPartners();
-  }, [isOpen]);
+  }, [isOpen, order?.id, order?.status]);
+
+  // Load persisted WhatsApp follow-up state from localStorage
+  useEffect(() => {
+    if (!order?.orderNumber) {
+      setWhatsappFollowUp(null);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(`simply_wa_followup_${order.orderNumber}`);
+      if (stored) {
+        setWhatsappFollowUp(JSON.parse(stored));
+      } else {
+        setWhatsappFollowUp(null);
+      }
+    } catch {
+      setWhatsappFollowUp(null);
+    }
+  }, [order?.orderNumber]);
 
   if (!isOpen || !order) return null;
 
@@ -175,13 +275,79 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
       setIsAddingNewRiderInline(true);
       setRiderName('');
       setRiderPhone('');
+      setRiderEmail('');
+      setRiderVehicle('Motorcycle');
     } else {
       setIsAddingNewRiderInline(false);
       const found = deliveryPartners.find((p) => p.id === partnerId);
       if (found) {
         setRiderName(found.name);
         setRiderPhone(found.phone);
+        setRiderEmail(found.email || '');
+        setRiderVehicle(found.vehicle || 'Motorcycle');
       }
+    }
+  };
+
+  const handleSavePartnerInline = async () => {
+    if (!riderName.trim() || !riderPhone.trim()) {
+      setInlinePartnerMsg({ type: 'error', text: 'Delivery partner name and mobile number are required.' });
+      return;
+    }
+    const cleanNumber = riderPhone.replace(/[^0-9]/g, '');
+    if (cleanNumber.length < 10) {
+      setInlinePartnerMsg({ type: 'error', text: 'Please enter a valid 10-digit mobile number.' });
+      return;
+    }
+
+    setIsSavingPartnerInline(true);
+    setInlinePartnerMsg(null);
+    try {
+      const savedRes: any = await api.deliveryPartners.save({
+        name: riderName.trim(),
+        phone: cleanNumber,
+        email: riderEmail.trim() || undefined,
+        vehicle: riderVehicle.trim() || 'Motorcycle',
+        isDefault: deliveryPartners.length === 0,
+      });
+
+      const res: any = await api.deliveryPartners.list();
+      const list: any[] = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const uniqueMap = new Map();
+      for (const p of list) {
+        const key = `${(p.name || '').trim().toLowerCase()}_${(p.phone || '').replace(/[^0-9]/g, '')}`;
+        if (!uniqueMap.has(key) || p.isDefault) {
+          uniqueMap.set(key, p);
+        }
+      }
+      const uniquePartners = Array.from(uniqueMap.values());
+      setDeliveryPartners(uniquePartners);
+
+      const matched =
+        uniquePartners.find(
+          (p: any) =>
+            p.phone?.replace(/[^0-9]/g, '') === cleanNumber ||
+            p.id === savedRes?.data?.id ||
+            p.id === savedRes?.id
+        ) || uniquePartners[uniquePartners.length - 1];
+
+      if (matched) {
+        setSelectedPartnerId(matched.id);
+        setRiderName(matched.name);
+        setRiderPhone(matched.phone);
+        setRiderEmail(matched.email || '');
+        setRiderVehicle(matched.vehicle || 'Motorcycle');
+        setIsAddingNewRiderInline(false);
+      }
+      setInlinePartnerMsg({
+        type: 'success',
+        text: `"${riderName.trim()}" added to directory and assigned to this order!`,
+      });
+      setTimeout(() => setInlinePartnerMsg(null), 4000);
+    } catch (err: any) {
+      setInlinePartnerMsg({ type: 'error', text: err.message || 'Failed to save delivery partner.' });
+    } finally {
+      setIsSavingPartnerInline(false);
     }
   };
 
@@ -234,10 +400,16 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   const isPickup = order.fulfillmentMode === 'PICKUP';
   const shipment = order.shipments?.[0];
 
+  const isSelfDelivery =
+    shipment?.provider === 'SELF_DELIVERY' ||
+    order.fulfillmentMode === 'PICKUP' ||
+    (shipment?.awbNumber && shipment.awbNumber.startsWith('SELF_')) ||
+    (shipment?.courierName && shipment.courierName.startsWith('Store Team')) ||
+    Boolean(order.riderName || order.riderPhone);
+
+  // Canonical public storefront tracking URL (Points to Storefront Port 3000, NOT Seller Port 3001)
   const trackingUrl = order.trackingToken
-    ? (typeof window !== 'undefined'
-        ? `${window.location.origin.replace(':3000', ':3001')}/track/${order.orderNumber}?t=${order.trackingToken}`
-        : `https://letzshop.com/track/${order.orderNumber}?t=${order.trackingToken}`)
+    ? buildPublicTrackingUrl(order.orderNumber, order.trackingToken)
     : undefined;
 
   const handleCopyTrackingLink = async () => {
@@ -251,89 +423,95 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     }
   };
 
+  const getRiderAssignmentWhatsAppUrl = (pPhone?: string | null, pName?: string | null) => {
+    const targetPhone = pPhone || riderPhone;
+    if (!targetPhone) return '#';
+    const itemsSummary =
+      order.itemsSummary ||
+      (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
+      'Items';
+
+    const text = buildRiderAssignmentMessage({
+      orderNumber: order.orderNumber,
+      storeName: store?.name || 'Our Store',
+      storePhone: store?.supportPhone || null,
+      riderName: pName || riderName || 'Delivery Partner',
+      riderPhone: targetPhone,
+      customerName,
+      customerPhone,
+      address: {
+        addressLine1: addr.addressLine1,
+        addressLine2: addr.addressLine2,
+        landmark: addr.landmark,
+        city: addr.city,
+        state: addr.state,
+        pincode: addr.pincode || addr.postalCode,
+        country: addr.country || 'India',
+      },
+      itemsSummary,
+      totalPaise: order.totalPaise,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      codCollectionMethod: order.codCollectionMethod,
+      deliveryNote: customMessage.trim() || undefined,
+    });
+    return buildWhatsAppDeepLink(targetPhone, text);
+  };
+
   const getWhatsAppLinkForStatus = (
     status: string,
     customMsg?: string,
     riderN?: string,
     riderP?: string
   ) => {
-    const phone = cleanPhone(customerPhone);
-    if (!phone) return '#';
-
     const itemsSummary =
       order.itemsSummary ||
       (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
       'Items';
 
-    let header = `*Order Update - #${order.orderNumber}*`;
-    let detail = `Your order status is now *${ORDER_STATUS_CONFIG[status]?.label || status}*.`;
+    const effReviewToken = order.reviewToken || order.trackingToken;
+    const reviewUrl = effReviewToken
+      ? buildPublicReviewUrl(store?.slug || 'store', order.orderNumber, effReviewToken)
+      : trackingUrl;
 
-    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
-      header = `*Order Confirmed & Preparing! 👨‍🍳 - #${order.orderNumber}*`;
-      detail = `Great news! Your order has been accepted and is currently being packed.`;
-    } else if (status === 'READY') {
-      header = `*Order Packed & Ready! 🎁 - #${order.orderNumber}*`;
-      detail = `Your order has been packed and is ready for delivery/pickup.`;
-    } else if (status === 'DISPATCHED') {
-      const activeRider = riderN || riderName || shipment?.courierName;
-      const activeRiderPhone = riderP || riderPhone;
-      header = `*Order Dispatched! 🚀 - #${order.orderNumber}*`;
-      detail =
-        `Great news! Your order has been dispatched and is on its way to your delivery address.\n` +
-        (activeRider
-          ? `🛵 *Delivery Partner:* ${activeRider}${activeRiderPhone ? ` (${activeRiderPhone})` : ''}`
-          : `🚚 *Shipped via Logistics Partner*`);
+    const ctx = {
+      orderNumber: order.orderNumber,
+      storeName: store?.name || 'Our Store',
+      customerName,
+      customerPhone,
+      totalPaise: order.totalPaise,
+      itemsSummary,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      codCollectionMethod: order.codCollectionMethod,
+      trackingUrl,
+      reviewUrl,
+      deliveryMode: isSelfDelivery ? 'SELF_DELIVERY' : 'SHIPROCKET',
+      courierName: isSelfDelivery
+        ? (riderN || riderName ? `Store Team: ${riderN || riderName}` : 'Store Delivery Team')
+        : (shipment?.courierName || 'Shiprocket Logistics'),
+      awbNumber: shipment?.awbNumber,
+      riderName: riderN || riderName || undefined,
+      riderPhone: riderP || riderPhone || undefined,
+      customMessage: customMsg?.trim() || customMessage.trim() || undefined,
+    };
+
+    let text = '';
+    if (status === 'DISPATCHED') {
+      text = buildOrderDispatchedBuyerMessage(ctx);
     } else if (status === 'COMPLETED') {
-      header = `*Order Delivered! 🎉 - #${order.orderNumber}*`;
-      detail = `Your order #${order.orderNumber} has been successfully delivered! We hope you love your purchase.`;
+      text = buildOrderDeliveredMessage(ctx);
+    } else if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      text = buildOrderAcceptedMessage(ctx);
+    } else if (status === 'READY') {
+      text = buildOrderReadyMessage(ctx);
     } else if (status === 'CANCELLED') {
-      header = `*Order Cancelled - #${order.orderNumber}*`;
-      detail = `Your order #${order.orderNumber} has been cancelled.`;
+      text = buildOrderCancelledMessage(ctx);
+    } else {
+      text = buildOrderAcceptedMessage(ctx);
     }
 
-    const noteLine = customMsg?.trim() ? `\n\n💬 *Note from Store:* "${customMsg.trim()}"` : '';
-    const trackingLine = trackingUrl ? `\n\n🔗 *Track Live Order:* ${trackingUrl}` : '';
-
-    const text =
-      `${header}\n\n` +
-      `Hello *${customerName}*,\n` +
-      `${detail}\n\n` +
-      `📦 *Items:* ${itemsSummary}\n` +
-      `💰 *Total Amount:* ${formatPaise(order.totalPaise)}` +
-      `${noteLine}` +
-      `${trackingLine}\n\n` +
-      `Thank you for shopping with us! Reply here for any questions.`;
-
-    return `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
-  };
-
-  const getDeliveryPartnerAssignmentWhatsApp = (pPhone: string, pName: string) => {
-    const cleanRider = (pPhone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
-    if (!cleanRider) return '#';
-
-    const itemsSummary =
-      order.itemsSummary ||
-      (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
-      'Items';
-
-    const paymentText =
-      order.paymentStatus === 'PAID'
-        ? 'PREPAID (₹0 to collect)'
-        : `COD / Collect ${formatPaise(order.totalPaise)}`;
-
-    const text =
-      `🛵 *Delivery Assignment - Order #${order.orderNumber}*\n\n` +
-      `Hello *${pName || 'Delivery Partner'}*,\n` +
-      `You have been assigned to deliver the following order:\n\n` +
-      `👤 *Customer:* ${customerName}\n` +
-      `📞 *Customer Phone:* ${customerPhone}\n` +
-      `📍 *Delivery Address:* ${addr.addressLine1 || ''}${addr.addressLine2 ? ', ' + addr.addressLine2 : ''}, ${addr.city || ''} (${addr.pincode || addr.postalCode || ''})\n` +
-      `📦 *Items:* ${itemsSummary}\n` +
-      `💰 *Payment Status:* ${paymentText}\n` +
-      (trackingUrl ? `\n🔗 *Order Tracking:* ${trackingUrl}\n\n` : '\n\n') +
-      `Please collect the package from store and deliver to recipient. Thank you!`;
-
-    return `https://wa.me/91${cleanRider}?text=${encodeURIComponent(text)}`;
+    return buildWhatsAppDeepLink(customerPhone, text);
   };
 
   const handleConfirmStatusUpdate = async () => {
@@ -347,21 +525,18 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
         ? customReason
         : defaultReason;
 
-    const effectiveRiderName =
-      targetStatus === 'DISPATCHED' && selectedFulfillmentMode === 'SELF_DELIVERY'
-        ? riderName.trim()
-        : undefined;
+    const isSelfDeliveryAction =
+      (targetStatus === 'DISPATCHED' || targetStatus === 'COMPLETED') &&
+      selectedFulfillmentMode === 'SELF_DELIVERY';
 
-    const effectiveRiderPhone =
-      targetStatus === 'DISPATCHED' && selectedFulfillmentMode === 'SELF_DELIVERY'
-        ? riderPhone.trim()
-        : undefined;
+    const effectiveRiderName = isSelfDeliveryAction && riderName.trim() ? riderName.trim() : undefined;
+    const effectiveRiderPhone = isSelfDeliveryAction && riderPhone.trim() ? riderPhone.trim() : undefined;
+    const effectiveRiderEmail = isSelfDeliveryAction && riderEmail.trim() ? riderEmail.trim() : undefined;
 
     try {
       // 1. If adding a new rider on the fly and saving to store directory
       if (
-        targetStatus === 'DISPATCHED' &&
-        selectedFulfillmentMode === 'SELF_DELIVERY' &&
+        isSelfDeliveryAction &&
         isAddingNewRiderInline &&
         effectiveRiderName &&
         effectiveRiderPhone &&
@@ -371,7 +546,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
           .save({
             name: effectiveRiderName,
             phone: effectiveRiderPhone,
-            vehicle: 'Motorcycle',
+            email: effectiveRiderEmail,
+            vehicle: riderVehicle.trim() || 'Motorcycle',
             isDefault: deliveryPartners.length === 0,
           })
           .catch(() => {});
@@ -390,11 +566,89 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
         customMessage: customMessage.trim() || undefined,
         riderName: effectiveRiderName,
         riderPhone: effectiveRiderPhone,
+        riderEmail: effectiveRiderEmail,
       });
 
-      // Headless Automated Notifications: Server automatically dispatches email and direct WhatsApp without client popups or redirects
+      // Close status confirmation modal
       setStatusConfirmModal(null);
       onStatusUpdated();
+
+      // Show reliable WhatsApp follow-up panel with separate manual send actions (no popup race)
+      if (targetStatus === 'DISPATCHED') {
+        const itemsSummary =
+          order.itemsSummary ||
+          (order.items && order.items.map((it: any) => `${it.quantity}x ${it.productName}`).join(', ')) ||
+          'Items';
+
+        const buyerText = buildOrderDispatchedBuyerMessage({
+          orderNumber: order.orderNumber,
+          storeName: store?.name || 'Our Store',
+          customerName,
+          customerPhone,
+          totalPaise: order.totalPaise,
+          itemsSummary,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          codCollectionMethod: order.codCollectionMethod,
+          trackingUrl,
+          deliveryMode: selectedFulfillmentMode === 'SELF_DELIVERY' ? 'SELF_DELIVERY' : 'SHIPROCKET',
+          courierName: selectedFulfillmentMode === 'SELF_DELIVERY'
+            ? (effectiveRiderName ? `Store Team: ${effectiveRiderName}` : 'Store Delivery Team')
+            : 'Shiprocket Logistics',
+          riderName: effectiveRiderName,
+          riderPhone: effectiveRiderPhone,
+          customMessage: customMessage.trim() || undefined,
+        });
+
+        const buyerWaUrl = buildWhatsAppDeepLink(customerPhone, buyerText);
+
+        let riderWaUrl = '';
+        if (effectiveRiderPhone) {
+          const riderText = buildRiderAssignmentMessage({
+            orderNumber: order.orderNumber,
+            storeName: store?.name || 'Our Store',
+            storePhone: store?.supportPhone || null,
+            riderName: effectiveRiderName || 'Delivery Partner',
+            riderPhone: effectiveRiderPhone,
+            customerName,
+            customerPhone,
+            address: {
+              addressLine1: addr.addressLine1,
+              addressLine2: addr.addressLine2,
+              landmark: addr.landmark,
+              city: addr.city,
+              state: addr.state,
+              pincode: addr.pincode || addr.postalCode,
+              country: addr.country || 'India',
+            },
+            itemsSummary,
+            totalPaise: order.totalPaise,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            codCollectionMethod: order.codCollectionMethod,
+            deliveryNote: customMessage.trim() || undefined,
+          });
+          riderWaUrl = buildWhatsAppDeepLink(effectiveRiderPhone, riderText);
+        }
+
+        const followUpPayload = {
+          orderNumber: order.orderNumber,
+          customerName,
+          customerPhone,
+          buyerWaUrl,
+          buyerOpened: false,
+          riderName: effectiveRiderName,
+          riderPhone: effectiveRiderPhone,
+          riderWaUrl,
+          riderOpened: false,
+        };
+        try {
+          localStorage.setItem(`simply_wa_followup_${order.orderNumber}`, JSON.stringify(followUpPayload));
+        } catch (e) {
+          console.error('Failed to persist WhatsApp follow-up state', e);
+        }
+        setWhatsappFollowUp(followUpPayload);
+      }
     } catch (err: any) {
       console.error('Failed to update status', err);
       setActionError(err.message || 'Status transition rejected by server.');
@@ -435,12 +689,10 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   };
 
   // Payment details
+  const paymentDisplay = getPaymentDisplayDetails(order);
   const paymentOrder = order.paymentOrders?.[0];
   const paymentTransaction = paymentOrder?.transactions?.[0];
-  const paymentMethodDisplay =
-    paymentTransaction?.paymentMethod?.toUpperCase() ||
-    paymentOrder?.provider ||
-    'ONLINE';
+  const paymentMethodDisplay = paymentDisplay.methodLabel;
 
   return (
     <>
@@ -485,14 +737,26 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 text-merchant-text-muted hover:text-merchant-text rounded-xl hover:bg-merchant-surface transition shrink-0 cursor-pointer"
-              aria-label="Close Order Details Drawer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowInvoiceModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted text-merchant-text rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
+                title="View & Print Official Tax Invoice"
+              >
+                <Printer className="w-3.5 h-3.5 text-merchant-primary" />
+                <span className="hidden sm:inline">Invoice</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 text-merchant-text-muted hover:text-merchant-text rounded-xl hover:bg-merchant-surface transition shrink-0 cursor-pointer"
+                aria-label="Close Order Details Drawer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Action Error Banner if status transition fails */}
@@ -516,6 +780,265 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
               DRAWER BODY (Scrollable)
           ========================================================================= */}
           <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+            {/* 1. ORDER PROGRESS TRACKER TIMELINE (Requirement 17 & 18) */}
+            {(() => {
+              const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+              const findTime = (statuses: string[]) => {
+                const item = history.find((h: any) => statuses.includes(h.toStatus));
+                return item?.createdAt || null;
+              };
+
+              const placedTime = order.createdAt || findTime(['NEW']);
+              const confirmedTime = findTime(['CONFIRMED', 'ACCEPTED']);
+              const readyTime = findTime(['READY']);
+              const dispatchedTime = findTime(['DISPATCHED']);
+              const deliveredTime = findTime(['COMPLETED']);
+
+              const formatMilestoneDate = (d?: string | null) => {
+                if (!d) return null;
+                try {
+                  return new Date(d).toLocaleString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                } catch {
+                  return null;
+                }
+              };
+
+              const isCancelled = order.status === 'CANCELLED';
+
+              const stages = [
+                {
+                  key: 'PLACED',
+                  label: 'Placed',
+                  time: formatMilestoneDate(placedTime),
+                  isDone: true,
+                  isCurrent: order.status === 'NEW',
+                },
+                {
+                  key: 'CONFIRMED',
+                  label: 'Confirmed',
+                  time: formatMilestoneDate(confirmedTime),
+                  isDone: ['CONFIRMED', 'ACCEPTED', 'READY', 'DISPATCHED', 'COMPLETED'].includes(order.status),
+                  isCurrent: ['CONFIRMED', 'ACCEPTED'].includes(order.status),
+                },
+                {
+                  key: 'READY',
+                  label: 'Ready',
+                  time: formatMilestoneDate(readyTime),
+                  isDone: ['READY', 'DISPATCHED', 'COMPLETED'].includes(order.status),
+                  isCurrent: order.status === 'READY',
+                },
+                {
+                  key: 'DISPATCHED',
+                  label: 'Dispatched',
+                  time: formatMilestoneDate(dispatchedTime),
+                  isDone: ['DISPATCHED', 'COMPLETED'].includes(order.status),
+                  isCurrent: order.status === 'DISPATCHED',
+                },
+                {
+                  key: 'DELIVERED',
+                  label: 'Delivered',
+                  time: formatMilestoneDate(deliveredTime),
+                  isDone: order.status === 'COMPLETED',
+                  isCurrent: order.status === 'COMPLETED',
+                },
+              ];
+
+              return (
+                <div className="bg-merchant-surface-raised border border-merchant-border rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-merchant-primary" />
+                      Order Progress Timeline
+                    </span>
+                    {isCancelled && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                        Order Cancelled
+                      </span>
+                    )}
+                  </div>
+
+                  {isCancelled ? (
+                    <div className="p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl text-xs space-y-1">
+                      <p className="font-bold text-rose-600 dark:text-rose-400">Order was cancelled</p>
+                      {order.cancelledAt && (
+                        <p className="text-[11px] text-merchant-text-muted">
+                          Cancelled on {formatMilestoneDate(order.cancelledAt)}
+                        </p>
+                      )}
+                      {order.notes && <p className="text-[11px] text-merchant-text-secondary italic">"{order.notes}"</p>}
+                    </div>
+                  ) : (
+                    <div className="pt-2 pb-1 overflow-x-auto">
+                      <div className="min-w-[460px] flex items-center justify-between relative px-2">
+                        {/* Connecting Track */}
+                        <div className="absolute top-4 left-8 right-8 h-0.5 bg-merchant-border -z-0" />
+
+                        {stages.map((stage, idx) => {
+                          const isPastOrCurrent = stage.isDone || stage.isCurrent;
+                          return (
+                            <div key={stage.key} className="flex flex-col items-center text-center relative z-10 w-20">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                                  stage.isDone
+                                    ? 'bg-emerald-600 text-white shadow-xs ring-4 ring-emerald-500/20'
+                                    : stage.isCurrent
+                                    ? 'bg-merchant-primary text-white shadow-md ring-4 ring-merchant-primary/20 animate-pulse'
+                                    : 'bg-merchant-surface border-2 border-merchant-border text-merchant-text-muted'
+                                }`}
+                              >
+                                {stage.isDone ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
+                              </div>
+                              <span
+                                className={`mt-2 text-xs font-bold ${
+                                  isPastOrCurrent ? 'text-merchant-text' : 'text-merchant-text-muted'
+                                }`}
+                              >
+                                {stage.label}
+                              </span>
+                              {stage.time ? (
+                                <span className="text-[10px] text-merchant-text-muted font-medium mt-0.5 leading-tight">
+                                  {stage.time}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-merchant-text-muted/40 mt-0.5">Pending</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* 2. POST-DISPATCH WHATSAPP FOLLOW-UP PANEL (Requirements 3 & 4) */}
+            {whatsappFollowUp && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                      ✓
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-merchant-text">Dispatch Confirmed</h4>
+                      <p className="text-xs text-merchant-text-muted">
+                        Buyer email was sent automatically. Open WhatsApp to send pre-filled updates:
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (whatsappFollowUp) {
+                        try {
+                          localStorage.removeItem(`simply_wa_followup_${whatsappFollowUp.orderNumber}`);
+                        } catch {}
+                      }
+                      setWhatsappFollowUp(null);
+                    }}
+                    className="text-merchant-text-muted hover:text-merchant-text text-xs p-1 cursor-pointer"
+                  >
+                    Dismiss ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Buyer Action */}
+                  <div className="bg-merchant-surface p-3.5 rounded-xl border border-merchant-border space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-merchant-text">Buyer</span>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          whatsappFollowUp.buyerOpened
+                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {whatsappFollowUp.buyerOpened ? 'WhatsApp Opened ✓' : 'Ready to Send'}
+                      </span>
+                    </div>
+                    <div className="text-xs">
+                      <p className="font-medium text-merchant-text">{whatsappFollowUp.customerName}</p>
+                      <p className="text-[11px] font-mono text-merchant-text-muted">
+                        +{normalizeIndianPhone(whatsappFollowUp.customerPhone)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(whatsappFollowUp.buyerWaUrl, '_blank');
+                        setWhatsappFollowUp((prev) => {
+                          if (!prev) return null;
+                          const updated = { ...prev, buyerOpened: true };
+                          try {
+                            localStorage.setItem(`simply_wa_followup_${prev.orderNumber}`, JSON.stringify(updated));
+                          } catch {}
+                          return updated;
+                        });
+                      }}
+                      className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2 shadow-2xs transition cursor-pointer"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>{whatsappFollowUp.buyerOpened ? 'Open Buyer WhatsApp Again' : 'Open Buyer WhatsApp'}</span>
+                    </button>
+                  </div>
+
+                  {/* Rider Action (if assigned) */}
+                  {whatsappFollowUp.riderPhone && (
+                    <div className="bg-merchant-surface p-3.5 rounded-xl border border-merchant-border space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-merchant-text">Delivery Partner</span>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            whatsappFollowUp.riderOpened
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                          }`}
+                        >
+                          {whatsappFollowUp.riderOpened ? 'WhatsApp Opened ✓' : 'Ready to Send'}
+                        </span>
+                      </div>
+                      <div className="text-xs">
+                        <p className="font-medium text-merchant-text">
+                          {whatsappFollowUp.riderName || 'Store Delivery Partner'}
+                        </p>
+                        <p className="text-[11px] font-mono text-merchant-text-muted">
+                          +{normalizeIndianPhone(whatsappFollowUp.riderPhone)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (whatsappFollowUp.riderWaUrl) {
+                            window.open(whatsappFollowUp.riderWaUrl, '_blank');
+                            setWhatsappFollowUp((prev) => {
+                              if (!prev) return null;
+                              const updated = { ...prev, riderOpened: true };
+                              try {
+                                localStorage.setItem(`simply_wa_followup_${prev.orderNumber}`, JSON.stringify(updated));
+                              } catch {}
+                              return updated;
+                            });
+                          }
+                        }}
+                        className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-merchant-primary hover:bg-merchant-primary-hover text-white flex items-center justify-center gap-2 shadow-2xs transition cursor-pointer"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{whatsappFollowUp.riderOpened ? 'Open Rider WhatsApp Again' : 'Open Rider WhatsApp'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* NEXT WORKFLOW ACTIONS CARD */}
             <div className="bg-merchant-surface-raised border border-merchant-border rounded-2xl p-4 sm:p-5 text-merchant-text space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
@@ -569,43 +1092,81 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                 )}
 
                 {order.status === 'CONFIRMED' && (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={() =>
-                      openStatusConfirmation({
-                        targetStatus: 'ACCEPTED',
-                        title: 'Start Preparation',
-                        subtitle: 'Notify buyer that packing and preparing items has begun.',
-                        badgeLabel: 'PREPARING',
-                        defaultReason: 'Order accepted for preparation',
-                        themeColor: 'cyan',
-                      })
-                    }
-                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" /> Start Preparation
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'ACCEPTED',
+                          title: 'Start Preparation',
+                          subtitle: 'Notify buyer that packing and preparing items has begun.',
+                          badgeLabel: 'PREPARING',
+                          defaultReason: 'Order accepted for preparation',
+                          themeColor: 'cyan',
+                        })
+                      }
+                      className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <Check className="w-4 h-4" /> Start Preparation
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'DISPATCHED',
+                          title: 'Dispatch Order & Assign Rider',
+                          subtitle: 'Assign a delivery partner and notify buyer & rider simultaneously on WhatsApp and Email in 1 click.',
+                          badgeLabel: 'DISPATCHED',
+                          defaultReason: 'Handed over for delivery',
+                          themeColor: 'purple',
+                        })
+                      }
+                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <Truck className="w-4 h-4" /> Dispatch Order
+                    </button>
+                  </>
                 )}
 
                 {order.status === 'ACCEPTED' && (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={() =>
-                      openStatusConfirmation({
-                        targetStatus: 'READY',
-                        title: 'Mark Ready to Ship',
-                        subtitle: 'Confirm items are packed and waiting for delivery partner pickup.',
-                        badgeLabel: 'READY TO SHIP',
-                        defaultReason: 'Items packed and ready for dispatch',
-                        themeColor: 'amber',
-                      })
-                    }
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
-                  >
-                    <Package className="w-4 h-4" /> Mark Ready to Ship
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'READY',
+                          title: 'Mark Ready to Ship',
+                          subtitle: 'Confirm items are packed and waiting for delivery partner pickup.',
+                          badgeLabel: 'READY TO SHIP',
+                          defaultReason: 'Items packed and ready for dispatch',
+                          themeColor: 'amber',
+                        })
+                      }
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <Package className="w-4 h-4" /> Mark Ready to Ship
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() =>
+                        openStatusConfirmation({
+                          targetStatus: 'DISPATCHED',
+                          title: 'Dispatch Order & Assign Rider',
+                          subtitle: 'Assign a delivery partner and notify buyer & rider simultaneously on WhatsApp and Email in 1 click.',
+                          badgeLabel: 'DISPATCHED',
+                          defaultReason: 'Handed over for delivery',
+                          themeColor: 'purple',
+                        })
+                      }
+                      className="px-4 py-2 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <Truck className="w-4 h-4" /> Dispatch Order
+                    </button>
+                  </>
                 )}
 
                 {order.status === 'READY' && (
@@ -691,9 +1252,35 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                 )}
 
                 {order.status === 'COMPLETED' && (
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Order successfully delivered and settled.</span>
+                  <div className="w-full space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs font-bold">
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Order Delivered ✓</span>
+                      </div>
+                      {order.paymentStatus === 'PAID' ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          Payment Settled ✓
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          COD Payment Pending
+                        </span>
+                      )}
+                    </div>
+                    {order.paymentStatus !== 'PAID' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCodActionError(null);
+                          setCodModalOpen(true);
+                        }}
+                        className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Mark COD Payment Collected</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -704,6 +1291,316 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* DELIVERY PARTNER ASSIGNMENT CARD (Always at top of drawer) */}
+            <div className="bg-merchant-surface-raised border border-merchant-border rounded-2xl p-4 sm:p-5 text-merchant-text space-y-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-merchant-primary/10 flex items-center justify-center text-merchant-primary">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-merchant-text block">
+                      Delivery Person / Rider Assignment
+                    </h3>
+                    <p className="text-[10px] text-merchant-text-muted">
+                      {['NEW', 'CONFIRMED', 'ACCEPTED', 'READY'].includes(order.status)
+                        ? 'Assigned partner will be notified on WhatsApp & Email upon dispatch'
+                        : order.status === 'DISPATCHED'
+                        ? 'Package is out for delivery. Both buyer & rider notified.'
+                        : 'Delivery completed & settled with partner.'}
+                    </p>
+                  </div>
+                </div>
+
+                {['NEW', 'CONFIRMED', 'ACCEPTED', 'READY'].includes(order.status) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingNewRiderInline(true);
+                      setSelectedPartnerId('NEW');
+                      setRiderName('');
+                      setRiderPhone('');
+                      setRiderEmail('');
+                      setRiderVehicle('Motorcycle');
+                      setInlinePartnerMsg(null);
+                    }}
+                    className="text-[11px] font-semibold text-merchant-primary hover:underline cursor-pointer flex items-center gap-1 shrink-0"
+                  >
+                    + Add New Partner
+                  </button>
+                )}
+              </div>
+
+              {/* ACTIVE ORDER: Delivery Partner Dropdown & Pre-Selection */}
+              {['NEW', 'CONFIRMED', 'ACCEPTED', 'READY'].includes(order.status) ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-merchant-text-secondary block mb-1.5">
+                      Select Delivery Person:
+                    </label>
+                    <select
+                      value={isAddingNewRiderInline ? 'NEW' : selectedPartnerId}
+                      onChange={(e) => handlePartnerSelect(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                    >
+                      {deliveryPartners.length > 0 ? (
+                        <>
+                          {deliveryPartners.map((dp) => (
+                            <option key={dp.id} value={dp.id}>
+                              {dp.name} — {dp.phone} {dp.vehicle ? `(${dp.vehicle})` : ''} {dp.isDefault ? '★ Default' : ''}
+                            </option>
+                          ))}
+                          <option value="NEW">+ Enter Different / New Delivery Person</option>
+                        </>
+                      ) : (
+                        <option value="NEW">No saved partners yet — Enter rider details below</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Feedback Banner */}
+                  {inlinePartnerMsg && (
+                    <div
+                      className={`p-2.5 rounded-lg text-xs flex items-center justify-between ${
+                        inlinePartnerMsg.type === 'success'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                      }`}
+                    >
+                      <span>{inlinePartnerMsg.text}</span>
+                      <button
+                        type="button"
+                        onClick={() => setInlinePartnerMsg(null)}
+                        className="ml-2 font-bold cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Selected Partner Preview Card */}
+                  {!isAddingNewRiderInline && selectedPartnerId && selectedPartnerId !== 'NEW' && (
+                    <div className="p-3 bg-merchant-surface border border-merchant-border rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-merchant-text flex items-center gap-1.5">
+                          <span>🛵 {riderName}</span>
+                          <span className="text-[10px] text-merchant-text-muted font-normal">({riderVehicle})</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          Ready for 1-Click Dispatch
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-merchant-text-secondary">
+                        <div className="flex items-center gap-1.5 font-mono">
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>WhatsApp: {riderPhone}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span className="truncate">{riderEmail || 'No email configured'}</span>
+                        </div>
+                      </div>
+                      {riderPhone && (
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          <a
+                            href={`tel:${riderPhone}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted text-merchant-text rounded-lg text-[11px] font-semibold transition"
+                          >
+                            <Phone className="w-3 h-3 text-merchant-primary" />
+                            Call Rider
+                          </a>
+                          <a
+                            href={getRiderAssignmentWhatsAppUrl(riderPhone, riderName)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-[11px] font-bold transition shadow-2xs"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            Send Delivery Details (WhatsApp)
+                          </a>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+                        ⚡ Direct 1-Click Dispatch: When you click <strong>Dispatch Order</strong>, both <strong>{riderName}</strong> and buyer <strong>{customerName}</strong> will be notified with their own professional message.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Inline Add / Edit Rider Form */}
+                  {(isAddingNewRiderInline || deliveryPartners.length === 0) && (
+                    <div className="p-3 bg-merchant-surface border border-merchant-border rounded-xl space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-merchant-text flex items-center gap-1.5">
+                          <Truck className="w-3.5 h-3.5 text-merchant-primary" />
+                          Add Delivery Person to Directory
+                        </span>
+                        {deliveryPartners.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const def = deliveryPartners.find((p) => p.isDefault) || deliveryPartners[0];
+                              if (def) {
+                                handlePartnerSelect(def.id);
+                              }
+                            }}
+                            className="text-[10px] text-merchant-text-muted hover:text-merchant-text cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-merchant-text-muted block mb-1">
+                            Delivery Person Name <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Bruce Bhai"
+                            value={riderName}
+                            onChange={(e) => setRiderName(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-merchant-text-muted block mb-1">
+                            Mobile / WhatsApp <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="e.g. 8446448450"
+                            value={riderPhone}
+                            onChange={(e) => setRiderPhone(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text font-mono focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-merchant-text-muted block mb-1">
+                            Email Address (Optional)
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="e.g. bruce@example.com"
+                            value={riderEmail}
+                            onChange={(e) => setRiderEmail(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-merchant-text-muted block mb-1">
+                            Vehicle / Mode
+                          </label>
+                          <select
+                            value={riderVehicle}
+                            onChange={(e) => setRiderVehicle(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          >
+                            <option value="Motorcycle">Motorcycle / Bike</option>
+                            <option value="Scooter">Scooter / Moped</option>
+                            <option value="Electric Bike">EV / Electric Scooter</option>
+                            <option value="Store Van">Van / Auto</option>
+                            <option value="Bicycle">Bicycle</option>
+                            <option value="Store Staff">Store Staff (Walking)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <label className="flex items-center gap-1.5 text-[11px] text-merchant-text-muted cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={saveRiderToDirectory}
+                            onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
+                            className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
+                          />
+                          Save to store directory
+                        </label>
+
+                        <button
+                          type="button"
+                          disabled={isSavingPartnerInline}
+                          onClick={handleSavePartnerInline}
+                          className="px-3 py-1.5 bg-merchant-primary hover:bg-merchant-primary-hover text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {isSavingPartnerInline ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5" /> Save & Select Partner
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* DISPATCHED OR COMPLETED ORDER: Partner Status Card */
+                <div className="p-3 bg-merchant-surface border border-merchant-border rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-merchant-text flex items-center gap-1.5">
+                      <span>🛵 {riderName || shipment?.courierName?.replace('Store Team:', '') || 'Store Delivery Partner'}</span>
+                      {riderVehicle && <span className="text-[10px] text-merchant-text-muted">({riderVehicle})</span>}
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        order.status === 'COMPLETED'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                      }`}
+                    >
+                      {order.status === 'COMPLETED' ? 'Delivered & Settled' : 'Out for Delivery'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-merchant-text-secondary">
+                    {riderPhone && (
+                      <div className="flex items-center gap-1.5 font-mono">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>WhatsApp: {riderPhone}</span>
+                      </div>
+                    )}
+                    {riderEmail && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate">{riderEmail}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rider Contact Actions (Requirements 5 & 25) */}
+                  {riderPhone && (
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <a
+                        href={`tel:${riderPhone}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted text-merchant-text rounded-xl text-xs font-semibold shadow-2xs transition"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-merchant-primary" />
+                        Call Rider
+                      </a>
+                      <a
+                        href={getRiderAssignmentWhatsAppUrl(riderPhone, riderName)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold shadow-2xs transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Send Delivery Details
+                      </a>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-merchant-text-muted">
+                    {order.status === 'COMPLETED'
+                      ? 'Delivery completed and confirmed with partner.'
+                      : 'Delivery task assigned. Use the actions above to contact rider if needed.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* CUSTOMER DETAILS & ACTIONS */}
@@ -855,27 +1752,108 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
             {/* PAYMENT INFORMATION */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4" />
-                <span>Payment Information</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-merchant-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4" />
+                  <span>Payment</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowInvoiceModal(true)}
+                  className="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  View Invoice
+                </button>
+              </div>
 
-              <div className="bg-merchant-surface-raised p-4 rounded-xl border border-merchant-border text-xs space-y-2">
+              <div className="bg-merchant-surface-raised p-4 rounded-xl border border-merchant-border text-xs space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-merchant-text-secondary">Payment Method</span>
+                  <span className="font-semibold text-merchant-text">{paymentDisplay.methodLabel}</span>
+                </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-merchant-text-secondary">Payment Status</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${paymentMeta.bgClass} ${paymentMeta.textClass}`}>
                     {paymentMeta.label}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-merchant-text-secondary">
-                  <span>Method</span>
-                  <span className="font-mono font-medium text-merchant-text">{paymentMethodDisplay}</span>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-merchant-text-secondary">Amount</span>
+                  <span className="font-mono font-bold text-merchant-text">{formatPaise(order.totalPaise)}</span>
                 </div>
-                {paymentOrder?.providerOrderId && (
-                  <div className="flex justify-between items-center text-merchant-text-muted font-mono text-[11px]">
-                    <span>Reference</span>
-                    <span className="truncate max-w-[200px]">{paymentOrder.providerOrderId}</span>
+
+                {/* Digital Payment Transaction ID (e.g. pay_... from Razorpay or gateway) */}
+                {!paymentDisplay.isCod && paymentDisplay.transactionId && (
+                  <div className="flex justify-between items-center text-merchant-text-secondary">
+                    <span>Transaction ID</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] select-all bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      {paymentDisplay.transactionId}
+                    </span>
                   </div>
+                )}
+
+                {/* COD Specifics */}
+                {paymentDisplay.isCod && (
+                  <>
+                    {order.paymentStatus === 'PAID' ? (
+                      <div className="pt-2 border-t border-merchant-border space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-merchant-text-secondary">COD Collected</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">Yes</span>
+                        </div>
+                        {order.codCollectionMethod && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-merchant-text-secondary">Collected Via</span>
+                            <span className="font-bold text-merchant-text bg-merchant-surface px-2 py-0.5 rounded border border-merchant-border">
+                              {paymentDisplay.codCollectionLabel || order.codCollectionMethod}
+                            </span>
+                          </div>
+                        )}
+                        {order.codCollectedAt && (
+                          <div className="flex justify-between items-center text-merchant-text-muted text-[11px]">
+                            <span>Collected At</span>
+                            <span>
+                              {new Date(order.codCollectedAt).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* COD Pending Collection */
+                      <div className="pt-2 border-t border-merchant-border space-y-2.5">
+                        <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
+                          <span className="font-medium">COD Collection</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            Pending
+                          </span>
+                        </div>
+
+                        {/* Show Mark COD as Paid action only when paymentStatus != PAID and order is at fulfillment stage */}
+                        {(order.status === 'COMPLETED' || order.status === 'DISPATCHED' || order.status === 'READY') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCodActionError(null);
+                              setCodModalOpen(true);
+                            }}
+                            className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Mark COD Payment Collected</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -889,7 +1867,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                 </h3>
                 {shipment && (
                   <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    {shipment.provider === 'SELF_DELIVERY' ? 'Self Delivery Active' : 'Shiprocket AWB Active'}
+                    {isSelfDelivery ? 'Self Delivery Active' : 'Shiprocket AWB Active'}
                   </span>
                 )}
               </div>
@@ -917,20 +1895,28 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     <div className="flex justify-between items-center">
                       <span className="text-merchant-text-secondary">Delivery Mode</span>
                       <span className="font-bold text-merchant-text">
-                        {shipment.provider === 'SELF_DELIVERY' ? '🛵 Store Team / Self Delivery' : '🚀 Shiprocket Logistics'}
+                        {isSelfDelivery ? '🛵 Self / Store Team Delivery' : '🚀 Shiprocket Logistics'}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <span className="text-merchant-text-secondary">Assigned Courier / Rider</span>
-                      <span className="font-bold text-merchant-text">{shipment.courierName || 'Store In-house Team'}</span>
+                      <span className="text-merchant-text-secondary">
+                        {isSelfDelivery ? 'Assigned Rider' : 'Assigned Courier'}
+                      </span>
+                      <span className="font-bold text-merchant-text">
+                        {isSelfDelivery
+                          ? (riderName || shipment.courierName?.replace('Store Team:', '').trim() || 'Store In-house Team')
+                          : (shipment.courierName || 'Shiprocket Logistics')}
+                      </span>
                     </div>
 
                     {shipment.awbNumber && (
                       <div className="flex justify-between items-center">
-                        <span className="text-merchant-text-secondary">AWB / Reference</span>
-                        {shipment.awbNumber.startsWith('SELF_') || shipment.provider === 'SELF_DELIVERY' ? (
-                          <span className="font-mono font-bold text-emerald-500">{shipment.awbNumber}</span>
+                        <span className="text-merchant-text-secondary">
+                          {isSelfDelivery || shipment.awbNumber.startsWith('SELF_') ? 'Reference' : 'AWB Number'}
+                        </span>
+                        {isSelfDelivery || shipment.awbNumber.startsWith('SELF_') || shipment.provider === 'SELF_DELIVERY' ? (
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{shipment.awbNumber}</span>
                         ) : (
                           <a
                             href={`https://shiprocket.co/tracking/${shipment.awbNumber}`}
@@ -948,13 +1934,17 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     <div className="flex justify-between items-center">
                       <span className="text-merchant-text-secondary">Logistics Status</span>
                       <span className="font-semibold text-merchant-text uppercase px-2 py-0.5 bg-merchant-surface rounded text-[10px] border border-merchant-border">
-                        {shipment.status === 'OUT_FOR_DELIVERY' ? 'Out for Delivery' : shipment.status}
+                        {order.status === 'COMPLETED'
+                          ? 'Delivered'
+                          : shipment.status === 'OUT_FOR_DELIVERY'
+                          ? 'Out for Delivery'
+                          : shipment.status}
                       </span>
                     </div>
 
-                    {/* Pull Live Tracking from Shiprocket Button */}
+                    {/* Fulfillment Actions */}
                     <div className="pt-2 border-t border-merchant-border flex flex-wrap gap-2 items-center">
-                      {shipment.provider !== 'SELF_DELIVERY' && (
+                      {!isSelfDelivery && shipment.provider !== 'SELF_DELIVERY' && (
                         <button
                           type="button"
                           onClick={handleSyncTracking}
@@ -966,7 +1956,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         </button>
                       )}
 
-                      {/* WhatsApp Quick Updates */}
+                      {/* WhatsApp Buyer Update */}
                       {customerPhone && (
                         <a
                           href={getWhatsAppLinkForStatus(order.status)}
@@ -974,8 +1964,21 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          Send Status Update on WhatsApp
+                          <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
+                          WhatsApp Buyer
+                        </a>
+                      )}
+
+                      {/* WhatsApp Rider Action (Requirements 24 & 25) */}
+                      {isSelfDelivery && riderPhone && (
+                        <a
+                          href={getRiderAssignmentWhatsAppUrl(riderPhone, riderName)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-merchant-primary/15 border border-merchant-primary/30 hover:bg-merchant-primary/25 text-merchant-primary rounded-lg text-xs font-semibold transition"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          WhatsApp Rider
                         </a>
                       )}
 
@@ -1028,126 +2031,14 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     )}
                   </>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="font-bold text-merchant-text text-xs flex items-center gap-1.5">
-                        <Truck className="w-4 h-4 text-merchant-primary" />
-                        Assign Delivery Partner (Prior to Dispatch)
-                      </p>
-                      <span className="text-[10px] text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        Pre-Dispatch Setup
-                      </span>
-                    </div>
+                  <div className="p-3 bg-merchant-surface border border-merchant-border rounded-xl space-y-1">
+                    <span className="text-[11px] font-bold text-merchant-text flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-merchant-primary" />
+                      Pending Fulfillment & Dispatch
+                    </span>
                     <p className="text-[11px] text-merchant-text-muted">
-                      Select or add a delivery person below. You can assign and notify them regarding pickup and delivery details before marking dispatched.
+                      Delivery partner assigned above ({riderName || 'Store Delivery Team'}) will be dispatched when you click <strong>Dispatch Order</strong>. Both buyer and delivery partner will be notified directly via WhatsApp & Email in 1 click.
                     </p>
-
-                    <div className="p-3.5 bg-merchant-surface border border-merchant-border rounded-xl space-y-3">
-                      <div>
-                        <label className="text-[11px] font-semibold text-merchant-text-secondary block mb-1">
-                          Select Delivery Partner:
-                        </label>
-                        <select
-                          value={isAddingNewRiderInline ? 'NEW' : selectedPartnerId}
-                          onChange={(e) => handlePartnerSelect(e.target.value)}
-                          className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
-                        >
-                          {deliveryPartners.length > 0 ? (
-                            <>
-                              {deliveryPartners.map((dp) => (
-                                <option key={dp.id} value={dp.id}>
-                                  {dp.name} — {dp.phone} {dp.vehicle ? `(${dp.vehicle})` : ''} {dp.isDefault ? '★ Default' : ''}
-                                </option>
-                              ))}
-                              <option value="NEW">+ Enter Different / New Delivery Person</option>
-                            </>
-                          ) : (
-                            <option value="NEW">No saved partners yet — Enter rider details below</option>
-                          )}
-                        </select>
-                      </div>
-
-                      {(isAddingNewRiderInline || deliveryPartners.length === 0) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                          <div>
-                            <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                              Delivery Person Name
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Ramesh"
-                              value={riderName}
-                              onChange={(e) => setRiderName(e.target.value)}
-                              className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                              Mobile Number
-                            </label>
-                            <input
-                              type="tel"
-                              placeholder="e.g. 9876543210"
-                              value={riderPhone}
-                              onChange={(e) => setRiderPhone(e.target.value)}
-                              className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div className="sm:col-span-2 flex items-center justify-between pt-1">
-                            <label className="flex items-center gap-1.5 text-[11px] text-merchant-text-muted cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={saveRiderToDirectory}
-                                onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
-                                className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
-                              />
-                              Save to store directory
-                            </label>
-                            {riderName.trim() && riderPhone.trim() && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  api.deliveryPartners
-                                    .save({
-                                      name: riderName.trim(),
-                                      phone: riderPhone.trim(),
-                                      vehicle: 'Motorcycle',
-                                      isDefault: deliveryPartners.length === 0,
-                                    })
-                                    .then(() => {
-                                      api.deliveryPartners.list().then((r: any) => {
-                                        if (r?.data) setDeliveryPartners(r.data);
-                                      });
-                                    })
-                                    .catch(() => {});
-                                }}
-                                className="text-[11px] text-merchant-primary font-semibold hover:underline cursor-pointer"
-                              >
-                                Save Partner Now
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Action to notify assigned delivery partner */}
-                      {riderPhone.trim() && (
-                        <div className="pt-2 border-t border-merchant-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <span className="text-[11px] text-merchant-text-muted">
-                            Assigned: <strong className="text-merchant-text">{riderName || 'Partner'}</strong> ({riderPhone})
-                          </span>
-                          <a
-                            href={getDeliveryPartnerAssignmentWhatsApp(riderPhone, riderName)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold shadow-2xs transition"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            Notify Delivery Person on WhatsApp
-                          </a>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -1303,9 +2194,27 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                   <div className="space-y-2 pt-1">
                     {/* Saved Riders Dropdown */}
                     <div>
-                      <label className="text-[11px] font-semibold text-merchant-text-secondary block mb-1">
-                        Select from Registered Delivery Partners:
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-merchant-text-secondary block">
+                          Select from Registered Delivery Partners:
+                        </label>
+                        {!isAddingNewRiderInline && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingNewRiderInline(true);
+                              setSelectedPartnerId('NEW');
+                              setRiderName('');
+                              setRiderPhone('');
+                              setRiderEmail('');
+                              setRiderVehicle('Motorcycle');
+                            }}
+                            className="text-[11px] font-semibold text-merchant-primary hover:underline cursor-pointer"
+                          >
+                            + Add New Partner
+                          </button>
+                        )}
+                      </div>
                       <select
                         value={isAddingNewRiderInline ? 'NEW' : selectedPartnerId}
                         onChange={(e) => handlePartnerSelect(e.target.value)}
@@ -1333,7 +2242,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                         <div>
                           <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                            Rider Name
+                            Rider Name <span className="text-rose-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -1345,7 +2254,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         </div>
                         <div>
                           <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
-                            Rider Mobile Number
+                            Rider Mobile Number <span className="text-rose-500">*</span>
                           </label>
                           <input
                             type="tel"
@@ -1355,17 +2264,55 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                             className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text font-mono focus:outline-none"
                           />
                         </div>
-                        <div className="sm:col-span-2 flex items-center gap-1.5 pt-1">
-                          <input
-                            type="checkbox"
-                            id="save-rider-dir"
-                            checked={saveRiderToDirectory}
-                            onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
-                            className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
-                          />
-                          <label htmlFor="save-rider-dir" className="text-[11px] text-merchant-text-muted cursor-pointer">
-                            Save this rider to store directory for future 1-click selection
+                        <div>
+                          <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                            Rider Email Address (Optional)
                           </label>
+                          <input
+                            type="email"
+                            placeholder="e.g. rider@example.com"
+                            value={riderEmail}
+                            onChange={(e) => setRiderEmail(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold text-merchant-text-muted block mb-1">
+                            Vehicle / Mode
+                          </label>
+                          <select
+                            value={riderVehicle}
+                            onChange={(e) => setRiderVehicle(e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-merchant-input-border bg-merchant-input-bg text-merchant-text focus:outline-none"
+                          >
+                            <option value="Motorcycle">Motorcycle / Bike</option>
+                            <option value="Scooter">Scooter / Moped</option>
+                            <option value="Electric Bike">EV / Electric Scooter</option>
+                            <option value="Store Van">Van / Auto</option>
+                            <option value="Bicycle">Bicycle</option>
+                            <option value="Store Staff">Store Staff (Walking)</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2 flex items-center justify-between pt-1">
+                          <label htmlFor="save-rider-dir" className="flex items-center gap-1.5 text-[11px] text-merchant-text-muted cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="save-rider-dir"
+                              checked={saveRiderToDirectory}
+                              onChange={(e) => setSaveRiderToDirectory(e.target.checked)}
+                              className="h-3.5 w-3.5 text-emerald-500 rounded cursor-pointer"
+                            />
+                            Save this rider to store directory
+                          </label>
+
+                          <button
+                            type="button"
+                            disabled={isSavingPartnerInline}
+                            onClick={handleSavePartnerInline}
+                            className="px-2.5 py-1 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted text-merchant-text rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                          >
+                            {isSavingPartnerInline ? 'Saving...' : 'Save to Directory Now'}
+                          </button>
                         </div>
                       </div>
                     )}
@@ -1412,29 +2359,63 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
             </div>
 
             {/* AUTOMATED NOTIFICATION CHANNELS (HEADLESS 1-CLICK) */}
-            <div className="p-3.5 rounded-xl bg-merchant-surface-raised border border-merchant-border space-y-2">
+            <div className="p-3.5 rounded-xl bg-merchant-surface-raised border border-merchant-border space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider block">
-                  Direct Buyer Notifications (1-Click)
+                  {statusConfirmModal.targetStatus === 'DISPATCHED' || statusConfirmModal.targetStatus === 'COMPLETED'
+                    ? 'Dual Direct Notifications (Buyer & Delivery Partner)'
+                    : 'Direct Buyer Notifications (1-Click)'}
                 </span>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                  ⚡ Sent Directly (No Redirects)
+                  ⚡ Sent Directly (1-Click, No Redirects)
                 </span>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <span className="flex items-center gap-1.5 text-merchant-text">
-                  <Mail className="w-3.5 h-3.5 text-blue-500" />
-                  Direct Email via Letzshop SMTP
+              {/* Buyer Channel */}
+              <div className="p-2.5 rounded-lg bg-merchant-surface border border-merchant-border text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-merchant-text-muted block">
+                  👤 Buyer Channels: {customerName}
                 </span>
-
-                {customerPhone && (
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
-                    <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
-                    Direct WhatsApp to {customerPhone}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-merchant-text">
+                    <Mail className="w-3.5 h-3.5 text-blue-500" />
+                    Email: {customerEmail || 'Registered Email'}
                   </span>
-                )}
+                  {customerPhone && (
+                    <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                      <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
+                      WhatsApp: {customerPhone}
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* Delivery Partner Channel (for DISPATCHED or COMPLETED) */}
+              {(statusConfirmModal.targetStatus === 'DISPATCHED' || statusConfirmModal.targetStatus === 'COMPLETED') && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-xs space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                    🛵 Delivery Partner Channels: {riderName || 'Store Delivery Partner'}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {riderPhone ? (
+                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                        <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
+                        WhatsApp: {riderPhone} (Pickup & Destination Task)
+                      </span>
+                    ) : (
+                      <span className="text-amber-500 text-[11px]">
+                        ⚠️ No partner mobile provided — Enter partner phone above to notify on WhatsApp
+                      </span>
+                    )}
+                    {riderEmail && (
+                      <span className="flex items-center gap-1.5 text-merchant-text">
+                        <Mail className="w-3.5 h-3.5 text-blue-500" />
+                        Email: {riderEmail}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Error banner if action fails */}
@@ -1464,18 +2445,145 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                 {updating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Updating & Notifying...
+                    Updating & Notifying Both...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Confirm & Notify Buyer
+                    {statusConfirmModal.targetStatus === 'DISPATCHED'
+                      ? 'Confirm Dispatch & Notify Both (1-Click)'
+                      : statusConfirmModal.targetStatus === 'COMPLETED'
+                      ? 'Confirm Delivery & Notify Both (1-Click)'
+                      : 'Confirm & Notify (1-Click)'}
                   </>
                 )}
               </button>
             </div>
           </div>
         </div>
+      )}
+      {/* =========================================================================
+          COD PAYMENT COLLECTION CONFIRMATION MODAL
+      ========================================================================= */}
+      {codModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !isCollectingCod && setCodModalOpen(false)}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-merchant-surface border border-merchant-border rounded-2xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-merchant-text"
+          >
+            <div className="flex items-start justify-between border-b border-merchant-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-merchant-text">Confirm COD Payment</h3>
+                  <p className="text-xs text-merchant-text-muted">Record collected cash or digital payment at delivery</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isCollectingCod}
+                onClick={() => setCodModalOpen(false)}
+                className="text-merchant-text-muted hover:text-merchant-text p-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-merchant-surface-raised border border-merchant-border text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-merchant-text-muted">Order:</span>
+                <span className="font-mono font-bold text-merchant-text">#{order.orderNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-merchant-text-muted">Amount to Collect:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                  {formatPaise(order.totalPaise)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-merchant-text-muted">Order Payment Mode:</span>
+                <span className="font-semibold text-merchant-text">Cash on Delivery (COD)</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-merchant-text block">
+                Actual Collection Method:
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {(['CASH', 'UPI', 'CARD', 'OTHER'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setCodMethod(m)}
+                    className={`py-2 px-3 rounded-xl border font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      codMethod === m
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                        : 'border-merchant-border bg-merchant-surface-raised text-merchant-text-secondary hover:text-merchant-text'
+                    }`}
+                  >
+                    <span>{m === 'CASH' ? '💵 Cash' : m === 'UPI' ? '📱 UPI' : m === 'CARD' ? '💳 Card' : '📦 Other'}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-merchant-text-muted pt-1">
+                Preserves both the original order mode (COD) and how payment was physically received upon delivery.
+              </p>
+            </div>
+
+            {codActionError && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{codActionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-merchant-border">
+              <button
+                type="button"
+                disabled={isCollectingCod}
+                onClick={() => setCodModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-merchant-surface hover:bg-merchant-surface-muted text-merchant-text border border-merchant-border transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isCollectingCod}
+                onClick={handleCollectCodPayment}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isCollectingCod ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Recording Payment...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Confirm Payment Received
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Printable Tax Invoice Modal */}
+      {showInvoiceModal && (
+        <InvoiceModal
+          isOpen={showInvoiceModal}
+          onClose={() => setShowInvoiceModal(false)}
+          order={order}
+        />
       )}
     </>
   );

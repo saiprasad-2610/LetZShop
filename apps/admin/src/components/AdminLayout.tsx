@@ -13,7 +13,8 @@ import {
   Activity, 
   ShieldCheck, 
   LogOut,
-  ExternalLink 
+  ExternalLink,
+  Star
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { getStorefrontUrl } from '../utils/config';
@@ -27,6 +28,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: 'Merchants & Tenants', href: '/merchants', icon: Store },
     { label: 'Users & Governance', href: '/users', icon: Users },
     { label: 'Commerce Monitor', href: '/commerce', icon: ShoppingBag },
+    { label: 'Review Moderation', href: '/reviews', icon: Star },
     { label: 'Billing & Plans', href: '/billing', icon: CreditCard },
     { label: 'Themes Catalog', href: '/themes', icon: Palette },
     { label: 'SaaS Analytics', href: '/analytics', icon: BarChart3 },

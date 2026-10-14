@@ -508,6 +508,7 @@ export class SellerController {
       customMessage?: string;
       riderName?: string;
       riderPhone?: string;
+      riderEmail?: string;
     }
   ) {
     return this.ordersService.updateOrderStatus(
@@ -519,7 +520,8 @@ export class SellerController {
       true,
       body.customMessage,
       body.riderName,
-      body.riderPhone
+      body.riderPhone,
+      body.riderEmail
     );
   }
 
@@ -548,6 +550,7 @@ export class SellerController {
       id?: string;
       name: string;
       phone: string;
+      email?: string;
       vehicle?: string;
       notes?: string;
       isDefault?: boolean;
@@ -571,6 +574,7 @@ export class SellerController {
       id: partnerId,
       name: body.name.trim(),
       phone: cleanPhone,
+      email: body.email?.trim() || '',
       vehicle: body.vehicle?.trim() || 'Motorcycle',
       notes: body.notes?.trim() || '',
       isDefault: Boolean(body.isDefault),
@@ -696,6 +700,18 @@ export class SellerController {
       'Order completed and settled.',
       user.userId
     );
+  }
+
+  @Post('orders/:id/collect-cod')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark COD payment as collected by merchant with actual collection method' })
+  async collectCodPayment(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { collectionMethod?: string; amountPaise?: number; note?: string }
+  ) {
+    return this.ordersService.collectCodPayment(id, tenant, body, user.userId);
   }
 
   // ============================================================================

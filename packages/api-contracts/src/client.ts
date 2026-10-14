@@ -285,6 +285,7 @@ export class SimplyApiClient {
         customMessage?: string;
         riderName?: string;
         riderPhone?: string;
+        riderEmail?: string;
       }
     ) =>
       this.request(`seller/orders/${id}/status`, {
@@ -293,6 +294,14 @@ export class SimplyApiClient {
       }),
     trackOrder: (orderNumber: string, token?: string) =>
       this.request(`orders/track/${orderNumber}`, { params: token ? { t: token } : undefined }),
+    collectCod: (
+      id: string,
+      data: { collectionMethod: 'CASH' | 'UPI' | 'CARD' | 'OTHER' | string; amountPaise?: number; note?: string }
+    ) =>
+      this.request(`seller/orders/${id}/collect-cod`, {
+        method: 'POST',
+        body: data,
+      }),
   };
 
   // --- Reports ---
@@ -460,6 +469,7 @@ export class SimplyApiClient {
           id: string;
           name: string;
           phone: string;
+          email?: string;
           vehicle?: string;
           notes?: string;
           isDefault?: boolean;
@@ -469,6 +479,7 @@ export class SimplyApiClient {
       id?: string;
       name: string;
       phone: string;
+      email?: string;
       vehicle?: string;
       notes?: string;
       isDefault?: boolean;
@@ -480,6 +491,42 @@ export class SimplyApiClient {
     delete: (id: string) =>
       this.request<{ success: boolean; data: any[] }>(`seller/delivery-partners/${id}`, {
         method: 'DELETE',
+      }),
+  };
+
+  // --- Product Reviews (Storefront, Seller, Admin Moderation) ---
+  public reviews = {
+    getEligible: (slug: string, orderNumber: string, token: string) =>
+      this.request(`storefront/${slug}/reviews/eligible`, {
+        params: { orderNumber, token },
+      }),
+    submit: (
+      slug: string,
+      data: {
+        orderNumber: string;
+        token: string;
+        orderItemId: string;
+        productId: string;
+        reviewerName?: string;
+        rating: number;
+        title?: string;
+        body: string;
+      }
+    ) =>
+      this.request(`storefront/${slug}/reviews`, {
+        method: 'POST',
+        body: data,
+      }),
+    getProductReviews: (slug: string, productId: string) =>
+      this.request(`storefront/${slug}/products/${productId}/reviews`),
+    getSellerReviews: (params?: { page?: number; limit?: number; productId?: string }) =>
+      this.request('seller/reviews', { params }),
+    getAdminReviews: (params?: { page?: number; limit?: number; status?: string; search?: string; storeId?: string }) =>
+      this.request('admin/reviews', { params }),
+    moderateAdminReview: (id: string, data: { status: 'ACTIVE' | 'REMOVED'; reason?: string }) =>
+      this.request(`admin/reviews/${id}/moderate`, {
+        method: 'PATCH',
+        body: data,
       }),
   };
 }

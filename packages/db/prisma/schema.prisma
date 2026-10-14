@@ -440,6 +440,7 @@ model Store {
   enquiries          Enquiry[]
   shippingProfiles   ShippingProfile[]
   mediaAssets        MediaAsset[]
+  productReviews     ProductReview[]
 
   @@index([tenantId, status])
   @@index([slug, isPubliclyAccessible])
@@ -750,6 +751,8 @@ model Product {
   documents  ProductDocument[]
   media      ProductMedia[]
   enquiries  Enquiry[]
+  orderItems OrderItem[]
+  reviews    ProductReview[]
 
   @@unique([storeId, slug])
   @@index([tenantId, storeId, status])
@@ -1063,8 +1066,13 @@ model Order {
   currency          String            @default("INR")
   notes             String?
   deliveryAddress   Json              @map("delivery_address") // Snapshot of address
+  paymentMethod     String?           @default("COD") @map("payment_method")
+  codCollectionMethod String?         @map("cod_collection_method")
+  codCollectedAt    DateTime?         @map("cod_collected_at")
+  codCollectedBy    String?           @map("cod_collected_by")
   guestCheckout     Boolean           @default(true) @map("guest_checkout")
   trackingToken     String?           @unique @map("tracking_token")
+  reviewToken       String?           @unique @map("review_token")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   cancelledAt       DateTime?         @map("cancelled_at")
@@ -1078,6 +1086,7 @@ model Order {
   paymentOrders PaymentOrder[]
   shipments     Shipment[]
   refunds       Refund[]
+  reviews       ProductReview[]
 
   @@index([tenantId, storeId, status])
   @@index([storeId, status])
@@ -1109,6 +1118,7 @@ model OrderAddress {
 model OrderItem {
   id              String   @id @default(uuid())
   orderId         String   @map("order_id")
+  productId       String?  @map("product_id")
   variantId       String?  @map("variant_id")
   productName     String   @map("product_name") // Snapshot
   variantTitle    String   @map("variant_title") // Snapshot (e.g. "Navy / XL")
@@ -1121,7 +1131,9 @@ model OrderItem {
   createdAt       DateTime @default(now()) @map("created_at")
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  reviews ProductReview[]
 
   @@map("order_items")
 }
@@ -1463,4 +1475,38 @@ model DataSubjectRequest {
 
   @@index([tenantId, status])
   @@map("data_subject_requests")
+}
+
+// ==============================================================================
+// PRODUCT REVIEWS & MODERATION
+// ==============================================================================
+
+model ProductReview {
+  id                String    @id @default(uuid())
+  storeId           String    @map("store_id")
+  productId         String    @map("product_id")
+  orderId           String    @map("order_id")
+  orderItemId       String    @map("order_item_id")
+  reviewerName      String    @map("reviewer_name")
+  rating            Int
+  title             String?
+  body              String
+  verifiedPurchase  Boolean   @default(true) @map("verified_purchase")
+  status            String    @default("ACTIVE") // ACTIVE, REMOVED
+  moderatedAt       DateTime? @map("moderated_at")
+  moderatedBy       String?   @map("moderated_by")
+  moderationReason  String?   @map("moderation_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([orderItemId, productId])
+  @@index([productId, status])
+  @@index([storeId, status])
+  @@index([orderId])
+  @@map("product_reviews")
 }

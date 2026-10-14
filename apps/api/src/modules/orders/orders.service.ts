@@ -22,6 +22,7 @@ import { InvalidTrackingTokenException } from '../../common/exceptions/domain.ex
 import * as crypto from 'crypto';
 import { MailService } from '../notifications/mail.service';
 import { WhatsAppService } from '../notifications/whatsapp.service';
+import { buildPublicReviewUrl, buildPublicTrackingUrl, normalizeIndianPhone } from '@simply/api-contracts';
 
 /**
  * Full Domain Order Lifecycle:
@@ -245,6 +246,7 @@ export class OrdersService {
       const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
       const orderNumber = `ORD-${datePrefix}-${randomSuffix}`;
       const trackingToken = crypto.randomBytes(16).toString('hex');
+      const reviewToken = crypto.randomBytes(16).toString('hex');
 
       const fullNotes = [
         dto.notes?.trim(),
@@ -259,6 +261,7 @@ export class OrdersService {
           customerId: customer.id,
           orderNumber,
           trackingToken,
+          reviewToken,
           status: OrderStatus.NEW,
           paymentStatus: PaymentStatus.PENDING,
           shipmentStatus: ShipmentStatus.PENDING,
@@ -271,6 +274,7 @@ export class OrdersService {
           currency: 'INR',
           notes: fullNotes,
           deliveryAddress: dto.deliveryAddress as any,
+          paymentMethod: (dto.paymentMethod || 'COD').toUpperCase(),
           guestCheckout: true,
         },
       });
@@ -306,6 +310,7 @@ export class OrdersService {
         await tx.orderItem.create({
           data: {
             orderId: order.id,
+            productId: item.variant.productId,
             variantId: item.variantId,
             productName: item.variant.product.name,
             variantTitle,
@@ -485,11 +490,17 @@ export class OrdersService {
       deliveryAddress.email ||
       null;
 
+    const paymentTx = order.paymentOrders?.[0]?.transactions?.[0];
+    const transactionId = paymentTx?.providerPaymentId || null;
+    const resolvedPaymentMethod = (order as any).paymentMethod || paymentTx?.paymentMethod || (order.notes?.includes('COD') ? 'COD' : 'ONLINE');
+
     return {
       ...order,
       customerName,
       customerPhone,
       customerEmail,
+      transactionId,
+      paymentMethod: resolvedPaymentMethod,
     };
   }
 
@@ -534,6 +545,7 @@ export class OrdersService {
         statusHistory: { orderBy: { createdAt: 'asc' } },
         orderAddress: true,
         customer: true,
+        paymentOrders: { include: { transactions: true } },
       },
     });
 
@@ -564,6 +576,9 @@ export class OrdersService {
       status: order.status,
       paymentStatus: order.paymentStatus,
       paymentMethod: (fullOrder as any).paymentMethod || (fullOrder as any).paymentOrders?.[0]?.transactions?.[0]?.paymentMethod || 'Online',
+      transactionId: (fullOrder as any).paymentOrders?.[0]?.transactions?.[0]?.providerPaymentId || null,
+      codCollectionMethod: (fullOrder as any).codCollectionMethod || null,
+      codCollectedAt: (fullOrder as any).codCollectedAt || null,
       shipmentStatus: order.shipmentStatus,
       createdAt: order.createdAt,
       customerName,
@@ -847,7 +862,8 @@ export class OrdersService {
     isSellerContext: boolean = true,
     customMessage?: string,
     riderName?: string,
-    riderPhone?: string
+    riderPhone?: string,
+    riderEmail?: string
   ) {
     const order = await this.getOrderById(orderId, tenant);
 
@@ -943,6 +959,9 @@ export class OrdersService {
       } else if (toStatus === OrderStatus.COMPLETED) {
         updateData.fulfillmentStatus = FulfillmentStatus.DELIVERED;
         updateData.shipmentStatus = ShipmentStatus.DELIVERED;
+        if (!lockedOrder.reviewToken) {
+          updateData.reviewToken = crypto.randomBytes(16).toString('hex');
+        }
       } else if (toStatus === OrderStatus.CANCELLED) {
         updateData.fulfillmentStatus = FulfillmentStatus.CANCELLED;
         updateData.shipmentStatus = ShipmentStatus.CANCELLED;
@@ -958,7 +977,28 @@ export class OrdersService {
         data: updateData,
       });
 
-      // Step D: If DISPATCHED and rider info is supplied, record shipment details atomically
+      // Step D1: If COMPLETED, synchronize Shipment status to DELIVERED atomically
+      if (toStatus === OrderStatus.COMPLETED) {
+        const existingShipment = await tx.shipment.findFirst({ where: { orderId: lockedOrder.id } });
+        if (existingShipment) {
+          await tx.shipment.update({
+            where: { id: existingShipment.id },
+            data: {
+              status: ShipmentStatus.DELIVERED,
+              fulfillmentStatus: FulfillmentStatus.DELIVERED,
+            },
+          });
+          await tx.shipmentEvent.create({
+            data: {
+              shipmentId: existingShipment.id,
+              status: 'DELIVERED',
+              description: 'Order successfully delivered to customer.',
+            },
+          });
+        }
+      }
+
+      // Step D2: If DISPATCHED and rider info is supplied, record shipment details atomically
       if (toStatus === OrderStatus.DISPATCHED && (riderName || riderPhone)) {
         const courierName = riderName
           ? (riderPhone ? `Store Team: ${riderName.trim()} (${riderPhone.trim()})` : `Store Team: ${riderName.trim()}`)
@@ -1039,15 +1079,15 @@ export class OrdersService {
           action: 'ORDER_STATUS_CHANGED',
           entityType: 'Order',
           entityId: lockedOrder.id,
-          metadata: { fromStatus: lockedOrder.status, toStatus, reason: fullReason, customMessage, riderName, riderPhone },
+          metadata: { fromStatus: lockedOrder.status, toStatus, reason: fullReason, customMessage, riderName, riderPhone, riderEmail },
         },
       });
 
       return updated;
     });
 
-    // Trigger status transition notifications asynchronously to buyer at EVERY step
-    this.triggerStatusNotifications(order.id, toStatus, customMessage, riderName, riderPhone).catch((err) => {
+    // Trigger status transition notifications asynchronously to buyer and delivery partner at EVERY step
+    this.triggerStatusNotifications(order.id, toStatus, customMessage, riderName, riderPhone, riderEmail).catch((err) => {
       this.logger.warn(`Failed to trigger status notification: ${err.message}`);
     });
 
@@ -1059,12 +1099,13 @@ export class OrdersService {
     toStatus: OrderStatus,
     customMessage?: string,
     riderName?: string,
-    riderPhone?: string
+    riderPhone?: string,
+    riderEmail?: string
   ) {
     try {
       const fullOrder = await this.prisma.order.findUnique({
         where: { id: orderId },
-        include: { items: true, customer: true, orderAddress: true, store: true, shipments: true },
+        include: { items: true, customer: true, orderAddress: true, store: true, shipments: { include: { events: true } } },
       });
 
       if (!fullOrder) return;
@@ -1075,17 +1116,64 @@ export class OrdersService {
       const customerPhone = fullOrder.customer?.phone || deliveryAddress.phone;
       const customerName = fullOrder.customer?.fullName || deliveryAddress.fullName || 'Valued Customer';
       const trackingUrl = fullOrder.trackingToken
-        ? `${process.env.STOREFRONT_BASE_URL || process.env.STOREFRONT_URL || 'https://letzshop.com'}/track/${fullOrder.orderNumber}?t=${fullOrder.trackingToken}`
+        ? buildPublicTrackingUrl(fullOrder.orderNumber, fullOrder.trackingToken)
+        : undefined;
+      const effectiveReviewToken = fullOrder.reviewToken || fullOrder.trackingToken;
+      const reviewUrl = effectiveReviewToken
+        ? buildPublicReviewUrl(store.slug, fullOrder.orderNumber, effectiveReviewToken)
         : undefined;
 
       const shipment = fullOrder.shipments?.[0];
       const deliveryMode = shipment?.provider === 'SELF_DELIVERY' ? 'SELF_DELIVERY' : 'SHIPROCKET';
+
+      // 1. Resolve Rider Details (Name, Phone, Email)
+      let effRiderName = riderName;
+      let effRiderPhone = riderPhone;
+      let effRiderEmail = riderEmail;
+
+      if (!effRiderName && shipment?.courierName && shipment.courierName.startsWith('Store Team:')) {
+        effRiderName = shipment.courierName.replace('Store Team:', '').trim();
+      }
+
+      if (!effRiderPhone && shipment?.events) {
+        const outForDeliveryEvent = shipment.events.find((e: any) => e.status === 'OUT_FOR_DELIVERY' || e.description?.includes('Dispatched with'));
+        if (outForDeliveryEvent?.description) {
+          const match = outForDeliveryEvent.description.match(/\((\d{10,12})\)/);
+          if (match) {
+            effRiderPhone = match[1];
+          }
+        }
+      }
+
+      // Check directory in store.socialLinks.deliveryPartners for matching partner to complete email/phone
+      const social = (store.socialLinks as any) || {};
+      const directoryPartners: any[] = Array.isArray(social.deliveryPartners) ? social.deliveryPartners : [];
+      if (effRiderName || effRiderPhone) {
+        const cleanRiderPhone = (effRiderPhone || '').replace(/[^0-9]/g, '');
+        const matched = directoryPartners.find((p: any) =>
+          (cleanRiderPhone && p.phone && p.phone.replace(/[^0-9]/g, '') === cleanRiderPhone) ||
+          (effRiderName && p.name && p.name.trim().toLowerCase() === effRiderName.trim().toLowerCase())
+        );
+        if (matched) {
+          effRiderName = effRiderName || matched.name;
+          effRiderPhone = effRiderPhone || matched.phone;
+          effRiderEmail = effRiderEmail || matched.email;
+        }
+      } else if (directoryPartners.length > 0 && deliveryMode === 'SELF_DELIVERY') {
+        const def = directoryPartners.find((p: any) => p.isDefault) || directoryPartners[0];
+        if (def) {
+          effRiderName = def.name;
+          effRiderPhone = def.phone;
+          effRiderEmail = def.email;
+        }
+      }
 
       const emailContext = {
         order: fullOrder,
         store: {
           id: store.id,
           name: store.name,
+          address: store.businessAddress || undefined,
           supportEmail: store.supportEmail || undefined,
           supportPhone: store.supportPhone || undefined,
         },
@@ -1095,14 +1183,16 @@ export class OrdersService {
           phone: customerPhone,
         },
         trackingUrl,
-        courierName: shipment?.courierName || (riderName ? `Store Team: ${riderName}` : undefined),
+        reviewUrl,
+        courierName: shipment?.courierName || (effRiderName ? `Store Team: ${effRiderName}` : undefined),
         awbNumber: shipment?.awbNumber || undefined,
-        riderName: riderName || undefined,
-        riderPhone: riderPhone || undefined,
+        riderName: effRiderName || undefined,
+        riderPhone: effRiderPhone || undefined,
         deliveryMode: deliveryMode as any,
         customMessage,
       };
 
+      // --- A. NOTIFY BUYER VIA EMAIL ---
       if (customerEmail) {
         if (toStatus === OrderStatus.DISPATCHED) {
           await this.mailService.sendOrderDispatchedEmail(emailContext);
@@ -1113,10 +1203,12 @@ export class OrdersService {
         }
       }
 
+      // --- B. NOTIFY BUYER VIA WHATSAPP ---
+      const itemsSummary = (fullOrder.items || [])
+        .map((it: any) => `${it.quantity}x ${it.productName}`)
+        .join(', ');
+
       if (customerPhone) {
-        const itemsSummary = (fullOrder.items || [])
-          .map((it: any) => `${it.quantity}x ${it.productName}`)
-          .join(', ');
         const waContext = {
           orderNumber: fullOrder.orderNumber,
           storeName: store.name,
@@ -1127,17 +1219,203 @@ export class OrdersService {
           itemsSummary,
           status: toStatus,
           trackingUrl,
+          reviewUrl,
           deliveryMode: deliveryMode as any,
-          courierName: shipment?.courierName || (riderName ? `Store Team: ${riderName}` : undefined),
+          courierName: shipment?.courierName || (effRiderName ? `Store Team: ${effRiderName}` : undefined),
           awbNumber: shipment?.awbNumber || undefined,
-          riderName: riderName || undefined,
-          riderPhone: riderPhone || undefined,
+          riderName: effRiderName || undefined,
+          riderPhone: effRiderPhone || undefined,
           customMessage,
         };
         await this.whatsappService.sendDirectOrderStatusUpdate(waContext, toStatus);
+      }
+
+      // --- C. NOTIFY DELIVERY PARTNER ON DISPATCH & DELIVERY ---
+      if (effRiderPhone || effRiderEmail) {
+        const isCod = fullOrder.paymentStatus === 'PENDING' || Boolean(fullOrder.notes?.includes('COD'));
+        const deliveryAddressStr = [
+          deliveryAddress.addressLine1 || deliveryAddress.address1 || deliveryAddress.street,
+          deliveryAddress.addressLine2 || deliveryAddress.address2,
+          deliveryAddress.city,
+          deliveryAddress.state,
+          deliveryAddress.pincode || deliveryAddress.postalCode,
+        ].filter(Boolean).join(', ');
+
+        const riderWaContext = {
+          orderNumber: fullOrder.orderNumber,
+          storeName: store.name,
+          storePhone: store.supportPhone || undefined,
+          storeAddress: store.businessAddress || undefined,
+          customerName,
+          customerPhone: customerPhone || undefined,
+          deliveryAddressStr,
+          totalPaise: fullOrder.totalPaise,
+          itemsSummary,
+          paymentMethod: isCod ? 'COD' : 'ONLINE',
+          isCod,
+          riderName: effRiderName || 'Delivery Partner',
+          riderPhone: effRiderPhone || '',
+          customMessage,
+        };
+
+        const riderEmailContext = {
+          order: fullOrder,
+          store: {
+            id: store.id,
+            name: store.name,
+            address: store.businessAddress || undefined,
+            supportEmail: store.supportEmail || undefined,
+            supportPhone: store.supportPhone || undefined,
+          },
+          customer: {
+            fullName: customerName,
+            email: customerEmail || undefined,
+            phone: customerPhone || undefined,
+            address: deliveryAddress,
+          },
+          rider: {
+            name: effRiderName || 'Delivery Partner',
+            phone: effRiderPhone || '',
+            email: effRiderEmail || '',
+          },
+          customMessage,
+        };
+
+        if (toStatus === OrderStatus.DISPATCHED) {
+          if (effRiderPhone) {
+            await this.whatsappService.sendDirectDeliveryPartnerAssignment(riderWaContext);
+          }
+          if (effRiderEmail) {
+            await this.mailService.sendDeliveryPartnerDispatchedEmail(riderEmailContext);
+          }
+        } else if (toStatus === OrderStatus.COMPLETED) {
+          if (effRiderPhone) {
+            await this.whatsappService.sendDirectDeliveryPartnerCompleted(riderWaContext);
+          }
+          if (effRiderEmail) {
+            await this.mailService.sendDeliveryPartnerDeliveredEmail(riderEmailContext);
+          }
+        }
       }
     } catch (err: any) {
       this.logger.warn(`Failed to dispatch status update notifications: ${err.message}`);
     }
   }
+
+  /**
+   * Merchant action to record COD payment collection upon order delivery.
+   * Validates tenant boundary, payment method, payment status, and order fulfillment lifecycle stage.
+   */
+  public async collectCodPayment(
+    orderId: string,
+    tenant: TenantContext,
+    input: { collectionMethod?: string; amountPaise?: number; note?: string },
+    actorId?: string
+  ) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        tenantId: tenant.tenantId,
+        storeId: tenant.storeId,
+      },
+      include: {
+        customer: true,
+        orderAddress: true,
+        paymentOrders: { include: { transactions: true } },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      throw new BadRequestException('This order is already marked as PAID.');
+    }
+
+    const isCod =
+      order.paymentMethod?.toUpperCase() === 'COD' ||
+      order.notes?.includes('COD') ||
+      order.paymentOrders?.length === 0;
+
+    if (!isCod) {
+      throw new BadRequestException('COD payment collection can only be recorded for Cash on Delivery orders.');
+    }
+
+    // Rule 4: Show it only when DELIVERED or COMPLETED.
+    // Backend validation: Prevent accidental marking of unpaid COD orders before dispatch / completion
+    const allowedStatuses: OrderStatus[] = [
+      OrderStatus.COMPLETED,
+      OrderStatus.DISPATCHED,
+      OrderStatus.READY,
+    ];
+
+    if (!allowedStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `COD payment can only be marked as collected once order is dispatched or delivered (Current status: ${order.status}).`
+      );
+    }
+
+    const normalizedCollectionMethod = (input.collectionMethod || 'CASH').toUpperCase();
+    const collectedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update order payment status and COD collection details
+      const updatedOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: PaymentStatus.PAID,
+          paymentMethod: 'COD',
+          codCollectionMethod: normalizedCollectionMethod,
+          codCollectedAt: collectedAt,
+          codCollectedBy: actorId || 'MERCHANT',
+        },
+        include: {
+          customer: true,
+          orderAddress: true,
+          items: true,
+          statusHistory: { orderBy: { createdAt: 'desc' } },
+          paymentOrders: { include: { transactions: true } },
+          shipments: true,
+        },
+      });
+
+      // 2. Audit Trail in OrderStatusHistory
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: order.status,
+          toStatus: order.status,
+          reason: `COD Payment of ₹${(order.totalPaise / 100).toFixed(2)} collected via ${normalizedCollectionMethod}${input.note ? ` (${input.note})` : ''}`,
+          actorId,
+        },
+      });
+
+      // 3. AuditLog entry
+      try {
+        await tx.auditLog.create({
+          data: {
+            tenantId: tenant.tenantId,
+            storeId: tenant.storeId,
+            action: 'COD_PAYMENT_COLLECTED',
+            entityType: 'ORDER',
+            entityId: order.id,
+            actorId,
+            actorType: 'USER',
+            metadata: {
+              orderNumber: order.orderNumber,
+              amountPaise: order.totalPaise,
+              collectionMethod: normalizedCollectionMethod,
+              collectedAt: collectedAt.toISOString(),
+            },
+          },
+        });
+      } catch (auditErr: any) {
+        this.logger.warn(`Could not write auditLog record: ${auditErr.message}`);
+      }
+
+      return updatedOrder;
+    });
+  }
 }
+

@@ -290,6 +290,9 @@ export interface BuyerSafeTrackOrderDto {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
+  transactionId?: string | null;
+  codCollectionMethod?: string | null;
+  codCollectedAt?: string | Date | null;
   shippingAddress?: {
     fullName?: string;
     phone?: string;

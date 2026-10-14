@@ -98,6 +98,7 @@ export default function SettingsPage() {
   const [showAddPartnerForm, setShowAddPartnerForm] = useState(false);
   const [partnerName, setPartnerName] = useState('');
   const [partnerPhone, setPartnerPhone] = useState('');
+  const [partnerEmail, setPartnerEmail] = useState('');
   const [partnerVehicle, setPartnerVehicle] = useState('Motorcycle');
   const [partnerNotes, setPartnerNotes] = useState('');
   const [partnerIsDefault, setPartnerIsDefault] = useState(false);
@@ -285,10 +286,16 @@ export default function SettingsPage() {
   const loadDeliveryPartners = async () => {
     setLoadingPartners(true);
     try {
-      const res = await api.deliveryPartners.list();
-      if (res?.data && Array.isArray(res.data)) {
-        setDeliveryPartners(res.data);
+      const res: any = await api.deliveryPartners.list();
+      const list: any[] = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const uniqueMap = new Map();
+      for (const p of list) {
+        const key = `${(p.name || '').trim().toLowerCase()}_${(p.phone || '').replace(/[^0-9]/g, '')}`;
+        if (!uniqueMap.has(key) || p.isDefault) {
+          uniqueMap.set(key, p);
+        }
       }
+      setDeliveryPartners(Array.from(uniqueMap.values()));
     } catch (err) {
       console.error('Failed to load delivery partners', err);
     } finally {
@@ -314,6 +321,7 @@ export default function SettingsPage() {
       await api.deliveryPartners.save({
         name: partnerName.trim(),
         phone: cleanNumber,
+        email: partnerEmail.trim() || undefined,
         vehicle: partnerVehicle.trim(),
         notes: partnerNotes.trim(),
         isDefault: partnerIsDefault || deliveryPartners.length === 0,
@@ -321,6 +329,7 @@ export default function SettingsPage() {
       setPartnerSaveMsg({ type: 'success', text: `Delivery partner "${partnerName.trim()}" saved to directory!` });
       setPartnerName('');
       setPartnerPhone('');
+      setPartnerEmail('');
       setPartnerNotes('');
       setPartnerIsDefault(false);
       setShowAddPartnerForm(false);
@@ -1403,7 +1412,7 @@ export default function SettingsPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
                       Partner / Rider Name <span className="text-rose-500">*</span>
@@ -1429,6 +1438,19 @@ export default function SettingsPage() {
                       value={partnerPhone}
                       onChange={(e) => setPartnerPhone(e.target.value)}
                       className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs font-mono focus:border-[var(--merchant-primary)] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--merchant-text-secondary)] mb-1">
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. rider@example.com"
+                      value={partnerEmail}
+                      onChange={(e) => setPartnerEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
                     />
                   </div>
 

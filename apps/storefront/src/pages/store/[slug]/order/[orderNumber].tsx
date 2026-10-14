@@ -17,7 +17,7 @@ import { useCart } from '../../../../context/CartContext';
 import { ThemeWrapper } from '../../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../../components/StoreHeader';
 import { StoreFooter } from '../../../../components/StoreFooter';
-import { formatPaise } from '@simply/ui';
+import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod } from '@simply/ui';
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
@@ -336,21 +336,55 @@ export default function OrderConfirmationPage() {
               </div>
             )}
 
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3 text-xs">
-              <h2 className="font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <CreditCard className="w-4 h-4" /> Payment Status
-              </h2>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Method:</span>
-                <span className="font-semibold text-gray-900">{order.paymentMethod || 'Online'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status:</span>
-                <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                  {order.paymentStatus || 'PAID'}
-                </span>
-              </div>
-            </div>
+            {/* Payment Details */}
+            {(() => {
+              const paymentDisplay = getPaymentDisplayDetails(order);
+              return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3 text-xs">
+                  <h2 className="font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" /> Payment Details
+                  </h2>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Method:</span>
+                    <span className="font-semibold text-gray-900">{paymentDisplay.methodLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Payment Status:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                      order.paymentStatus === 'PAID'
+                        ? 'text-emerald-700 bg-emerald-100'
+                        : 'text-amber-700 bg-amber-100'
+                    }`}>
+                      {order.paymentStatus === 'PAID' ? 'Paid' : 'Pending'}
+                    </span>
+                  </div>
+                  {!paymentDisplay.isCod && (paymentDisplay.transactionId || order.transactionId) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Transaction ID:</span>
+                      <span className="font-mono font-bold text-gray-900 text-[11px] select-all bg-gray-100 px-1.5 py-0.5 rounded">
+                        {paymentDisplay.transactionId || order.transactionId}
+                      </span>
+                    </div>
+                  )}
+                  {paymentDisplay.isCod && order.paymentStatus === 'PAID' && (
+                    <div className="pt-2 border-t border-gray-100 space-y-1.5 text-gray-600 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span>COD Collected:</span>
+                        <span className="font-bold text-emerald-700">Yes</span>
+                      </div>
+                      {(order.codCollectionMethod || paymentDisplay.codCollectionLabel) && (
+                        <div className="flex items-center justify-between">
+                          <span>Collected Via:</span>
+                          <span className="font-semibold text-gray-900">
+                            {paymentDisplay.codCollectionLabel || order.codCollectionMethod}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

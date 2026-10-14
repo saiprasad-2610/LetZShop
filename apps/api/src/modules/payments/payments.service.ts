@@ -318,6 +318,7 @@ export class PaymentsService {
       razorpay_order_id?: string;
       razorpay_signature?: string;
       skipSignatureVerification?: boolean;
+      paymentMethod?: string;
     },
     legacyPaymentId?: string,
     legacySignature?: string,
@@ -413,6 +414,7 @@ export class PaymentsService {
       }
     }
 
+    let verifiedPaymentEntity: any = null;
     // Gateway verification where appropriate (Requirement 7, Requirement 12: failed payment, tampered amount)
     if (paymentOrder.provider === PaymentProviderType.RAZORPAY) {
       try {
@@ -423,6 +425,7 @@ export class PaymentsService {
           expectedAmount: paymentOrder.amountPaise,
           expectedOrderId: paymentOrder.providerOrderId,
         });
+        verifiedPaymentEntity = paymentEntity;
 
         if (paymentEntity) {
           if (paymentEntity.status === 'failed') {
@@ -453,6 +456,21 @@ export class PaymentsService {
       }
     }
 
+    // Resolve specific payment method (e.g. UPI, Card, Net Banking)
+    const rawMethod =
+      verifiedPaymentEntity?.method ||
+      (typeof paymentOrderIdOrInput === 'object' ? paymentOrderIdOrInput.paymentMethod : undefined);
+
+    let specificPaymentMethod = 'UPI';
+    if (rawMethod) {
+      const lower = String(rawMethod).toLowerCase();
+      if (lower.includes('upi')) specificPaymentMethod = 'UPI';
+      else if (lower.includes('card')) specificPaymentMethod = 'CARD';
+      else if (lower.includes('netbanking') || lower.includes('net_banking')) specificPaymentMethod = 'NETBANKING';
+      else if (lower.includes('wallet')) specificPaymentMethod = 'WALLET';
+      else specificPaymentMethod = String(rawMethod).toUpperCase();
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // Update Payment Order
       await tx.paymentOrder.update({
@@ -460,7 +478,7 @@ export class PaymentsService {
         data: { status: PaymentStatus.PAID },
       });
 
-      // Record Transaction
+      // Record Transaction with authentic payment method
       const transaction = await tx.paymentTransaction.create({
         data: {
           paymentOrderId: paymentOrder.id,
@@ -468,7 +486,8 @@ export class PaymentsService {
           providerSignature: providerSignature || null,
           status: PaymentStatus.PAID,
           amountPaise: paymentOrder.amountPaise,
-          paymentMethod: 'UPI_OR_CARD',
+          paymentMethod: specificPaymentMethod,
+          rawResponse: verifiedPaymentEntity || null,
         },
       });
 
@@ -523,6 +542,7 @@ export class PaymentsService {
           where: { id: paymentOrder.orderId },
           data: {
             paymentStatus: PaymentStatus.PAID,
+            paymentMethod: specificPaymentMethod,
             status: OrderStatus.ACCEPTED,
           },
         });
@@ -655,11 +675,13 @@ export class PaymentsService {
             PaymentStateMachine.validateTransition(paymentOrder.status, PaymentStatus.PAID);
             const paymentId =
               payload?.payload?.payment?.entity?.id || payload?.id || `pay_wh_${Date.now()}`;
+            const webhookMethod = payload?.payload?.payment?.entity?.method || undefined;
             await this.verifyAndCapturePayment({
               paymentOrderId: paymentOrder.id,
               providerPaymentId: paymentId,
               providerSignature: signature || 'WEBHOOK_VERIFIED',
               skipSignatureVerification: true,
+              paymentMethod: webhookMethod,
             });
           }
         }

@@ -29,7 +29,8 @@ import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
-import { formatPaise } from '@simply/ui';
+import { SearchableLocationSelect } from '../../../components/ui/SearchableLocationSelect';
+import { formatPaise, INDIAN_STATES_AND_UTS, getCitiesForIndianState } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 // Quick PIN code mapping for common Indian states & cities to assist buyers
@@ -145,9 +146,21 @@ export default function StoreCheckoutPage() {
     // Auto fill city/state if in lookup map
     if (cleaned.length === 6 && PINCODE_MAP[cleaned]) {
       const info = PINCODE_MAP[cleaned];
-      if (!city) setCity(info.city);
       if (!state) setState(info.state);
+      if (!city) setCity(info.city);
       toast.info('Auto-detected Location', `${info.city}, ${info.state}`);
+    }
+  };
+
+  const handleStateChange = (selectedState: string) => {
+    setState(selectedState);
+    if (!selectedState) {
+      setCity('');
+      return;
+    }
+    const availableCities = getCitiesForIndianState(selectedState);
+    if (city && !availableCities.some((c) => c.toLowerCase() === city.toLowerCase())) {
+      setCity('');
     }
   };
 
@@ -183,22 +196,27 @@ export default function StoreCheckoutPage() {
     }
 
     const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      toast.error('Invalid Phone', 'Please enter a valid 10-digit Indian mobile number.');
+    if (cleanPhone.length !== 10) {
+      toast.error('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
       return;
     }
 
     if (fulfillmentType === 'DELIVERY') {
+      if (!state.trim()) {
+        toast.error('Missing State', 'Please select your state.');
+        return;
+      }
+      if (!city.trim()) {
+        toast.error('Missing City', 'Please select your city.');
+        return;
+      }
+      const cleanPincode = postalCode.replace(/\D/g, '');
+      if (cleanPincode.length !== 6) {
+        toast.error('Invalid PIN Code', 'Please enter a valid 6-digit PIN code.');
+        return;
+      }
       if (!addressLine1.trim()) {
         toast.error('Missing Address', 'Please enter your street / building address.');
-        return;
-      }
-      if (!postalCode || postalCode.replace(/\D/g, '').length !== 6) {
-        toast.error('Invalid PIN Code', 'Please enter a valid 6-digit Indian Postal PIN code.');
-        return;
-      }
-      if (!city.trim() || !state.trim()) {
-        toast.error('Missing City/State', 'Please specify your city and state.');
         return;
       }
     }
@@ -218,9 +236,11 @@ export default function StoreCheckoutPage() {
           shippingAddress: fulfillmentType === 'DELIVERY' ? {
             addressLine1: addressLine1.trim(),
             addressLine2: addressLine2.trim() || null,
+            landmark: addressLine2.trim() || null,
             city: city.trim(),
             state: state.trim(),
             postalCode: postalCode.trim(),
+            country: 'India',
           } : null,
           pickupStoreAddress: storeData?.store?.businessAddress || 'Store Location',
           paymentMethod,
@@ -261,6 +281,7 @@ export default function StoreCheckoutPage() {
         deliveryAddress: fulfillmentType === 'DELIVERY' ? {
           addressLine1: addressLine1.trim(),
           addressLine2: addressLine2.trim() || undefined,
+          landmark: addressLine2.trim() || undefined,
           city: city.trim(),
           state: state.trim(),
           pincode: postalCode.trim(),
@@ -604,9 +625,72 @@ export default function StoreCheckoutPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
+                      {/* Country & State Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Country
+                          </label>
+                          <div className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-gray-50 border border-gray-200 text-gray-700 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span>🇮🇳</span> India
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-normal">Preselected</span>
+                          </div>
+                        </div>
+
+                        {/* Searchable State Dropdown */}
+                        <div>
+                          <SearchableLocationSelect
+                            label="State / Union Territory"
+                            required
+                            value={state}
+                            onChange={handleStateChange}
+                            options={INDIAN_STATES_AND_UTS}
+                            placeholder="Select State"
+                          />
+                        </div>
+                      </div>
+
+                      {/* City & PIN Code Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Searchable City Dropdown (Dependent on State) */}
+                        <div>
+                          <SearchableLocationSelect
+                            label="City / District"
+                            required
+                            value={city}
+                            onChange={setCity}
+                            options={state ? getCitiesForIndianState(state) : []}
+                            placeholder="Select City"
+                            disabled={!state}
+                            disabledPlaceholder="Select State first"
+                            helperText={state ? undefined : 'Please select a state to view cities'}
+                          />
+                        </div>
+
+                        {/* PIN Code */}
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            PIN Code <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={6}
+                            value={postalCode}
+                            onChange={(e) => handlePincodeChange(e.target.value)}
+                            placeholder="e.g. 413001"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 text-gray-900"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">6-digit Indian Postal Code</p>
+                        </div>
+                      </div>
+
+                      {/* Address Line 1 */}
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Flat, House No., Building, Street <span className="text-red-500">*</span>
+                          Address Line 1 (Flat, House No., Building, Street) <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -618,9 +702,10 @@ export default function StoreCheckoutPage() {
                         />
                       </div>
 
+                      {/* Address Line 2 / Landmark */}
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Area, Colony, Landmark <span className="text-gray-400 text-[11px] font-normal">(Optional)</span>
+                          Address Line 2 / Landmark <span className="text-gray-400 text-[11px] font-normal">(Optional)</span>
                         </label>
                         <input
                           type="text"
@@ -629,51 +714,6 @@ export default function StoreCheckoutPage() {
                           placeholder="e.g. Near HDFC Bank / Behind Metro Station"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                         />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            PIN Code <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            maxLength={6}
-                            value={postalCode}
-                            onChange={(e) => handlePincodeChange(e.target.value)}
-                            placeholder="560001"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            City / District <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="Bengaluru"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            State <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={state}
-                            onChange={(e) => setState(e.target.value)}
-                            placeholder="Karnataka"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
-                          />
-                        </div>
                       </div>
 
                       {/* Delivery Instructions */}
