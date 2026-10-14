@@ -680,4 +680,101 @@ export class MailService {
 
     return this.sendEmail(recipient, subject, html);
   }
+
+  /**
+   * Merchant Reported Review Email sent to designated emails:
+   * letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and platform admin
+   */
+  public async sendReviewReportModerationEmail(report: {
+    storeName: string;
+    storeId: string;
+    productName: string;
+    productId: string;
+    orderNumber: string;
+    reviewId: string;
+    reviewerName: string;
+    rating: number;
+    title?: string | null;
+    body: string;
+    reason: string;
+    details?: string | null;
+    merchantIdentifier: string;
+  }): Promise<boolean> {
+    const recipients = [
+      'letzshop@aikyamaisystems.com',
+      'business@aikyamaisystems.com',
+    ];
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.SUPPORT_EMAIL || 'admin@shopongo.com';
+    if (adminEmail && !recipients.includes(adminEmail)) {
+      recipients.push(adminEmail);
+    }
+
+    const subject = `[Review Moderation Request] Store "${report.storeName}" reported review for "${report.productName}"`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8"/>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
+          .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+          .header { background: #0f172a; padding: 22px 24px; color: #ffffff; }
+          .content { padding: 24px; font-size: 14px; line-height: 1.6; }
+          .alert { background: #fef2f2; border-left: 4px solid #ef4444; padding: 14px 16px; border-radius: 8px; margin-bottom: 20px; }
+          .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+          .meta-table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+          .review-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+          .footer { padding: 16px 24px; background: #f1f5f9; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">Merchant Review Moderation Request</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8;">A seller has flagged customer feedback for administrator review</p>
+          </div>
+          <div class="content">
+            <div class="alert">
+              <p style="margin: 0; font-weight: 700; color: #991b1b; font-size: 14px;">Reason: ${report.reason}</p>
+              ${report.details ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #7f1d1d;"><strong>Additional Details:</strong> ${report.details}</p>` : ''}
+            </div>
+
+            <h3 style="font-size: 12px; text-transform: uppercase; color: #64748b; margin: 0 0 10px 0; letter-spacing: 0.05em; font-weight: 700;">Store & Transaction Details</h3>
+            <table class="meta-table">
+              <tr><td style="color: #64748b; width: 140px;">Store Name:</td><td style="font-weight: 600;">${report.storeName}</td></tr>
+              <tr><td style="color: #64748b;">Store ID:</td><td style="font-family: monospace; font-size: 12px;">${report.storeId}</td></tr>
+              <tr><td style="color: #64748b;">Reported By:</td><td>${report.merchantIdentifier}</td></tr>
+              <tr><td style="color: #64748b;">Order Number:</td><td style="font-family: monospace; font-weight: 700; color: #0284c7;">#${report.orderNumber}</td></tr>
+              <tr><td style="color: #64748b;">Product:</td><td><strong>${report.productName}</strong> <span style="font-size: 11px; color: #94a3b8;">(ID: ${report.productId})</span></td></tr>
+            </table>
+
+            <h3 style="font-size: 12px; text-transform: uppercase; color: #64748b; margin: 0 0 10px 0; letter-spacing: 0.05em; font-weight: 700;">Reported Review Content</h3>
+            <div class="review-box">
+              <div style="margin-bottom: 8px;">
+                <span style="font-weight: 700; color: #f59e0b; font-size: 15px;">${'★'.repeat(Math.max(1, Math.min(5, report.rating)))}${'☆'.repeat(Math.max(0, 5 - Math.max(1, Math.min(5, report.rating))))}</span>
+                <span style="font-weight: 700; color: #0f172a; margin-left: 6px;">${report.rating}.0 / 5</span>
+                <span style="color: #64748b; font-size: 13px;">by <strong>${report.reviewerName}</strong></span>
+              </div>
+              ${report.title ? `<div style="font-weight: 700; color: #1e293b; margin-bottom: 6px; font-size: 14px;">"${report.title}"</div>` : ''}
+              <div style="color: #334155; white-space: pre-line; font-size: 13px; line-height: 1.5;">${report.body}</div>
+              <div style="margin-top: 10px; font-size: 11px; color: #94a3b8; font-family: monospace;">Review ID: ${report.reviewId}</div>
+            </div>
+
+            <p style="font-size: 13px; color: #475569; margin: 0;">
+              To inspect and moderate this review, log in to the <strong>Platform SuperAdmin Portal &rarr; Review Moderation</strong>.
+            </p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">LetzShop Merchant Operations &bull; Automated Moderation Notification</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const sendPromises = recipients.map((r) => this.sendEmail(r, subject, html));
+    await Promise.allSettled(sendPromises);
+    return true;
+  }
 }

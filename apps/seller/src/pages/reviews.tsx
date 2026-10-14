@@ -51,6 +51,7 @@ interface ReviewSummary {
   averageRating: number;
   verifiedCount: number;
   fiveStarCount: number;
+  negativeCount: number;
   distribution: Record<number, number>;
 }
 
@@ -70,6 +71,7 @@ export default function SellerReviewsPage() {
     averageRating: 0,
     verifiedCount: 0,
     fiveStarCount: 0,
+    negativeCount: 0,
     distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
   });
   const [productsList, setProductsList] = useState<ProductOption[]>([]);
@@ -85,7 +87,6 @@ export default function SellerReviewsPage() {
   const [activeSearch, setActiveSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState<string>('ALL');
   const [productFilter, setProductFilter] = useState<string>('ALL');
-  const [verifiedFilter, setVerifiedFilter] = useState<string>('ALL');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [sortBy, setSortBy] = useState<string>('newest');
@@ -127,7 +128,6 @@ export default function SellerReviewsPage() {
     activeSearch,
     ratingFilter,
     productFilter,
-    verifiedFilter,
     dateRangeFilter,
     statusFilter,
     sortBy,
@@ -140,9 +140,10 @@ export default function SellerReviewsPage() {
       const res: any = await api.reviews.getSellerReviews({
         page: currentPage,
         pageSize,
-        rating: ratingFilter !== 'ALL' ? parseInt(ratingFilter, 10) : undefined,
+        rating: ratingFilter !== 'ALL'
+          ? (ratingFilter === 'BELOW_3' ? 'BELOW_3' : parseInt(ratingFilter, 10))
+          : undefined,
         productId: productFilter !== 'ALL' ? productFilter : undefined,
-        verified: verifiedFilter !== 'ALL' ? verifiedFilter === 'true' : undefined,
         status: statusFilter,
         dateRange: dateRangeFilter !== 'all' ? dateRangeFilter : undefined,
         search: activeSearch.trim() || undefined,
@@ -163,6 +164,9 @@ export default function SellerReviewsPage() {
             averageRating: res.summary.averageRating || 0,
             verifiedCount: res.summary.verifiedCount || 0,
             fiveStarCount: res.summary.fiveStarCount || 0,
+            negativeCount: res.summary.negativeCount !== undefined
+              ? res.summary.negativeCount
+              : ((res.summary.distribution?.[1] || 0) + (res.summary.distribution?.[2] || 0)),
             distribution: res.summary.distribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
           });
         }
@@ -199,7 +203,6 @@ export default function SellerReviewsPage() {
     setActiveSearch('');
     setRatingFilter('ALL');
     setProductFilter('ALL');
-    setVerifiedFilter('ALL');
     setDateRangeFilter('all');
     setStatusFilter('ACTIVE');
     setSortBy('newest');
@@ -210,7 +213,6 @@ export default function SellerReviewsPage() {
     activeSearch.trim() !== '' ||
     ratingFilter !== 'ALL' ||
     productFilter !== 'ALL' ||
-    verifiedFilter !== 'ALL' ||
     dateRangeFilter !== 'all' ||
     statusFilter !== 'ACTIVE' ||
     sortBy !== 'newest';
@@ -331,18 +333,38 @@ export default function SellerReviewsPage() {
             </p>
           </div>
 
-          {/* Card 4: Verified Purchases */}
-          <div className="p-4 sm:p-5 bg-merchant-surface-raised border border-merchant-border rounded-2xl shadow-xs space-y-1">
-            <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
-              Verified Purchases
-            </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-              {summary.total > 0
-                ? `${Math.round((summary.verifiedCount / summary.total) * 100)}%`
-                : '100%'}
+          {/* Card 4: Negative Reviews (< 3 Stars) */}
+          <div
+            onClick={() => {
+              setRatingFilter(ratingFilter === 'BELOW_3' ? 'ALL' : 'BELOW_3');
+              setCurrentPage(1);
+            }}
+            className={`p-4 sm:p-5 bg-merchant-surface-raised border rounded-2xl shadow-xs space-y-1 cursor-pointer transition hover:border-rose-400/60 ${
+              ratingFilter === 'BELOW_3'
+                ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5'
+                : 'border-merchant-border'
+            }`}
+            title="Click to filter reviews below 3 stars"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
+                Negative Reviews
+              </span>
+              {summary.negativeCount > 0 ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                  &lt; 3 Stars
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  0 Critical
+                </span>
+              )}
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-rose-600 dark:text-rose-400 font-mono">
+              {summary.negativeCount}
             </div>
             <p className="text-[11px] text-merchant-text-muted">
-              Enforced by delivery authorization tokens
+              {summary.negativeCount === 1 ? '1 review with < 3 stars' : `${summary.negativeCount} reviews with < 3 stars`}
             </p>
           </div>
         </div>
@@ -453,7 +475,7 @@ export default function SellerReviewsPage() {
           </div>
 
           {/* Filter Dropdowns Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-merchant-border">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 border-t border-merchant-border">
             {/* Rating Filter */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
@@ -468,6 +490,7 @@ export default function SellerReviewsPage() {
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
                 <option value="ALL">All Ratings</option>
+                <option value="BELOW_3">Negative (&lt; 3 Stars)</option>
                 <option value="5">5 Stars</option>
                 <option value="4">4 Stars</option>
                 <option value="3">3 Stars</option>
@@ -495,24 +518,6 @@ export default function SellerReviewsPage() {
                     {p.name}
                   </option>
                 ))}
-              </select>
-            </div>
-
-            {/* Verification Filter */}
-            <div>
-              <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Verification
-              </label>
-              <select
-                value={verifiedFilter}
-                onChange={(e) => {
-                  setVerifiedFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
-              >
-                <option value="ALL">All Reviews</option>
-                <option value="true">Verified Purchases</option>
               </select>
             </div>
 

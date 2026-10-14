@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantContext, AuthenticatedUser } from '@simply/types';
+import { MailService } from '../notifications/mail.service';
 
 export interface SubmitReviewDto {
   orderNumber: string;
@@ -17,7 +18,10 @@ export interface SubmitReviewDto {
 export class ReviewsService {
   private readonly logger = new Logger(ReviewsService.name);
 
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly mailService: MailService,
+  ) {}
 
   /**
    * Returns order items eligible for verified product reviews.
@@ -406,7 +410,7 @@ export class ReviewsService {
     query: {
       page?: number;
       pageSize?: number;
-      rating?: number;
+      rating?: number | string;
       productId?: string;
       verified?: string | boolean;
       status?: string;
@@ -455,6 +459,7 @@ export class ReviewsService {
     let ratingSum = 0;
     let verifiedCount = 0;
     let fiveStarCount = 0;
+    let negativeCount = 0;
 
     for (const rev of allActiveReviews) {
       const star = Math.max(1, Math.min(5, rev.rating));
@@ -466,6 +471,9 @@ export class ReviewsService {
       if (star === 5) {
         fiveStarCount++;
       }
+      if (star < 3) {
+        negativeCount++;
+      }
     }
 
     const averageRating = totalActive > 0 ? Number((ratingSum / totalActive).toFixed(1)) : 0;
@@ -475,6 +483,7 @@ export class ReviewsService {
       averageRating,
       verifiedCount,
       fiveStarCount,
+      negativeCount,
       distribution,
     };
 
@@ -490,8 +499,10 @@ export class ReviewsService {
       where.status = 'ACTIVE';
     }
 
-    // Rating filter (1..5)
-    if (query.rating && [1, 2, 3, 4, 5].includes(Number(query.rating))) {
+    // Rating filter (1..5 or BELOW_3 / LESS_THAN_3 / NEGATIVE)
+    if (query.rating === 'BELOW_3' || query.rating === 'LESS_THAN_3' || query.rating === 'NEGATIVE') {
+      where.rating = { lt: 3 };
+    } else if (query.rating && [1, 2, 3, 4, 5].includes(Number(query.rating))) {
       where.rating = Number(query.rating);
     }
 
@@ -649,6 +660,7 @@ export class ReviewsService {
       include: {
         store: { select: { id: true, name: true } },
         product: { select: { id: true, name: true } },
+        order: { select: { orderNumber: true } },
       },
     });
 
@@ -659,6 +671,29 @@ export class ReviewsService {
     this.logger.log(
       `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
     );
+
+    // Send moderation request email to letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and admin
+    try {
+      await this.mailService.sendReviewReportModerationEmail({
+        storeName: review.store.name,
+        storeId: review.store.id,
+        productName: review.product.name,
+        productId: review.productId,
+        orderNumber: review.order.orderNumber,
+        reviewId: review.id,
+        reviewerName: review.reviewerName,
+        rating: review.rating,
+        title: review.title,
+        body: review.body,
+        reason,
+        details,
+        merchantIdentifier: user?.phone || user?.userId || 'Merchant',
+      });
+    } catch (mailErr: any) {
+      this.logger.error(
+        `Failed to send review report moderation email for review ${reviewId}: ${mailErr?.message || mailErr}`
+      );
+    }
 
     return {
       success: true,

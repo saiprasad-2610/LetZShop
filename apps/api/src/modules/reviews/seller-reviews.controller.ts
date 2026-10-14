@@ -39,7 +39,7 @@ export class SellerReviewsController {
     return this.reviewsService.getSellerReviews(tenant, {
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : limit ? parseInt(limit, 10) : 20,
-      rating: rating ? parseInt(rating, 10) : undefined,
+      rating: rating ? (['BELOW_3', 'LESS_THAN_3', 'NEGATIVE'].includes(rating.toUpperCase()) ? rating.toUpperCase() : parseInt(rating, 10)) : undefined,
       productId: productId || undefined,
       verified: verified !== undefined ? verified : undefined,
       status: status || undefined,

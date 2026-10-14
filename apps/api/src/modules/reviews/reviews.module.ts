@@ -5,8 +5,10 @@ import { ReviewsController } from './reviews.controller';
 import { AdminReviewsController } from './admin-reviews.controller';
 import { SellerReviewsController } from './seller-reviews.controller';
 
+import { NotificationsModule } from '../notifications/notifications.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, NotificationsModule],
   controllers: [ReviewsController, AdminReviewsController, SellerReviewsController],
   providers: [ReviewsService],
   exports: [ReviewsService],

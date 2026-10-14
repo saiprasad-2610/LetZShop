@@ -553,7 +553,7 @@ export class SimplyApiClient {
       page?: number;
       pageSize?: number;
       limit?: number;
-      rating?: number;
+      rating?: number | string;
       productId?: string;
       verified?: boolean | string;
       status?: string;
