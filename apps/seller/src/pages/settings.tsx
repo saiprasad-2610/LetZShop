@@ -582,7 +582,7 @@ export default function SettingsPage() {
               Storefront Web Slug
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--merchant-text-muted)] font-mono">simply.in/store/</span>
+              <span className="text-xs text-[var(--merchant-text-muted)] font-mono">letzshop.store/store/</span>
               <input
                 type="text"
                 disabled

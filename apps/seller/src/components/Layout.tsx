@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ThemeToggle } from './ui/MerchantUi';
+import { getStorefrontUrl } from '../utils/config';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -129,10 +130,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     }
   };
 
+  const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
     ? store.status === 'LIVE'
-      ? `http://localhost:3000/store/${store.slug}`
-      : `http://localhost:3000/store/${store.slug}?preview=true`
+      ? `${baseStorefrontUrl}/store/${store.slug}`
+      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`
     : null;
 
   return (

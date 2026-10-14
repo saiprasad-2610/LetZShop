@@ -30,7 +30,12 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   }, [activePage]);
 
   const slug = store?.slug || 'sk-general-stores';
-  const storefrontUrl = getStorefrontUrl();
+  const [storefrontUrl, setStorefrontUrl] = useState(getStorefrontUrl());
+
+  useEffect(() => {
+    setStorefrontUrl(getStorefrontUrl());
+  }, []);
+
   const pagePath =
     currentPage === 'products'
       ? `/store/${slug}/products`

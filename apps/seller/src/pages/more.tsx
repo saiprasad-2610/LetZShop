@@ -316,7 +316,7 @@ export default function MoreSettingsPage() {
               <div className="space-y-0.5">
                 <h3 className="text-sm font-bold text-slate-900">{store?.name || 'Business Info'}</h3>
                 <p className="text-xs text-slate-500">
-                  Category: {store?.category || 'Retail'} · Slug: simply.in/store/{store?.slug || ''}
+                  Category: {store?.category || 'Retail'} · Slug: letzshop.store/store/{store?.slug || ''}
                 </p>
               </div>
               <button

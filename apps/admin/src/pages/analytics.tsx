@@ -16,6 +16,7 @@ import {
 import { AdminLayout } from '../components/AdminLayout';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { formatPaise } from '@simply/ui';
+import { getStorefrontUrl } from '../utils/config';
 
 export default function AdminAnalyticsPage() {
   const { api } = useAdminAuth();
@@ -199,7 +200,7 @@ export default function AdminAnalyticsPage() {
                       </td>
                       <td className="py-3 text-right">
                         <a
-                          href={`http://localhost:3000/store/${st.slug}`}
+                          href={`${getStorefrontUrl()}/store/${st.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:underline"

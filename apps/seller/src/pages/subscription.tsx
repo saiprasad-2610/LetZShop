@@ -19,6 +19,7 @@ import {
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { formatPaise } from '@simply/ui';
+import { getStorefrontUrl } from '../utils/config';
 
 const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
@@ -215,7 +216,7 @@ export default function SubscriptionPage() {
 
             {isLive && (
               <a
-                href={`http://localhost:3000/store/${store?.slug}`}
+                href={`${getStorefrontUrl()}/store/${store?.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto"

@@ -45,7 +45,7 @@ export default function StorePreviewPage() {
     activePreviewPage === 'products' ? '/products' : activePreviewPage === 'about' ? '/about' : '';
   const customerPreviewUrl = `${getStoreCustomerPreviewUrl(storeSlug)}${customerPreviewPagePath}`;
   const publicShareUrl = getStorePublicShareUrl(storeSlug, isLive);
-  const displayUrl = `simply.in/store/${storeSlug}`;
+  const displayUrl = `letzshop.store/store/${storeSlug}`;
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {

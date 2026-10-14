@@ -22,6 +22,7 @@ import {
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { formatPaise } from '@simply/ui';
+import { getStorefrontUrl } from '../utils/config';
 
 export interface CouponItem {
   id: string;
@@ -230,7 +231,7 @@ export default function CouponsManagementPage() {
   };
 
   const getWhatsAppShareUrl = (c: CouponItem) => {
-    const storeLink = store ? `http://localhost:3000/store/${store.slug}` : 'our store';
+    const storeLink = store ? `${getStorefrontUrl()}/store/${store.slug}` : 'our store';
     const discStr = c.type === 'PERCENTAGE' ? `${c.value}% OFF` : `₹${(c.value / 100).toFixed(0)} OFF`;
     const minStr = c.minOrderPaise ? ` on orders above ₹${(c.minOrderPaise / 100).toFixed(0)}` : '';
     const text = encodeURIComponent(

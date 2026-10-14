@@ -16,6 +16,7 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { getStorefrontUrl } from '../utils/config';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
@@ -75,7 +76,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               <ExternalLink className="w-3 h-3" />
             </a>
             <a
-              href="http://localhost:3000"
+              href={getStorefrontUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-white transition"

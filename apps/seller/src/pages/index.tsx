@@ -33,6 +33,7 @@ import {
   CreditCard,
   Truck,
 } from 'lucide-react';
+import { getStorefrontUrl } from '../utils/config';
 
 type PeriodKey = 'today' | '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
 
@@ -150,17 +151,18 @@ export default function CompactDashboardPage() {
     loadDashboard('custom', false, customStart, customEnd);
   };
 
+  const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
     ? store.status === 'LIVE'
-      ? `http://localhost:3000/store/${store.slug}`
-      : `http://localhost:3000/store/${store.slug}?preview=true`
+      ? `${baseStorefrontUrl}/store/${store.slug}`
+      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`
     : '#';
 
   const handleShareStore = () => {
     if (!store?.slug) return;
     const url = store.status === 'LIVE'
-      ? `http://localhost:3000/store/${store.slug}`
-      : `http://localhost:3000/store/${store.slug}?preview=true`;
+      ? `${baseStorefrontUrl}/store/${store.slug}`
+      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`;
 
     if (navigator.share && store.status === 'LIVE') {
       navigator.share({ title: store.name, url }).catch(() => {});
@@ -510,7 +512,7 @@ export default function CompactDashboardPage() {
         label: 'View Store',
         action: () => {
           if (store?.slug) {
-            window.open(`http://localhost:3000/store/${store.slug}`, '_blank');
+            window.open(`${baseStorefrontUrl}/store/${store.slug}`, '_blank');
           }
         },
       },

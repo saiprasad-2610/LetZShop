@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { getStorefrontUrl } from '../utils/config';
 
 export default function AdminUsersPage() {
   const { api } = useAdminAuth();
@@ -207,7 +208,7 @@ export default function AdminUsersPage() {
                       <td className="py-3 px-4">
                         {u.store ? (
                           <a
-                            href={`http://localhost:3000/store/${u.store.slug}`}
+                            href={`${getStorefrontUrl()}/store/${u.store.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"

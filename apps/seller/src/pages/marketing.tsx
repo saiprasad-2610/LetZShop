@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { getStorefrontUrl } from '../utils/config';
 
 export default function MarketingPage() {
   const { api, store } = useAuth();
@@ -28,7 +29,8 @@ export default function MarketingPage() {
   }, []);
 
   const curStore = storeData || store;
-  const storeUrl = curStore ? `http://localhost:3000/store/${curStore.slug}` : 'http://localhost:3000/store/preview';
+  const baseStorefrontUrl = getStorefrontUrl();
+  const storeUrl = curStore ? `${baseStorefrontUrl}/store/${curStore.slug}` : `${baseStorefrontUrl}/store/preview`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(storeUrl);

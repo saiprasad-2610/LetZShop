@@ -57,6 +57,7 @@ import {
   getWordmark,
 } from '@simply/ui';
 import { SafeImage } from '../components/ui/SafeImage';
+import { getStorefrontUrl } from '../utils/config';
 
 export default function BrandStudioPage() {
   const { api } = useAuth();
@@ -2616,7 +2617,7 @@ export default function BrandStudioPage() {
           <div className="flex items-center gap-3">
             {store?.slug && (
               <a
-                href={`http://localhost:3000/store/${store.slug}`}
+                href={`${getStorefrontUrl()}/store/${store.slug}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
@@ -2651,7 +2652,7 @@ export default function BrandStudioPage() {
             </div>
             {store?.slug && (
               <a
-                href={`http://localhost:3000/store/${store.slug}`}
+                href={`${getStorefrontUrl()}/store/${store.slug}`}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500 transition shrink-0"

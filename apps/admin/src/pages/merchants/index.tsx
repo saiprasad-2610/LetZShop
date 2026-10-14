@@ -29,6 +29,7 @@ import {
 import { AdminLayout } from '../../components/AdminLayout';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { formatPaise } from '@simply/ui';
+import { getStorefrontUrl } from '../../utils/config';
 
 export default function AdminMerchantsPage() {
   const { api } = useAdminAuth();
@@ -321,7 +322,7 @@ export default function AdminMerchantsPage() {
                             {/* Storefront Link */}
                             {store?.slug && (
                               <a
-                                href={`http://localhost:3000/store/${store.slug}`}
+                                href={`${getStorefrontUrl()}/store/${store.slug}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
@@ -580,7 +581,7 @@ export default function AdminMerchantsPage() {
                               <span className="text-xs font-bold text-slate-700">Public Storefront Endpoint</span>
                               {primaryStore?.slug && (
                                 <a
-                                  href={`http://localhost:3000/store/${primaryStore.slug}`}
+                                  href={`${getStorefrontUrl()}/store/${primaryStore.slug}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
@@ -592,7 +593,7 @@ export default function AdminMerchantsPage() {
                             </div>
 
                             <div className="font-mono text-sm bg-white p-3 rounded-xl border border-slate-200 text-slate-800 flex items-center justify-between">
-                              <span>http://localhost:3000/store/{primaryStore?.slug || '—'}</span>
+                              <span>{getStorefrontUrl()}/store/{primaryStore?.slug || '—'}</span>
                               <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">
                                 {primaryStore?.status || 'LIVE'}
                               </span>
