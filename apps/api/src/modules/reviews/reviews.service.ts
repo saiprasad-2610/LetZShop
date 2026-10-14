@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { TenantContext, AuthenticatedUser } from '@simply/types';
 
 export interface SubmitReviewDto {
   orderNumber: string;
@@ -14,6 +15,8 @@ export interface SubmitReviewDto {
 
 @Injectable()
 export class ReviewsService {
+  private readonly logger = new Logger(ReviewsService.name);
+
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
@@ -395,16 +398,272 @@ export class ReviewsService {
   }
 
   /**
-   * Seller Portal: View reviews for their store's products.
+   * Seller Portal: View reviews for their store's products with filtering, search, metrics, and pagination.
+   * Can accept either a TenantContext object or legacy storeId string for full compatibility.
    */
-  async getSellerReviews(storeId: string) {
-    return await this.prisma.productReview.findMany({
-      where: { storeId },
-      include: {
-        product: { select: { id: true, name: true, slug: true } },
-        order: { select: { id: true, orderNumber: true, createdAt: true } },
+  async getSellerReviews(
+    tenantOrStoreId: TenantContext | string,
+    query: {
+      page?: number;
+      pageSize?: number;
+      rating?: number;
+      productId?: string;
+      verified?: string | boolean;
+      status?: string;
+      sort?: string;
+      search?: string;
+      dateRange?: string;
+    } = {}
+  ) {
+    let storeId: string | undefined;
+
+    if (typeof tenantOrStoreId === 'string') {
+      storeId = tenantOrStoreId;
+    } else {
+      storeId = tenantOrStoreId.storeId;
+      if (!storeId && tenantOrStoreId.tenantId) {
+        const store = await this.prisma.store.findFirst({
+          where: { tenantId: tenantOrStoreId.tenantId },
+          select: { id: true },
+        });
+        storeId = store?.id;
+      }
+    }
+
+    if (!storeId) {
+      throw new NotFoundException('Store not found for this merchant account.');
+    }
+
+    const page = Math.max(1, Number(query.page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 20));
+    const skip = (page - 1) * pageSize;
+
+    // 1. Calculate store-level summary metrics across ACTIVE reviews (Requirements 5, 6, 22)
+    const allActiveReviews = await this.prisma.productReview.findMany({
+      where: {
+        storeId,
+        status: 'ACTIVE',
       },
-      orderBy: { createdAt: 'desc' },
+      select: {
+        rating: true,
+        verifiedPurchase: true,
+      },
     });
+
+    const totalActive = allActiveReviews.length;
+    const distribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    let ratingSum = 0;
+    let verifiedCount = 0;
+    let fiveStarCount = 0;
+
+    for (const rev of allActiveReviews) {
+      const star = Math.max(1, Math.min(5, rev.rating));
+      distribution[star] = (distribution[star] || 0) + 1;
+      ratingSum += star;
+      if (rev.verifiedPurchase) {
+        verifiedCount++;
+      }
+      if (star === 5) {
+        fiveStarCount++;
+      }
+    }
+
+    const averageRating = totalActive > 0 ? Number((ratingSum / totalActive).toFixed(1)) : 0;
+
+    const summary = {
+      total: totalActive,
+      averageRating,
+      verifiedCount,
+      fiveStarCount,
+      distribution,
+    };
+
+    // 2. Build filtered WHERE clause
+    const where: any = {
+      storeId,
+    };
+
+    // Status filter: default to 'ACTIVE', allow 'ALL' or 'REMOVED'
+    if (query.status && query.status !== 'ALL') {
+      where.status = query.status;
+    } else if (!query.status) {
+      where.status = 'ACTIVE';
+    }
+
+    // Rating filter (1..5)
+    if (query.rating && [1, 2, 3, 4, 5].includes(Number(query.rating))) {
+      where.rating = Number(query.rating);
+    }
+
+    // Product filter
+    if (query.productId && query.productId !== 'ALL') {
+      where.productId = query.productId;
+    }
+
+    // Verified purchase filter
+    if (query.verified !== undefined && query.verified !== '' && query.verified !== 'ALL') {
+      where.verifiedPurchase = String(query.verified) === 'true';
+    }
+
+    // Date range filter
+    if (query.dateRange && query.dateRange !== 'all') {
+      const now = new Date();
+      let fromDate: Date | null = null;
+      if (query.dateRange === 'today') {
+        fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (query.dateRange === '7d') {
+        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (query.dateRange === '30d') {
+        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else if (query.dateRange === '90d') {
+        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      }
+      if (fromDate) {
+        where.createdAt = { gte: fromDate };
+      }
+    }
+
+    // Search filter: Product name, Reviewer name, Review title, Review body, Order number
+    if (query.search?.trim()) {
+      const s = query.search.trim();
+      where.OR = [
+        { reviewerName: { contains: s, mode: 'insensitive' } },
+        { title: { contains: s, mode: 'insensitive' } },
+        { body: { contains: s, mode: 'insensitive' } },
+        { product: { name: { contains: s, mode: 'insensitive' } } },
+        { order: { orderNumber: { contains: s, mode: 'insensitive' } } },
+      ];
+    }
+
+    // 3. Sorting
+    let orderBy: any = { createdAt: 'desc' };
+    if (query.sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (query.sort === 'highest_rating') {
+      orderBy = [{ rating: 'desc' }, { createdAt: 'desc' }];
+    } else if (query.sort === 'lowest_rating') {
+      orderBy = [{ rating: 'asc' }, { createdAt: 'desc' }];
+    }
+
+    // 4. Query reviews with pagination
+    const [totalFiltered, rawReviews] = await Promise.all([
+      this.prisma.productReview.count({ where }),
+      this.prisma.productReview.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy,
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              media: {
+                select: { publicUrl: true, sortOrder: true },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+              },
+            },
+          },
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Format reviews for client (ensuring privacy: no customer email or phone)
+    const reviews = rawReviews.map((r) => ({
+      id: r.id,
+      storeId: r.storeId,
+      productId: r.productId,
+      orderId: r.orderId,
+      orderItemId: r.orderItemId,
+      reviewerName: r.reviewerName,
+      rating: r.rating,
+      title: r.title,
+      body: r.body,
+      verifiedPurchase: r.verifiedPurchase,
+      status: r.status,
+      moderatedAt: r.moderatedAt,
+      moderatedBy: r.moderatedBy,
+      moderationReason: r.moderationReason,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      product: {
+        id: r.product.id,
+        name: r.product.name,
+        slug: r.product.slug,
+        image: r.product.media?.[0]?.publicUrl || null,
+      },
+      order: {
+        id: r.order.id,
+        orderNumber: r.order.orderNumber,
+        createdAt: r.order.createdAt,
+      },
+    }));
+
+    return {
+      reviews,
+      items: reviews, // Backwards compatibility for any callers expecting items
+      summary,
+      pagination: {
+        page,
+        pageSize,
+        total: totalFiltered,
+        totalPages: Math.ceil(totalFiltered / pageSize),
+      },
+    };
+  }
+
+  /**
+   * Merchant Report Review: Request platform moderation for a review.
+   */
+  async reportReviewByMerchant(
+    tenant: TenantContext,
+    reviewId: string,
+    reason: string,
+    details?: string,
+    user?: AuthenticatedUser
+  ) {
+    let storeId: string | undefined = tenant.storeId;
+    if (!storeId && tenant.tenantId) {
+      const store = await this.prisma.store.findFirst({
+        where: { tenantId: tenant.tenantId },
+        select: { id: true },
+      });
+      storeId = store?.id;
+    }
+
+    if (!storeId) {
+      throw new NotFoundException('Store not found for this merchant account.');
+    }
+
+    const review = await this.prisma.productReview.findUnique({
+      where: { id: reviewId },
+      include: {
+        store: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!review || review.storeId !== storeId) {
+      throw new NotFoundException('Review not found for this store.');
+    }
+
+    this.logger.log(
+      `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
+    );
+
+    return {
+      success: true,
+      message: 'Moderation request received. Platform administrators will review this submission.',
+      reportedAt: new Date().toISOString(),
+    };
   }
 }

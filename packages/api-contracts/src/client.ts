@@ -549,8 +549,23 @@ export class SimplyApiClient {
       }),
     getProductReviews: (slug: string, productId: string) =>
       this.request(`storefront/${slug}/products/${productId}/reviews`),
-    getSellerReviews: (params?: { page?: number; limit?: number; productId?: string }) =>
-      this.request('seller/reviews', { params }),
+    getSellerReviews: (params?: {
+      page?: number;
+      pageSize?: number;
+      limit?: number;
+      rating?: number;
+      productId?: string;
+      verified?: boolean | string;
+      status?: string;
+      sort?: string;
+      search?: string;
+      dateRange?: string;
+    }) => this.request('seller/reviews', { params }),
+    reportSellerReview: (id: string, data: { reason: string; details?: string }) =>
+      this.request(`seller/reviews/${id}/report`, {
+        method: 'POST',
+        body: data,
+      }),
     getAdminReviews: (params?: { page?: number; limit?: number; status?: string; search?: string; storeId?: string }) =>
       this.request('admin/reviews', { params }),
     moderateAdminReview: (id: string, data: { status: 'ACTIVE' | 'REMOVED'; reason?: string }) =>
