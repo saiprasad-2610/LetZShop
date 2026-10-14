@@ -29,7 +29,12 @@ export function getStorefrontUrl(): string {
     }
   }
 
-  // 3. Fallback for local development
+  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed storefront URL
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
+    return 'https://simply-e-commerce-frontend.onrender.com';
+  }
+
+  // 4. Fallback for local development
   return 'http://localhost:3000';
 }
 
@@ -59,7 +64,12 @@ export function getSellerUrl(): string {
     }
   }
 
-  // 3. Fallback for local development
+  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
+    return 'https://simply-ecommerce-seller.onrender.com';
+  }
+
+  // 4. Fallback for local development
   return 'http://localhost:3001';
 }
 
