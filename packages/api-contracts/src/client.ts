@@ -13,10 +13,21 @@ export class SimplyApiClient {
   private onTokenRefreshed?: (accessToken: string, refreshToken: string) => void;
 
   constructor(baseUrl?: string) {
-    const defaultUrl =
-      (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) ||
-      'http://localhost:4000';
-    this.baseUrl = (baseUrl || defaultUrl)
+    let resolvedUrl = baseUrl;
+    if (!resolvedUrl || resolvedUrl === 'http://localhost:4000') {
+      if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== '') {
+        resolvedUrl = process.env.NEXT_PUBLIC_API_URL.trim();
+      } else if (typeof window !== 'undefined' && window.location) {
+        const host = window.location.hostname.toLowerCase();
+        if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
+          resolvedUrl = 'https://simply-e-commerce.onrender.com';
+        }
+      } else if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
+        resolvedUrl = 'https://simply-e-commerce.onrender.com';
+      }
+    }
+    const defaultUrl = resolvedUrl || 'http://localhost:4000';
+    this.baseUrl = defaultUrl
       .replace(/\/api\/v1\/?$/, '')
       .replace(/\/+$/, '');
   }
@@ -53,7 +64,19 @@ export class SimplyApiClient {
   ): Promise<T> {
     const { method = 'GET', body, headers = {}, params, _isRetry = false } = options;
 
-    let url = `${this.baseUrl}/${path.replace(/^\/+/, '')}`;
+    let activeBase = this.baseUrl;
+    if (
+      typeof window !== 'undefined' &&
+      window.location &&
+      (activeBase.includes('localhost:4000') || !activeBase)
+    ) {
+      const host = window.location.hostname.toLowerCase();
+      if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
+        activeBase = 'https://simply-e-commerce.onrender.com';
+      }
+    }
+
+    let url = `${activeBase}/${path.replace(/^\/+/, '')}`;
     if (params) {
       const searchParams = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) {

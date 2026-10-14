@@ -38,10 +38,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: simply-ecommerce-api
-          property: host
+        value: https://simply-e-commerce.onrender.com
       - key: NEXT_PUBLIC_SELLER_URL
         value: https://simply-ecommerce-seller.onrender.com
 
@@ -58,10 +55,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: simply-ecommerce-api
-          property: host
+        value: https://simply-e-commerce.onrender.com
       - key: NEXT_PUBLIC_STOREFRONT_URL
         value: https://simply-e-commerce-frontend.onrender.com
       - key: NEXT_PUBLIC_SELLER_URL
@@ -80,7 +74,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: simply-ecommerce-api
-          property: host
+        value: https://simply-e-commerce.onrender.com
