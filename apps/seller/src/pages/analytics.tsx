@@ -11,23 +11,103 @@ import {
   Users,
   RefreshCw,
   MapPin,
-  Calendar,
   ArrowRight,
-  UserCheck,
   ChevronDown,
+  Sparkles,
+  ArrowUpRight,
+  ArrowDownRight,
+  CreditCard,
+  Package,
+  AlertCircle,
+  Clock,
+  RotateCcw,
 } from 'lucide-react';
 
-type PeriodKey = 'today' | '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
+type PeriodKey = '7d' | '30d' | '90d' | '6m' | '1y';
 
-const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: '7d', label: '7 Days' },
-  { key: '30d', label: '30 Days' },
-  { key: '3m', label: '3 Months' },
-  { key: '6m', label: '6 Months' },
-  { key: '1y', label: '1 Year' },
-  { key: 'custom', label: 'Custom' },
+interface PeriodOption {
+  key: PeriodKey;
+  label: string;
+  comparisonLabel: string;
+}
+
+const PERIOD_OPTIONS: PeriodOption[] = [
+  { key: '7d', label: '7 Days', comparisonLabel: 'prev 7d' },
+  { key: '30d', label: '30 Days', comparisonLabel: 'prev 30d' },
+  { key: '90d', label: '90 Days', comparisonLabel: 'prev 90d' },
+  { key: '6m', label: '6 Months', comparisonLabel: 'prev 6m' },
+  { key: '1y', label: '12 Months', comparisonLabel: 'prev 12m' },
 ];
+
+/**
+ * Formats paise into compact abbreviated string for chart axes (e.g. ₹1.2K, ₹25K, ₹1.5L)
+ */
+function formatPaiseCompact(paise: number): string {
+  if (!paise || paise <= 0) return '₹0';
+  const rupees = paise / 100;
+  if (rupees >= 10000000) {
+    return `₹${(rupees / 10000000).toFixed(1).replace(/\.0$/, '')}Cr`;
+  }
+  if (rupees >= 100000) {
+    return `₹${(rupees / 100000).toFixed(1).replace(/\.0$/, '')}L`;
+  }
+  if (rupees >= 1000) {
+    return `₹${(rupees / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  return `₹${Math.round(rupees)}`;
+}
+
+/**
+ * Deterministic business insight generator based purely on verified analytics numbers
+ */
+function generateBusinessInsight(
+  metrics: any,
+  comparison: any,
+  customerInsights: any,
+  topProducts: any,
+  topLocations: any[],
+  periodLabel: string
+): string {
+  if (!metrics || metrics.orders === 0) {
+    return 'No order activity recorded in this period yet. Share your store link with customers to begin generating sales trends.';
+  }
+
+  const parts: string[] = [];
+
+  // 1. Revenue trajectory
+  if (typeof comparison?.revenuePercent === 'number') {
+    if (comparison.revenuePercent > 0) {
+      parts.push(`Revenue is up ${comparison.revenuePercent}% compared with the previous ${periodLabel.toLowerCase()}.`);
+    } else if (comparison.revenuePercent < 0) {
+      parts.push(`Revenue is down ${Math.abs(comparison.revenuePercent)}% compared with the previous ${periodLabel.toLowerCase()}.`);
+    } else {
+      parts.push(`Revenue is consistent with the previous ${periodLabel.toLowerCase()}.`);
+    }
+  } else {
+    parts.push(`Generated ${formatPaise(metrics.revenuePaise)} across ${metrics.orders} order${metrics.orders === 1 ? '' : 's'} in this period.`);
+  }
+
+  // 2. Best seller product
+  const topProd = topProducts?.byRevenue?.[0];
+  if (topProd && topProd.quantitySold > 0) {
+    parts.push(`"${topProd.name}" is your top seller with ${topProd.quantitySold} units sold (${formatPaise(topProd.revenuePaise)}).`);
+  }
+
+  // 3. Buyer loyalty
+  if (customerInsights?.repeatRate > 0) {
+    parts.push(`${customerInsights.repeatRate}% of buyers are returning customers.`);
+  } else if (customerInsights?.newCustomers > 0) {
+    parts.push('All shoppers in this period are first-time buyers.');
+  }
+
+  // 4. Geographic concentration
+  const topLoc = topLocations?.[0];
+  if (topLoc && topLoc.ordersCount > 0 && topLoc.state && topLoc.state !== 'Other') {
+    parts.push(`Most orders originated from ${topLoc.state} (${topLoc.ordersCount} orders).`);
+  }
+
+  return parts.slice(0, 3).join(' ') || 'More order history is needed to generate meaningful trends.';
+}
 
 export default function AnalyticsPage() {
   const { user, store, loading: authLoading } = useAuth();
@@ -35,10 +115,6 @@ export default function AnalyticsPage() {
 
   // State
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('30d');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-  const [showCustomPicker, setShowCustomPicker] = useState(false);
-
   const [dashboardData, setDashboardData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,28 +122,27 @@ export default function AnalyticsPage() {
   // Toggles
   const [chartMetric, setChartMetric] = useState<'revenue' | 'orders'>('revenue');
   const [topProductMetric, setTopProductMetric] = useState<'revenue' | 'quantity'>('revenue');
+  const [locationMetric, setLocationMetric] = useState<'state' | 'city'>('state');
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   const loadAnalytics = useCallback(
-    async (period: PeriodKey, startDate?: string, endDate?: string) => {
+    async (period: PeriodKey) => {
       if (!store) return;
       setLoading(true);
       setError(null);
       try {
         const res = await apiClient.seller.getDashboard({
           period,
-          startDate: period === 'custom' ? startDate || customStart : undefined,
-          endDate: period === 'custom' ? endDate || customEnd : undefined,
         });
         setDashboardData(res);
       } catch (err: any) {
         console.error('Failed to load business analytics:', err);
-        setError(err?.message || 'Failed to load business analytics.');
+        setError(err?.message || 'We could not load your business insights right now.');
       } finally {
         setLoading(false);
       }
     },
-    [store, customStart, customEnd]
+    [store]
   );
 
   useEffect(() => {
@@ -79,25 +154,18 @@ export default function AnalyticsPage() {
       router.push('/onboarding');
       return;
     }
-    if (store && selectedPeriod !== 'custom') {
+    if (store) {
       loadAnalytics(selectedPeriod);
     }
   }, [authLoading, user, store, selectedPeriod, loadAnalytics]);
 
-  const handlePeriodChange = (key: PeriodKey) => {
-    setSelectedPeriod(key);
-    if (key === 'custom') {
-      setShowCustomPicker(true);
-    } else {
-      setShowCustomPicker(false);
-    }
+  // Unpacked data with safe defaults
+  const metrics = dashboardData?.metrics || {
+    revenuePaise: 0,
+    orders: 0,
+    averageOrderValuePaise: 0,
   };
-
-  const handleApplyCustomPeriod = () => {
-    if (!customStart || !customEnd) return;
-    loadAnalytics('custom', customStart, customEnd);
-  };
-
+  const comparison = dashboardData?.comparison || {};
   const salesSeries: any[] = dashboardData?.salesSeries || [];
   const topProducts = dashboardData?.topProducts || { byRevenue: [], byQuantity: [] };
   const customerInsights = dashboardData?.customerInsights || {
@@ -107,25 +175,29 @@ export default function AnalyticsPage() {
     topCustomers: [],
   };
   const topLocations: any[] = dashboardData?.topLocations || [];
-  const recentOrders: any[] = dashboardData?.recentOrders || [];
+  const topCities: any[] = dashboardData?.topCities || [];
+  const paymentMix: any[] = dashboardData?.paymentMix || [];
 
-  // SVG Chart Computations
+  const currentPeriodConfig =
+    PERIOD_OPTIONS.find((p) => p.key === selectedPeriod) || PERIOD_OPTIONS[1];
+
+  // SVG Area/Line Chart Calculations
   const chartPoints = useMemo(() => {
     if (!salesSeries || salesSeries.length === 0) return [];
-    const maxVal = Math.max(
-      ...salesSeries.map((s) => (chartMetric === 'revenue' ? s.revenuePaise : s.orders)),
-      chartMetric === 'revenue' ? 10000 : 5
+    const values = salesSeries.map((s) =>
+      chartMetric === 'revenue' ? s.revenuePaise : s.orders
     );
+    const maxVal = Math.max(...values, chartMetric === 'revenue' ? 10000 : 5);
 
-    const width = 600;
-    const height = 180;
-    const paddingX = 20;
-    const paddingY = 20;
+    const width = 640;
+    const height = 150;
+    const paddingX = 24;
+    const paddingY = 16;
 
     const innerWidth = width - paddingX * 2;
     const innerHeight = height - paddingY * 2;
-
     const count = salesSeries.length;
+
     return salesSeries.map((item, index) => {
       const val = chartMetric === 'revenue' ? item.revenuePaise : item.orders;
       const x = paddingX + (count > 1 ? (index / (count - 1)) * innerWidth : innerWidth / 2);
@@ -148,39 +220,174 @@ export default function AnalyticsPage() {
     if (chartPoints.length === 0) return '';
     const first = chartPoints[0];
     const last = chartPoints[chartPoints.length - 1];
-    return `${chartPath} L ${last.x} 160 L ${first.x} 160 Z`;
+    return `${chartPath} L ${last.x} 134 L ${first.x} 134 Z`;
   }, [chartPoints, chartPath]);
 
-  const displayedTopProducts =
-    topProductMetric === 'revenue' ? topProducts.byRevenue : topProducts.byQuantity;
+  // Max value calculation for Y axis ticks
+  const chartMaxVal = useMemo(() => {
+    if (!salesSeries || salesSeries.length === 0) return 0;
+    return Math.max(
+      ...salesSeries.map((s) => (chartMetric === 'revenue' ? s.revenuePaise : s.orders)),
+      chartMetric === 'revenue' ? 10000 : 5
+    );
+  }, [salesSeries, chartMetric]);
+
+  // Payment Mix Donut Segments
+  const paymentSegments = useMemo(() => {
+    const totalCount = paymentMix.reduce((acc, m) => acc + (m.ordersCount || 0), 0) || 1;
+    const circumference = 2 * Math.PI * 38; // r = 38
+    let accumulatedOffset = 0;
+
+    return paymentMix.map((m, index) => {
+      const pct = (m.ordersCount / totalCount) * 100;
+      const strokeLength = (pct / 100) * circumference;
+      const dashArray = `${strokeLength} ${circumference}`;
+      const dashOffset = -accumulatedOffset;
+      accumulatedOffset += strokeLength;
+
+      const isCod = m.method === 'COD';
+      const color = isCod ? '#F59E0B' : 'var(--merchant-primary)';
+
+      return {
+        ...m,
+        color,
+        pct: Number(pct.toFixed(1)),
+        dashArray,
+        dashOffset,
+      };
+    });
+  }, [paymentMix]);
+
+  // Customer Mix Donut Segments
+  const customerSegments = useMemo(() => {
+    const totalBuyers =
+      (customerInsights.newCustomers || 0) + (customerInsights.returningCustomers || 0) || 1;
+    const newPct = ((customerInsights.newCustomers || 0) / totalBuyers) * 100;
+    const retPct = ((customerInsights.returningCustomers || 0) / totalBuyers) * 100;
+    const circumference = 2 * Math.PI * 34; // r = 34
+
+    const newLength = (newPct / 100) * circumference;
+    const retLength = (retPct / 100) * circumference;
+
+    return {
+      totalBuyers: (customerInsights.newCustomers || 0) + (customerInsights.returningCustomers || 0),
+      newPct: Number(newPct.toFixed(0)),
+      retPct: Number(retPct.toFixed(0)),
+      newDash: `${newLength} ${circumference}`,
+      retDash: `${retLength} ${circumference}`,
+      retOffset: -newLength,
+    };
+  }, [customerInsights]);
+
+  // Top products displayed by metric
+  const displayedTopProducts = useMemo(() => {
+    const list =
+      topProductMetric === 'revenue' ? topProducts.byRevenue : topProducts.byQuantity;
+    return list || [];
+  }, [topProductMetric, topProducts]);
+
+  const maxProductVal = useMemo(() => {
+    if (displayedTopProducts.length === 0) return 1;
+    return Math.max(
+      ...displayedTopProducts.map((p: any) =>
+        topProductMetric === 'revenue' ? p.revenuePaise : p.quantitySold
+      ),
+      1
+    );
+  }, [displayedTopProducts, topProductMetric]);
+
+  // Top locations displayed by metric (State vs City)
+  const displayedLocations = useMemo(() => {
+    return locationMetric === 'state' ? topLocations : topCities;
+  }, [locationMetric, topLocations, topCities]);
+
+  const maxLocationCount = useMemo(() => {
+    if (displayedLocations.length === 0) return 1;
+    return Math.max(...displayedLocations.map((l: any) => l.ordersCount || 1), 1);
+  }, [displayedLocations]);
+
+  // Deterministic summary text
+  const businessInsightText = useMemo(() => {
+    return generateBusinessInsight(
+      metrics,
+      comparison,
+      customerInsights,
+      topProducts,
+      topLocations,
+      currentPeriodConfig.label
+    );
+  }, [metrics, comparison, customerInsights, topProducts, topLocations, currentPeriodConfig]);
+
+  // Comparison pill renderer
+  const renderComparisonPill = (percent: number | null | undefined, labelSuffix: string = '') => {
+    if (typeof percent !== 'number' || isNaN(percent) || !isFinite(percent)) {
+      return (
+        <span className="inline-flex items-center text-[10px] font-medium text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)] px-1.5 py-0.5 rounded-md">
+          New · {currentPeriodConfig.comparisonLabel}
+        </span>
+      );
+    }
+
+    const isPositive = percent > 0;
+    const isZero = percent === 0;
+
+    return (
+      <span
+        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+          isZero
+            ? 'text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)]'
+            : isPositive
+            ? 'text-emerald-600 bg-emerald-500/10'
+            : 'text-rose-600 bg-rose-500/10'
+        }`}
+      >
+        {isPositive ? (
+          <ArrowUpRight className="w-3 h-3 stroke-[2.5]" />
+        ) : isZero ? null : (
+          <ArrowDownRight className="w-3 h-3 stroke-[2.5]" />
+        )}
+        <span>
+          {isPositive ? '+' : ''}
+          {percent}% {labelSuffix || currentPeriodConfig.comparisonLabel}
+        </span>
+      </span>
+    );
+  };
 
   return (
     <Layout title="Analytics">
       <Head>
-        <title>Analytics | Simply Merchant Portal</title>
+        <title>Analytics | LetzShop Merchant Portal</title>
       </Head>
 
-      <div className="space-y-6">
-        {/* Header Bar */}
-        <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="space-y-4 md:space-y-5 max-w-7xl mx-auto">
+        {/* ========================================================================= */}
+        {/* 1. COMPACT HEADER BAR & PERIOD SELECTOR */}
+        {/* ========================================================================= */}
+        <section className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[var(--merchant-text)]">
-              Analytics
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--merchant-text-muted)] mt-1">
-              Understand how your business is performing over time.
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg md:text-xl font-bold tracking-tight text-[var(--merchant-text)]">
+                Analytics
+              </h1>
+              <span className="hidden sm:inline-flex items-center text-[11px] font-medium text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)] px-2 py-0.5 rounded-md border border-[var(--merchant-border)]">
+                Store Overview
+              </span>
+            </div>
+            <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+              Live business pulse, sales performance, product mix, and buyer geography.
             </p>
           </div>
 
-          {/* Period Filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Desktop chips */}
+          {/* Period Selector */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Desktop Segmented Chips */}
             <div className="hidden sm:inline-flex items-center bg-[var(--merchant-surface-muted)] p-1 rounded-xl border border-[var(--merchant-border)]">
               {PERIOD_OPTIONS.map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
-                  onClick={() => handlePeriodChange(opt.key)}
+                  onClick={() => setSelectedPeriod(opt.key)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                     selectedPeriod === opt.key
                       ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] shadow-xs'
@@ -192,12 +399,13 @@ export default function AnalyticsPage() {
               ))}
             </div>
 
-            {/* Mobile dropdown */}
-            <div className="sm:hidden relative">
+            {/* Mobile Dropdown */}
+            <div className="sm:hidden relative w-full">
               <select
                 value={selectedPeriod}
-                onChange={(e) => handlePeriodChange(e.target.value as PeriodKey)}
-                className="appearance-none bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] text-[var(--merchant-text)] text-xs font-semibold rounded-xl px-3 py-2 pr-8 shadow-2xs focus:outline-hidden"
+                onChange={(e) => setSelectedPeriod(e.target.value as PeriodKey)}
+                aria-label="Select analytics reporting period"
+                className="w-full appearance-none bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] text-[var(--merchant-text)] text-xs font-semibold rounded-xl px-3 py-2 pr-8 shadow-2xs focus:outline-hidden"
               >
                 {PERIOD_OPTIONS.map((opt) => (
                   <option key={opt.key} value={opt.key}>
@@ -210,380 +418,689 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        {/* Custom Date Range if active */}
-        {showCustomPicker && (
-          <div className="bg-[var(--merchant-surface)] p-4 rounded-xl border border-[var(--merchant-border)] flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-semibold text-[var(--merchant-text)]">Custom Date Range:</span>
-            <input
-              type="date"
-              value={customStart}
-              onChange={(e) => setCustomStart(e.target.value)}
-              className="px-2.5 py-1 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs"
-            />
-            <span className="text-[var(--merchant-text-muted)]">to</span>
-            <input
-              type="date"
-              value={customEnd}
-              onChange={(e) => setCustomEnd(e.target.value)}
-              className="px-2.5 py-1 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs"
-            />
+        {/* ========================================================================= */}
+        {/* 2. ERROR STATE / RETRY */}
+        {/* ========================================================================= */}
+        {error && !loading && (
+          <section className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+            <h3 className="text-sm font-bold text-[var(--merchant-text)]">
+              Analytics unavailable
+            </h3>
+            <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-md mx-auto">
+              {error}
+            </p>
             <button
               type="button"
-              onClick={handleApplyCustomPeriod}
-              className="px-3 py-1 bg-[var(--merchant-primary)] text-white text-xs font-semibold rounded-lg hover:bg-[var(--merchant-primary-hover)]"
+              onClick={() => loadAnalytics(selectedPeriod)}
+              className="mt-3.5 px-4 py-1.5 text-xs font-semibold bg-[var(--merchant-primary)] text-white rounded-lg hover:bg-[var(--merchant-primary-hover)] inline-flex items-center gap-1.5 shadow-xs transition-colors"
             >
-              Apply Filter
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
             </button>
+          </section>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 3. SKELETON LOADING STATE */}
+        {/* ========================================================================= */}
+        {loading && (
+          <div className="space-y-4">
+            {/* Top 4 KPI Skeletons */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] animate-pulse"
+                >
+                  <div className="h-3 w-20 bg-[var(--merchant-surface-muted)] rounded-sm mb-3" />
+                  <div className="h-6 w-28 bg-[var(--merchant-surface-muted)] rounded-md mb-2" />
+                  <div className="h-3.5 w-24 bg-[var(--merchant-surface-muted)] rounded-sm" />
+                </div>
+              ))}
+            </div>
+
+            {/* Row 2 Skeletons */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-8 bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] h-[280px] animate-pulse flex flex-col justify-between">
+                <div className="h-4 w-36 bg-[var(--merchant-surface-muted)] rounded-sm" />
+                <div className="h-40 w-full bg-[var(--merchant-surface-muted)] rounded-xl" />
+              </div>
+              <div className="lg:col-span-4 bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] h-[280px] animate-pulse flex flex-col justify-between">
+                <div className="h-4 w-28 bg-[var(--merchant-surface-muted)] rounded-sm" />
+                <div className="w-32 h-32 rounded-full bg-[var(--merchant-surface-muted)] mx-auto" />
+                <div className="h-4 w-full bg-[var(--merchant-surface-muted)] rounded-sm" />
+              </div>
+            </div>
+
+            {/* Row 3 Skeletons */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-5 bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] h-[260px] animate-pulse" />
+              <div className="lg:col-span-3 bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] h-[260px] animate-pulse" />
+              <div className="lg:col-span-4 bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] h-[260px] animate-pulse" />
+            </div>
           </div>
         )}
 
-        {loading ? (
-          <div className="flex items-center justify-center min-h-[40vh] bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)]">
-            <div className="text-center">
-              <RefreshCw className="h-7 w-7 animate-spin text-[var(--merchant-text-muted)] mx-auto mb-2" />
-              <p className="text-xs font-semibold text-[var(--merchant-text-muted)] uppercase tracking-wider">
-                Loading Analytics...
-              </p>
-            </div>
-          </div>
-        ) : (
+        {/* ========================================================================= */}
+        {/* 4. MAIN DASHBOARD CONTENT */}
+        {/* ========================================================================= */}
+        {!loading && !error && (
           <>
-            {/* 1. SALES PERFORMANCE CHART */}
-            <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 md:p-6 border border-[var(--merchant-border)] shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            {/* ROW 1: TOP 4 KPI CARDS */}
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              {/* KPI 1: Revenue */}
+              <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
                 <div>
-                  <h2 className="text-base font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-[var(--merchant-primary)]" />
-                    <span>Sales Performance</span>
-                  </h2>
-                  <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
-                    Revenue and order volume trends over {selectedPeriod}
-                  </p>
+                  <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
+                    <span>Revenue</span>
+                    <TrendingUp className="w-3.5 h-3.5 text-[var(--merchant-primary)]" />
+                  </div>
+                  <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
+                    {formatPaise(metrics.revenuePaise)}
+                  </div>
                 </div>
-
-                <div className="inline-flex items-center bg-[var(--merchant-surface-muted)] p-1 rounded-xl border border-[var(--merchant-border)] self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setChartMetric('revenue')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      chartMetric === 'revenue'
-                        ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
-                        : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
-                    }`}
-                  >
-                    Revenue
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartMetric('orders')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      chartMetric === 'orders'
-                        ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
-                        : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
-                    }`}
-                  >
-                    Orders
-                  </button>
+                <div className="mt-2.5">
+                  {renderComparisonPill(comparison.revenuePercent)}
                 </div>
               </div>
 
-              {chartPoints.length > 0 ? (
-                <div className="relative">
-                  <div className="w-full aspect-[21/9] max-h-[260px] overflow-hidden">
-                    <svg viewBox="0 0 600 180" className="w-full h-full overflow-visible">
-                      <defs>
-                        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--merchant-primary)" stopOpacity="0.28" />
-                          <stop offset="100%" stopColor="var(--merchant-primary)" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-
-                      {/* Horizontal Gridlines */}
-                      <line x1="20" y1="30" x2="580" y2="30" stroke="var(--merchant-border)" strokeDasharray="3 3" />
-                      <line x1="20" y1="90" x2="580" y2="90" stroke="var(--merchant-border)" strokeDasharray="3 3" />
-                      <line x1="20" y1="160" x2="580" y2="160" stroke="var(--merchant-border)" />
-
-                      {/* Area Fill */}
-                      <path d={chartAreaPath} fill="url(#chartGradient)" />
-
-                      {/* Line */}
-                      <path
-                        d={chartPath}
-                        fill="none"
-                        stroke="var(--merchant-primary)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-
-                      {/* Data Points */}
-                      {chartPoints.map((pt, i) => (
-                        <circle
-                          key={i}
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={hoveredPointIndex === i ? 5 : 3}
-                          fill="var(--merchant-primary)"
-                          className={`transition-all cursor-pointer ${
-                            hoveredPointIndex === i
-                              ? 'stroke-[var(--merchant-surface)] stroke-2'
-                              : ''
-                          }`}
-                          onMouseEnter={() => setHoveredPointIndex(i)}
-                          onMouseLeave={() => setHoveredPointIndex(null)}
-                        />
-                      ))}
-                    </svg>
+              {/* KPI 2: Orders */}
+              <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
+                    <span>Orders</span>
+                    <ShoppingBag className="w-3.5 h-3.5 text-blue-500" />
                   </div>
+                  <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
+                    {metrics.orders}
+                  </div>
+                </div>
+                <div className="mt-2.5">
+                  {renderComparisonPill(comparison.ordersPercent)}
+                </div>
+              </div>
 
-                  {/* Tooltip on hover */}
-                  {hoveredPointIndex !== null && chartPoints[hoveredPointIndex] && (
-                    <div className="absolute top-2 right-4 bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] text-xs px-3 py-1.5 rounded-lg shadow-lg border border-[var(--merchant-border)] pointer-events-none">
-                      <div className="font-semibold text-[var(--merchant-text-muted)]">
-                        {chartPoints[hoveredPointIndex].item.label || chartPoints[hoveredPointIndex].item.date}
-                      </div>
-                      <div className="font-bold text-[var(--merchant-text)] text-sm">
-                        {chartMetric === 'revenue'
-                          ? formatPaise(chartPoints[hoveredPointIndex].item.revenuePaise)
-                          : `${chartPoints[hoveredPointIndex].item.orders} orders`}
-                      </div>
-                    </div>
+              {/* KPI 3: Average Order Value (AOV) */}
+              <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
+                    <span>Avg Order Value</span>
+                    <CreditCard className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
+                    {formatPaise(metrics.averageOrderValuePaise)}
+                  </div>
+                </div>
+                <div className="mt-2.5">
+                  {renderComparisonPill(comparison.aovPercent)}
+                </div>
+              </div>
+
+              {/* KPI 4: Repeat Customer Rate */}
+              <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
+                    <span>Repeat Customers</span>
+                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
+                    {customerInsights.repeatRate}%
+                  </div>
+                </div>
+                <div className="mt-2.5">
+                  {renderComparisonPill(
+                    comparison.repeatRatePercent ?? comparison.repeatRateDelta,
+                    comparison.repeatRatePercent !== null ? undefined : 'pts vs prev'
                   )}
-
-                  {/* X-Axis Labels */}
-                  <div className="flex justify-between items-center text-[10px] text-[var(--merchant-text-muted)] font-mono mt-3 px-2">
-                    <span>{salesSeries[0]?.label || salesSeries[0]?.date}</span>
-                    {salesSeries.length > 2 && (
-                      <span>{salesSeries[Math.floor(salesSeries.length / 2)]?.label}</span>
-                    )}
-                    <span>{salesSeries[salesSeries.length - 1]?.label || salesSeries[salesSeries.length - 1]?.date}</span>
-                  </div>
                 </div>
-              ) : (
-                <div className="py-12 text-center text-[var(--merchant-text-muted)] text-xs">
-                  No sales data recorded in this period.
-                </div>
-              )}
+              </div>
             </section>
 
-            {/* 2. TWO-COLUMN: TOP PRODUCTS & CUSTOMER INSIGHTS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Products */}
-              <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
+            {/* ROW 2: SALES PERFORMANCE (70%) + PAYMENT MIX DONUT (30%) */}
+            <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* SALES PERFORMANCE LINE/AREA CHART (~70%) */}
+              <div className="lg:col-span-8 bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Card Header & Toggle */}
+                  <div className="flex flex-row items-center justify-between gap-2 mb-4">
                     <div>
-                      <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight">Top Products</h2>
-                      <p className="text-xs text-[var(--merchant-text-muted)]">Best performing items in selected period</p>
+                      <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-[var(--merchant-primary)]" />
+                        <span>Sales Performance</span>
+                      </h2>
+                      <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                        Trend across {currentPeriodConfig.label.toLowerCase()}
+                      </p>
                     </div>
 
-                    <div className="inline-flex items-center bg-[var(--merchant-surface-muted)] p-0.5 rounded-lg text-xs border border-[var(--merchant-border)]">
+                    <div className="inline-flex items-center bg-[var(--merchant-surface-muted)] p-0.5 rounded-lg border border-[var(--merchant-border)]">
                       <button
                         type="button"
-                        onClick={() => setTopProductMetric('revenue')}
-                        className={`px-2 py-1 rounded-md font-semibold transition-all ${
-                          topProductMetric === 'revenue' ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] shadow-xs font-bold' : 'text-[var(--merchant-text-secondary)]'
+                        data-testid="toggle-sales-revenue"
+                        onClick={() => setChartMetric('revenue')}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                          chartMetric === 'revenue'
+                            ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] shadow-xs font-bold'
+                            : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
                         }`}
                       >
                         Revenue
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTopProductMetric('quantity')}
-                        className={`px-2 py-1 rounded-md font-semibold transition-all ${
-                          topProductMetric === 'quantity' ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] shadow-xs font-bold' : 'text-[var(--merchant-text-secondary)]'
+                        data-testid="toggle-sales-orders"
+                        onClick={() => setChartMetric('orders')}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                          chartMetric === 'orders'
+                            ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] shadow-xs font-bold'
+                            : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
                         }`}
                       >
-                        Quantity
+                        Orders
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* SVG Chart */}
+                  {chartPoints.length > 0 && chartMaxVal > 0 ? (
+                    <div className="relative">
+                      <div className="w-full aspect-[21/8] max-h-[200px] overflow-visible">
+                        <svg viewBox="0 0 640 180" className="w-full h-full overflow-visible">
+                          <defs>
+                            <linearGradient id="letzShopChartGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--merchant-primary)" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="var(--merchant-primary)" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Horizontal Gridlines & Y-axis labels */}
+                          <line x1="24" y1="24" x2="616" y2="24" stroke="var(--merchant-border)" strokeDasharray="3 3" opacity="0.6" />
+                          <text x="24" y="20" fill="var(--merchant-text-muted)" fontSize="9" fontWeight="600" opacity="0.8">
+                            {chartMetric === 'revenue' ? formatPaiseCompact(chartMaxVal) : chartMaxVal}
+                          </text>
+
+                          <line x1="24" y1="90" x2="616" y2="90" stroke="var(--merchant-border)" strokeDasharray="3 3" opacity="0.6" />
+                          <text x="24" y="86" fill="var(--merchant-text-muted)" fontSize="9" fontWeight="600" opacity="0.8">
+                            {chartMetric === 'revenue' ? formatPaiseCompact(Math.round(chartMaxVal / 2)) : Math.round(chartMaxVal / 2)}
+                          </text>
+
+                          <line x1="24" y1="156" x2="616" y2="156" stroke="var(--merchant-border)" opacity="0.8" />
+                          <text x="24" y="170" fill="var(--merchant-text-muted)" fontSize="9" fontWeight="600" opacity="0.8">
+                            0
+                          </text>
+
+                          {/* Area Fill */}
+                          <path d={chartAreaPath} fill="url(#letzShopChartGradient)" />
+
+                          {/* Line Stroke */}
+                          <path
+                            d={chartPath}
+                            fill="none"
+                            stroke="var(--merchant-primary)"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+
+                          {/* Data Points */}
+                          {chartPoints.map((pt, i) => (
+                            <circle
+                              key={i}
+                              cx={pt.x}
+                              cy={pt.y}
+                              r={hoveredPointIndex === i ? 5 : 3}
+                              fill="var(--merchant-primary)"
+                              className={`transition-all cursor-pointer ${
+                                hoveredPointIndex === i
+                                  ? 'stroke-[var(--merchant-surface)] stroke-2'
+                                  : ''
+                              }`}
+                              onMouseEnter={() => setHoveredPointIndex(i)}
+                              onMouseLeave={() => setHoveredPointIndex(null)}
+                            />
+                          ))}
+                        </svg>
+                      </div>
+
+                      {/* Tooltip on hover */}
+                      {hoveredPointIndex !== null && chartPoints[hoveredPointIndex] && (
+                        <div className="absolute top-1 right-2 bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] text-xs px-3 py-1.5 rounded-lg shadow-md border border-[var(--merchant-border)] pointer-events-none transition-all">
+                          <div className="text-[10px] font-semibold text-[var(--merchant-text-muted)]">
+                            {chartPoints[hoveredPointIndex].item.label || chartPoints[hoveredPointIndex].item.date}
+                          </div>
+                          <div className="font-bold text-[var(--merchant-text)] text-xs mt-0.5">
+                            {formatPaise(chartPoints[hoveredPointIndex].item.revenuePaise)} · {chartPoints[hoveredPointIndex].item.orders} orders
+                          </div>
+                        </div>
+                      )}
+
+                      {/* X-Axis Labels */}
+                      <div className="flex justify-between items-center text-[10px] text-[var(--merchant-text-muted)] font-mono mt-2 px-6">
+                        <span>{salesSeries[0]?.label || salesSeries[0]?.date}</span>
+                        {salesSeries.length > 2 && (
+                          <span>{salesSeries[Math.floor(salesSeries.length / 2)]?.label}</span>
+                        )}
+                        <span>{salesSeries[salesSeries.length - 1]?.label || salesSeries[salesSeries.length - 1]?.date}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <ShoppingBag className="w-8 h-8 text-[var(--merchant-text-muted)] opacity-40 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-[var(--merchant-text)]">
+                        No sales recorded in this period
+                      </p>
+                      <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
+                        Completed transactions will appear on this timeline.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PAYMENT MIX DONUT (~30%) */}
+              <div className="lg:col-span-4 bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
+                <div>
+                  <div className="mb-3">
+                    <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-emerald-500" />
+                      <span>Payment Mix</span>
+                    </h2>
+                    <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                      Order volume by payment channel
+                    </p>
+                  </div>
+
+                  {paymentMix.length > 0 ? (
+                    <div className="flex flex-col items-center">
+                      {/* Donut SVG */}
+                      <div className="relative w-36 h-36 my-1">
+                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                          {/* Background Track */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            fill="transparent"
+                            stroke="var(--merchant-surface-muted)"
+                            strokeWidth="11"
+                          />
+                          {/* Segment Rings */}
+                          {paymentSegments.map((seg, i) => (
+                            <circle
+                              key={i}
+                              cx="50"
+                              cy="50"
+                              r="38"
+                              fill="transparent"
+                              stroke={seg.color}
+                              strokeWidth="11"
+                              strokeDasharray={seg.dashArray}
+                              strokeDashoffset={seg.dashOffset}
+                              className="transition-all duration-500"
+                            />
+                          ))}
+                        </svg>
+
+                        {/* Center Stat */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                          <span className="text-base font-black text-[var(--merchant-text)] tracking-tight leading-tight">
+                            {metrics.orders}
+                          </span>
+                          <span className="text-[9px] font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider">
+                            Orders
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="w-full space-y-2 mt-2 pt-2 border-t border-[var(--merchant-border)]">
+                        {paymentSegments.map((seg, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: seg.color }}
+                              />
+                              <span className="font-semibold text-[var(--merchant-text)] truncate">
+                                {seg.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--merchant-text-muted)] shrink-0">
+                              <span>{seg.ordersCount}</span>
+                              <span className="font-bold text-[var(--merchant-text)]">
+                                ({seg.pct}%)
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center">
+                      <CreditCard className="w-8 h-8 text-[var(--merchant-text-muted)] opacity-40 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-[var(--merchant-text)]">
+                        No payments yet
+                      </p>
+                      <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
+                        Payment breakdown will display when orders are placed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ROW 3: TOP PRODUCTS (~42%) + CUSTOMERS (~25%) + TOP LOCATIONS (~33%) */}
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+              {/* 1. TOP PRODUCTS (Horizontal Bar Chart) */}
+              <div className="lg:col-span-5 bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div>
+                      <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
+                        <Package className="w-4 h-4 text-[var(--merchant-primary)]" />
+                        <span>Top Products</span>
+                      </h2>
+                      <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                        Top 5 best performing items
+                      </p>
+                    </div>
+
+                    <div className="inline-flex items-center bg-[var(--merchant-surface-muted)] p-0.5 rounded-lg border border-[var(--merchant-border)]">
+                      <button
+                        type="button"
+                        data-testid="toggle-product-revenue"
+                        onClick={() => setTopProductMetric('revenue')}
+                        className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-all ${
+                          topProductMetric === 'revenue'
+                            ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
+                            : 'text-[var(--merchant-text-secondary)]'
+                        }`}
+                      >
+                        Revenue
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="toggle-product-quantity"
+                        onClick={() => setTopProductMetric('quantity')}
+                        className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-all ${
+                          topProductMetric === 'quantity'
+                            ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
+                            : 'text-[var(--merchant-text-secondary)]'
+                        }`}
+                      >
+                        Units
                       </button>
                     </div>
                   </div>
 
                   {displayedTopProducts.length > 0 ? (
-                    <div className="divide-y divide-[var(--merchant-border)]">
-                      {displayedTopProducts.map((p: any, i: number) => (
-                        <div key={p.id || i} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-[var(--merchant-text-muted)] font-bold w-4 text-center">{i + 1}</span>
-                            <div className="w-9 h-9 rounded-lg bg-[var(--merchant-surface-muted)] overflow-hidden shrink-0 border border-[var(--merchant-border)]">
-                              <SafeImage src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    <div className="space-y-2.5">
+                      {displayedTopProducts.slice(0, 5).map((p: any, i: number) => {
+                        const val =
+                          topProductMetric === 'revenue' ? p.revenuePaise : p.quantitySold;
+                        const fillPercent = Math.min(100, Math.max(6, Math.round((val / maxProductVal) * 100)));
+
+                        return (
+                          <div key={p.id || i} className="text-xs group">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-[10px] text-[var(--merchant-text-muted)] w-3 text-center">
+                                  {i + 1}
+                                </span>
+                                <div className="w-6 h-6 rounded-md bg-[var(--merchant-surface-muted)] overflow-hidden shrink-0 border border-[var(--merchant-border)]">
+                                  {p.imageUrl ? (
+                                    <SafeImage
+                                      src={p.imageUrl}
+                                      alt={p.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-[var(--merchant-text-muted)]">
+                                      <Package className="w-3.5 h-3.5" />
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="font-semibold text-[var(--merchant-text)] truncate max-w-[170px]">
+                                  {p.name}
+                                </span>
+                              </div>
+
+                              <div className="text-right shrink-0 font-bold text-[var(--merchant-text)] text-xs">
+                                {topProductMetric === 'revenue'
+                                  ? formatPaise(p.revenuePaise)
+                                  : `${p.quantitySold} units`}
+                              </div>
                             </div>
-                            <div className="truncate">
-                              <div className="font-semibold text-[var(--merchant-text)] truncate">{p.name}</div>
-                              <div className="text-[11px] text-[var(--merchant-text-muted)]">{p.quantitySold} units sold</div>
+
+                            {/* Horizontal Bar */}
+                            <div className="w-full bg-[var(--merchant-surface-muted)] rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-[var(--merchant-primary)] h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${fillPercent}%` }}
+                              />
                             </div>
                           </div>
-                          <div className="font-bold text-[var(--merchant-text)] shrink-0">
-                            {formatPaise(p.revenuePaise)}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="py-8 text-center text-[var(--merchant-text-muted)] text-xs">
-                      No product sales in this period.
+                    <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
+                      No product sales recorded in this period.
                     </div>
                   )}
                 </div>
-              </section>
+              </div>
 
-              {/* Customer Insights */}
-              <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
+              {/* 2. CUSTOMERS VISUAL (~25%) */}
+              <div className="lg:col-span-3 bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
                 <div>
-                  <div className="mb-4">
-                    <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight">Customer Insights</h2>
-                    <p className="text-xs text-[var(--merchant-text-muted)]">Retention and high-value customer patterns</p>
+                  <div className="mb-3">
+                    <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-indigo-500" />
+                      <span>Customers</span>
+                    </h2>
+                    <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                      New vs returning buyer split
+                    </p>
                   </div>
 
-                  {/* Summary Metric Badges */}
-                  <div className="grid grid-cols-3 gap-2 p-3 bg-[var(--merchant-surface-muted)] rounded-xl border border-[var(--merchant-border)] mb-4 text-center">
-                    <div>
-                      <div className="text-[10px] font-bold text-[var(--merchant-text-muted)] uppercase">New</div>
-                      <div className="text-base font-black text-[var(--merchant-text)] mt-0.5">
-                        {customerInsights.newCustomers}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-[var(--merchant-text-muted)] uppercase">Returning</div>
-                      <div className="text-base font-black text-emerald-500 mt-0.5">
-                        {customerInsights.returningCustomers}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-[var(--merchant-text-muted)] uppercase">Repeat Rate</div>
-                      <div className="text-base font-black text-[var(--merchant-primary)] mt-0.5">
-                        {customerInsights.repeatRate}%
-                      </div>
-                    </div>
-                  </div>
+                  {customerSegments.totalBuyers > 0 ? (
+                    <div className="flex flex-col items-center">
+                      {/* Customer Split Donut */}
+                      <div className="relative w-28 h-28 my-1">
+                        <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+                          {/* Background Track */}
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="34"
+                            fill="transparent"
+                            stroke="var(--merchant-surface-muted)"
+                            strokeWidth="9"
+                          />
+                          {/* New Customers Segment */}
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="34"
+                            fill="transparent"
+                            stroke="var(--merchant-primary)"
+                            strokeWidth="9"
+                            strokeDasharray={customerSegments.newDash}
+                            className="transition-all duration-500"
+                          />
+                          {/* Returning Customers Segment */}
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="34"
+                            fill="transparent"
+                            stroke="#10B981"
+                            strokeWidth="9"
+                            strokeDasharray={customerSegments.retDash}
+                            strokeDashoffset={customerSegments.retOffset}
+                            className="transition-all duration-500"
+                          />
+                        </svg>
 
-                  {/* Top Spenders */}
-                  <div className="text-xs font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider mb-2">
-                    Top Spenders
-                  </div>
-                  {customerInsights.topCustomers && customerInsights.topCustomers.length > 0 ? (
-                    <div className="divide-y divide-[var(--merchant-border)]">
-                      {customerInsights.topCustomers.map((cust: any) => (
-                        <div key={cust.id} className="py-2 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] font-bold flex items-center justify-center text-[10px] border border-[var(--merchant-border)]">
-                              {cust.name?.[0] || 'C'}
-                            </span>
-                            <div>
-                              <div className="font-semibold text-[var(--merchant-text)]">{cust.name}</div>
-                              <div className="text-[10px] text-[var(--merchant-text-muted)]">{cust.ordersCount} orders</div>
-                            </div>
-                          </div>
-                          <div className="font-bold text-[var(--merchant-text)]">
-                            {formatPaise(cust.totalSpendPaise)}
-                          </div>
+                        {/* Center Repeat Rate */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                          <span className="text-sm font-black text-[var(--merchant-text)] tracking-tight leading-tight">
+                            {customerInsights.repeatRate}%
+                          </span>
+                          <span className="text-[8px] font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider">
+                            Repeat
+                          </span>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="w-full space-y-1.5 mt-2 pt-2 border-t border-[var(--merchant-border)] text-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[var(--merchant-primary)] shrink-0" />
+                            <span className="text-[var(--merchant-text)]">New Buyers</span>
+                          </div>
+                          <span className="font-semibold text-[var(--merchant-text)]">
+                            {customerInsights.newCustomers} ({customerSegments.newPct}%)
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="text-[var(--merchant-text)]">Returning</span>
+                          </div>
+                          <span className="font-semibold text-emerald-600">
+                            {customerInsights.returningCustomers} ({customerSegments.retPct}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Optional Top Buyer secondary snippet */}
+                      {customerInsights.topCustomers?.[0] && (
+                        <div className="w-full mt-2.5 pt-2 border-t border-[var(--merchant-border)] text-[11px] text-[var(--merchant-text-muted)] truncate">
+                          <span className="font-semibold text-[var(--merchant-text)]">Top Customer:</span>{' '}
+                          {customerInsights.topCustomers[0].name} · {customerInsights.topCustomers[0].ordersCount} orders · {formatPaise(customerInsights.topCustomers[0].totalSpendPaise)}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="py-6 text-center text-[var(--merchant-text-muted)] text-xs">
+                    <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
                       No customer orders recorded in this period.
                     </div>
                   )}
                 </div>
-              </section>
-            </div>
+              </div>
 
-            {/* 3. TWO-COLUMN: TOP LOCATIONS & RECENT ORDERS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Locations */}
-              <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] shadow-2xs">
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4 text-emerald-500" />
-                    <span>Top Locations</span>
-                  </h2>
-                  <p className="text-xs text-[var(--merchant-text-muted)]">Pan-India state & city order concentration</p>
-                </div>
-
-                {topLocations.length > 0 ? (
-                  <div className="space-y-3">
-                    {topLocations.map((loc: any, i: number) => (
-                      <div key={i} className="text-xs">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-[var(--merchant-text)]">{loc.state}</span>
-                          <span className="text-[var(--merchant-text-muted)]">
-                            {loc.ordersCount} orders · {formatPaise(loc.revenuePaise)}
-                          </span>
-                        </div>
-                        <div className="w-full bg-[var(--merchant-surface-muted)] rounded-full h-2 overflow-hidden border border-[var(--merchant-border)]">
-                          <div
-                            className="bg-[var(--merchant-primary)] h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.max(5, loc.percentage || 10))}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-[var(--merchant-text-muted)] text-xs">
-                    No geographic order data recorded yet.
-                  </div>
-                )}
-              </section>
-
-              {/* Recent Orders */}
-              <section className="bg-[var(--merchant-surface)] rounded-2xl p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
+              {/* 3. TOP LOCATIONS (~33%) */}
+              <div className="lg:col-span-4 bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between gap-2 mb-3">
                     <div>
-                      <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight">Recent Orders</h2>
-                      <p className="text-xs text-[var(--merchant-text-muted)]">Latest 5 customer transactions</p>
+                      <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-emerald-500" />
+                        <span>Top Locations</span>
+                      </h2>
+                      <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                        Normalized geography
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => router.push('/orders')}
-                      className="text-xs font-bold text-[var(--merchant-primary)] hover:text-[var(--merchant-primary-hover)] flex items-center gap-1"
-                    >
-                      <span>View all</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+
+                    {topCities.length > 0 && (
+                      <div className="inline-flex items-center bg-[var(--merchant-surface-muted)] p-0.5 rounded-lg border border-[var(--merchant-border)]">
+                        <button
+                          type="button"
+                          onClick={() => setLocationMetric('state')}
+                          className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-all ${
+                            locationMetric === 'state'
+                              ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
+                              : 'text-[var(--merchant-text-secondary)]'
+                          }`}
+                        >
+                          State
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLocationMetric('city')}
+                          className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-all ${
+                            locationMetric === 'city'
+                              ? 'bg-[var(--merchant-surface-raised)] text-[var(--merchant-primary)] font-bold shadow-xs'
+                              : 'text-[var(--merchant-text-secondary)]'
+                          }`}
+                        >
+                          City
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {recentOrders.length > 0 ? (
-                    <div className="divide-y divide-[var(--merchant-border)]">
-                      {recentOrders.map((ord: any) => (
-                        <div
-                          key={ord.id}
-                          onClick={() => router.push('/orders')}
-                          className="py-2.5 flex items-center justify-between text-xs cursor-pointer hover:bg-[var(--merchant-surface-muted)] rounded-lg px-2 -mx-2 transition-colors"
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-[var(--merchant-text)]">{ord.orderNumber}</span>
-                              <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                                  ord.paymentStatus === 'PAID'
-                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                    : 'bg-amber-500/10 text-amber-500'
-                                }`}
-                              >
-                                {ord.paymentStatus}
+                  {displayedLocations.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {displayedLocations.slice(0, 5).map((loc: any, i: number) => {
+                        const label = locationMetric === 'state' ? loc.state : loc.city;
+                        const fillPercent = Math.min(
+                          100,
+                          Math.max(6, Math.round((loc.ordersCount / maxLocationCount) * 100))
+                        );
+
+                        return (
+                          <div key={i} className="text-xs">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-[var(--merchant-text)] truncate max-w-[160px]">
+                                {label}
+                              </span>
+                              <span className="font-mono text-[11px] text-[var(--merchant-text-muted)]">
+                                {loc.ordersCount} ord · {formatPaise(loc.revenuePaise)}
                               </span>
                             </div>
-                            <div className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                              {ord.customerName || ord.customer?.fullName || 'Customer'}
+
+                            {/* Horizontal Bar */}
+                            <div className="w-full bg-[var(--merchant-surface-muted)] rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${fillPercent}%` }}
+                              />
                             </div>
                           </div>
-                          <div className="font-bold text-[var(--merchant-text)]">
-                            {formatPaise(ord.totalPaise)}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="py-8 text-center text-[var(--merchant-text-muted)] text-xs">
-                      No orders recorded in this period.
+                    <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
+                      No geographic order data recorded yet.
                     </div>
                   )}
                 </div>
-              </section>
-            </div>
+              </div>
+            </section>
+
+            {/* ROW 4: DETERMINISTIC BUSINESS INSIGHT STRIP */}
+            <section className="bg-[var(--merchant-surface-muted)] rounded-xl md:rounded-2xl p-4 md:p-5 border border-[var(--merchant-border)] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[var(--merchant-primary)]/10 text-[var(--merchant-primary)] flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--merchant-text)] tracking-tight uppercase">
+                    Business Insight
+                  </h3>
+                  <p className="text-xs text-[var(--merchant-text-secondary)] mt-0.5 leading-relaxed max-w-3xl">
+                    {businessInsightText}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => router.push('/orders')}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--merchant-primary)] hover:text-[var(--merchant-primary-hover)] shrink-0 self-start sm:self-auto transition-colors"
+              >
+                <span>View Orders</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </section>
           </>
         )}
       </div>

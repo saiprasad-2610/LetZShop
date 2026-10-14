@@ -284,6 +284,70 @@ describe('Merchant Screen 01 — Dashboard & Analytics Automated Test Suite', ()
       expect(res.topLocations[0].ordersCount).toBe(1);
     });
 
+    it('normalizes state names like Maha and MH into Maharashtra without duplicate states', async () => {
+      mockPrisma.store.findFirst.mockResolvedValue(defaultStoreMock);
+
+      const mockOrders = [
+        {
+          id: 'ord-1',
+          totalPaise: 100000,
+          paymentStatus: PaymentStatus.PAID,
+          orderStatus: OrderStatus.CONFIRMED,
+          paymentMethod: 'COD',
+          createdAt: new Date(),
+          customerName: 'Buyer 1',
+          customerPhone: '9876500001',
+          orderAddress: { state: 'Maha', city: 'Solapur' },
+          items: [{ productId: 'prod-1', productName: 'SohanK', quantity: 1, totalPaise: 100000 }],
+        },
+        {
+          id: 'ord-2',
+          totalPaise: 150000,
+          paymentStatus: PaymentStatus.PAID,
+          orderStatus: OrderStatus.COMPLETED,
+          paymentMethod: 'ONLINE',
+          createdAt: new Date(),
+          customerName: 'Buyer 2',
+          customerPhone: '9876500002',
+          orderAddress: { state: 'Maharashtra', city: 'Mumbai' },
+          items: [{ productId: 'prod-1', productName: 'SohanK', quantity: 2, totalPaise: 150000 }],
+        },
+      ];
+
+      mockPrisma.order.findMany.mockResolvedValue(mockOrders);
+      mockPrisma.order.count.mockResolvedValue(2);
+      mockPrisma.b2bEnquiry.count.mockResolvedValue(0);
+      mockPrisma.productVariant.count.mockResolvedValue(0);
+      mockPrisma.product.count.mockResolvedValue(1);
+      mockPrisma.shippingProfile.count.mockResolvedValue(1);
+
+      const res = await dashboardService.getDashboardAnalytics(mockTenantId, mockStoreId, { period: '30d' });
+
+      // Maha and Maharashtra must be consolidated into single Maharashtra state
+      expect(res.topLocations).toHaveLength(1);
+      expect(res.topLocations[0].state).toBe('Maharashtra');
+      expect(res.topLocations[0].ordersCount).toBe(2);
+      expect(res.topLocations[0].revenuePaise).toBe(250000);
+
+      // Cities are also aggregated
+      expect(res.topCities.map((c: any) => c.city)).toEqual(expect.arrayContaining(['Solapur', 'Mumbai']));
+
+      // Top products: SohanK must only appear ONCE with consolidated quantity 3 and revenue 250000
+      expect(res.topProducts.byRevenue).toHaveLength(1);
+      expect(res.topProducts.byRevenue[0].name).toBe('SohanK');
+      expect(res.topProducts.byRevenue[0].quantitySold).toBe(3);
+      expect(res.topProducts.byRevenue[0].revenuePaise).toBe(250000);
+
+      // Payment mix has both COD and Prepaid
+      expect(res.paymentMix).toHaveLength(2);
+      const codMix = res.paymentMix.find((m: any) => m.method === 'COD');
+      const prepaidMix = res.paymentMix.find((m: any) => m.method === 'PREPAID');
+      expect(codMix).toBeDefined();
+      expect(codMix!.ordersCount).toBe(1);
+      expect(prepaidMix).toBeDefined();
+      expect(prepaidMix!.ordersCount).toBe(1);
+    });
+
     it('identifies returning customers correctly when a customer places > 1 order', async () => {
       mockPrisma.store.findFirst.mockResolvedValue(defaultStoreMock);
 

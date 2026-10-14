@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient, OrderStatus, PaymentStatus, ProductStatus, StoreStatus, VariantStatus } from '@prisma/client';
+import { normalizeIndianState, normalizeCityName } from '@simply/validation';
 import {
   parseDashboardPeriod,
   formatIstDate,
@@ -79,6 +80,13 @@ export class DashboardService {
           totalPaise: true,
           status: true,
           paymentStatus: true,
+          paymentMethod: true,
+          orderAddress: {
+            select: {
+              state: true,
+              city: true,
+            },
+          },
           shipmentStatus: true,
           fulfillmentStatus: true,
           customerId: true,
@@ -94,6 +102,7 @@ export class DashboardService {
           items: {
             select: {
               id: true,
+              productId: true,
               variantId: true,
               productName: true,
               quantity: true,
@@ -134,7 +143,16 @@ export class DashboardService {
           totalPaise: true,
           status: true,
           paymentStatus: true,
+          paymentMethod: true,
           customerId: true,
+          createdAt: true,
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              phone: true,
+            },
+          },
         },
       }),
 
@@ -275,6 +293,11 @@ export class DashboardService {
         ? Math.round(revenuePaise / eligibleCurrentOrders.length)
         : 0;
 
+    const prevAverageOrderValuePaise =
+      eligiblePrevOrders.length > 0
+        ? Math.round(prevRevenuePaise / eligiblePrevOrders.length)
+        : 0;
+
     // Helper for safe percentage calculation (handle 0 safely; return null if no prior data)
     const calcPercent = (current: number, previous: number): number | null => {
       if (previous <= 0) return null;
@@ -283,9 +306,27 @@ export class DashboardService {
       return Number(pct.toFixed(1));
     };
 
+    // Customer Insights (New vs Returning & Top Buyers)
+    const customerInsights = await this.buildCustomerInsights(
+      tenantId,
+      storeId,
+      eligibleCurrentOrders,
+      period.startDate
+    );
+
+    const prevCustomerInsights = await this.buildCustomerInsights(
+      tenantId,
+      storeId,
+      eligiblePrevOrders,
+      period.previousStartDate
+    );
+
     const comparison = {
       revenuePercent: calcPercent(revenuePaise, prevRevenuePaise),
       ordersPercent: calcPercent(ordersCount, prevOrdersCount),
+      aovPercent: calcPercent(averageOrderValuePaise, prevAverageOrderValuePaise),
+      repeatRatePercent: calcPercent(customerInsights.repeatRate, prevCustomerInsights.repeatRate),
+      repeatRateDelta: Number((customerInsights.repeatRate - prevCustomerInsights.repeatRate).toFixed(1)),
       enquiriesPercent: calcPercent(currentEnquiriesCount, previousEnquiriesCount),
       customersPercent: calcPercent(customersCount, prevCustomersCount),
     };
@@ -296,16 +337,11 @@ export class DashboardService {
     // 6. Top 5 Products by Revenue and Quantity
     const topProducts = this.buildTopProducts(eligibleCurrentOrders);
 
-    // 7. Customer Insights (New vs Returning & Top Buyers)
-    const customerInsights = await this.buildCustomerInsights(
-      tenantId,
-      storeId,
-      eligibleCurrentOrders,
-      period.startDate
-    );
+    // 7. Geographic Analytics (Sales by Location)
+    const { states: topLocations, cities: topCities } = this.buildTopLocations(eligibleCurrentOrders, revenuePaise);
 
-    // 8. Geographic Analytics (Sales by Location)
-    const topLocations = this.buildTopLocations(eligibleCurrentOrders, revenuePaise);
+    // 8. Order / Payment Mix
+    const paymentMix = this.buildPaymentMix(eligibleCurrentOrders, revenuePaise);
 
     // 9. Format Recent Orders
     const recentOrders = recentOrdersRaw.map((o) => ({
@@ -365,6 +401,8 @@ export class DashboardService {
       topProducts,
       customerInsights,
       topLocations,
+      topCities,
+      paymentMix,
       recentOrders,
       attention,
       store: {
@@ -535,9 +573,11 @@ export class DashboardService {
 
     for (const order of eligibleOrders) {
       for (const item of order.items || []) {
-        const productId = item.productId || item.variant?.product?.id || item.variantId || item.productName || item.product?.title || 'item';
-        const name = item.productName || item.variant?.product?.name || item.product?.title || item.product?.name || 'Item';
-        const sku = item.variant?.sku || 'SKU';
+        const rawName = (item.variant?.product?.name || item.productName || item.product?.title || item.product?.name || 'Item').trim();
+        // Canonical grouping key to ensure identical products consolidate rather than repeating rows
+        const productId = item.productId || item.variant?.productId || item.variant?.product?.id || rawName.toLowerCase();
+        const name = rawName;
+        const sku = item.variant?.sku || item.sku || 'SKU';
         const img = item.variant?.product?.media?.[0]?.publicUrl || null;
         const itemPrice = item.totalPaise ?? ((item.unitPricePaise || item.pricePaise || 0) * (item.quantity || 1));
 
@@ -660,7 +700,47 @@ export class DashboardService {
   }
 
   /**
-   * Aggregates Top States and Cities from order address data without exposing full buyer addresses
+   * Aggregates Order Payment Mix (COD vs Prepaid/Online)
+   */
+  private buildPaymentMix(eligibleOrders: any[], totalRevenuePaise: number) {
+    interface MixItem {
+      method: string;
+      label: string;
+      ordersCount: number;
+      revenuePaise: number;
+      percentage: number;
+    }
+
+    const counts: Record<string, { label: string; count: number; revenue: number }> = {
+      PREPAID: { label: 'Prepaid / Online', count: 0, revenue: 0 },
+      COD: { label: 'Cash on Delivery (COD)', count: 0, revenue: 0 },
+    };
+
+    for (const order of eligibleOrders) {
+      const rawMethod = String(order.paymentMethod || '').toUpperCase().trim();
+      const isCod = rawMethod === 'COD' || rawMethod.includes('CASH');
+      const key = isCod ? 'COD' : 'PREPAID';
+      counts[key].count += 1;
+      counts[key].revenue += order.totalPaise;
+    }
+
+    const totalOrders = eligibleOrders.length || 1;
+    const mix: MixItem[] = Object.entries(counts)
+      .filter(([_, data]) => data.count > 0)
+      .map(([method, data]) => ({
+        method,
+        label: data.label,
+        ordersCount: data.count,
+        revenuePaise: data.revenue,
+        percentage: Number(((data.count / totalOrders) * 100).toFixed(1)),
+      }))
+      .sort((a, b) => b.ordersCount - a.ordersCount);
+
+    return mix;
+  }
+
+  /**
+   * Aggregates Top States and Cities from structured and normalized order address data
    */
   private buildTopLocations(eligibleOrders: any[], totalRevenuePaise: number) {
     interface LocationAgg {
@@ -672,23 +752,33 @@ export class DashboardService {
     }
 
     const stateMap = new Map<string, { count: number; revenuePaise: number }>();
+    const cityMap = new Map<string, { count: number; revenuePaise: number; state: string }>();
 
     for (const order of eligibleOrders) {
       const addr = (order.deliveryAddress || order.shippingAddress || (order as any).address) as any;
-      let state = 'Other';
-      if (addr && typeof addr === 'object' && addr.state) {
-        state = String(addr.state).trim();
-      }
+      const rawState = order.orderAddress?.state || addr?.state || null;
+      const rawCity = order.orderAddress?.city || addr?.city || null;
 
-      const existing = stateMap.get(state) || { count: 0, revenuePaise: 0 };
-      existing.count += 1;
-      existing.revenuePaise += order.totalPaise;
-      stateMap.set(state, existing);
+      const state = normalizeIndianState(rawState);
+      const city = normalizeCityName(rawCity);
+
+      const existingState = stateMap.get(state) || { count: 0, revenuePaise: 0 };
+      existingState.count += 1;
+      existingState.revenuePaise += order.totalPaise;
+      stateMap.set(state, existingState);
+
+      if (city && city !== 'Other') {
+        const cityKey = `${city}|${state}`;
+        const existingCity = cityMap.get(cityKey) || { count: 0, revenuePaise: 0, state };
+        existingCity.count += 1;
+        existingCity.revenuePaise += order.totalPaise;
+        cityMap.set(cityKey, existingCity);
+      }
     }
 
     const totalOrders = eligibleOrders.length || 1;
 
-    const ranked: LocationAgg[] = Array.from(stateMap.entries())
+    const states: LocationAgg[] = Array.from(stateMap.entries())
       .map(([state, data]) => ({
         state,
         ordersCount: data.count,
@@ -696,8 +786,22 @@ export class DashboardService {
         percentage: Number(((data.count / totalOrders) * 100).toFixed(1)),
       }))
       .sort((a, b) => b.revenuePaise - a.revenuePaise)
-      .slice(0, 10);
+      .slice(0, 5);
 
-    return ranked;
+    const cities: LocationAgg[] = Array.from(cityMap.entries())
+      .map(([key, data]) => {
+        const [cityName] = key.split('|');
+        return {
+          state: data.state,
+          city: cityName,
+          ordersCount: data.count,
+          revenuePaise: data.revenuePaise,
+          percentage: Number(((data.count / totalOrders) * 100).toFixed(1)),
+        };
+      })
+      .sort((a, b) => b.revenuePaise - a.revenuePaise)
+      .slice(0, 5);
+
+    return { states, cities };
   }
 }

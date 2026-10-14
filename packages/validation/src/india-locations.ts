@@ -743,3 +743,213 @@ export function getCitiesForState(stateName: string): string[] {
   if (!match) return [OTHER_CITY_OPTION];
   return [...match.cities.sort(), OTHER_CITY_OPTION];
 }
+
+/**
+ * Standard mapping for known abbreviations, short codes, and misspellings of Indian States.
+ */
+const KNOWN_STATE_ALIASES: Record<string, string> = {
+  // Maharashtra
+  mh: 'Maharashtra',
+  maha: 'Maharashtra',
+  maharashtra: 'Maharashtra',
+  maharastra: 'Maharashtra',
+  maharashtr: 'Maharashtra',
+  // Karnataka
+  ka: 'Karnataka',
+  kar: 'Karnataka',
+  karnataka: 'Karnataka',
+  karnatak: 'Karnataka',
+  blr: 'Karnataka',
+  bengaluru: 'Karnataka',
+  bangalore: 'Karnataka',
+  // Delhi
+  dl: 'Delhi',
+  del: 'Delhi',
+  delhi: 'Delhi',
+  newdelhi: 'Delhi',
+  'new delhi': 'Delhi',
+  ncr: 'Delhi',
+  'nct of delhi': 'Delhi',
+  // Gujarat
+  gj: 'Gujarat',
+  guj: 'Gujarat',
+  gujarat: 'Gujarat',
+  gujrat: 'Gujarat',
+  // Tamil Nadu
+  tn: 'Tamil Nadu',
+  tamilnadu: 'Tamil Nadu',
+  'tamil nadu': 'Tamil Nadu',
+  // Telangana
+  ts: 'Telangana',
+  tg: 'Telangana',
+  telangana: 'Telangana',
+  hyderabad: 'Telangana',
+  // Uttar Pradesh
+  up: 'Uttar Pradesh',
+  uttarpradesh: 'Uttar Pradesh',
+  'uttar pradesh': 'Uttar Pradesh',
+  // West Bengal
+  wb: 'West Bengal',
+  westbengal: 'West Bengal',
+  'west bengal': 'West Bengal',
+  bengal: 'West Bengal',
+  kolkata: 'West Bengal',
+  // Rajasthan
+  rj: 'Rajasthan',
+  raj: 'Rajasthan',
+  rajasthan: 'Rajasthan',
+  // Madhya Pradesh
+  mp: 'Madhya Pradesh',
+  madhyapradesh: 'Madhya Pradesh',
+  'madhya pradesh': 'Madhya Pradesh',
+  // Kerala
+  kl: 'Kerala',
+  ker: 'Kerala',
+  kerala: 'Kerala',
+  // Andhra Pradesh
+  ap: 'Andhra Pradesh',
+  andhrapradesh: 'Andhra Pradesh',
+  'andhra pradesh': 'Andhra Pradesh',
+  // Haryana
+  hr: 'Haryana',
+  har: 'Haryana',
+  haryana: 'Haryana',
+  // Punjab
+  pb: 'Punjab',
+  pun: 'Punjab',
+  punjab: 'Punjab',
+  // Bihar
+  br: 'Bihar',
+  bihar: 'Bihar',
+  // Odisha
+  or: 'Odisha',
+  od: 'Odisha',
+  odisha: 'Odisha',
+  orissa: 'Odisha',
+  // Jharkhand
+  jh: 'Jharkhand',
+  jharkhand: 'Jharkhand',
+  // Assam
+  as: 'Assam',
+  assam: 'Assam',
+  // Uttarakhand
+  ut: 'Uttarakhand',
+  uk: 'Uttarakhand',
+  ua: 'Uttarakhand',
+  uttarakhand: 'Uttarakhand',
+  uttaranchal: 'Uttarakhand',
+  // Himachal Pradesh
+  hp: 'Himachal Pradesh',
+  himachal: 'Himachal Pradesh',
+  'himachal pradesh': 'Himachal Pradesh',
+  himachalpradesh: 'Himachal Pradesh',
+  // Goa
+  ga: 'Goa',
+  goa: 'Goa',
+  // Chandigarh
+  ch: 'Chandigarh',
+  chandigarh: 'Chandigarh',
+  // Puducherry
+  py: 'Puducherry',
+  puducherry: 'Puducherry',
+  pondy: 'Puducherry',
+  pondicherry: 'Puducherry',
+  // Jammu & Kashmir
+  jk: 'Jammu and Kashmir',
+  'j&k': 'Jammu and Kashmir',
+  jammu: 'Jammu and Kashmir',
+  kashmir: 'Jammu and Kashmir',
+  'jammu and kashmir': 'Jammu and Kashmir',
+  'jammu & kashmir': 'Jammu and Kashmir',
+  // Chhattisgarh
+  cg: 'Chhattisgarh',
+  ct: 'Chhattisgarh',
+  chhattisgarh: 'Chhattisgarh',
+  chattisgarh: 'Chhattisgarh',
+  // Tripura
+  tr: 'Tripura',
+  tripura: 'Tripura',
+  // Meghalaya
+  ml: 'Meghalaya',
+  meghalaya: 'Meghalaya',
+  // Manipur
+  mn: 'Manipur',
+  manipur: 'Manipur',
+  // Nagaland
+  nl: 'Nagaland',
+  nagaland: 'Nagaland',
+  // Mizoram
+  mz: 'Mizoram',
+  mizoram: 'Mizoram',
+  // Sikkim
+  sk: 'Sikkim',
+  sikkim: 'Sikkim',
+  // Arunachal Pradesh
+  ar: 'Arunachal Pradesh',
+  arunachalpradesh: 'Arunachal Pradesh',
+  'arunachal pradesh': 'Arunachal Pradesh',
+  // UTs
+  an: 'Andaman and Nicobar Islands',
+  'andaman and nicobar': 'Andaman and Nicobar Islands',
+  'andaman & nicobar': 'Andaman and Nicobar Islands',
+  dn: 'Dadra and Nagar Haveli and Daman and Diu',
+  dd: 'Dadra and Nagar Haveli and Daman and Diu',
+  'daman and diu': 'Dadra and Nagar Haveli and Daman and Diu',
+  'dadra and nagar haveli': 'Dadra and Nagar Haveli and Daman and Diu',
+  la: 'Ladakh',
+  ladakh: 'Ladakh',
+  ld: 'Lakshadweep',
+  lakshadweep: 'Lakshadweep',
+};
+
+// Also pre-seed all canonical names and codes
+INDIAN_STATES_AND_UT.forEach((s) => {
+  KNOWN_STATE_ALIASES[s.name.toLowerCase()] = s.name;
+  KNOWN_STATE_ALIASES[s.code.toLowerCase()] = s.name;
+  KNOWN_STATE_ALIASES[s.name.toLowerCase().replace(/\s+/g, '')] = s.name;
+});
+
+/**
+ * Normalizes an Indian state name representation (e.g. "MH", "Maha", "Maharastra" -> "Maharashtra").
+ * Conservative: never mangles arbitrary unknown valid state text.
+ */
+export function normalizeIndianState(rawState?: string | null): string {
+  if (!rawState || typeof rawState !== 'string') {
+    return 'Other';
+  }
+  const clean = rawState.trim();
+  if (!clean) return 'Other';
+
+  const lookupKey = clean.toLowerCase().replace(/[.,/\\#_-]/g, ' ').replace(/\s+/g, ' ').trim();
+  const directMatch = KNOWN_STATE_ALIASES[lookupKey];
+  if (directMatch) return directMatch;
+
+  const noSpaces = lookupKey.replace(/\s+/g, '');
+  const noSpaceMatch = KNOWN_STATE_ALIASES[noSpaces];
+  if (noSpaceMatch) return noSpaceMatch;
+
+  // Title-case fallback for non-empty unknown entries
+  return clean
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Normalizes a city name for display (e.g. "solapur" -> "Solapur", "MUMBAI" -> "Mumbai")
+ */
+export function normalizeCityName(rawCity?: string | null): string {
+  if (!rawCity || typeof rawCity !== 'string') {
+    return 'Other';
+  }
+  const clean = rawCity.trim();
+  if (!clean || clean.toLowerCase() === 'other' || clean.toLowerCase() === 'other city') {
+    return 'Other';
+  }
+
+  return clean
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
