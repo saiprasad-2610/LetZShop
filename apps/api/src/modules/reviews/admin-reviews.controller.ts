@@ -47,13 +47,21 @@ export class AdminReviewsController {
     @Param('id') id: string,
     @Body() body: { action: 'REMOVE' | 'RESTORE'; reason?: string }
   ) {
-    if (!body || !['REMOVE', 'RESTORE'].includes(body.action)) {
-      throw new BadRequestException('Action must be either "REMOVE" or "RESTORE".');
+    const action: string | undefined = (body as any)?.action || (body as any)?.status;
+    const effectiveAction: 'REMOVE' | 'RESTORE' | null =
+      action === 'REMOVED' || action === 'REMOVE'
+        ? 'REMOVE'
+        : action === 'ACTIVE' || action === 'RESTORE'
+        ? 'RESTORE'
+        : null;
+
+    if (!effectiveAction) {
+      throw new BadRequestException('Action must be either "REMOVE" or "RESTORE" (or status ACTIVE / REMOVED).');
     }
     return this.reviewsService.moderateReview(
       id,
       { userId: user.userId, fullName: user.phone || 'Admin' },
-      body.action,
+      effectiveAction,
       body.reason
     );
   }

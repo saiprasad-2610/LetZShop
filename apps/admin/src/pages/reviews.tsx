@@ -27,7 +27,7 @@ interface ReviewRecord {
   title?: string | null;
   body: string;
   verifiedPurchase: boolean;
-  status: 'ACTIVE' | 'REMOVED';
+  status: 'ACTIVE' | 'REMOVED' | 'SENT_FOR_REVIEW';
   moderationReason?: string | null;
   moderatedAt?: string | null;
   moderatedBy?: string | null;
@@ -56,7 +56,7 @@ export default function AdminReviewModerationPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'REMOVED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SENT_FOR_REVIEW' | 'REMOVED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
@@ -196,6 +196,20 @@ export default function AdminReviewModerationPage() {
                 }`}
               >
                 All Reviews
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('SENT_FOR_REVIEW');
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  statusFilter === 'SENT_FOR_REVIEW'
+                    ? 'bg-amber-500 text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Sent for Review
               </button>
               <button
                 type="button"
@@ -363,28 +377,24 @@ export default function AdminReviewModerationPage() {
                       <td className="py-3.5 px-4 align-top">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            rev.status === 'ACTIVE'
-                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              : 'bg-rose-100 text-rose-700 border border-rose-200'
+                            rev.status === 'SENT_FOR_REVIEW'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                              : rev.status === 'REMOVED'
+                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                              : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                           }`}
                         >
-                          {rev.status === 'ACTIVE' ? 'Active' : 'Removed'}
+                          {rev.status === 'SENT_FOR_REVIEW'
+                            ? 'Sent for Review'
+                            : rev.status === 'REMOVED'
+                            ? 'Removed'
+                            : 'Active'}
                         </span>
                       </td>
 
                       {/* Actions */}
                       <td className="py-3.5 px-4 align-top text-right">
-                        {rev.status === 'ACTIVE' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenModeration(rev)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
-                            title="Hide or remove review from storefront"
-                          >
-                            <EyeOff className="w-3.5 h-3.5" />
-                            <span>Remove / Hide</span>
-                          </button>
-                        ) : (
+                        {rev.status === 'REMOVED' ? (
                           <button
                             type="button"
                             onClick={() => handleRestoreReview(rev)}
@@ -393,6 +403,37 @@ export default function AdminReviewModerationPage() {
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>Restore</span>
+                          </button>
+                        ) : rev.status === 'SENT_FOR_REVIEW' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenModeration(rev)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
+                              title="Take down review"
+                            >
+                              <EyeOff className="w-3.5 h-3.5" />
+                              <span>Take Down</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRestoreReview(rev)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
+                              title="Approve and mark active"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>Approve</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenModeration(rev)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
+                            title="Hide or remove review from storefront"
+                          >
+                            <EyeOff className="w-3.5 h-3.5" />
+                            <span>Remove / Hide</span>
                           </button>
                         )}
                       </td>

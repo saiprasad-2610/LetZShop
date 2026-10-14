@@ -19,6 +19,7 @@ import {
   Flag,
   Calendar,
   SlidersHorizontal,
+  Clock,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -30,7 +31,7 @@ interface SellerReview {
   title?: string | null;
   body: string;
   verifiedPurchase: boolean;
-  status: 'ACTIVE' | 'REMOVED';
+  status: 'ACTIVE' | 'REMOVED' | 'SENT_FOR_REVIEW';
   moderationReason?: string | null;
   createdAt: string;
   product: {
@@ -228,11 +229,12 @@ export default function SellerReviewsPage() {
         details: reportDetails.trim() || undefined,
       });
       setReportSuccessMessage(
-        `Report received for Order #${reportingReview.order.orderNumber}. Platform SuperAdmin will review this content.`
+        `Report received for Order #${reportingReview.order.orderNumber}. Sent for platform review.`
       );
       setReportingReview(null);
       setReportReason('Abusive / offensive content');
       setReportDetails('');
+      await loadReviews();
     } catch (err: any) {
       alert(err?.message || 'Failed to submit moderation request.');
     } finally {
@@ -556,8 +558,9 @@ export default function SellerReviewsPage() {
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
                 <option value="ACTIVE">Active Reviews</option>
-                <option value="ALL">All (Active & Removed)</option>
-                <option value="REMOVED">Removed by Admin</option>
+                <option value="SENT_FOR_REVIEW">Sent for Review</option>
+                <option value="REMOVED">Taken Down by Admin</option>
+                <option value="ALL">All Reviews</option>
               </select>
             </div>
 
@@ -684,13 +687,19 @@ export default function SellerReviewsPage() {
 
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                          rev.status === 'ACTIVE'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                          rev.status === 'SENT_FOR_REVIEW'
+                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
+                            : rev.status === 'REMOVED'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                         }`}
                       >
-                        {rev.status === 'ACTIVE' ? 'Active' : 'Removed by Platform Moderation'}
+                        {rev.status === 'SENT_FOR_REVIEW'
+                          ? 'Sent for Review'
+                          : rev.status === 'REMOVED'
+                          ? 'Taken Down by Admin'
+                          : 'Active'}
                       </span>
                       <span className="text-[11px] text-merchant-text-muted font-mono">
                         {new Date(rev.createdAt).toLocaleDateString('en-IN', {
@@ -702,11 +711,26 @@ export default function SellerReviewsPage() {
                     </div>
                   </div>
 
+                  {/* Sent for review notice if applicable */}
+                  {rev.status === 'SENT_FOR_REVIEW' && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Sent for Review:</strong> You reported this review to platform administrators for moderation.
+                        {rev.moderationReason && (
+                          <span className="block mt-0.5 text-amber-700 dark:text-amber-300">
+                            Reason: {rev.moderationReason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Removed notice if applicable */}
                   {rev.status === 'REMOVED' && (
                     <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-[11px] text-rose-700 dark:text-rose-300">
                       <strong>Moderation Notice:</strong>{' '}
-                      {rev.moderationReason || 'This review was removed by platform moderation and is not visible to buyers.'}
+                      {rev.moderationReason || 'This review was taken down by platform moderation and is not visible to buyers.'}
                     </div>
                   )}
 
@@ -760,7 +784,7 @@ export default function SellerReviewsPage() {
                         <span>{rev.product.name}</span>
                       </Link>
 
-                      {/* Report Review Action (Merchants cannot delete, only report) */}
+                      {/* Report Review Action / Status indicator */}
                       {rev.status === 'ACTIVE' && (
                         <button
                           type="button"
@@ -771,6 +795,26 @@ export default function SellerReviewsPage() {
                           <Flag className="w-3 h-3" />
                           <span>Report Review</span>
                         </button>
+                      )}
+
+                      {rev.status === 'SENT_FOR_REVIEW' && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-medium"
+                          title="Review submitted for moderation"
+                        >
+                          <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>Sent for Review</span>
+                        </span>
+                      )}
+
+                      {rev.status === 'REMOVED' && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md font-medium"
+                          title="Review taken down by platform moderation"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Taken Down by Admin</span>
+                        </span>
                       )}
                     </div>
                   </div>

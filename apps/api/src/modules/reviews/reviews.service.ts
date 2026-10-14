@@ -273,7 +273,7 @@ export class ReviewsService {
       where: {
         productId,
         storeId: store.id,
-        status: 'ACTIVE',
+        status: { in: ['ACTIVE', 'SENT_FOR_REVIEW'] },
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -446,7 +446,7 @@ export class ReviewsService {
     const allActiveReviews = await this.prisma.productReview.findMany({
       where: {
         storeId,
-        status: 'ACTIVE',
+        status: { in: ['ACTIVE', 'SENT_FOR_REVIEW'] },
       },
       select: {
         rating: true,
@@ -492,11 +492,21 @@ export class ReviewsService {
       storeId,
     };
 
-    // Status filter: default to 'ACTIVE', allow 'ALL' or 'REMOVED'
-    if (query.status && query.status !== 'ALL') {
-      where.status = query.status;
-    } else if (!query.status) {
+    // Status filter:
+    // 'SENT_FOR_REVIEW' -> only reviews reported by merchant awaiting admin moderation
+    // 'REMOVED' -> only reviews taken down by admin
+    // 'ALL' -> all reviews
+    // 'ACTIVE' (default) -> active reviews (including those sent for review, excluding removed)
+    if (query.status === 'SENT_FOR_REVIEW') {
+      where.status = 'SENT_FOR_REVIEW';
+    } else if (query.status === 'REMOVED') {
+      where.status = 'REMOVED';
+    } else if (query.status === 'ALL') {
+      // No status filter applied
+    } else if (query.status === 'ACTIVE_ONLY') {
       where.status = 'ACTIVE';
+    } else {
+      where.status = { in: ['ACTIVE', 'SENT_FOR_REVIEW'] };
     }
 
     // Rating filter (1..5 or BELOW_3 / LESS_THAN_3 / NEGATIVE)
@@ -667,6 +677,19 @@ export class ReviewsService {
     if (!review || review.storeId !== storeId) {
       throw new NotFoundException('Review not found for this store.');
     }
+
+    if (review.status === 'REMOVED') {
+      throw new BadRequestException('This review has already been removed by platform moderation.');
+    }
+
+    // Update status to SENT_FOR_REVIEW and record the reason
+    await this.prisma.productReview.update({
+      where: { id: reviewId },
+      data: {
+        status: 'SENT_FOR_REVIEW',
+        moderationReason: reason + (details ? ` - ${details}` : ''),
+      },
+    });
 
     this.logger.log(
       `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
