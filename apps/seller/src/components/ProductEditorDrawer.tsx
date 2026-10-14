@@ -25,6 +25,7 @@ import { SafeImage } from './ui/SafeImage';
 interface OptionTypeDraft {
   id?: string;
   name: string;
+  type?: string;
   values: string[];
   inputValue: string;
 }
@@ -118,6 +119,13 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     { name: 'Size', values: ['S', 'M', 'L'], inputValue: '' },
   ]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
+
+  // Find relevant visual / colour option (supports type='COLOUR' or name='Colour'/'Color')
+  const visualOption = options.find((o) => {
+    const typeStr = o.type?.toUpperCase();
+    const nameStr = o.name?.trim().toLowerCase();
+    return typeStr === 'COLOUR' || nameStr === 'colour' || nameStr === 'color';
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -243,6 +251,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         const mappedOptions: OptionTypeDraft[] = product.options.map((opt: any) => ({
           id: opt.id,
           name: opt.name,
+          type: opt.type,
           values: (opt.values || []).map((v: any) => (typeof v === 'string' ? v : v.value)),
           inputValue: '',
         }));
@@ -1200,12 +1209,13 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                       </div>
 
                       {/* Colour / Option Association */}
-                      {hasVariants && options.some((o) => o.values.length > 0) && (
+                      {hasVariants && visualOption && visualOption.values.length > 0 && (
                         <div className="px-1 pt-0.5">
                           <label className="text-[10px] font-semibold text-[var(--merchant-text-muted)] block mb-0.5">
                             Colour / Option:
                           </label>
                           <select
+                            data-testid={`media-option-select-${idx}`}
                             value={item.optionValue || ''}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -1224,14 +1234,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             className="w-full text-[11px] px-1.5 py-1 border border-[var(--merchant-input-border)] rounded-md bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                           >
                             <option value="">All / General</option>
-                            {options.map((opt) => (
-                              <optgroup key={opt.name} label={opt.name}>
-                                {opt.values.map((v) => (
-                                  <option key={`${opt.name}-${v}`} value={v}>
-                                    {v}
-                                  </option>
-                                ))}
-                              </optgroup>
+                            {visualOption.values.map((v) => (
+                              <option key={v} value={v}>
+                                {v}
+                              </option>
                             ))}
                           </select>
                         </div>
