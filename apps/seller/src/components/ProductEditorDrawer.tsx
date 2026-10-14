@@ -18,7 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { parseRupeesToPaise } from '@simply/ui';
+import { parseRupeesToPaise, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/ui';
 import { validateProductImageFile, formatBytes } from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
 
@@ -1334,6 +1334,12 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 </div>
                 {formErrors.price && (
                   <p className="text-xs text-rose-600 font-medium mt-1">{formErrors.price}</p>
+                )}
+                {parseFloat(basePriceRupees) > 0 && parseFloat(basePriceRupees) < PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 flex items-start gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>Prices below ₹{PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES} require COD or multiple quantity to meet the online payment gateway minimum (₹{PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES}).</span>
+                  </p>
                 )}
               </div>
 

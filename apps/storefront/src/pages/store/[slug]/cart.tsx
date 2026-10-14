@@ -25,9 +25,29 @@ import { useToast } from '../../../components/ui/Toast';
 import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
-import { formatPaise } from '@simply/ui';
+import { formatPaise, resolveVariantDisplayMedia } from '@simply/ui';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+
+function formatItemVariantLabel(item: any): string | null {
+  if (item.variantTitle && item.variantTitle !== 'Default') {
+    return item.variantTitle;
+  }
+  const variant = item.variant;
+  if (!variant) return null;
+  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
+    return variant.title;
+  }
+  if (Array.isArray(variant.optionValues) && variant.optionValues.length > 0) {
+    const values = variant.optionValues
+      .map((ov: any) => ov.optionValue?.value || ov.value)
+      .filter(Boolean);
+    if (values.length > 0) {
+      return values.join(' · ');
+    }
+  }
+  return null;
+}
 
 export default function StoreCartPage() {
   const router = useRouter();
@@ -86,24 +106,25 @@ export default function StoreCartPage() {
     }
   };
 
-  const handleApplyCoupon = () => {
-    if (!couponInput.trim()) {
+  const handleApplyCoupon = async () => {
+    const clean = couponInput.trim();
+    if (!clean) {
       toast.warning('Empty Coupon', 'Please enter a coupon code');
       return;
     }
     setApplyingCoupon(true);
-    // Simulate brief network delay for UX
-    setTimeout(() => {
-      const success = applyCoupon(couponInput.trim());
+    try {
+      const success = await applyCoupon(clean);
       if (success) {
-        toast.success('Coupon Applied!', `Discount code "${couponInput.trim().toUpperCase()}" applied successfully`);
+        toast.success('Coupon Applied!', `Discount code "${clean.toUpperCase()}" applied successfully`);
         setCouponInput('');
         setShowCouponInput(false);
       } else {
         toast.error('Invalid Coupon', couponError || 'This coupon is not valid');
       }
+    } finally {
       setApplyingCoupon(false);
-    }, 600);
+    }
   };
 
   const handleRemoveCoupon = () => {
@@ -270,16 +291,13 @@ export default function StoreCartPage() {
                 {items.map((item: any, index: number) => {
                   const variant = item.variant || {};
                   const product = variant.product || {};
-                  const cover =
-                    item.media?.[0]?.publicUrl ||
-                    item.imageUrl ||
-                    variant.images?.[0]?.url ||
-                    variant.media?.[0]?.publicUrl ||
-                    product.media?.[0]?.publicUrl ||
-                    product.media?.[0]?.url ||
-                    product.images?.[0]?.url ||
-                    (Array.isArray(product.media) && typeof product.media[0] === 'string' ? product.media[0] : '') ||
-                    '';
+                  const cover = resolveVariantDisplayMedia({
+                    itemImageUrl: item.imageUrl,
+                    variant: item.variant,
+                    productMedia: item.variant?.product?.media,
+                    selectedOptionValues: item.variant?.optionValues,
+                  });
+                  const variantLabel = formatItemVariantLabel(item);
                   const productTitle = product.title || product.name || 'Product';
                   const targetVariantId = item.variantId || variant.id;
                   const isRemoving = removingItemId === targetVariantId;
@@ -312,10 +330,10 @@ export default function StoreCartPage() {
                             >
                               {productTitle}
                             </Link>
-                            {variant.title && variant.title !== 'Default' && (
-                              <p className="text-xs text-gray-500 flex items-center gap-1">
-                                <Package className="w-3 h-3" />
-                                {variant.title}
+                            {variantLabel && (
+                              <p className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                                <Package className="w-3.5 h-3.5 text-gray-400" />
+                                {variantLabel}
                               </p>
                             )}
                             <div className="flex items-baseline gap-2">

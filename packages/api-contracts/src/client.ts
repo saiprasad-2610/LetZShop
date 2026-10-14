@@ -294,6 +294,8 @@ export class SimplyApiClient {
   // --- Orders (Merchant Canonical: /seller/orders; Public Buyer: /orders/checkout, /orders/track) ---
   public orders = {
     checkout: (data: any) => this.request('orders/checkout', { method: 'POST', body: data }),
+    validateCoupon: (data: { storeId: string; code: string; subtotalPaise: number }) =>
+      this.request('orders/coupon/validate', { method: 'POST', body: data }),
     getOrders: (params?: {
       page?: number;
       limit?: number;

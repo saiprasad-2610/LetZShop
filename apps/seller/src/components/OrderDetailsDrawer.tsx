@@ -28,7 +28,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode } from '@simply/ui';
+import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode, resolveVariantDisplayMedia } from '@simply/ui';
 import {
   buildOrderAcceptedMessage,
   buildOrderReadyMessage,
@@ -1683,8 +1683,20 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
               <div className="border border-merchant-border rounded-2xl divide-y divide-merchant-border overflow-hidden bg-merchant-surface shadow-xs">
                 {(order.items || []).map((item: any) => {
-                  const mediaUrl =
-                    item.variant?.product?.media?.[0]?.publicUrl || null;
+                  const mediaUrl = resolveVariantDisplayMedia({
+                    itemImageUrl: item.imageUrl,
+                    variant: item.variant,
+                    productMedia: item.variant?.product?.media,
+                    selectedOptionValues: item.variant?.optionValues,
+                  });
+                  const displayVariantTitle =
+                    item.variantTitle && item.variantTitle !== 'Default'
+                      ? item.variantTitle
+                      : item.optionSnapshot && Object.keys(item.optionSnapshot).length > 0
+                        ? Object.values(item.optionSnapshot).join(' · ')
+                        : item.variant?.optionValues?.length
+                          ? item.variant.optionValues.map((ov: any) => ov.optionValue?.value || ov.value).filter(Boolean).join(' · ')
+                          : null;
 
                   return (
                     <div key={item.id} className="p-3.5 sm:p-4 flex items-center justify-between gap-3 text-xs">
@@ -1699,8 +1711,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-merchant-text truncate">{item.productName}</p>
-                          {item.variantTitle && (
-                            <p className="text-merchant-text-muted text-[11px] truncate">{item.variantTitle}</p>
+                          {displayVariantTitle && (
+                            <p className="text-merchant-text-muted text-[11px] truncate font-medium">{displayVariantTitle}</p>
                           )}
                           {item.sku && (
                             <p className="text-merchant-text-muted font-mono text-[10px]">SKU: {item.sku}</p>

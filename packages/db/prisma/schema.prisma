@@ -1132,6 +1132,7 @@ model OrderItem {
   unitPricePaise  Int      @map("unit_price_paise")
   taxPaise        Int      @default(0) @map("tax_paise")
   totalPaise      Int      @map("total_paise")
+  imageUrl        String?  @map("image_url") // Snapshot of variant/colour image at order time
   createdAt       DateTime @default(now()) @map("created_at")
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)

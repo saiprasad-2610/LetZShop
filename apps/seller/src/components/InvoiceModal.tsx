@@ -155,21 +155,32 @@ export function InvoiceModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(order.items || []).map((item: any) => (
-                    <tr key={item.id} className="text-xs">
-                      <td className="py-2.5 px-3">
-                        <span className="font-semibold text-slate-900 block">{item.productName || item.titleSnapshot}</span>
-                        {item.variantTitle && (
-                          <span className="text-[11px] text-slate-500 font-mono">{item.variantTitle}</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-mono font-medium">{item.quantity}</td>
-                      <td className="py-2.5 px-3 text-right font-mono">{formatPaise(item.unitPricePaise)}</td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
-                        {formatPaise(item.totalPaise || item.totalPricePaise || item.quantity * item.unitPricePaise)}
-                      </td>
-                    </tr>
-                  ))}
+                  {(order.items || []).map((item: any) => {
+                    const displayVariant =
+                      item.variantTitle && item.variantTitle !== 'Default'
+                        ? item.variantTitle
+                        : item.optionSnapshot && Object.keys(item.optionSnapshot).length > 0
+                          ? Object.values(item.optionSnapshot).join(' · ')
+                          : null;
+                    return (
+                      <tr key={item.id} className="text-xs">
+                        <td className="py-2.5 px-3">
+                          <span className="font-semibold text-slate-900 block">{item.productName || item.titleSnapshot}</span>
+                          {displayVariant && (
+                            <span className="text-[11px] text-slate-500 font-medium block">{displayVariant}</span>
+                          )}
+                          {item.sku && (
+                            <span className="text-[10px] text-slate-400 font-mono block">SKU: {item.sku}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono font-medium">{item.quantity}</td>
+                        <td className="py-2.5 px-3 text-right font-mono">{formatPaise(item.unitPricePaise)}</td>
+                        <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
+                          {formatPaise(item.totalPaise || item.totalPricePaise || item.quantity * item.unitPricePaise)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

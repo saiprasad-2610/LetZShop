@@ -274,8 +274,14 @@ export interface BuyerSafeTrackOrderDto {
   currency: string;
   items: Array<{
     productName: string;
-    variantTitle: string;
+    variantTitle?: string;
+    titleSnapshot?: string;
+    variantTitleSnapshot?: string;
+    sku?: string | null;
+    imageUrl?: string | null;
     quantity: number;
+    unitPricePaise?: number;
+    totalPricePaise?: number;
   }>;
   trackingNumber?: string | null;
   carrier?: string | null;

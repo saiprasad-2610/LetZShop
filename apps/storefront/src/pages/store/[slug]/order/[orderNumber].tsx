@@ -245,22 +245,39 @@ export default function OrderConfirmationPage() {
             </h2>
 
             <div className="divide-y divide-gray-100 text-xs">
-              {(order.items || []).map((item: any) => (
-                <div key={item.id} className="py-3 first:pt-0 last:pb-0 flex justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.titleSnapshot}</p>
-                    {item.variantTitleSnapshot && (
-                      <p className="text-gray-500 text-[11px]">{item.variantTitleSnapshot}</p>
-                    )}
-                    <p className="text-gray-400 font-mono text-[11px]">
-                      Qty: {item.quantity} × {formatPaise(item.unitPricePaise)}
-                    </p>
+              {(order.items || []).map((item: any, idx: number) => {
+                const title = item.productName || item.titleSnapshot || 'Product';
+                const variantLabel = item.variantTitle || item.variantTitleSnapshot;
+                const unitPrice = item.unitPricePaise || 0;
+                const lineTotal = item.totalPricePaise || (item.quantity * unitPrice);
+
+                return (
+                  <div key={item.id || idx} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {item.imageUrl && (
+                        <div className="w-11 h-11 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                          <img src={item.imageUrl} alt={title} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{title}</p>
+                        {variantLabel && (
+                          <p className="text-gray-500 text-[11px] font-medium">{variantLabel}</p>
+                        )}
+                        {item.sku && (
+                          <p className="text-gray-400 font-mono text-[10px]">SKU: {item.sku}</p>
+                        )}
+                        <p className="text-gray-400 font-mono text-[11px]">
+                          Qty: {item.quantity} × {formatPaise(unitPrice)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="font-mono font-bold text-gray-900 flex-shrink-0">
+                      {formatPaise(lineTotal)}
+                    </div>
                   </div>
-                  <div className="font-mono font-bold text-gray-900">
-                    {formatPaise(item.totalPricePaise)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="pt-3 border-t border-gray-200 space-y-1.5 text-xs text-gray-600">
