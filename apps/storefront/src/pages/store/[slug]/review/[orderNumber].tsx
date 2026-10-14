@@ -232,22 +232,35 @@ export default function OrderReviewPage() {
         <title>Share Your Feedback | Order #{orderNumber} | {store?.name || 'Store'}</title>
       </Head>
 
-      {store && <StoreHeader store={store} themeConfig={themeConfig} />}
+      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between">
+        <div>
+          {store && <StoreHeader store={store} themeConfig={themeConfig} />}
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
-        {/* Page Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-semibold">
-            <CheckCircle className="w-3.5 h-3.5" />
-            <span>Verified Purchase Review</span>
+          <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
+        {/* Page Header with Contextual Order & Purchase Details */}
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-semibold">
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Order #{orderNumber} • Delivered</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            How was your purchase?
+            Write a review for your recent purchase
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
-            Hello <strong className="text-gray-900 dark:text-white">{eligibleData.customerName}</strong>, thank you for supporting{' '}
-            <strong className="text-gray-900 dark:text-white">{store?.name}</strong>. Your honest review helps this business improve and helps fellow shoppers make confident decisions.
-          </p>
+          {eligibleData.items?.length > 0 && (
+            <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+              {eligibleData.items.length === 1 ? (
+                <>
+                  Reviewing <span className="font-semibold text-gray-900 dark:text-white">{eligibleData.items[0].productName}</span> from{' '}
+                  <span className="font-semibold text-gray-900 dark:text-white">{store?.name}</span>
+                </>
+              ) : (
+                <>
+                  Reviewing <span className="font-semibold text-gray-900 dark:text-white">{eligibleData.items.map((i) => i.productName).join(', ')}</span> from{' '}
+                  <span className="font-semibold text-gray-900 dark:text-white">{store?.name}</span>
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         {/* Respectful Content Notice (Requirement 30) */}
@@ -442,24 +455,20 @@ export default function OrderReviewPage() {
         </div>
 
         {/* Bottom Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-center pt-4 border-t border-gray-200 dark:border-slate-800">
           <Link
             href={`/store/${slug}`}
-            className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl text-center shadow-xs transition flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto px-8 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl text-center shadow-xs transition flex items-center justify-center gap-1.5"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
             <span>Continue Shopping</span>
           </Link>
-          <Link
-            href={`/store/${slug}/order/${orderNumber}${token ? `?t=${token}` : ''}`}
-            className="w-full sm:w-auto px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-200 text-xs font-semibold rounded-xl text-center transition"
-          >
-            <span>View Order Details</span>
-          </Link>
         </div>
       </main>
+    </div>
 
-      {store && <StoreFooter store={store} />}
+    {store && <StoreFooter store={store} />}
+  </div>
     </ThemeWrapper>
   );
 }
