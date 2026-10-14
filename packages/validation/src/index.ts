@@ -188,5 +188,4 @@ export function resolveMediaUrl(url?: string | null): string {
 }
 
 export * from './india-locations';
-
-
+export * from './image-validation';

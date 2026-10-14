@@ -15,9 +15,11 @@ import {
   ArrowRight,
   AlertCircle,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { parseRupeesToPaise } from '@simply/ui';
+import { validateProductImageFile, formatBytes } from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
 
 interface OptionTypeDraft {
@@ -44,6 +46,8 @@ interface MediaItemDraft {
   mediaAssetId?: string;
   publicUrl: string;
   previewUrl?: string; // local blob URL
+  fileName?: string;
+  sizeBytes?: number;
   isUploading?: boolean;
 }
 
@@ -73,6 +77,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 }) => {
   const { api } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTargetIndex, setReplaceTargetIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -202,6 +208,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         mediaAssetId: m.mediaAssetId || m.id,
         publicUrl: m.publicUrl,
         previewUrl: m.publicUrl,
+        fileName: m.mediaAsset?.fileName || m.fileName || m.altText || 'Product photo',
+        sizeBytes: m.mediaAsset?.sizeBytes || m.sizeBytes,
         isUploading: false,
       }));
       setMediaItems(loadedMedia);
@@ -438,29 +446,27 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     if (!files || files.length === 0) return;
     setImageError(null);
 
-    if (mediaItems.length >= 3) {
-      setImageError('A maximum of 3 images is allowed per product.');
+    const availableSlots = 3 - mediaItems.length;
+    if (availableSlots <= 0) {
+      setImageError('A maximum of 3 images is allowed per product. Remove an image to upload a new one.');
       return;
     }
 
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    const fileArray = Array.from(files);
+    const toProcess = fileArray.slice(0, availableSlots);
+    if (fileArray.length > availableSlots) {
+      setImageError(`Only ${availableSlots} image slot${availableSlots > 1 ? 's were' : ' was'} available (limit: 3 images).`);
+    }
 
-    for (const file of Array.from(files)) {
-      if (mediaItems.length >= 3) {
-        setImageError('A maximum of 3 images is allowed per product.');
-        break;
+    for (const file of toProcess) {
+      // 1. Binary magic-byte and format validation
+      const validation = await validateProductImageFile(file);
+      if (!validation.isValid) {
+        setImageError(validation.error || 'Invalid image file.');
+        continue;
       }
 
-      if (!allowedMime.includes(file.type)) {
-        setImageError('Upload a supported image format (JPEG, PNG, WebP).');
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setImageError('Image file size exceeds 5MB limit.');
-        return;
-      }
-
-      // Step 1: Create immediate local blob URL
+      // 2. Step 1: Create immediate local blob URL for instant preview
       const blobUrl = URL.createObjectURL(file);
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -470,6 +476,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           id: tempId,
           publicUrl: blobUrl,
           previewUrl: blobUrl,
+          fileName: file.name,
+          sizeBytes: file.size,
           isUploading: true,
         },
       ]);
@@ -489,7 +497,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
         const res = await api.media.uploadMediaAsset({
           filename: file.name,
-          mimeType: file.type,
+          mimeType: validation.mimeType || file.type || 'image/jpeg',
           base64Data,
           altText: name || file.name,
         });
@@ -504,6 +512,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     mediaAssetId: res.id,
                     publicUrl: res.publicUrl,
                     previewUrl: blobUrl, // keep local blob for instant crispness
+                    fileName: file.name,
+                    sizeBytes: file.size,
                     isUploading: false,
                   }
                 : item
@@ -518,6 +528,98 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       } finally {
         setUploadingImage(false);
       }
+    }
+  };
+
+  // Replace a specific existing photo slot
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // Reset input so same file can be chosen again
+    if (!file || replaceTargetIndex === null || replaceTargetIndex >= mediaItems.length) return;
+
+    setImageError(null);
+    const validation = await validateProductImageFile(file);
+    if (!validation.isValid) {
+      setImageError(validation.error || 'Invalid image file.');
+      return;
+    }
+
+    const targetIdx = replaceTargetIndex;
+    const oldItem = mediaItems[targetIdx];
+    const blobUrl = URL.createObjectURL(file);
+    const tempId = `temp-replace-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    setMediaItems((prev) => {
+      const updated = [...prev];
+      updated[targetIdx] = {
+        id: tempId,
+        publicUrl: blobUrl,
+        previewUrl: blobUrl,
+        fileName: file.name,
+        sizeBytes: file.size,
+        isUploading: true,
+      };
+      return updated;
+    });
+
+    setUploadingImage(true);
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const commaIdx = result.indexOf(',');
+          resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await api.media.uploadMediaAsset({
+        filename: file.name,
+        mimeType: validation.mimeType || file.type || 'image/jpeg',
+        base64Data,
+        altText: name || file.name,
+      });
+
+      if (res && res.id) {
+        setMediaItems((prev) => {
+          const updated = [...prev];
+          updated[targetIdx] = {
+            id: res.id,
+            mediaAssetId: res.id,
+            publicUrl: res.publicUrl,
+            previewUrl: blobUrl,
+            fileName: file.name,
+            sizeBytes: file.size,
+            isUploading: false,
+          };
+          return updated;
+        });
+
+        // If old item was tagged on variants, update them to the new mediaAssetId
+        if (oldItem.mediaAssetId) {
+          setVariants((prev) =>
+            prev.map((v) =>
+              v.mediaAssetId === oldItem.mediaAssetId
+                ? { ...v, mediaAssetId: res.id }
+                : v
+            )
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to replace media asset', err);
+      setImageError(err.message || 'Failed to replace image.');
+      // Restore previous item on error
+      setMediaItems((prev) => {
+        const updated = [...prev];
+        updated[targetIdx] = oldItem;
+        return updated;
+      });
+    } finally {
+      setUploadingImage(false);
+      setReplaceTargetIndex(null);
     }
   };
 
@@ -922,6 +1024,28 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               </div>
             </div>
 
+            {/* Hidden File Inputs for Primary Upload and Photo Replacement */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              data-testid="product-image-file-input"
+              onChange={(e) => {
+                processFiles(e.target.files);
+                e.target.value = '';
+              }}
+              className="hidden"
+            />
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept="image/*"
+              data-testid="product-image-replace-input"
+              onChange={handleReplaceFile}
+              className="hidden"
+            />
+
             {/* Dropzone - shown when < 3 images, hidden when 3 images reached */}
             {mediaItems.length < 3 ? (
               <div
@@ -938,14 +1062,6 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     : 'border-[var(--merchant-border)] hover:border-[var(--merchant-primary)] hover:bg-[var(--merchant-surface-muted)]'
                 }`}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => processFiles(e.target.files)}
-                  className="hidden"
-                />
                 <UploadCloud className="w-8 h-8 text-[var(--merchant-primary)] mx-auto mb-2" />
                 {uploadingImage ? (
                   <p className="text-xs sm:text-sm font-bold text-[var(--merchant-primary)] animate-pulse">
@@ -957,7 +1073,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   </p>
                 )}
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
-                  JPG, PNG, WebP supported up to 5MB each ({mediaItems.length} / 3 uploaded).
+                  JPG, PNG, WebP or AVIF supported up to 5MB each ({mediaItems.length} / 3 uploaded).
                 </p>
                 {imageError && (
                   <p className="text-xs text-rose-600 font-medium mt-2">{imageError}</p>
@@ -966,7 +1082,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             ) : (
               <div className="bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl p-3 text-center">
                 <p className="text-xs font-medium text-[var(--merchant-text-secondary)]">
-                  Maximum of 3 images reached (3 / 3). Remove an image to upload a different one.
+                  Maximum of 3 images reached (3 / 3). Use Replace or Remove to update photos.
                 </p>
                 {imageError && (
                   <p className="text-xs text-rose-600 font-medium mt-1">{imageError}</p>
@@ -984,16 +1100,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   {mediaItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="group relative rounded-xl border border-[var(--merchant-border)] overflow-hidden bg-[var(--merchant-surface-muted)] shadow-2xs space-y-1 p-1.5"
+                      className="group relative rounded-xl border border-[var(--merchant-border)] overflow-hidden bg-[var(--merchant-surface-muted)] shadow-2xs space-y-1.5 p-1.5"
                     >
                       <div className="aspect-square rounded-lg overflow-hidden bg-[var(--merchant-surface-raised)] relative">
                         <SafeImage
                           src={item.previewUrl || item.publicUrl}
-                          alt={`Product photo ${idx + 1}`}
+                          alt={item.fileName || `Product photo ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
                         {item.isUploading && (
-                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center">
+                          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-1 text-center">
+                            <RefreshCw className="w-4 h-4 text-white animate-spin mb-1" />
                             <span className="text-[10px] text-white font-bold animate-pulse">
                               Uploading...
                             </span>
@@ -1006,15 +1123,30 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                         )}
                       </div>
 
-                      {/* Photo Controls */}
-                      <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                      {/* Filename and Size */}
+                      <div className="px-1">
+                        <p
+                          className="text-[11px] font-medium text-[var(--merchant-text)] truncate"
+                          title={item.fileName || `Product photo ${idx + 1}`}
+                        >
+                          {item.fileName || `Photo ${idx + 1}`}
+                        </p>
+                        {item.sizeBytes ? (
+                          <p className="text-[10px] text-[var(--merchant-text-muted)]">
+                            {formatBytes(item.sizeBytes)}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {/* Photo Controls: Reorder, Replace, Delete */}
+                      <div className="flex items-center justify-between text-[11px] pt-1 px-1 border-t border-[var(--merchant-border)]">
                         <div className="flex items-center gap-1">
                           {idx !== 0 && (
                             <button
                               type="button"
                               onClick={() => handleSetPrimaryImage(idx)}
                               title="Make Primary Image"
-                              className="p-1 hover:text-amber-500 transition"
+                              className="p-1 text-slate-400 hover:text-amber-500 transition"
                             >
                               <Star className="w-3.5 h-3.5" />
                             </button>
@@ -1024,7 +1156,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             onClick={() => handleMoveImage(idx, 'left')}
                             disabled={idx === 0}
                             title="Move Left"
-                            className="p-0.5 hover:text-blue-600 disabled:opacity-30"
+                            className="p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition"
                           >
                             <ArrowLeft className="w-3 h-3" />
                           </button>
@@ -1033,20 +1165,33 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             onClick={() => handleMoveImage(idx, 'right')}
                             disabled={idx === mediaItems.length - 1}
                             title="Move Right"
-                            className="p-0.5 hover:text-blue-600 disabled:opacity-30"
+                            className="p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition"
                           >
                             <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          title="Delete photo"
-                          className="p-1 text-slate-400 hover:text-rose-600 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplaceTargetIndex(idx);
+                              replaceInputRef.current?.click();
+                            }}
+                            title="Replace this photo"
+                            className="p-1 text-slate-400 hover:text-[var(--merchant-primary)] transition"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            title="Remove photo"
+                            className="p-1 text-slate-400 hover:text-rose-600 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
