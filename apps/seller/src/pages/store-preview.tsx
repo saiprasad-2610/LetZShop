@@ -41,11 +41,17 @@ export default function StorePreviewPage() {
   const storeSlug = store?.slug || 'sk-general-stores';
   const storeName = store?.name || 'SK General Stores';
   const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
+  const [customerPreviewUrl, setCustomerPreviewUrl] = useState('');
+  const [publicShareUrl, setPublicShareUrl] = useState('');
+  const displayUrl = `letzshop.store/store/${storeSlug}`;
+
   const customerPreviewPagePath =
     activePreviewPage === 'products' ? '/products' : activePreviewPage === 'about' ? '/about' : '';
-  const customerPreviewUrl = `${getStoreCustomerPreviewUrl(storeSlug)}${customerPreviewPagePath}`;
-  const publicShareUrl = getStorePublicShareUrl(storeSlug, isLive);
-  const displayUrl = `letzshop.store/store/${storeSlug}`;
+
+  useEffect(() => {
+    setCustomerPreviewUrl(`${getStoreCustomerPreviewUrl(storeSlug)}${customerPreviewPagePath}`);
+    setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive));
+  }, [storeSlug, isLive, customerPreviewPagePath]);
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
