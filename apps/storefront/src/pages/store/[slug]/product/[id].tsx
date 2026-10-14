@@ -39,8 +39,8 @@ export default function ProductDetailPage() {
   // Variant & Gallery State
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [activeVariant, setActiveVariant] = useState<any | null>(null);
-  const [activeGallery, setActiveGallery] = useState<string[]>([]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [activeGallery, setActiveGallery] = useState<any[]>([]);
+  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartSuccess, setCartSuccess] = useState(false);
@@ -53,6 +53,175 @@ export default function ProductDetailPage() {
   const [enquiryMsg, setEnquiryMsg] = useState('');
   const [submittingEnquiry, setSubmittingEnquiry] = useState(false);
   const [enquirySuccess, setEnquirySuccess] = useState(false);
+
+  const getColourOptionName = (optsList: any[]) => {
+    return optsList?.find(
+      (o: any) => o.name?.toLowerCase() === 'colour' || o.name?.toLowerCase() === 'color'
+    )?.name;
+  };
+
+  const getSizeOptionName = (optsList: any[]) => {
+    return optsList?.find((o: any) => o.name?.toLowerCase() === 'size')?.name;
+  };
+
+  const isVariantAvailable = (variant: any): boolean => {
+    if (!variant) return false;
+    if (variant.status && variant.status !== 'ACTIVE') return false;
+    const stock =
+      variant.inventory?.stockOnHand ??
+      variant.inventory?.availableQuantity ??
+      (variant.stock !== undefined ? variant.stock : 10);
+    return Number(stock) > 0;
+  };
+
+  const findVariantForOptions = (variantsList: any[], opts: Record<string, string>) => {
+    if (!variantsList || variantsList.length === 0) return null;
+    return (
+      variantsList.find((v: any) => {
+        const vOpts = v.optionValues || {};
+        return Object.entries(opts).every(([k, val]) => {
+          const vVal = vOpts[k];
+          return vVal && vVal.toLowerCase() === val.toLowerCase();
+        });
+      }) || null
+    );
+  };
+
+  const resolveGalleryForSelection = (
+    prod: any,
+    opts: Record<string, string>,
+    variant: any
+  ) => {
+    const colourOptName = getColourOptionName(prod.options);
+    const selectedColour = colourOptName ? opts[colourOptName] : null;
+
+    let gallery: any[] = [];
+
+    // Priority 1: Exact variant-specific media
+    if (variant?.id) {
+      const varMedia = (prod.images || []).filter(
+        (img: any) => img.variantId === variant.id
+      );
+      if (varMedia.length > 0) {
+        gallery = varMedia;
+      }
+    }
+
+    // Priority 2: Selected colour media
+    if (gallery.length === 0 && selectedColour) {
+      const colMedia = (prod.images || []).filter((img: any) => {
+        if (
+          img.optionValueName &&
+          img.optionValueName.toLowerCase() === selectedColour.toLowerCase()
+        ) {
+          return true;
+        }
+        return false;
+      });
+      if (colMedia.length > 0) {
+        const general = (prod.images || []).filter(
+          (img: any) => !img.variantId && !img.optionValueId && !img.optionValueName
+        );
+        gallery = [...colMedia, ...general];
+      }
+    }
+
+    // Priority 3: General / default product media
+    if (gallery.length === 0) {
+      const general = (prod.images || []).filter(
+        (img: any) => !img.variantId && !img.optionValueId && !img.optionValueName
+      );
+      if (general.length > 0) {
+        gallery = general;
+      }
+    }
+
+    // Priority 4: First available product images
+    if (gallery.length === 0) {
+      gallery = prod.images || [];
+    }
+
+    if (gallery.length === 0) {
+      gallery = [
+        {
+          id: 'fallback-placeholder',
+          url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80',
+        },
+      ];
+    }
+
+    return gallery;
+  };
+
+  const resolveVariantAndGallery = (
+    prod: any,
+    opts: Record<string, string>,
+    explicitVariant?: any
+  ) => {
+    if (!prod.variants || prod.variants.length === 0) return;
+
+    const matched =
+      explicitVariant ||
+      findVariantForOptions(prod.variants, opts) ||
+      prod.variants[0];
+
+    setActiveVariant(matched);
+
+    const newGallery = resolveGalleryForSelection(prod, opts, matched);
+    setActiveGallery(newGallery);
+    setSelectedMediaId(newGallery[0]?.id || null);
+  };
+
+  const handleOptionChange = (optionName: string, value: string) => {
+    if (!product) return;
+    const isColour =
+      optionName.toLowerCase() === 'colour' || optionName.toLowerCase() === 'color';
+    const sizeOptName = getSizeOptionName(product.options);
+
+    let nextOpts = { ...selectedOptions, [optionName]: value };
+
+    // If Colour changed, verify if current size is available in new colour
+    if (isColour && sizeOptName) {
+      const targetVariant = findVariantForOptions(product.variants, nextOpts);
+
+      if (!isVariantAvailable(targetVariant)) {
+        // Find all available variants for this new colour
+        const colourOptName = optionName;
+        const availableVariantsForColour = product.variants.filter((v: any) => {
+          return (
+            v.optionValues?.[colourOptName]?.toLowerCase() === value.toLowerCase() &&
+            isVariantAvailable(v)
+          );
+        });
+
+        if (availableVariantsForColour.length > 0) {
+          const newSize = availableVariantsForColour[0].optionValues?.[sizeOptName];
+          if (newSize) {
+            nextOpts[sizeOptName] = newSize;
+          }
+        }
+      }
+    }
+
+    setSelectedOptions(nextOpts);
+
+    const matched =
+      findVariantForOptions(product.variants, nextOpts) || product.variants[0];
+    setActiveVariant(matched);
+
+    const newGallery = resolveGalleryForSelection(product, nextOpts, matched);
+    setActiveGallery(newGallery);
+
+    if (isColour) {
+      // Switching colour resets selected media to the first image for this colour
+      setSelectedMediaId(newGallery[0]?.id || null);
+    } else {
+      // Switching size retains current image if still in gallery, else resets to first
+      if (!newGallery.some((m) => m.id === selectedMediaId)) {
+        setSelectedMediaId(newGallery[0]?.id || null);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!slug || !id) return;
@@ -76,10 +245,13 @@ export default function ProductDetailPage() {
         throw new Error('Product not found in store catalog');
       }
 
-      // Format options
+      // Format options with id, name, and values
       const formattedOptions = (found.options || []).map((opt: any) => ({
+        id: opt.id,
         name: opt.name,
-        values: (opt.values || []).map((v: any) => v.value),
+        values: (opt.values || []).map((v: any) =>
+          typeof v === 'string' ? { id: v, value: v } : { id: v.id, value: v.value, colorHex: v.colorHex }
+        ),
       }));
 
       // Format variants and map optionValues to key-value pairs
@@ -100,16 +272,35 @@ export default function ProductDetailPage() {
         };
       });
 
-      // Format images
-      const formattedImages = (found.media || []).map((m: any) => ({
-        id: m.id,
-        url:
-          m.publicUrl ||
-          (m.storageKey ? `/media/file/${m.storageKey}` : undefined) ||
-          m.url,
-        variantId: m.variantId,
-        isPrimary: m.isPrimary,
-      }));
+      // Map optionValueId to value name for media resolution
+      const optValIdToName = new Map<string, string>();
+      for (const opt of formattedOptions) {
+        for (const val of opt.values) {
+          if (val.id && val.value) {
+            optValIdToName.set(val.id, val.value);
+          }
+        }
+      }
+
+      // Format images with optionValue association
+      const formattedImages = (found.media || []).map((m: any, idx: number) => {
+        const optValName =
+          m.optionValue?.value ||
+          (m.optionValueId ? optValIdToName.get(m.optionValueId) : undefined);
+        return {
+          id: m.id || m.mediaAssetId || String(idx),
+          mediaAssetId: m.mediaAssetId,
+          url:
+            m.publicUrl ||
+            (m.storageKey ? `/media/file/${m.storageKey}` : undefined) ||
+            m.url,
+          variantId: m.variantId,
+          optionValueId: m.optionValueId,
+          optionValueName: optValName,
+          sortOrder: m.sortOrder ?? idx,
+          isPrimary: idx === 0,
+        };
+      });
 
       const fullProd = {
         ...found,
@@ -122,23 +313,37 @@ export default function ProductDetailPage() {
 
       setProduct(fullProd);
 
-      // Initialize default selected options
+      // Select deterministic first available variant (Part 28)
       if (fullProd.options && fullProd.options.length > 0) {
-        const initialOpts: Record<string, string> = {};
-        fullProd.options.forEach((opt: any) => {
-          if (opt.values && opt.values.length > 0) {
-            initialOpts[opt.name] = opt.values[0];
-          }
-        });
+        const firstAvail =
+          fullProd.variants.find((v: any) => isVariantAvailable(v)) ||
+          fullProd.variants[0];
+
+        let initialOpts: Record<string, string> = {};
+        if (firstAvail?.optionValues && Object.keys(firstAvail.optionValues).length > 0) {
+          initialOpts = { ...firstAvail.optionValues };
+        } else {
+          fullProd.options.forEach((opt: any) => {
+            if (opt.values && opt.values.length > 0) {
+              const vObj = opt.values[0];
+              initialOpts[opt.name] = typeof vObj === 'string' ? vObj : vObj.value;
+            }
+          });
+        }
         setSelectedOptions(initialOpts);
-        resolveVariantAndGallery(fullProd, initialOpts);
+        resolveVariantAndGallery(fullProd, initialOpts, firstAvail);
       } else {
-        const defaultImages = fullProd.images.map((img: any) => img.url);
-        setActiveGallery(
-          defaultImages.length > 0
-            ? defaultImages
-            : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80']
-        );
+        const defaultImages =
+          fullProd.images.length > 0
+            ? fullProd.images
+            : [
+                {
+                  id: 'fallback-placeholder',
+                  url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80',
+                },
+              ];
+        setActiveGallery(defaultImages);
+        setSelectedMediaId(defaultImages[0].id);
         if (fullProd.variants && fullProd.variants.length > 0) {
           setActiveVariant(fullProd.variants[0]);
         }
@@ -147,73 +352,6 @@ export default function ProductDetailPage() {
       console.error('Failed to load product details', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Resolve matching variant and update gallery according to selected colour
-  const resolveVariantAndGallery = (prod: any, opts: Record<string, string>) => {
-    if (!prod.variants || prod.variants.length === 0) return;
-
-    // Find variant that matches selected options
-    const matched = prod.variants.find((v: any) => {
-      const vOpts = v.optionValues || {};
-      return Object.entries(opts).every(([optName, optVal]) => vOpts[optName] === optVal);
-    }) || prod.variants[0];
-
-    setActiveVariant(matched);
-
-    // CRITICAL: Colour-Specific Gallery Dynamic Switching
-    // Check if the selected options include a Colour/Color option
-    const colourOptKey = Object.keys(opts).find(
-      (k) => k.toLowerCase() === 'colour' || k.toLowerCase() === 'color'
-    );
-    const selectedColour = colourOptKey ? opts[colourOptKey] : null;
-
-    let gallery: string[] = [];
-
-    // First priority: images attached specifically to this variant
-    const variantImgs = prod.images
-      ?.filter((img: any) => img.variantId === matched.id)
-      .map((img: any) => img.url) || [];
-
-    // Second priority: images attached to all variants of this colour
-    if (variantImgs.length === 0 && selectedColour && colourOptKey) {
-      const colourVariantIds = prod.variants
-        .filter((v: any) => v.optionValues?.[colourOptKey] === selectedColour)
-        .map((v: any) => v.id);
-
-      const colImgs = prod.images
-        ?.filter((img: any) => colourVariantIds.includes(img.variantId))
-        .map((img: any) => img.url) || [];
-
-      if (colImgs.length > 0) {
-        gallery = colImgs;
-      }
-    } else {
-      gallery = variantImgs;
-    }
-
-    // Fallback: general product images if variant has no custom pictures
-    if (gallery.length === 0) {
-      const general = prod.images
-        ?.filter((img: any) => !img.variantId)
-        .map((img: any) => img.url) || [];
-      gallery = general.length > 0 ? general : (prod.images || []).map((img: any) => img.url);
-    }
-
-    if (gallery.length === 0) {
-      gallery = ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80'];
-    }
-
-    setActiveGallery(gallery);
-    setSelectedImageIndex(0);
-  };
-
-  const handleOptionChange = (optionName: string, value: string) => {
-    const updated = { ...selectedOptions, [optionName]: value };
-    setSelectedOptions(updated);
-    if (product) {
-      resolveVariantAndGallery(product, updated);
     }
   };
 
@@ -241,7 +379,8 @@ export default function ProductDetailPage() {
 
     setAddingToCart(true);
     try {
-      const primaryImg = activeGallery[0] || product.images?.[0]?.url;
+      const currentMain = activeGallery.find((m) => m.id === selectedMediaId) || activeGallery[0];
+      const primaryImg = currentMain?.url || product.images?.[0]?.url;
       await addItem(variant.id, quantity, {
         productId: product.id,
         productName: product.title || product.name || 'Product',
@@ -269,7 +408,8 @@ export default function ProductDetailPage() {
     }
 
     try {
-      const primaryImg = activeGallery[0] || product.images?.[0]?.url;
+      const currentMain = activeGallery.find((m) => m.id === selectedMediaId) || activeGallery[0];
+      const primaryImg = currentMain?.url || product.images?.[0]?.url;
       await addItem(variant.id, quantity, {
         productId: product.id,
         productName: product.title || product.name || 'Product',
@@ -382,7 +522,12 @@ export default function ProductDetailPage() {
             {/* Primary Main Viewport */}
             <div className="aspect-square max-h-[460px] w-full bg-white rounded-2xl overflow-hidden border border-gray-200/90 shadow-xs relative group flex items-center justify-center p-4 sm:p-6">
               <SafeImage
-                src={activeGallery[selectedImageIndex] || activeGallery[0]}
+                data-testid="product-main-image"
+                src={
+                  (activeGallery.find((m) => m.id === selectedMediaId) || activeGallery[0])?.url ||
+                  product.images?.[0]?.url ||
+                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80'
+                }
                 alt={product.title}
                 className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                 fallbackTitle={product.title}
@@ -400,20 +545,23 @@ export default function ProductDetailPage() {
             {/* Thumbnail Navigation Row */}
             {activeGallery.length > 1 && (
               <div className="flex gap-2.5 overflow-x-auto pb-1">
-                {activeGallery.map((url, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedImageIndex(idx)}
-                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white p-1.5 flex items-center justify-center ${
-                      selectedImageIndex === idx
-                        ? 'border-gray-900 ring-2 ring-gray-900/15 shadow-xs'
-                        : 'border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <SafeImage src={url} alt="thumbnail" className="w-full h-full object-contain" />
-                  </button>
-                ))}
+                {activeGallery.map((m: any, idx: number) => {
+                  const isSelected = m.id === (selectedMediaId || activeGallery[0]?.id);
+                  return (
+                    <button
+                      key={m.id || idx}
+                      type="button"
+                      onClick={() => setSelectedMediaId(m.id)}
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white p-1.5 flex items-center justify-center cursor-pointer ${
+                        isSelected
+                          ? 'border-gray-900 ring-2 ring-gray-900/15 shadow-xs'
+                          : 'border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <SafeImage src={m.url} alt="thumbnail" className="w-full h-full object-contain" />
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -474,7 +622,19 @@ export default function ProductDetailPage() {
                 {product.options.map((opt: any) => {
                   const isColourOption =
                     opt.name.toLowerCase() === 'colour' || opt.name.toLowerCase() === 'color';
+                  const isSizeOption = opt.name.toLowerCase() === 'size';
                   const selectedVal = selectedOptions[opt.name];
+
+                  const isSizeAvailableForColour = (sizeVal: string) => {
+                    const colourOptName = getColourOptionName(product.options);
+                    const testOpts = { ...selectedOptions };
+                    if (colourOptName) {
+                      testOpts[colourOptName] = selectedOptions[colourOptName];
+                    }
+                    testOpts[opt.name] = sizeVal;
+                    const v = findVariantForOptions(product.variants, testOpts);
+                    return isVariantAvailable(v);
+                  };
 
                   return (
                     <div key={opt.name} className="space-y-2">
@@ -485,27 +645,112 @@ export default function ProductDetailPage() {
                         <span className="font-semibold text-gray-600">{selectedVal}</span>
                       </div>
 
-                      {/* Values Pills */}
-                      <div className="flex flex-wrap gap-2">
-                        {opt.values.map((val: string) => {
-                          const isSelected = selectedVal === val;
+                      {/* Colour Image Swatches */}
+                      {isColourOption ? (
+                        <div className="flex flex-wrap gap-2.5">
+                          {opt.values.map((vObj: any) => {
+                            const val = typeof vObj === 'string' ? vObj : vObj.value;
+                            const isSelected = selectedVal === val;
 
-                          return (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => handleOptionChange(opt.name, val)}
-                              className={`px-4 py-2 rounded-xl text-xs font-semibold border transition ${
-                                isSelected
-                                  ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
-                                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
-                              }`}
-                            >
-                              {val}
-                            </button>
-                          );
-                        })}
-                      </div>
+                            // Find swatch image for this colour
+                            const swatchImg = product.images?.find(
+                              (img: any) =>
+                                img.optionValueName &&
+                                img.optionValueName.toLowerCase() === val.toLowerCase()
+                            )?.url;
+
+                            return (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => handleOptionChange(opt.name, val)}
+                                className={`group relative flex items-center gap-2 p-1.5 pr-3 rounded-xl border-2 transition cursor-pointer ${
+                                  isSelected
+                                    ? 'border-gray-900 bg-gray-50 shadow-xs ring-1 ring-gray-900'
+                                    : 'border-gray-200 bg-white hover:border-gray-400'
+                                }`}
+                              >
+                                {swatchImg ? (
+                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                                    <SafeImage
+                                      src={swatchImg}
+                                      alt={val}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
+                                    style={{
+                                      backgroundColor:
+                                        val.toLowerCase() === 'white'
+                                          ? '#ffffff'
+                                          : val.toLowerCase() === 'black'
+                                          ? '#000000'
+                                          : '#e5e7eb',
+                                    }}
+                                  />
+                                )}
+                                <span className="text-xs font-bold text-gray-900">{val}</span>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-gray-900 ml-1" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : isSizeOption ? (
+                        /* Size options with computed availability */
+                        <div className="flex flex-wrap gap-2">
+                          {opt.values.map((vObj: any) => {
+                            const val = typeof vObj === 'string' ? vObj : vObj.value;
+                            const isSelected = selectedVal === val;
+                            const available = isSizeAvailableForColour(val);
+
+                            return (
+                              <button
+                                key={val}
+                                type="button"
+                                disabled={!available}
+                                aria-disabled={!available}
+                                onClick={() => available && handleOptionChange(opt.name, val)}
+                                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition ${
+                                  isSelected
+                                    ? 'border-gray-900 bg-gray-900 text-white shadow-sm cursor-pointer'
+                                    : !available
+                                    ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50 line-through'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400 cursor-pointer'
+                                }`}
+                              >
+                                {val}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        /* Other options (Material, Style, etc.) */
+                        <div className="flex flex-wrap gap-2">
+                          {opt.values.map((vObj: any) => {
+                            const val = typeof vObj === 'string' ? vObj : vObj.value;
+                            const isSelected = selectedVal === val;
+
+                            return (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => handleOptionChange(opt.name, val)}
+                                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                                  isSelected
+                                    ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                                }`}
+                              >
+                                {val}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -545,6 +790,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
+                      data-testid="add-to-cart-button"
                       type="button"
                       disabled={addingToCart || isOutOfStock}
                       onClick={handleAddToCart}

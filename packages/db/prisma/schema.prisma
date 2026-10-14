@@ -792,6 +792,7 @@ model ProductOptionValue {
 
   option        ProductOption               @relation(fields: [optionId], references: [id], onDelete: Cascade)
   variantValues ProductVariantOptionValue[]
+  media         ProductMedia[]
 
   @@unique([optionId, value])
   @@index([optionId])
@@ -849,25 +850,28 @@ model ProductMedia {
   tenantId     String      @map("tenant_id")
   storeId      String      @map("store_id")
   productId    String      @map("product_id")
-  variantId    String?     @map("variant_id") // Links variant-specific or colour-specific images
-  mediaAssetId String?     @map("media_asset_id")
-  storageKey   String      @map("storage_key")
-  publicUrl    String      @map("public_url")
-  filePath     String      @map("file_path")
-  mimeType     String      @map("mime_type")
-  sizeBytes    Int         @map("size_bytes")
-  width        Int?
-  height       Int?
-  altText      String?     @map("alt_text")
-  sortOrder    Int         @default(0) @map("sort_order")
-  createdAt    DateTime    @default(now()) @map("created_at")
+  variantId     String?             @map("variant_id") // Links variant-specific images
+  optionValueId String?             @map("option_value_id") // Links colour- or option-specific images
+  mediaAssetId  String?             @map("media_asset_id")
+  storageKey    String              @map("storage_key")
+  publicUrl     String              @map("public_url")
+  filePath      String              @map("file_path")
+  mimeType      String              @map("mime_type")
+  sizeBytes     Int                 @map("size_bytes")
+  width         Int?
+  height        Int?
+  altText       String?             @map("alt_text")
+  sortOrder     Int                 @default(0) @map("sort_order")
+  createdAt     DateTime            @default(now()) @map("created_at")
 
-  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  mediaAsset MediaAsset?     @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant     ProductVariant?     @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  optionValue ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+  mediaAsset  MediaAsset?         @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
   @@index([variantId])
+  @@index([optionValueId])
   @@map("product_media")
 }
 

@@ -112,12 +112,27 @@ export class StoresService {
         products: {
           where: { status: 'PUBLISHED', deletedAt: null },
           include: {
-            media: { orderBy: { sortOrder: 'asc' } },
+            media: {
+              include: {
+                mediaAsset: true,
+                optionValue: { include: { option: true } },
+                variant: true,
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
             attributes: { orderBy: { sortOrder: 'asc' } },
             documents: { orderBy: { sortOrder: 'asc' } },
-            options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
+            options: {
+              include: {
+                values: {
+                  include: { media: true },
+                  orderBy: { sortOrder: 'asc' },
+                },
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
             variants: {
-              where: { status: 'ACTIVE', deletedAt: null },
+              where: { deletedAt: null },
               include: {
                 inventory: true,
                 optionValues: {
@@ -127,7 +142,9 @@ export class StoresService {
                     },
                   },
                 },
+                media: true,
               },
+              orderBy: { sortOrder: 'asc' },
             },
           },
         },

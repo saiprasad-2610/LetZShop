@@ -49,6 +49,8 @@ interface MediaItemDraft {
   fileName?: string;
   sizeBytes?: number;
   isUploading?: boolean;
+  optionValue?: string;
+  optionValueId?: string;
 }
 
 interface ProductEditorDrawerProps {
@@ -202,16 +204,38 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       setStock(String(initialStock));
       setSku(firstVar?.sku || '');
 
-      // Load media with canonical publicUrl
-      const loadedMedia: MediaItemDraft[] = (product.media || []).map((m: any) => ({
-        id: m.mediaAssetId || m.id,
-        mediaAssetId: m.mediaAssetId || m.id,
-        publicUrl: m.publicUrl,
-        previewUrl: m.publicUrl,
-        fileName: m.mediaAsset?.fileName || m.fileName || m.altText || 'Product photo',
-        sizeBytes: m.mediaAsset?.sizeBytes || m.sizeBytes,
-        isUploading: false,
-      }));
+      // Load media with canonical publicUrl and deduplicate by mediaAssetId
+      const seenAssetIds = new Set<string>();
+      const loadedMedia: MediaItemDraft[] = [];
+      for (const m of product.media || []) {
+        const assetId = m.mediaAssetId || m.id;
+        if (!assetId || seenAssetIds.has(assetId)) continue;
+        seenAssetIds.add(assetId);
+
+        let optVal = m.optionValue?.value;
+        if (!optVal && m.variant?.optionValues) {
+          const colOv = m.variant.optionValues.find(
+            (vo: any) =>
+              vo.optionValue?.option?.name?.toLowerCase() === 'colour' ||
+              vo.optionValue?.option?.name?.toLowerCase() === 'color'
+          );
+          if (colOv?.optionValue?.value) {
+            optVal = colOv.optionValue.value;
+          }
+        }
+
+        loadedMedia.push({
+          id: assetId,
+          mediaAssetId: assetId,
+          publicUrl: m.publicUrl,
+          previewUrl: m.publicUrl,
+          fileName: m.mediaAsset?.fileName || m.fileName || m.altText || 'Product photo',
+          sizeBytes: m.mediaAsset?.sizeBytes || m.sizeBytes,
+          isUploading: false,
+          optionValue: optVal,
+          optionValueId: m.optionValueId,
+        });
+      }
       setMediaItems(loadedMedia);
 
       if (product.options && product.options.length > 0) {
@@ -466,6 +490,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         continue;
       }
 
+      const lowerName = file.name.toLowerCase();
+      let matchedColorValue: string | undefined = undefined;
+      const colourOption = options.find(
+        (o) => o.name.trim().toLowerCase() === 'colour' || o.name.trim().toLowerCase() === 'color'
+      );
+      if (colourOption) {
+        matchedColorValue = colourOption.values.find((val) =>
+          lowerName.includes(val.toLowerCase())
+        );
+      }
+
       // 2. Step 1: Create immediate local blob URL for instant preview
       const blobUrl = URL.createObjectURL(file);
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -479,6 +514,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           fileName: file.name,
           sizeBytes: file.size,
           isUploading: true,
+          optionValue: matchedColorValue,
         },
       ]);
 
@@ -515,6 +551,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     fileName: file.name,
                     sizeBytes: file.size,
                     isUploading: false,
+                    optionValue: item.optionValue || matchedColorValue,
                   }
                 : item
             )
@@ -775,6 +812,15 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         return;
       }
 
+      const media = mediaItems
+        .filter((m) => !m.isUploading && m.mediaAssetId)
+        .map((m, idx) => ({
+          mediaAssetId: m.mediaAssetId as string,
+          optionValue: m.optionValue || undefined,
+          optionValueId: m.optionValueId || undefined,
+          sortOrder: idx,
+        }));
+
       const payload: any = {
         name: trimmedName,
         description: description.trim() || undefined,
@@ -784,7 +830,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         compareAtPricePaise: comparePaise,
         stock: Number(stock) || 0,
         sku: sku.trim() || undefined,
-        ...(mediaAssetIds.length > 0 ? { mediaAssetIds } : {}),
+        ...(mediaAssetIds.length > 0 ? { mediaAssetIds, media } : { media: [] }),
       };
 
       if (hasVariants && options.some((o) => o.values.length > 0)) {
@@ -797,17 +843,32 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             values: o.values.map((v, vIdx) => ({ value: v.trim(), sortOrder: vIdx })),
           }));
 
-        payload.variants = variants.map((v, idx) => ({
-          id: v.id,
-          sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
-          pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
-          compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
-          stock: Number(v.inventoryQuantity) || 0,
-          initialStock: Number(v.inventoryQuantity) || 0,
-          optionValues: Object.values(v.optionValues),
-          mediaAssetId: v.mediaAssetId || undefined,
-          status: v.isActive ? 'ACTIVE' : 'INACTIVE',
-        }));
+        payload.variants = variants.map((v, idx) => {
+          let vMediaId = v.mediaAssetId;
+          if (!vMediaId) {
+            const vColour = Object.entries(v.optionValues).find(([k]) =>
+              k.toLowerCase() === 'colour' || k.toLowerCase() === 'color'
+            )?.[1];
+            if (vColour) {
+              const matchedMedia = mediaItems.find((m) => m.optionValue === vColour);
+              if (matchedMedia?.mediaAssetId) {
+                vMediaId = matchedMedia.mediaAssetId;
+              }
+            }
+          }
+
+          return {
+            id: v.id,
+            sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
+            pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
+            compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
+            stock: Number(v.inventoryQuantity) || 0,
+            initialStock: Number(v.inventoryQuantity) || 0,
+            optionValues: Object.values(v.optionValues),
+            mediaAssetId: vMediaId || undefined,
+            status: v.isActive ? 'ACTIVE' : 'INACTIVE',
+          };
+        });
       } else if (productId) {
         // If product was updated to simple without options, clear options explicitly
         payload.options = [];
@@ -1137,6 +1198,44 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                           </p>
                         ) : null}
                       </div>
+
+                      {/* Colour / Option Association */}
+                      {hasVariants && options.some((o) => o.values.length > 0) && (
+                        <div className="px-1 pt-0.5">
+                          <label className="text-[10px] font-semibold text-[var(--merchant-text-muted)] block mb-0.5">
+                            Colour / Option:
+                          </label>
+                          <select
+                            value={item.optionValue || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMediaItems((prev) =>
+                                prev.map((m, i) =>
+                                  i === idx
+                                    ? {
+                                        ...m,
+                                        optionValue: val || undefined,
+                                        optionValueId: undefined,
+                                      }
+                                    : m
+                                )
+                              );
+                            }}
+                            className="w-full text-[11px] px-1.5 py-1 border border-[var(--merchant-input-border)] rounded-md bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
+                          >
+                            <option value="">All / General</option>
+                            {options.map((opt) => (
+                              <optgroup key={opt.name} label={opt.name}>
+                                {opt.values.map((v) => (
+                                  <option key={`${opt.name}-${v}`} value={v}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
                       {/* Photo Controls: Reorder, Replace, Delete */}
                       <div className="flex items-center justify-between text-[11px] pt-1 px-1 border-t border-[var(--merchant-border)]">

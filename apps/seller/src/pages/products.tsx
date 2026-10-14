@@ -605,6 +605,7 @@ export default function ProductsPage() {
                             <td className="py-3.5 px-4 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
+                                  data-testid={`edit-product-btn-${p.id}`}
                                   onClick={() => {
                                     setEditingProductId(p.id);
                                     setEditorOpen(true);

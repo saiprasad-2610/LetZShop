@@ -116,16 +116,39 @@ export class StorefrontController {
         take: Math.min(50, limit),
         include: {
           category: { select: { id: true, name: true, slug: true } },
-          media: { orderBy: { sortOrder: 'asc' } },
+          media: {
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              mediaAsset: true,
+              optionValue: { include: { option: true } },
+              variant: true,
+            },
+          },
           attributes: { orderBy: { sortOrder: 'asc' } },
           documents: { orderBy: { sortOrder: 'asc' } },
-          options: { include: { values: true }, orderBy: { sortOrder: 'asc' } },
+          options: {
+            include: {
+              values: {
+                include: { media: true },
+                orderBy: { sortOrder: 'asc' },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
           variants: {
             where: { deletedAt: null },
             include: {
               inventory: true,
-              optionValues: { include: { optionValue: true } },
+              optionValues: {
+                include: {
+                  optionValue: {
+                    include: { option: true },
+                  },
+                },
+              },
+              media: true,
             },
+            orderBy: { sortOrder: 'asc' },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -160,16 +183,39 @@ export class StorefrontController {
       },
       include: {
         category: true,
-        media: { orderBy: { sortOrder: 'asc' } },
+        media: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            mediaAsset: true,
+            optionValue: { include: { option: true } },
+            variant: true,
+          },
+        },
         attributes: { orderBy: { sortOrder: 'asc' } },
         documents: { orderBy: { sortOrder: 'asc' } },
-        options: { include: { values: true }, orderBy: { sortOrder: 'asc' } },
+        options: {
+          include: {
+            values: {
+              include: { media: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         variants: {
           where: { deletedAt: null },
           include: {
             inventory: true,
-            optionValues: { include: { optionValue: true } },
+            optionValues: {
+              include: {
+                optionValue: {
+                  include: { option: true },
+                },
+              },
+            },
+            media: true,
           },
+          orderBy: { sortOrder: 'asc' },
         },
       },
     });
