@@ -28,16 +28,32 @@ import {
   Trash2,
   Star,
   MessageSquare,
+  Globe,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, type SupportedLocale } from '@simply/i18n';
 import Link from 'next/link';
 
 export default function SettingsPage() {
-  const { api, token, loading: authLoading } = useAuth();
+  const { user, api, token, loading: authLoading } = useAuth();
+  const { locale: currentLocale, setLocale, t } = useSellerI18n();
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Localization settings state
+  const [merchantLocale, setMerchantLocale] = useState<SupportedLocale>(currentLocale);
+  const [storefrontDefaultLocale, setStorefrontDefaultLocale] = useState<SupportedLocale>('en-IN');
+  const [enabledStorefrontLocales, setEnabledStorefrontLocales] = useState<SupportedLocale[]>([
+    'en-IN',
+    'mr-IN',
+  ]);
+  const [savingLocalization, setSavingLocalization] = useState(false);
+  const [localizationSaveMsg, setLocalizationSaveMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Store Form State
   const [businessName, setBusinessName] = useState('');
@@ -122,10 +138,42 @@ export default function SettingsPage() {
       setContactPhone(s.contactPhone || '');
       setContactEmail(s.contactEmail || '');
       setAddress(s.address || '');
+      if (s.storefrontDefaultLocale) {
+        setStorefrontDefaultLocale(s.storefrontDefaultLocale as SupportedLocale);
+      }
+      if (Array.isArray(s.enabledStorefrontLocales) && s.enabledStorefrontLocales.length > 0) {
+        setEnabledStorefrontLocales(s.enabledStorefrontLocales as SupportedLocale[]);
+      }
     } catch (err) {
       console.error('Failed to load settings', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveLocalization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingLocalization(true);
+    setLocalizationSaveMsg(null);
+    try {
+      await api.stores.updateStore({
+        storefrontDefaultLocale,
+        enabledStorefrontLocales,
+      });
+
+      await setLocale(merchantLocale);
+
+      setLocalizationSaveMsg({
+        type: 'success',
+        text: 'Language and storefront localization settings saved successfully!',
+      });
+    } catch (err: any) {
+      setLocalizationSaveMsg({
+        type: 'error',
+        text: err?.message || 'Failed to save localization settings.',
+      });
+    } finally {
+      setSavingLocalization(false);
     }
   };
 
@@ -609,6 +657,140 @@ export default function SettingsPage() {
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </form>
+
+        {/* SECTION: Multilingual & Internationalization Settings */}
+        <form
+          onSubmit={handleSaveLocalization}
+          className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-4 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[var(--merchant-primary)]" />
+                {t('settings.storefrontLanguage')}
+              </h2>
+              <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+                Configure your merchant dashboard language and shopper storefront languages independently.
+              </p>
+            </div>
+            {localizationSaveMsg && (
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
+                  localizationSaveMsg.type === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                }`}
+              >
+                {localizationSaveMsg.text}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
+                {t('settings.merchantLanguage')}
+              </label>
+              <p className="text-[11px] text-[var(--merchant-text-muted)] mb-2">
+                Language for your seller dashboard, inventory, orders, and analytics.
+              </p>
+              <select
+                value={merchantLocale}
+                onChange={(e) => setMerchantLocale(e.target.value as SupportedLocale)}
+                className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
+              >
+                {SUPPORTED_LOCALES.map((loc) => {
+                  const info = LOCALE_REGISTRY[loc];
+                  return (
+                    <option key={loc} value={loc}>
+                      {info.nativeName} ({info.name})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
+                {t('settings.defaultLanguage')}
+              </label>
+              <p className="text-[11px] text-[var(--merchant-text-muted)] mb-2">
+                The default language shown to visitors when opening your online store.
+              </p>
+              <select
+                value={storefrontDefaultLocale}
+                onChange={(e) => setStorefrontDefaultLocale(e.target.value as SupportedLocale)}
+                className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
+              >
+                {SUPPORTED_LOCALES.map((loc) => {
+                  const info = LOCALE_REGISTRY[loc];
+                  return (
+                    <option key={loc} value={loc}>
+                      {info.nativeName} ({info.name})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
+              {t('settings.enabledLanguages')}
+            </label>
+            <p className="text-[11px] text-[var(--merchant-text-muted)] mb-3">
+              Select which language choices are available in the storefront language switcher for your customers.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {SUPPORTED_LOCALES.map((loc) => {
+                const info = LOCALE_REGISTRY[loc];
+                const isChecked = enabledStorefrontLocales.includes(loc);
+                return (
+                  <label
+                    key={loc}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
+                      isChecked
+                        ? 'bg-[var(--merchant-primary-soft)] border-[var(--merchant-primary)]/40 text-[var(--merchant-text)] font-semibold'
+                        : 'bg-[var(--merchant-surface-muted)] border-[var(--merchant-border)] text-[var(--merchant-text-muted)] hover:border-[var(--merchant-primary)]/30'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEnabledStorefrontLocales([...enabledStorefrontLocales, loc]);
+                        } else {
+                          if (enabledStorefrontLocales.length > 1) {
+                            setEnabledStorefrontLocales(
+                              enabledStorefrontLocales.filter((l) => l !== loc)
+                            );
+                          }
+                        }
+                      }}
+                      className="rounded border-gray-300 text-[var(--merchant-primary)] focus:ring-[var(--merchant-primary)]"
+                    />
+                    <div className="truncate">
+                      <span className="block truncate">{info.nativeName}</span>
+                      <span className="text-[10px] opacity-75 font-normal">{info.name}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={savingLocalization}
+              className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-lg text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              {savingLocalization ? t('common.loading') : t('common.save')}
             </button>
           </div>
         </form>

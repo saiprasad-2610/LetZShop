@@ -213,6 +213,8 @@ export class SimplyApiClient {
       state?: string;
     }) => this.request('stores/onboard', { method: 'POST', body: data }),
     getMyStore: () => this.request('stores/my-store'),
+    updateStore: (data: any) =>
+      this.request('seller/store', { method: 'PATCH', body: data }),
     getMetrics: (params?: { period?: string; startDate?: string; endDate?: string }) =>
       this.request('seller/dashboard', { params }),
     getPrivatePreview: () => this.request('stores/my-store/preview'),
@@ -224,6 +226,8 @@ export class SimplyApiClient {
   public seller = {
     getDashboard: (params?: { period?: string; startDate?: string; endDate?: string }) =>
       this.request('seller/dashboard', { params }),
+    updatePreferences: (data: { preferredLocale: string }) =>
+      this.request('seller/preferences', { method: 'PATCH', body: data }),
   };
 
   // --- Catalog ---

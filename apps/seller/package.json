@@ -12,6 +12,7 @@
   "dependencies": {
     "@simply/api-contracts": "workspace:*",
     "@simply/config": "workspace:*",
+    "@simply/i18n": "workspace:*",
     "@simply/types": "workspace:*",
     "@simply/ui": "workspace:*",
     "@simply/validation": "workspace:*",

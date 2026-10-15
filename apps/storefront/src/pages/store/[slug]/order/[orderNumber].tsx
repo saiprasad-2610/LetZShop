@@ -18,10 +18,12 @@ import { ThemeWrapper } from '../../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../../components/StoreHeader';
 import { StoreFooter } from '../../../../components/StoreFooter';
 import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod } from '@simply/ui';
+import { useStorefrontI18n } from '@simply/i18n';
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
-  const { slug, orderNumber, t } = router.query;
+  const { slug, orderNumber, t: trackingToken } = router.query;
+  const { t, locale, initStoreLocales } = useStorefrontI18n();
   const { api, setStoreId } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,8 @@ export default function OrderConfirmationPage() {
 
   useEffect(() => {
     if (!slug || !orderNumber) return;
-    loadOrder(String(slug), String(orderNumber), t ? String(t) : undefined);
-  }, [slug, orderNumber, t]);
+    loadOrder(String(slug), String(orderNumber), trackingToken ? String(trackingToken) : undefined);
+  }, [slug, orderNumber, trackingToken]);
 
   const loadOrder = async (storeSlug: string, orderNum: string, token?: string) => {
     setLoading(true);
@@ -44,6 +46,13 @@ export default function OrderConfirmationPage() {
       ]);
       setStoreData(sRes);
       setOrder(oRes);
+      if (sRes.store) {
+        initStoreLocales({
+          storeSlug: String(storeSlug),
+          defaultLocale: sRes.store.storefrontDefaultLocale,
+          enabledLocales: sRes.store.enabledStorefrontLocales,
+        });
+      }
       if (sRes.store?.id) {
         setStoreId(sRes.store.id);
       }
@@ -282,23 +291,23 @@ export default function OrderConfirmationPage() {
 
             <div className="pt-3 border-t border-gray-200 space-y-1.5 text-xs text-gray-600">
               <div className="flex justify-between">
-                <span>Subtotal</span>
+                <span>{t('common.subtotal')}</span>
                 <span className="font-mono">{formatPaise(order.subtotalPaise || order.totalPaise || 0)}</span>
               </div>
               {order.discountPaise && order.discountPaise > 0 ? (
                 <div className="flex justify-between text-emerald-700 font-semibold">
-                  <span>Coupon Savings</span>
+                  <span>{t('checkout.couponDiscount')}</span>
                   <span className="font-mono">- {formatPaise(order.discountPaise)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between">
-                <span>Delivery</span>
+                <span>{t('checkout.freeDelivery')}</span>
                 <span className="text-emerald-700 font-semibold">
                   {order.shippingPaise && order.shippingPaise > 0 ? formatPaise(order.shippingPaise) : 'FREE'}
                 </span>
               </div>
               <div className="pt-2 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-900">
-                <span>Total Amount</span>
+                <span>{t('common.total')}</span>
                 <span className="font-mono text-emerald-800">{formatPaise(order.totalPaise || order.totalAmountPaise || 0)}</span>
               </div>
             </div>
@@ -412,7 +421,7 @@ export default function OrderConfirmationPage() {
             style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Continue Shopping at {store.name}</span>
+            <span>{t('storefront.continueShopping')}</span>
           </Link>
         </div>
       </main>

@@ -293,4 +293,37 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
   variants?: CreateProductVariantDto[];
+
+  @ApiPropertyOptional({ type: () => [ProductTranslationDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTranslationDto)
+  translations?: ProductTranslationDto[];
+}
+
+export class ProductTranslationDto {
+  @ApiProperty({ example: 'mr-IN' })
+  @IsString()
+  locale: string;
+
+  @ApiPropertyOptional({ example: 'क्लासिक कॉटन शर्ट' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'उत्तम दर्जाचे कॉटन शर्ट' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  seoTitle?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  seoDescription?: string;
 }

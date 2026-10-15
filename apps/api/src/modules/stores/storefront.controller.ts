@@ -150,6 +150,7 @@ export class StorefrontController {
             },
             orderBy: { sortOrder: 'asc' },
           },
+          translations: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -217,6 +218,7 @@ export class StorefrontController {
           },
           orderBy: { sortOrder: 'asc' },
         },
+        translations: true,
       },
     });
 

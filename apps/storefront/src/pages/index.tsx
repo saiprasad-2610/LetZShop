@@ -26,15 +26,14 @@ import {
   Share2
 } from 'lucide-react';
 import { getSellerUrl } from '../utils/config';
+import { LandingLocaleProvider, useLandingI18n, LandingLanguageSelect } from '@simply/i18n';
 
 /**
  * Letz Shop Platform Landing Page (Root `/`)
  * Domain: letzshop.store
- * 
- * Next-Gen E-Commerce Operating System for independent merchants,
- * artisanal brands, boutique creators, and growing businesses.
  */
-export default function PlatformLandingPage() {
+function LandingPageInner() {
+  const { t } = useLandingI18n();
   const [sellerUrl, setSellerUrl] = useState(getSellerUrl());
 
   useEffect(() => {
@@ -138,12 +137,12 @@ export default function PlatformLandingPage() {
             <Sparkles className="w-3 h-3 text-amber-300" />
             Letz Shop v2.0 Live
           </span>
-          <span>Claim your brand subdomain on <strong>letzshop.store</strong> today with zero setup fee!</span>
+          <span>{t('landing.announcement')}</span>
           <a
             href={`${sellerUrl}/login?mode=register`}
             className="underline underline-offset-2 font-bold hover:text-amber-200 transition ml-1"
           >
-            Start Free →
+            {t('landing.startFree')}
           </a>
         </div>
       </div>
@@ -173,34 +172,35 @@ export default function PlatformLandingPage() {
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-300">
-            <a href="#features" className="hover:text-white transition">Features</a>
-            <a href="#themes" className="hover:text-white transition">Themes</a>
-            <a href="#how-it-works" className="hover:text-white transition">How It Works</a>
-            <a href="#faq" className="hover:text-white transition">FAQ</a>
+            <a href="#features" className="hover:text-white transition">{t('landing.features')}</a>
+            <a href="#themes" className="hover:text-white transition">{t('landing.themes')}</a>
+            <a href="#how-it-works" className="hover:text-white transition">{t('landing.howItWorks')}</a>
+            <a href="#faq" className="hover:text-white transition">{t('landing.faq')}</a>
             <a
               href={`${sellerUrl}/store-preview`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-slate-400 hover:text-indigo-400 transition"
             >
-              <span>Live Preview</span>
+              <span>{t('landing.livePreview')}</span>
               <Eye className="w-3.5 h-3.5" />
             </a>
           </nav>
 
-          {/* Action CTAs */}
+          {/* Action CTAs & Language Switcher */}
           <div className="flex items-center gap-3">
+            <LandingLanguageSelect />
             <a
               href={`${sellerUrl}/login`}
               className="px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white transition rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800"
             >
-              Merchant Login
+              {t('landing.merchantLogin')}
             </a>
             <a
               href={`${sellerUrl}/login?mode=register`}
               className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span>Create Free Store</span>
+              <span>{t('landing.createFreeStore')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -228,15 +228,13 @@ export default function PlatformLandingPage() {
             {/* Headline */}
             <div className="space-y-4 max-w-4xl mx-auto">
               <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
-                Turn your brand into an{' '}
+                {t('landing.heroTitlePre')}{' '}
                 <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-                  online powerhouse.
+                  {t('landing.heroTitleGradient')}
                 </span>
               </h1>
               <p className="text-base sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
-                Launch your digital store in 60 seconds with <strong>Letz Shop</strong>. Ultra-HD themes,
-                1-tap checkout, instant UPI payments, and your dedicated link on{' '}
-                <span className="text-indigo-300 font-mono">yourbrand.letzshop.store</span>.
+                {t('landing.heroSubtitle')}
               </p>
             </div>
 
@@ -267,20 +265,20 @@ export default function PlatformLandingPage() {
                   className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Claim Free Store</span>
+                  <span>{t('landing.claimButton')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </form>
 
               <div className="pt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-slate-400">
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> No credit card needed
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.noCardNeeded')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> 60-second instant setup
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.instantSetup')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Free SSL & CDN included
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.freeSsl')}
                 </span>
               </div>
             </div>
@@ -854,14 +852,22 @@ export default function PlatformLandingPage() {
 
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
-          <p>© 2026 Letz Shop Inc. (letzshop.store). All rights reserved.</p>
+          <p>© 2026 Letz Shop Inc. (letzshop.store). {t('landing.allRightsReserved')}</p>
           <div className="flex items-center gap-4">
-            <a href="#features" className="hover:text-slate-300 transition">Terms of Service</a>
-            <a href="#features" className="hover:text-slate-300 transition">Privacy Policy</a>
+            <a href="#features" className="hover:text-slate-300 transition">{t('landing.terms')}</a>
+            <a href="#features" className="hover:text-slate-300 transition">{t('landing.privacy')}</a>
             <a href="#faq" className="hover:text-slate-300 transition">Merchant Guidelines</a>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function PlatformLandingPage() {
+  return (
+    <LandingLocaleProvider>
+      <LandingPageInner />
+    </LandingLocaleProvider>
   );
 }

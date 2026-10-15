@@ -483,14 +483,27 @@ export class OrdersService {
 
       // Step F: Create OrderItem records with complete historical snapshots
       for (const item of cart.items) {
+        // Deterministic ProductOption ordering (e.g. Colour (0) then Size (1) -> "Black · M")
+        const sortedOptionValues = [...(item.variant.optionValues || [])].sort((a: any, b: any) => {
+          const sortA = a.optionValue?.option?.sortOrder ?? 0;
+          const sortB = b.optionValue?.option?.sortOrder ?? 0;
+          if (sortA !== sortB) return sortA - sortB;
+          const nameA = a.optionValue?.option?.name || '';
+          const nameB = b.optionValue?.option?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+
         const optionSnapshot: Record<string, string> = {};
-        for (const optVal of item.variant.optionValues) {
+        for (const optVal of sortedOptionValues) {
           const optName = optVal.optionValue?.option?.name || 'Option';
           optionSnapshot[optName] = optVal.optionValue.value;
         }
 
         const variantTitle =
-          Object.values(optionSnapshot).join(' · ') || item.variant.sku;
+          sortedOptionValues
+            .map((ov: any) => ov.optionValue?.value)
+            .filter(Boolean)
+            .join(' · ') || item.variant.sku;
 
         const snapshotImageUrl = resolveVariantMediaUrl({
           productMedia: item.variant.product?.media || [],

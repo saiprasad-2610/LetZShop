@@ -25,11 +25,13 @@ import { SafeImage } from '../../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../../utils/config';
 import { ProductReviewsSection } from '../../../../components/ProductReviewsSection';
+import { useStorefrontI18n } from '@simply/i18n';
 
 export default function ProductDetailPage() {
   const router = useRouter();
   const { slug, id, preview } = router.query;
   const { api, setStoreId, addItem } = useCart();
+  const { locale, t, initStoreLocales } = useStorefrontI18n();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -233,6 +235,9 @@ export default function ProductDetailPage() {
     try {
       const sRes = await api.stores.getPublicStorefront(storeSlug, previewSecret);
       setStoreData(sRes);
+      if (sRes.store && initStoreLocales) {
+        initStoreLocales(sRes.store.storefrontDefaultLocale, sRes.store.enabledStorefrontLocales);
+      }
       if (sRes.store?.id) {
         setStoreId(sRes.store.id);
       }
@@ -465,11 +470,15 @@ export default function ProductDetailPage() {
   const isOutOfStock = stockQuantity <= 0;
   const isLowStock = stockQuantity > 0 && stockQuantity < 5;
 
+  const trans = product.translations?.find((tr: any) => tr.locale === locale);
+  const displayTitle = trans?.name || product.title || product.name || 'Product';
+  const displayDescription = trans?.description || product.description || '';
+
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
       <Head>
-        <title>{product.title} | {store.name}</title>
-        <meta name="description" content={product.description || `Buy ${product.title} from ${store.name}`} />
+        <title>{displayTitle} | {store.name}</title>
+        <meta name="description" content={displayDescription || `Buy ${displayTitle} from ${store.name}`} />
       </Head>
 
       {/* Persistent Merchant Preview Banner (Hidden when embedded in iframe) */}
@@ -505,14 +514,14 @@ export default function ProductDetailPage() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900">
-            Home
+            {t('storefront.home')}
           </Link>
           <span>/</span>
           <Link href={getLink(`/store/${slug}/search`)} className="hover:text-gray-900">
-            Products
+            {t('storefront.products')}
           </Link>
           <span>/</span>
-          <span className="font-semibold text-gray-800 line-clamp-1">{product.title}</span>
+          <span className="font-semibold text-gray-800 line-clamp-1">{displayTitle}</span>
         </div>
 
         {/* Product Hero Split (Gallery Left / Commercials Right) */}
@@ -576,7 +585,7 @@ export default function ProductDetailPage() {
                 </span>
               )}
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-theme-heading text-gray-900 tracking-tight leading-tight">
-                {product.title}
+                {displayTitle}
               </h1>
             </div>
 
@@ -592,7 +601,7 @@ export default function ProductDetailPage() {
                   </span>
                 )}
                 <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">
-                  Inclusive of all taxes
+                  {t('storefront.inclusiveOfTaxes')}
                 </span>
               </div>
             )}
@@ -602,15 +611,15 @@ export default function ProductDetailPage() {
               <div>
                 {isOutOfStock ? (
                   <span className="text-xs font-bold text-red-600 flex items-center gap-1.5">
-                    <X className="w-4 h-4" /> Currently Out of Stock
+                    <X className="w-4 h-4" /> {t('storefront.outOfStock')}
                   </span>
                 ) : isLowStock ? (
                   <span className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4" /> Only {stockQuantity} units left in stock!
+                    <AlertTriangle className="w-4 h-4" /> {t('storefront.lowStock', { count: stockQuantity })}
                   </span>
                 ) : (
                   <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
-                    <Check className="w-4 h-4" /> Ready for Immediate Dispatch
+                    <Check className="w-4 h-4" /> {t('storefront.readyForDispatch')}
                   </span>
                 )}
               </div>
@@ -640,7 +649,7 @@ export default function ProductDetailPage() {
                     <div key={opt.name} className="space-y-2">
                       <div className="flex justify-between text-xs">
                         <span className="font-bold text-gray-900 uppercase tracking-wide">
-                          Select {opt.name}
+                          {isColourOption ? t('storefront.selectColour') : isSizeOption ? t('storefront.selectSize') : `Select ${opt.name}`}
                         </span>
                         <span className="font-semibold text-gray-600">{selectedVal}</span>
                       </div>
@@ -760,7 +769,7 @@ export default function ProductDetailPage() {
             {/* Quantity Selector (for ecommerce products) */}
             {!isEnquiryOnly && !isOutOfStock && (
               <div className="flex items-center gap-4 pt-2">
-                <span className="text-xs font-bold text-gray-700 uppercase">Quantity</span>
+                <span className="text-xs font-bold text-gray-700 uppercase">{t('storefront.quantity')}</span>
                 <div className="flex items-center border border-gray-300 rounded-xl bg-white overflow-hidden shadow-sm">
                   <button
                     type="button"
@@ -797,7 +806,7 @@ export default function ProductDetailPage() {
                       className="w-full py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       <ShoppingBag className="w-4 h-4" />
-                      {cartSuccess ? 'Added to Cart ✓' : addingToCart ? 'Adding...' : 'Add to Cart'}
+                      {cartSuccess ? t('storefront.addedToCart') : addingToCart ? t('storefront.adding') : t('storefront.addToCart')}
                     </button>
 
                     <button
@@ -807,7 +816,7 @@ export default function ProductDetailPage() {
                       className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
                       style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                     >
-                      Buy Now
+                      {t('storefront.buyNow')}
                     </button>
                   </div>
                 </div>
@@ -839,13 +848,13 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Description Tab */}
-            {product.description && (
+            {displayDescription && (
               <div className="space-y-2 pt-4 border-t border-gray-100">
                 <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                  Product Overview & Specifications
+                  {t('storefront.description')}
                 </h3>
                 <div className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
-                  {product.description}
+                  {displayDescription}
                 </div>
               </div>
             )}

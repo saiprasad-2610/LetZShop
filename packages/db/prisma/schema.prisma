@@ -235,6 +235,7 @@ model User {
   role           UserRole           @default(SELLER_OWNER)
   isSuperAdmin   Boolean            @default(false)
   isActive       Boolean            @default(true)
+  preferredLocale String            @default("en-IN") @map("preferred_locale")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   deletedAt      DateTime?          @map("deleted_at")
@@ -414,6 +415,8 @@ model Store {
   timezone             String      @default("Asia/Kolkata")
   isPubliclyAccessible Boolean     @default(false) @map("is_publicly_accessible")
   previewSecret        String      @default(uuid()) @map("preview_secret")
+  storefrontDefaultLocale String   @default("en-IN") @map("storefront_default_locale")
+  enabledStorefrontLocales String[] @default(["en-IN", "mr-IN", "hi-IN", "gu-IN", "kn-IN", "ta-IN", "te-IN", "bn-IN", "ml-IN", "pa-IN"]) @map("enabled_storefront_locales")
   supportPhone         String?                   @map("support_phone")
   supportEmail         String?                   @map("support_email")
   whatsappNumber       String?                   @map("whatsapp_number")
@@ -753,6 +756,7 @@ model Product {
   enquiries  Enquiry[]
   orderItems OrderItem[]
   reviews    ProductReview[]
+  translations ProductTranslation[]
 
   @@unique([storeId, slug])
   @@index([tenantId, storeId, status])
@@ -913,6 +917,24 @@ model ProductDocument {
   @@index([productId, sortOrder])
   @@index([storeId])
   @@map("product_documents")
+}
+
+model ProductTranslation {
+  id             String   @id @default(uuid())
+  productId      String   @map("product_id")
+  locale         String   // e.g. "mr-IN", "hi-IN"
+  name           String
+  description    String?
+  seoTitle       String?  @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@index([productId])
+  @@map("product_translations")
 }
 
 // ==============================================================================

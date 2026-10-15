@@ -479,7 +479,7 @@ async function main() {
       cwd: path.resolve(rootDir, 'apps/api'),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '1' }
+      env: { ...process.env, NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=4096', FORCE_COLOR: '1' }
     }),
     seller: spawn(nodeBinary, [nextSellerBin, 'dev', '-p', '3001'], {
       cwd: path.resolve(rootDir, 'apps/seller'),

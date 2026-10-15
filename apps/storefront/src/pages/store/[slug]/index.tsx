@@ -31,11 +31,13 @@ import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { useStorefrontI18n } from '@simply/i18n';
 
 export default function StoreHomePage() {
   const router = useRouter();
   const { slug, preview } = router.query;
   const { setStoreId, api, addItem } = useCart();
+  const { locale, t, initStoreLocales } = useStorefrontI18n();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -88,6 +90,9 @@ export default function StoreHomePage() {
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
       setStoreData(res);
+      if (res.store && initStoreLocales) {
+        initStoreLocales(res.store.storefrontDefaultLocale, res.store.enabledStorefrontLocales);
+      }
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -1325,7 +1330,9 @@ export default function StoreHomePage() {
               'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
             }`}>
               {filteredProducts.map((p: any) => {
-                const title = p.name || p.title || 'Product';
+                const trans = p.translations?.find((tr: any) => tr.locale === locale);
+                const title = trans?.name || p.name || p.title || 'Product';
+                const description = trans?.description || p.description;
                 const primaryVariant = p.variants?.[0];
                 const pricePaise = p.basePricePaise ?? primaryVariant?.pricePaise ?? 0;
                 const comparePaise = p.compareAtPricePaise ?? primaryVariant?.compareAtPricePaise;

@@ -39,6 +39,7 @@ import {
   PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES
 } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { useStorefrontI18n } from '@simply/i18n';
 
 // Quick PIN code mapping for common Indian states & cities to assist buyers
 const PINCODE_MAP: Record<string, { city: string; state: string }> = {
@@ -62,16 +63,24 @@ function formatItemVariantLabel(item: any): string | null {
   }
   const variant = item.variant;
   if (!variant) return null;
-  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
-    return variant.title;
-  }
   if (Array.isArray(variant.optionValues) && variant.optionValues.length > 0) {
-    const values = variant.optionValues
+    const sorted = [...variant.optionValues].sort((a: any, b: any) => {
+      const sortA = a.optionValue?.option?.sortOrder ?? a.option?.sortOrder ?? 0;
+      const sortB = b.optionValue?.option?.sortOrder ?? b.option?.sortOrder ?? 0;
+      if (sortA !== sortB) return sortA - sortB;
+      const nameA = a.optionValue?.option?.name || a.option?.name || '';
+      const nameB = b.optionValue?.option?.name || b.option?.name || '';
+      return nameA.localeCompare(nameB);
+    });
+    const values = sorted
       .map((ov: any) => ov.optionValue?.value || ov.value)
       .filter(Boolean);
     if (values.length > 0) {
       return values.join(' · ');
     }
+  }
+  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
+    return variant.title;
   }
   return null;
 }
@@ -81,6 +90,7 @@ export default function StoreCheckoutPage() {
   const { slug, preview } = router.query;
   const isEmbedded = router.query.embedded === 'true';
   const toast = useToast();
+  const { locale, t, initStoreLocales } = useStorefrontI18n();
 
   const { 
     cart, 
@@ -152,6 +162,9 @@ export default function StoreCheckoutPage() {
     try {
       const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
+      if (res.store && initStoreLocales) {
+        initStoreLocales(res.store.storefrontDefaultLocale, res.store.enabledStorefrontLocales);
+      }
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -555,7 +568,7 @@ export default function StoreCheckoutPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                  {isPreviewMode ? 'Store Checkout Preview' : 'Checkout & Delivery'}
+                  {isPreviewMode ? 'Store Checkout Preview' : t('storefront.checkout')}
                 </h1>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Fast, encrypted checkout without mandatory password creation.
@@ -577,7 +590,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">1</span>
-                      Contact Information
+                      {t('storefront.contactInfo')}
                     </h2>
                     <span className="text-[11px] text-gray-400 font-medium">OTP-free guest flow</span>
                   </div>
@@ -585,7 +598,7 @@ export default function StoreCheckoutPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Full Name <span className="text-red-500">*</span>
+                        {t('storefront.fullName')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -602,7 +615,7 @@ export default function StoreCheckoutPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Mobile Number (For delivery updates) <span className="text-red-500">*</span>
+                        {t('storefront.mobileNumber')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-2.5 text-xs font-mono text-gray-500 font-bold">+91</span>
@@ -620,7 +633,7 @@ export default function StoreCheckoutPage() {
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Email Address <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
+                        {t('storefront.email')} <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -641,7 +654,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">2</span>
-                      Delivery & Fulfillment
+                      {t('storefront.delivery')}
                     </h2>
 
                     {supportsPickup && supportsDelivery && (
@@ -803,7 +816,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">3</span>
-                      Payment Method
+                      {t('storefront.paymentMethod')}
                     </h2>
                     <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Verified Secure
@@ -831,7 +844,7 @@ export default function StoreCheckoutPage() {
                           />
                           <div>
                             <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              Cash on Delivery (COD)
+                              {t('storefront.cod')}
                               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
                                 Most Popular
                               </span>
@@ -866,7 +879,7 @@ export default function StoreCheckoutPage() {
                           />
                           <div>
                             <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              Online Payment (UPI, Cards, Netbanking)
+                              {t('storefront.onlinePayment')}
                               {isPreviewMode && (
                                 <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
                                   Preview Mode Simulation
@@ -1096,7 +1109,7 @@ export default function StoreCheckoutPage() {
                   </div>
 
                   <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
-                    <span>Grand Total</span>
+                    <span>{t('storefront.totalAmount')}</span>
                     <span className="font-mono text-emerald-800">
                       {formatPaise(calculatedGrandTotalPaise)}
                     </span>
@@ -1122,7 +1135,7 @@ export default function StoreCheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <span>Place Order • {formatPaise(calculatedGrandTotalPaise)}</span>
+                      <span>{t('storefront.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

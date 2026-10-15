@@ -156,11 +156,23 @@ export function InvoiceModal({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {(order.items || []).map((item: any) => {
+                    const snapshot = item.optionSnapshot || item.selectedOptions;
                     const displayVariant =
                       item.variantTitle && item.variantTitle !== 'Default'
                         ? item.variantTitle
-                        : item.optionSnapshot && Object.keys(item.optionSnapshot).length > 0
-                          ? Object.values(item.optionSnapshot).join(' · ')
+                        : snapshot && Object.keys(snapshot).length > 0
+                          ? Object.keys(snapshot)
+                              .sort((a, b) => {
+                                const order = ['colour', 'color', 'size', 'fit', 'material'];
+                                const iA = order.indexOf(a.toLowerCase());
+                                const iB = order.indexOf(b.toLowerCase());
+                                if (iA !== -1 && iB !== -1) return iA - iB;
+                                if (iA !== -1) return -1;
+                                if (iB !== -1) return 1;
+                                return a.localeCompare(b);
+                              })
+                              .map((k) => snapshot[k])
+                              .join(' · ')
                           : null;
                     return (
                       <tr key={item.id} className="text-xs">

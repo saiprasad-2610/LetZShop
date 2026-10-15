@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { OrderDetailsDrawer } from '../components/OrderDetailsDrawer';
 import { TableSkeleton } from '../components/ui/Skeletons';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 
 // Canonical Order Status badge styling
 const ORDER_STATUS_CONFIG: Record<
@@ -56,6 +57,7 @@ const PAYMENT_STATUS_CONFIG: Record<
 export default function OrdersPage() {
   const { api, token, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t, locale } = useSellerI18n();
 
   // Orders and Pagination state
   const [orders, setOrders] = useState<any[]>([]);
@@ -225,11 +227,12 @@ export default function OrdersPage() {
       bgClass: 'bg-slate-100 border border-slate-200',
       textClass: 'text-slate-800',
     };
+    const translatedLabel = t(`orderStatus.${status}`, {}, config.label);
     return (
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${config.bgClass} ${config.textClass}`}
       >
-        {config.label}
+        {translatedLabel}
       </span>
     );
   };
@@ -240,12 +243,13 @@ export default function OrdersPage() {
       bgClass: 'bg-slate-100 border border-slate-200',
       textClass: 'text-slate-700',
     };
+    const translatedLabel = t(`paymentStatus.${status}`, {}, config.label);
     return (
       <div className="flex items-center gap-1.5 flex-wrap">
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${config.bgClass} ${config.textClass}`}
         >
-          {config.label}
+          {translatedLabel}
         </span>
         {method && method !== 'MANUAL' && (
           <span className="text-[10px] font-semibold text-slate-500 uppercase px-1.5 py-0.5 bg-slate-100 rounded">

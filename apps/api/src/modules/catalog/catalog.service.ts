@@ -373,6 +373,36 @@ export class CatalogService {
         }
       }
 
+      // 5.5 Optional Product Translations
+      if (dto.translations && Array.isArray(dto.translations)) {
+        for (const trans of dto.translations) {
+          if (trans.locale && (trans.name || trans.description)) {
+            await tx.productTranslation.upsert({
+              where: {
+                productId_locale: {
+                  productId: product.id,
+                  locale: trans.locale,
+                },
+              },
+              create: {
+                productId: product.id,
+                locale: trans.locale,
+                name: trans.name || product.name || '',
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+              update: {
+                ...(trans.name ? { name: trans.name } : {}),
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+            });
+          }
+        }
+      }
+
       // 6. Audit Log
       await tx.auditLog.create({
         data: {
@@ -416,6 +446,7 @@ export class CatalogService {
             orderBy: { sortOrder: 'asc' },
           },
           category: true,
+          translations: true,
         },
       });
     });
@@ -465,6 +496,7 @@ export class CatalogService {
             where: { deletedAt: null },
             include: { inventory: true },
           },
+          translations: true,
         },
       }),
       this.prisma.product.count({ where }),
@@ -518,6 +550,7 @@ export class CatalogService {
           },
           orderBy: { sortOrder: 'asc' },
         },
+        translations: true,
       },
     });
 
@@ -983,6 +1016,36 @@ export class CatalogService {
         }
       }
 
+      // 4.5 Optional Product Translations
+      if (dto.translations && Array.isArray(dto.translations)) {
+        for (const trans of dto.translations) {
+          if (trans.locale && (trans.name || trans.description)) {
+            await tx.productTranslation.upsert({
+              where: {
+                productId_locale: {
+                  productId: product.id,
+                  locale: trans.locale,
+                },
+              },
+              create: {
+                productId: product.id,
+                locale: trans.locale,
+                name: trans.name || product.name || '',
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+              update: {
+                ...(trans.name ? { name: trans.name } : {}),
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+            });
+          }
+        }
+      }
+
       // 5. Audit Log
       await tx.auditLog.create({
         data: {
@@ -1026,6 +1089,7 @@ export class CatalogService {
             orderBy: { sortOrder: 'asc' },
           },
           category: true,
+          translations: true,
         },
       });
     });

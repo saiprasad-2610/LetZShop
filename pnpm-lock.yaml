@@ -511,6 +511,22 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/i18n:
+    dependencies:
+      '@simply/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.31
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   packages/storage:
     devDependencies:
       '@types/node':

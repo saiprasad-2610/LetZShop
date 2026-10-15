@@ -16,8 +16,10 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, type SupportedLocale } from '@simply/i18n';
 import { parseRupeesToPaise, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/ui';
 import { validateProductImageFile, formatBytes } from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
@@ -91,8 +93,11 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const [creatingCategory, setCreatingCategory] = useState(false);
 
   // Form State
+  const { t } = useSellerI18n();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [translations, setTranslations] = useState<Record<string, { name: string; description: string }>>({});
+  const [activeTranslationLocale, setActiveTranslationLocale] = useState<SupportedLocale>('mr-IN');
   const [categoryId, setCategoryId] = useState('');
   const [mode, setMode] = useState<
     'SELL_ONLINE' | 'ENQUIRY_ONLY' | 'SELL_AND_ENQUIRY'
@@ -170,6 +175,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const resetForm = () => {
     setName('');
     setDescription('');
+    setTranslations({});
     setCategoryId('');
     setShowQuickAddCategory(false);
     setNewCatName('');
@@ -198,6 +204,20 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       const product = await api.catalog.getProduct(id);
       setName(product.name || product.title || '');
       setDescription(product.description || '');
+      if (Array.isArray(product.translations)) {
+        const transMap: Record<string, { name: string; description: string }> = {};
+        for (const tr of product.translations) {
+          if (tr.locale) {
+            transMap[tr.locale] = {
+              name: tr.name || '',
+              description: tr.description || '',
+            };
+          }
+        }
+        setTranslations(transMap);
+      } else {
+        setTranslations({});
+      }
       setCategoryId(product.categoryId || '');
       setMode(product.mode || 'SELL_ONLINE');
 
@@ -894,6 +914,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         ];
       }
 
+      const translationEntries = Object.entries(translations)
+        .filter(([_, t]) => Boolean((t.name && t.name.trim()) || (t.description && t.description.trim())))
+        .map(([loc, t]) => ({
+          locale: loc,
+          name: t.name?.trim() || undefined,
+          description: t.description?.trim() || undefined,
+        }));
+      if (translationEntries.length > 0) {
+        payload.translations = translationEntries;
+      }
+
       if (productId) {
         await api.catalog.updateProduct(productId, payload);
       } else {
@@ -995,6 +1026,73 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   placeholder="Describe your product materials, fit, care instructions..."
                   className="w-full px-3.5 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
                 />
+              </div>
+
+              {/* Optional Localized Content (Multi-lingual) */}
+              <div className="p-3.5 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-[var(--merchant-primary)]" />
+                    <span className="text-xs font-bold text-[var(--merchant-text)]">
+                      {t('products.optionalTranslations')}
+                    </span>
+                  </div>
+                  <select
+                    value={activeTranslationLocale}
+                    onChange={(e) => setActiveTranslationLocale(e.target.value as SupportedLocale)}
+                    className="text-xs bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg px-2 py-1 text-[var(--merchant-text)] font-medium focus:outline-none focus:border-[var(--merchant-primary)]"
+                  >
+                    {SUPPORTED_LOCALES.filter((l) => l !== 'en-IN').map((loc) => {
+                      const info = LOCALE_REGISTRY[loc];
+                      const hasData = Boolean(
+                        translations[loc]?.name?.trim() || translations[loc]?.description?.trim()
+                      );
+                      return (
+                        <option key={loc} value={loc}>
+                          {info.nativeName} ({info.name}) {hasData ? '✓' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                  Enter optional localized title and description for {LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}. Shoppers browsing in this language will see these translations, while English shoppers see your default content.
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={translations[activeTranslationLocale]?.name || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTranslations((prev) => ({
+                        ...prev,
+                        [activeTranslationLocale]: {
+                          ...prev[activeTranslationLocale],
+                          name: val,
+                          description: prev[activeTranslationLocale]?.description || '',
+                        },
+                      }));
+                    }}
+                    placeholder={`Product name in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
+                    className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
+                  />
+                  <textarea
+                    rows={2}
+                    value={translations[activeTranslationLocale]?.description || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTranslations((prev) => ({
+                        ...prev,
+                        [activeTranslationLocale]: {
+                          name: prev[activeTranslationLocale]?.name || '',
+                          description: val,
+                        },
+                      }));
+                    }}
+                    placeholder={`Description in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
+                    className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

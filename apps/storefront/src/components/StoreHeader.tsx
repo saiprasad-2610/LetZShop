@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { ShoppingBag, Search, Menu, X, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getWordmark } from '@simply/ui';
+import { useStorefrontI18n, StorefrontLanguageSelect } from '@simply/i18n';
 
 interface StoreHeaderProps {
   store: any;
@@ -13,6 +14,7 @@ interface StoreHeaderProps {
 export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) => {
   const router = useRouter();
   const { itemCount } = useCart();
+  const { t } = useStorefrontI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const themeCode = themeConfig?.themeId || 'atelier';
@@ -211,18 +213,19 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
         }`}>
           <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
-            Home
+            {t('storefront.home')}
           </Link>
           <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
-            Products
+            {t('storefront.products')}
           </Link>
           <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-gray-900 transition">
-            About Us
+            {t('storefront.aboutUs')}
           </Link>
         </nav>
 
-        {/* Right Action Icons (Search, RFQ, Cart) */}
-        <div className="flex items-center gap-3">
+        {/* Right Action Icons (Language Select, Search, RFQ, Cart) */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <StorefrontLanguageSelect />
           <Link
             href={getQueryPath(`/store/${slug}/search`)}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
@@ -257,7 +260,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           >
             <ShoppingBag className="w-4 h-4" />
             <span className="hidden sm:inline">
-              {themeCode === 'foundry' ? 'Order' : 'Cart'}
+              {themeCode === 'foundry' ? t('navigation.orders') : t('storefront.cart')}
             </span>
             {itemCount > 0 && (
               <span
@@ -294,28 +297,28 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Home
+            {t('storefront.home')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/products`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Products
+            {t('storefront.products')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/about`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            About Us
+            {t('storefront.aboutUs')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/cart`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Shopping Cart ({itemCount})
+            {t('storefront.cart')} ({itemCount})
           </Link>
           {themeCode === 'foundry' && (
             <a

@@ -6,6 +6,7 @@ import { Layout } from '../components/Layout';
 import { ProductEditorDrawer } from '../components/ProductEditorDrawer';
 import { DashboardMetricCard, StoreLaunchIllustration } from '../components/dashboard/DashboardEnrichment';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 import {
   TrendingUp,
   ShoppingBag,
@@ -50,6 +51,7 @@ const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
 export default function CompactDashboardPage() {
   const { user, store, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t, locale, formatCurrency } = useSellerI18n();
 
   // State
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('30d');
@@ -770,7 +772,7 @@ export default function CompactDashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 1. Total Sales */}
             <DashboardMetricCard
-              label="Total Sales"
+              label={t('dashboard.revenue')}
               value={formatPaise(metrics.revenuePaise)}
               subtitle="Paid eligible orders"
               icon={<TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
@@ -782,7 +784,7 @@ export default function CompactDashboardPage() {
 
             {/* 2. Orders */}
             <DashboardMetricCard
-              label="Orders"
+              label={t('dashboard.orders')}
               value={metrics.orders}
               subtitle="Total placed orders"
               icon={<ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
@@ -794,7 +796,7 @@ export default function CompactDashboardPage() {
 
             {/* 3. Enquiries / RFQs */}
             <DashboardMetricCard
-              label="Enquiries / RFQs"
+              label={t('dashboard.enquiries')}
               value={metrics.enquiries}
               subtitle="B2B quotation requests"
               icon={<MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-accent)]" />}
@@ -806,7 +808,7 @@ export default function CompactDashboardPage() {
 
             {/* 4. Customers */}
             <DashboardMetricCard
-              label="Customers"
+              label={t('dashboard.customers')}
               value={metrics.customers}
               subtitle={`${returningCount} returning buyers`}
               icon={<Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />}
@@ -821,7 +823,7 @@ export default function CompactDashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 5. Pending Orders */}
             <DashboardMetricCard
-              label="Pending Orders"
+              label={t('dashboard.pendingOrders')}
               value={metrics.pendingOrders}
               subtitle="Needs fulfillment"
               icon={<Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />}
@@ -834,7 +836,7 @@ export default function CompactDashboardPage() {
 
             {/* 6. Low Stock (≤ 5) */}
             <DashboardMetricCard
-              label="Low Stock (≤ 5)"
+              label={t('dashboard.lowStock')}
               value={metrics.lowStock}
               subtitle="Variants to restock"
               icon={<AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500" />}
@@ -848,7 +850,7 @@ export default function CompactDashboardPage() {
 
             {/* 7. Active Products */}
             <DashboardMetricCard
-              label="Active Products"
+              label={t('dashboard.activeProducts')}
               value={metrics.activeProducts}
               subtitle="Live in catalog"
               icon={<Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
@@ -861,7 +863,7 @@ export default function CompactDashboardPage() {
 
             {/* 8. Avg Order Value */}
             <DashboardMetricCard
-              label="Avg Order Value"
+              label={t('analytics.averageOrderValue')}
               value={formatPaise(metrics.averageOrderValuePaise)}
               subtitle="Per paid order"
               icon={<TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}

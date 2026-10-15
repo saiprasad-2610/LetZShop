@@ -28,6 +28,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n } from '@simply/i18n';
 import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode, resolveVariantDisplayMedia } from '@simply/ui';
 import {
   buildOrderAcceptedMessage,
@@ -122,6 +123,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   onStatusUpdated,
 }) => {
   const { api, store } = useAuth();
+  const { t, locale } = useSellerI18n();
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -676,16 +678,24 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     }
   };
 
-  const statusMeta = ORDER_STATUS_CONFIG[order.status] || {
+  const rawStatusConfig = ORDER_STATUS_CONFIG[order.status] || {
     label: order.status,
     bgClass: 'bg-merchant-surface-raised border border-merchant-border',
     textClass: 'text-merchant-text',
   };
+  const statusMeta = {
+    ...rawStatusConfig,
+    label: t(`orderStatus.${order.status}`, {}, rawStatusConfig.label),
+  };
 
-  const paymentMeta = PAYMENT_STATUS_CONFIG[order.paymentStatus] || {
+  const rawPaymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] || {
     label: order.paymentStatus,
     bgClass: 'bg-merchant-surface-raised border border-merchant-border',
     textClass: 'text-merchant-text',
+  };
+  const paymentMeta = {
+    ...rawPaymentConfig,
+    label: t(`paymentStatus.${order.paymentStatus}`, {}, rawPaymentConfig.label),
   };
 
   // Payment details
@@ -1689,13 +1699,34 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                     productMedia: item.variant?.product?.media,
                     selectedOptionValues: item.variant?.optionValues,
                   });
+                  const snapshot = item.optionSnapshot || item.selectedOptions;
                   const displayVariantTitle =
                     item.variantTitle && item.variantTitle !== 'Default'
                       ? item.variantTitle
-                      : item.optionSnapshot && Object.keys(item.optionSnapshot).length > 0
-                        ? Object.values(item.optionSnapshot).join(' · ')
+                      : snapshot && Object.keys(snapshot).length > 0
+                        ? Object.keys(snapshot)
+                            .sort((a, b) => {
+                              const order = ['colour', 'color', 'size', 'fit', 'material'];
+                              const iA = order.indexOf(a.toLowerCase());
+                              const iB = order.indexOf(b.toLowerCase());
+                              if (iA !== -1 && iB !== -1) return iA - iB;
+                              if (iA !== -1) return -1;
+                              if (iB !== -1) return 1;
+                              return a.localeCompare(b);
+                            })
+                            .map((k) => snapshot[k])
+                            .join(' · ')
                         : item.variant?.optionValues?.length
-                          ? item.variant.optionValues.map((ov: any) => ov.optionValue?.value || ov.value).filter(Boolean).join(' · ')
+                          ? [...item.variant.optionValues]
+                              .sort((a: any, b: any) => {
+                                const sA = a.optionValue?.option?.sortOrder ?? 0;
+                                const sB = b.optionValue?.option?.sortOrder ?? 0;
+                                if (sA !== sB) return sA - sB;
+                                return (a.optionValue?.option?.name || '').localeCompare(b.optionValue?.option?.name || '');
+                              })
+                              .map((ov: any) => ov.optionValue?.value || ov.value)
+                              .filter(Boolean)
+                              .join(' · ')
                           : null;
 
                   return (

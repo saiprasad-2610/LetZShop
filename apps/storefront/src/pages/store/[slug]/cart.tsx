@@ -28,6 +28,7 @@ import { StoreFooter } from '../../../components/StoreFooter';
 import { formatPaise, resolveVariantDisplayMedia } from '@simply/ui';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { useStorefrontI18n } from '@simply/i18n';
 
 function formatItemVariantLabel(item: any): string | null {
   if (item.variantTitle && item.variantTitle !== 'Default') {
@@ -35,16 +36,24 @@ function formatItemVariantLabel(item: any): string | null {
   }
   const variant = item.variant;
   if (!variant) return null;
-  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
-    return variant.title;
-  }
   if (Array.isArray(variant.optionValues) && variant.optionValues.length > 0) {
-    const values = variant.optionValues
+    const sorted = [...variant.optionValues].sort((a: any, b: any) => {
+      const sortA = a.optionValue?.option?.sortOrder ?? a.option?.sortOrder ?? 0;
+      const sortB = b.optionValue?.option?.sortOrder ?? b.option?.sortOrder ?? 0;
+      if (sortA !== sortB) return sortA - sortB;
+      const nameA = a.optionValue?.option?.name || a.option?.name || '';
+      const nameB = b.optionValue?.option?.name || b.option?.name || '';
+      return nameA.localeCompare(nameB);
+    });
+    const values = sorted
       .map((ov: any) => ov.optionValue?.value || ov.value)
       .filter(Boolean);
     if (values.length > 0) {
       return values.join(' · ');
     }
+  }
+  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
+    return variant.title;
   }
   return null;
 }
@@ -52,6 +61,7 @@ function formatItemVariantLabel(item: any): string | null {
 export default function StoreCartPage() {
   const router = useRouter();
   const { slug, preview } = router.query;
+  const { t, locale, formatPrice, initStoreLocales } = useStorefrontI18n();
   const { 
     cart, itemCount, subtotalPaise, updateQuantity, removeItem, 
     api, setStoreId, appliedCoupon, couponError, applyCoupon, removeCoupon,
@@ -93,6 +103,13 @@ export default function StoreCartPage() {
     try {
       const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
+      if (res.store) {
+        initStoreLocales({
+          storeSlug: String(slug),
+          defaultLocale: res.store.storefrontDefaultLocale,
+          enabledLocales: res.store.enabledStorefrontLocales,
+        });
+      }
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -183,7 +200,7 @@ export default function StoreCartPage() {
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
       <Head>
-        <title>Shopping Cart ({itemCount}) | {store.name}</title>
+        <title>{t('storefront.cart')} ({itemCount}) | {store.name}</title>
         <meta name="description" content={`Your shopping cart at ${store.name}. ${itemCount} items ready for checkout.`} />
       </Head>
 
@@ -220,19 +237,19 @@ export default function StoreCartPage() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1 transition">
-            <ArrowLeft className="w-3.5 h-3.5" /> Continue Shopping
+            <ArrowLeft className="w-3.5 h-3.5" /> {t('storefront.continueShopping')}
           </Link>
           <span className="text-gray-300">/</span>
-          <span className="font-semibold text-gray-800">Shopping Cart</span>
+          <span className="font-semibold text-gray-800">{t('storefront.cart')}</span>
         </div>
 
         {/* Page Title */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Cart</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('storefront.cart')}</h1>
             <p className="text-xs text-gray-500 mt-1">
               {itemCount === 0 
-                ? 'Your cart is empty'
+                ? t('storefront.emptyCart')
                 : `${itemCount} ${itemCount === 1 ? 'item' : 'items'} ready for checkout`
               }
             </p>
@@ -240,7 +257,7 @@ export default function StoreCartPage() {
           {itemCount > 0 && (
             <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Secure Checkout</span>
+              <span>{t('checkout.title')}</span>
             </div>
           )}
         </div>
@@ -254,9 +271,9 @@ export default function StoreCartPage() {
               <ShoppingBag className="w-10 h-10" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-lg font-bold text-gray-800">Your cart is empty</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('storefront.emptyCart')}</h2>
               <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
-                Discover our curated collection of products. Add items to your cart to begin your secure checkout experience.
+                {t('storefront.emptyCartDesc')}
               </p>
             </div>
             <div className="pt-2">
@@ -265,7 +282,7 @@ export default function StoreCartPage() {
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90 hover:-translate-y-0.5"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
               >
-                <span>Browse Products</span>
+                <span>{t('storefront.exploreCatalog')}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -281,7 +298,7 @@ export default function StoreCartPage() {
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3 text-xs text-emerald-800 animate-fadeIn">
                 <Truck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <span className="font-bold">Free Delivery</span>
+                  <span className="font-bold">{t('checkout.freeDelivery')}</span>
                   <span className="text-emerald-600 ml-1">on this order! Estimated dispatch within 24-48 hours.</span>
                 </div>
               </div>
@@ -298,7 +315,7 @@ export default function StoreCartPage() {
                     selectedOptionValues: item.variant?.optionValues,
                   });
                   const variantLabel = formatItemVariantLabel(item);
-                  const productTitle = product.title || product.name || 'Product';
+                  const productTitle = product.translations?.find((tr: any) => tr.locale === locale)?.name || product.title || product.name || 'Product';
                   const targetVariantId = item.variantId || variant.id;
                   const isRemoving = removingItemId === targetVariantId;
                   const hasCompare = variant.compareAtPricePaise && variant.compareAtPricePaise > variant.pricePaise;
@@ -392,7 +409,7 @@ export default function StoreCartPage() {
                               className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-1 transition disabled:opacity-40"
                             >
                               <Trash2 className="w-3 h-3" />
-                              <span>Remove</span>
+                              <span>{t('common.remove')}</span>
                             </button>
                           </div>
                         </div>
@@ -428,7 +445,7 @@ export default function StoreCartPage() {
                       <button
                         onClick={handleRemoveCoupon}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition"
-                        title="Remove coupon"
+                        title={t('common.remove')}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -439,7 +456,7 @@ export default function StoreCartPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm font-bold text-gray-900">Apply Coupon Code</span>
+                      <span className="text-sm font-bold text-gray-900">{t('checkout.applyCoupon')}</span>
                     </div>
                     <div className="flex gap-2">
                       <input
@@ -447,7 +464,7 @@ export default function StoreCartPage() {
                         value={couponInput}
                         onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                         onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
-                        placeholder="Enter coupon code"
+                        placeholder={t('checkout.couponPlaceholder')}
                         className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-xs font-mono tracking-wider uppercase focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition coupon-input"
                         maxLength={20}
                         autoFocus
@@ -463,7 +480,7 @@ export default function StoreCartPage() {
                         ) : (
                           <Percent className="w-3.5 h-3.5" />
                         )}
-                        <span>{applyingCoupon ? 'Checking...' : 'Apply'}</span>
+                        <span>{applyingCoupon ? t('common.loading') : t('common.apply')}</span>
                       </button>
                     </div>
                     {couponError && (
@@ -475,7 +492,7 @@ export default function StoreCartPage() {
                       onClick={() => { setShowCouponInput(false); setCouponInput(''); }}
                       className="text-xs text-gray-400 hover:text-gray-600 transition"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                   </div>
                 ) : (
@@ -504,7 +521,7 @@ export default function StoreCartPage() {
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
-                  Order Summary
+                  {t('checkout.orderSummary')}
                 </h2>
 
                 {/* Free Delivery Goal Tracker */}
@@ -518,9 +535,9 @@ export default function StoreCartPage() {
                       <span className="flex items-center gap-1.5">
                         <Truck className={`w-4 h-4 ${isFreeDeliveryQualified ? 'text-emerald-600' : 'text-amber-700'}`} />
                         {isFreeDeliveryQualified ? (
-                          <span className="font-bold text-emerald-800">🎉 FREE Delivery Unlocked!</span>
+                          <span className="font-bold text-emerald-800">🎉 {t('checkout.freeDelivery')}!</span>
                         ) : (
-                          <span>Add <strong className="font-mono text-amber-950 font-bold">{formatPaise(freeDeliveryRemainingPaise)}</strong> more for FREE Delivery</span>
+                          <span>Add <strong className="font-mono text-amber-950 font-bold">{formatPaise(freeDeliveryRemainingPaise)}</strong> more for {t('checkout.freeDelivery')}</span>
                         )}
                       </span>
                       <span className="text-[11px] font-mono opacity-75">
@@ -544,7 +561,7 @@ export default function StoreCartPage() {
 
                 <div className="space-y-3 text-xs text-gray-600">
                   <div className="flex justify-between">
-                    <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+                    <span>{t('common.subtotal')} ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
                     <span className="font-mono font-semibold text-gray-900">
                       {formatPaise(subtotalPaise)}
                     </span>
@@ -555,7 +572,7 @@ export default function StoreCartPage() {
                     <div className="flex justify-between text-emerald-700">
                       <span className="flex items-center gap-1">
                         <Tag className="w-3 h-3" />
-                        Coupon ({appliedCoupon.code})
+                        {t('checkout.couponDiscount')} ({appliedCoupon.code})
                       </span>
                       <span className="font-mono font-semibold">-{formatPaise(discountPaise)}</span>
                     </div>
@@ -575,7 +592,7 @@ export default function StoreCartPage() {
                   <div className="flex justify-between">
                     <span className="flex items-center gap-1">
                       <Truck className="w-3 h-3" />
-                      Delivery / Shipping
+                      {t('checkout.freeDelivery')}
                     </span>
                     {shippingPaise === 0 ? (
                       <span className="text-emerald-700 font-bold flex items-center gap-1">
@@ -599,7 +616,7 @@ export default function StoreCartPage() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
-                    <span>Total Amount</span>
+                    <span>{t('common.total')}</span>
                     <span className="font-mono text-lg">{formatPaise(grandTotalPaise)}</span>
                   </div>
 
@@ -620,7 +637,7 @@ export default function StoreCartPage() {
                     style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                   >
                     <Lock className="w-4 h-4" />
-                    <span>Proceed to Secure Checkout</span>
+                    <span>{t('storefront.checkout')}</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
 
@@ -629,7 +646,7 @@ export default function StoreCartPage() {
                     className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition flex items-center justify-center gap-1 border border-gray-200"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Continue Shopping</span>
+                    <span>{t('storefront.continueShopping')}</span>
                   </Link>
                 </div>
               </div>
