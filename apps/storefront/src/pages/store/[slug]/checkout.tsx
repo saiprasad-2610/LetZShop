@@ -539,12 +539,14 @@ export default function StoreCheckoutPage() {
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   href={getLink(`/store/${slug}`)}
+                  data-theme-btn="true"
                   className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition flex items-center justify-center gap-1.5"
                 >
                   <ShoppingBag className="w-4 h-4" /> Back to Store
                 </Link>
                 <a
                   href={getSellerStorePreviewUrl()}
+                  data-theme-btn="true"
                   className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center justify-center gap-1.5"
                 >
                   Exit Preview
@@ -1120,6 +1122,7 @@ export default function StoreCheckoutPage() {
                 <button
                   type="submit"
                   disabled={submitting || items.length === 0}
+                  data-theme-btn="true"
                   className="w-full py-4 rounded-xl text-xs font-bold text-white shadow-lg transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
                   style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                 >

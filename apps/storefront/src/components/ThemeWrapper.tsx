@@ -167,20 +167,6 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
           href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <style>{`
-          .store-card,
-          .store-product-grid > div,
-          [data-theme-card="true"] {
-            border-radius: ${cardRadius} !important;
-            box-shadow: ${cardShadow} !important;
-            border: ${cardBorder} !important;
-          }
-          .store-btn,
-          .store-product-grid button,
-          [data-theme-btn="true"] {
-            border-radius: ${btnRadius} !important;
-          }
-        `}</style>
       </Head>
       <div
         style={{

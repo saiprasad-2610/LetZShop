@@ -223,6 +223,7 @@ export default function StoreSearchPage() {
                 setSearchTerm('');
                 setSelectedCategory('');
               }}
+              data-theme-btn="true"
               className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold"
             >
               Reset Filters

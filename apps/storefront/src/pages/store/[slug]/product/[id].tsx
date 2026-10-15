@@ -873,6 +873,7 @@ export default function ProductDetailPage() {
                       type="button"
                       disabled={addingToCart || isOutOfStock}
                       onClick={handleAddToCart}
+                      data-theme-btn="true"
                       className="w-full py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       <ShoppingBag className="w-4 h-4" />
@@ -883,6 +884,7 @@ export default function ProductDetailPage() {
                       type="button"
                       disabled={isOutOfStock}
                       onClick={handleBuyNow}
+                      data-theme-btn="true"
                       className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
                       style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                     >
@@ -899,6 +901,7 @@ export default function ProductDetailPage() {
                     <button
                       type="button"
                       onClick={handleWhatsAppEnquiry}
+                      data-theme-btn="true"
                       className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <MessageSquare className="w-4 h-4" />
@@ -1019,6 +1022,7 @@ export default function ProductDetailPage() {
                     setEnquiryModalOpen(false);
                     setEnquirySuccess(false);
                   }}
+                  data-theme-btn="true"
                   className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold"
                 >
                   Close
@@ -1089,6 +1093,7 @@ export default function ProductDetailPage() {
                   <button
                     type="submit"
                     disabled={submittingEnquiry}
+                    data-theme-btn="true"
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-semibold rounded-lg text-white flex items-center gap-1.5"
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -1127,6 +1132,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={isOutOfStock}
                 onClick={handleBuyNow}
+                data-theme-btn="true"
                 className="px-4 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
               >
@@ -1149,6 +1155,7 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={handleWhatsAppEnquiry}
+                data-theme-btn="true"
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5"
               >
                 <MessageSquare className="w-4 h-4" />

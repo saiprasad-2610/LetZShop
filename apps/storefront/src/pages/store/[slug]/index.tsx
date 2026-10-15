@@ -317,6 +317,7 @@ export default function StoreHomePage() {
 
                 <div className="flex flex-wrap items-center gap-4 pt-4">
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-amber-400 text-stone-950 font-semibold text-xs tracking-widest uppercase hover:bg-amber-300 transition shadow-lg flex items-center gap-2"
                   >
@@ -325,6 +326,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border border-stone-600 text-stone-200 text-xs font-semibold tracking-widest uppercase hover:border-amber-400 hover:text-amber-300 transition"
                   >
@@ -383,12 +385,14 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-sm uppercase tracking-wider transition shadow-lg transform hover:-translate-y-0.5"
                   >
                     {heroCtaText || 'SHOP THE DROP NOW'}
                   </a>
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider border border-white/20 transition"
                   >
@@ -454,6 +458,7 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-6 py-3 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
                   >
@@ -461,6 +466,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4" />
                   </a>
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3 rounded-full bg-white border border-stone-300 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-sm flex items-center gap-2"
                   >
@@ -554,6 +560,7 @@ export default function StoreHomePage() {
 
               <div className="flex flex-wrap items-center gap-4 pt-4">
                 <a
+                  data-theme-btn="true"
                   href={heroCtaLink}
                   className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-sm transition shadow flex items-center gap-2"
                 >
@@ -561,6 +568,7 @@ export default function StoreHomePage() {
                   <span>{heroCtaText || 'Browse Technical Catalog'}</span>
                 </a>
                 <Link
+                  data-theme-btn="true"
                   href={heroSecondaryCtaLink}
                   className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider border border-slate-600 rounded-sm transition flex items-center gap-2"
                 >
@@ -596,12 +604,14 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-3`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-stone-900 text-stone-50 font-serif text-xs uppercase tracking-widest hover:bg-stone-800 transition"
                   >
                     {heroCtaText || 'View Living Pieces'}
                   </a>
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-3.5 border border-stone-400 text-stone-800 font-serif text-xs uppercase tracking-widest hover:bg-white transition"
                   >
@@ -647,12 +657,14 @@ export default function StoreHomePage() {
                 </p>
                 <div className="pt-2 flex items-center gap-3">
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-lg shadow-sm hover:bg-blue-50 transition"
                   >
                     {heroCtaText || 'Order Online'}
                   </a>
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-4 py-2.5 border border-blue-400 text-white font-medium text-xs rounded-lg hover:bg-blue-800 transition"
                   >
@@ -688,6 +700,7 @@ export default function StoreHomePage() {
                         });
                       }
                     }}
+                    data-theme-btn="true"
                     className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
                   >
                     ⚡ Send List on WhatsApp
@@ -735,6 +748,7 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs tracking-wider uppercase rounded-full transition shadow-lg flex items-center gap-2"
                   >
@@ -743,6 +757,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-rose-300 text-rose-900 font-semibold text-xs tracking-wider uppercase rounded-full hover:bg-rose-100/60 transition"
                   >
@@ -816,6 +831,7 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-4 bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs uppercase tracking-wider transition shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center gap-2"
                   >
@@ -824,6 +840,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-4 border border-zinc-700 hover:border-emerald-400 text-zinc-300 hover:text-white font-mono text-xs uppercase tracking-wider transition"
                   >
@@ -901,6 +918,7 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-md flex items-center gap-2"
                   >
@@ -909,6 +927,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#9A3412]/40 text-[#9A3412] hover:bg-orange-50 font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition"
                   >
@@ -974,6 +993,7 @@ export default function StoreHomePage() {
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#78350F] hover:bg-[#5E290C] text-white font-bold text-xs uppercase tracking-wider rounded-full transition shadow-md flex items-center gap-2"
                   >
@@ -982,6 +1002,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#78350F]/40 text-[#78350F] hover:bg-amber-100/50 font-bold text-xs uppercase tracking-wider rounded-full transition"
                   >
@@ -1083,6 +1104,7 @@ export default function StoreHomePage() {
                 {/* Dual Action Buttons */}
                 <div className="flex flex-wrap items-center gap-4 pt-3">
                   <a
+                    data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2 group cursor-pointer"
                   >
@@ -1091,6 +1113,7 @@ export default function StoreHomePage() {
                   </a>
 
                   <Link
+                    data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 bg-white/90 hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition flex items-center gap-2"
                   >
@@ -1150,6 +1173,7 @@ export default function StoreHomePage() {
               {/* Dual Action Buttons */}
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
                 <a
+                  data-theme-btn="true"
                   href={heroCtaLink}
                   className="px-9 py-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-widest rounded-full transition shadow-xl shadow-amber-500/20 flex items-center gap-2 group cursor-pointer"
                 >
@@ -1158,6 +1182,7 @@ export default function StoreHomePage() {
                 </a>
 
                 <Link
+                  data-theme-btn="true"
                   href={heroSecondaryCtaLink}
                   className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs uppercase tracking-widest rounded-full backdrop-blur-md border border-white/25 transition shadow-lg"
                 >
@@ -1257,6 +1282,7 @@ export default function StoreHomePage() {
                     <button
                       key={c.id}
                       onClick={() => setActiveCategory(isSelected ? 'all' : c.id)}
+                      data-theme-card="true"
                       className={`p-4 transition text-left space-y-1 relative border ${
                         isSelected
                           ? 'border-gray-900 bg-gray-900 text-white shadow-md'
@@ -1645,6 +1671,7 @@ export default function StoreHomePage() {
                                 });
                               }
                             }}
+                            data-theme-btn="true"
                             className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <MessageSquare className="w-3 h-3" />
@@ -1653,6 +1680,7 @@ export default function StoreHomePage() {
 
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
+                            data-theme-btn="true"
                             className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <span>Full Spec</span>

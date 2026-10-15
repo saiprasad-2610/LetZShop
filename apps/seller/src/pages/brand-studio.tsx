@@ -1313,19 +1313,19 @@ export default function BrandStudioPage() {
             </div>
 
             {/* Logo & Store Name Size Adjustment Controls */}
-            <div className="pt-4 border-t border-slate-100 space-y-4">
+            <div className="pt-4 border-t border-slate-100 dark:border-merchant-border space-y-4 dark:[color-scheme:dark]">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-slate-800 block">Header Brand Sizing</span>
-                  <span className="text-[11px] text-slate-400">Scale your logo and store name independently for the header</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-merchant-text block">Header Brand Sizing</span>
+                  <span className="text-[11px] text-slate-400 dark:text-merchant-text-muted">Scale your logo and store name independently for the header</span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
+                <div className="text-[11px] font-mono text-slate-500 dark:text-merchant-text-muted bg-slate-100 dark:bg-merchant-surface-raised px-2.5 py-1 rounded-md">
                   Logo: <span className="font-bold text-blue-600">{logoSize}px</span> • Name: <span className="font-bold text-blue-600">{storeNameSize}px</span>
                 </div>
               </div>
 
               {/* Live Mini Preview Box */}
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/60 flex items-center justify-between gap-4">
+              <div className="p-3 bg-slate-50/80 dark:bg-merchant-surface-raised text-merchant-text rounded-xl border border-slate-200/60 dark:border-merchant-border flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   {logoUrl ? (
                     <img
@@ -1337,7 +1337,7 @@ export default function BrandStudioPage() {
                         maxHeight: `${logoSize}px`,
                         maxWidth: `${logoSize}px`,
                       }}
-                      className="rounded-full object-contain p-0.5 bg-white border border-slate-200 shadow-xs shrink-0 transition-all"
+                      className="rounded-full object-contain p-0.5 bg-white dark:bg-merchant-input-bg border border-slate-200 dark:border-merchant-border shadow-xs shrink-0 transition-all"
                     />
                   ) : (
                     <div
@@ -1359,42 +1359,42 @@ export default function BrandStudioPage() {
                         lineHeight: '1.2',
                         color: primaryColor || '#0f172a',
                       }}
-                      className="font-bold block truncate transition-all"
+                      className="font-bold block truncate transition-all dark:!text-merchant-text"
                     >
                       {store?.name || 'SaiRam Tea Company'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider block">
+                    <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-mono uppercase tracking-wider block">
                       Live Header Preview
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 shrink-0">
                   Responsive
                 </span>
               </div>
 
               {/* 1. Logo Size Control */}
-              <div className="space-y-2 bg-slate-50/50 p-3 rounded-xl border border-slate-200/60">
+              <div className="space-y-2 bg-slate-50/50 dark:bg-merchant-surface-raised text-merchant-text p-3 rounded-xl border border-slate-200/60 dark:border-merchant-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">Logo Dimension (Size)</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">Logo Dimension (Size)</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setLogoSize((prev) => Math.max(24, prev - 4))}
                       disabled={logoSize <= 24}
-                      className="w-6 h-6 rounded-md bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
                       title="Decrease logo size"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="text-xs font-mono font-bold text-slate-800 w-12 text-center bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    <span className="text-xs font-mono font-bold text-slate-800 dark:text-merchant-text w-12 text-center bg-white dark:bg-merchant-input-bg px-1.5 py-0.5 rounded border border-slate-200 dark:border-merchant-border">
                       {logoSize} px
                     </span>
                     <button
                       type="button"
                       onClick={() => setLogoSize((prev) => Math.min(80, prev + 4))}
                       disabled={logoSize >= 80}
-                      className="w-6 h-6 rounded-md bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
                       title="Increase logo size"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1411,7 +1411,7 @@ export default function BrandStudioPage() {
                   className="w-full accent-blue-600 cursor-pointer"
                 />
                 <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
-                  <span className="text-[10px] text-slate-400 font-medium mr-1">Presets:</span>
+                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">Presets:</span>
                   {[
                     { label: 'Compact', size: 32 },
                     { label: 'Default', size: 40 },
@@ -1426,7 +1426,7 @@ export default function BrandStudioPage() {
                       className={`px-2 py-0.5 text-[10px] rounded-md transition font-medium ${
                         logoSize === p.size
                           ? 'bg-blue-600 text-white font-bold'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                          : 'bg-white dark:bg-merchant-input-bg text-slate-600 dark:text-merchant-text border border-slate-200 dark:border-merchant-border hover:border-slate-300 dark:hover:border-merchant-primary'
                       }`}
                     >
                       {p.label} ({p.size}px)
@@ -1436,27 +1436,27 @@ export default function BrandStudioPage() {
               </div>
 
               {/* 2. Store Name Font Size Control */}
-              <div className="space-y-2 bg-slate-50/50 p-3 rounded-xl border border-slate-200/60">
+              <div className="space-y-2 bg-slate-50/50 dark:bg-merchant-surface-raised text-merchant-text p-3 rounded-xl border border-slate-200/60 dark:border-merchant-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">Store Name Text Size</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">Store Name Text Size</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setStoreNameSize((prev) => Math.max(14, prev - 1))}
                       disabled={storeNameSize <= 14}
-                      className="w-6 h-6 rounded-md bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
                       title="Decrease store name size"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="text-xs font-mono font-bold text-slate-800 w-12 text-center bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    <span className="text-xs font-mono font-bold text-slate-800 dark:text-merchant-text w-12 text-center bg-white dark:bg-merchant-input-bg px-1.5 py-0.5 rounded border border-slate-200 dark:border-merchant-border">
                       {storeNameSize} px
                     </span>
                     <button
                       type="button"
                       onClick={() => setStoreNameSize((prev) => Math.min(36, prev + 1))}
                       disabled={storeNameSize >= 36}
-                      className="w-6 h-6 rounded-md bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
                       title="Increase store name size"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1473,7 +1473,7 @@ export default function BrandStudioPage() {
                   className="w-full accent-blue-600 cursor-pointer"
                 />
                 <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
-                  <span className="text-[10px] text-slate-400 font-medium mr-1">Presets:</span>
+                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">Presets:</span>
                   {[
                     { label: 'Small', size: 15 },
                     { label: 'Default', size: 18 },
@@ -1488,7 +1488,7 @@ export default function BrandStudioPage() {
                       className={`px-2 py-0.5 text-[10px] rounded-md transition font-medium ${
                         storeNameSize === p.size
                           ? 'bg-blue-600 text-white font-bold'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                          : 'bg-white dark:bg-merchant-input-bg text-slate-600 dark:text-merchant-text border border-slate-200 dark:border-merchant-border hover:border-slate-300 dark:hover:border-merchant-primary'
                       }`}
                     >
                       {p.label} ({p.size}px)

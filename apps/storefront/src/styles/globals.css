@@ -34,14 +34,17 @@ body {
 .store-btn,
 button.store-btn,
 a.store-btn,
+.store-product-grid button,
 [data-theme-btn="true"] {
   border-radius: var(--theme-btn-radius, 12px) !important;
 }
 
 .store-card,
+.store-product-grid > div,
 [data-theme-card="true"] {
   border-radius: var(--theme-card-radius, 16px) !important;
   box-shadow: var(--theme-card-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.05)) !important;
+  border: var(--theme-card-border, 1px solid rgba(0, 0, 0, 0.08)) !important;
 }
 
 /* Custom scrollbar */
