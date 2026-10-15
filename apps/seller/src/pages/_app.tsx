@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import Head from 'next/head';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { SellerLocaleProvider, type SupportedLocale } from '@simply/i18n';
@@ -41,12 +42,17 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <SellerI18nWrapper>
-          <Component {...pageProps} />
-        </SellerI18nWrapper>
-      </AuthProvider>
-    </ThemeProvider>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+      </Head>
+      <ThemeProvider>
+        <AuthProvider>
+          <SellerI18nWrapper>
+            <Component {...pageProps} />
+          </SellerI18nWrapper>
+        </AuthProvider>
+      </ThemeProvider>
+    </>
   );
 }

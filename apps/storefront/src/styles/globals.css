@@ -10,6 +10,9 @@
   --theme-primary: #111827;
   --theme-accent: #D97706;
   --theme-background: #FFFFFF;
+  --theme-btn-radius: 12px;
+  --theme-card-radius: 16px;
+  --theme-card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 body {
@@ -25,6 +28,20 @@ body {
 
 .font-theme-body {
   font-family: var(--theme-font-body);
+}
+
+/* Dynamic Component Shapes & Styles */
+.store-btn,
+button.store-btn,
+a.store-btn,
+[data-theme-btn="true"] {
+  border-radius: var(--theme-btn-radius, 12px) !important;
+}
+
+.store-card,
+[data-theme-card="true"] {
+  border-radius: var(--theme-card-radius, 16px) !important;
+  box-shadow: var(--theme-card-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.05)) !important;
 }
 
 /* Custom scrollbar */

@@ -229,7 +229,7 @@ export default function StoreSearchPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="store-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((p) => {
               const trans = getProductTranslation(p.translations, locale);
               const title = trans?.name?.trim() || p.name || p.title || 'Product';

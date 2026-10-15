@@ -47,6 +47,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Megaphone,
+  Tag,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { MiniStorePreview } from '../components/MiniStorePreview';
@@ -946,188 +948,294 @@ export default function BrandStudioPage() {
   // Modular Section Renderers
   const renderThemeStyleSection = () => (
     <div className="space-y-6">
-      {/* Foundational Theme Selection */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Foundational Storefront Theme
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Each theme features unique layout architecture, typography hierarchy, and visual personality.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {Object.values(FOUNDATIONAL_THEMES).map((th) => {
-                const isNew = ['aura', 'noir', 'vista', 'horizon', 'canvas'].includes(th.code);
-                const isSelected = selectedThemeId === th.code;
-                return (
-                  <button
-                    key={th.code}
-                    type="button"
-                    onClick={() => {
-                      setSelectedThemeId(th.code);
-                      setPrimaryColor(th.palette.primary);
-                      setAccentColor(th.palette.accent);
-                      setBackgroundColor(th.palette.background);
-                      setTypographyPreset(th.typography.heading);
-                      setHeaderStyle(th.headerStyle);
-                      setHeroStyle(th.heroStyle);
-                      setCardStyle(th.cardStyle);
-                      setButtonStyle(th.buttonStyle);
-                      setImageRatio(th.imageRatio);
-                    }}
-                    className={`text-left p-3.5 rounded-xl border transition space-y-1.5 relative cursor-pointer group ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/30 shadow-xs'
-                        : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">{th.name}</span>
-                        {isNew && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white shadow-2xs">
-                            New
-                          </span>
-                        )}
-                      </div>
-                      {isSelected ? (
-                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
-                          <Check className="w-3 h-3" />
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-slate-400 group-hover:text-slate-600">
-                          {th.typography.heading}
+      {/* Foundational Storefront Theme (Unified Quick Themes Option) */}
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+              Storefront Theme & Business Presets
+            </label>
+          </div>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Choose the foundational design archetype tailored for your business. Selecting a theme automatically sets up the optimal typography, palette, card shapes, and layout hierarchy.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.values(FOUNDATIONAL_THEMES).map((th) => {
+            const isNew = ['aura', 'noir', 'vista', 'horizon', 'canvas'].includes(th.code);
+            const isSelected = selectedThemeId === th.code;
+            return (
+              <button
+                key={th.code}
+                type="button"
+                onClick={() => {
+                  setSelectedThemeId(th.code);
+                  setPrimaryColor(th.palette.primary);
+                  setAccentColor(th.palette.accent);
+                  setBackgroundColor(th.palette.background);
+                  setTypographyPreset(th.typography.heading);
+                  setHeaderStyle(th.headerStyle);
+                  setHeroStyle(th.heroStyle);
+                  setCardStyle(th.cardStyle);
+                  setButtonStyle(th.buttonStyle);
+                  setImageRatio(th.imageRatio);
+                }}
+                className={`text-left p-4 rounded-xl border transition flex flex-col justify-between space-y-2.5 relative cursor-pointer group ${
+                  isSelected
+                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-500/30 shadow-xs'
+                    : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{th.name}</span>
+                      {isNew && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white shadow-2xs">
+                          New
                         </span>
                       )}
                     </div>
-
-                    <p className="text-[10px] text-slate-500 line-clamp-1 leading-normal font-medium">
-                      {th.tagline}
-                    </p>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-1">
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/10 shadow-2xs"
-                          style={{ backgroundColor: th.palette.background }}
-                          title="Background"
-                        />
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/10 shadow-2xs"
-                          style={{ backgroundColor: th.palette.primary }}
-                          title="Primary"
-                        />
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/10 shadow-2xs"
-                          style={{ backgroundColor: th.palette.accent }}
-                          title="Accent"
-                        />
-                      </div>
-                      <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">
-                        {th.imageRatio}
+                    {isSelected ? (
+                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                        <Check className="w-3 h-3" />
                       </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-      {/* Layout Composition Fine-Tuning */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Layout Styling & Component Shapes
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Header Style</label>
-                <select
-                  value={headerStyle}
-                  onChange={(e) => setHeaderStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="minimal-center">Minimal Centered (Atelier)</option>
-                  <option value="sticky-action">Sticky Action (Pulse)</option>
-                  <option value="warm-friendly">Warm Friendly (Harvest)</option>
-                  <option value="industrial-meta">Industrial Meta (Foundry)</option>
-                  <option value="spacious-lifestyle">Spacious Lifestyle (Habitat)</option>
-                  <option value="quick-search-bar">Quick Search Bar (Local)</option>
-                </select>
-              </div>
+                    ) : (
+                      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300">
+                        {th.typography.heading}
+                      </span>
+                    )}
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Card Style</label>
-                <select
-                  value={cardStyle}
-                  onChange={(e) => setCardStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="framed-luxury">Framed Luxury</option>
-                  <option value="elevated-modern">Elevated Modern</option>
-                  <option value="rounded-soft">Rounded Soft</option>
-                  <option value="spec-sheet-card">Spec Sheet Card</option>
-                  <option value="minimal-bleed">Minimal Bleed</option>
-                </select>
-              </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight font-medium">
+                    {th.tagline}
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Button Shape</label>
-                <select
-                  value={buttonStyle}
-                  onChange={(e) => setButtonStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="sharp-pill">Sharp Pill</option>
-                  <option value="rounded-heavy">Rounded Heavy</option>
-                  <option value="pill-friendly">Pill Friendly</option>
-                  <option value="square-solid">Square Solid</option>
-                </select>
-              </div>
+                {/* Best Suited For Business Callout (High Contrast in both Dark & Light Themes) */}
+                <div className="theme-best-suited-box rounded-lg p-2.5 border space-y-1 shadow-2xs">
+                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 block uppercase tracking-wider">
+                    Best Suited For:
+                  </span>
+                  <p className="text-[11px] font-medium leading-snug">
+                    {th.bestFor}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
+                      style={{ backgroundColor: th.palette.background }}
+                      title="Background"
+                    />
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
+                      style={{ backgroundColor: th.palette.primary }}
+                      title="Primary"
+                    />
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
+                      style={{ backgroundColor: th.palette.accent }}
+                      title="Accent"
+                    />
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    Ratio {th.imageRatio}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Marquee Offer Banner & Top Promotional Strip (Feature for Merchant Offers) */}
+      <div className="bg-white dark:bg-slate-900/60 p-4 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-amber-500" />
+              <label className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider block">
+                Storefront Offer Marquee & Top Announcement Bar
+              </label>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              Display promotions, festive discounts, delivery guarantees, or flash announcements at the top of every storefront page.
+            </p>
           </div>
-      {/* Quick Category Presets */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+
+          {/* Toggle Switch */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              {announcementEnabled ? 'Active' : 'Disabled'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={announcementEnabled}
+              onClick={() => setAnnouncementEnabled(!announcementEnabled)}
+              className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
+                announcementEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                  announcementEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {announcementEnabled && (
+          <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+            {/* Offer Text Input */}
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Instant Category Presets</span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                One-click setup: Automatically configures the optimal theme, palette, and typography for your business.
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Promotional Offer Message
+              </label>
+              <input
+                type="text"
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
+                placeholder="e.g. ⚡ Festive Offer: 20% OFF on all orders! Use code: SAVE20 • Free pan-India shipping above ₹499"
+                className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Visible at the top header across Home, Products, and About pages. Updates live on the right.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {[
-                { name: 'Jewellery & Watches', desc: 'Atelier / Gold & Charcoal', code: 'atelier' },
-                { name: 'Streetwear & Apparel', desc: 'Pulse / Electric Pink & Bold', code: 'pulse' },
-                { name: 'Tea, Sweets & Gourmet', desc: 'Harvest / Forest & Amber', code: 'harvest' },
-                { name: 'Manufacturing & Tools', desc: 'Foundry / Industrial Slate', code: 'foundry' },
-                { name: 'Furniture & Living', desc: 'Habitat / Terracotta & Linen', code: 'habitat' },
-                { name: 'Retail & Superstore', desc: 'Local / Royal Blue & Green', code: 'local' },
-              ].map((cat) => (
-                <button
-                  key={cat.name}
-                  type="button"
-                  onClick={() => handleApplyQuickPreset(cat.name)}
-                  className="text-left p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition group space-y-1"
-                >
-                  <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 block">
-                    {cat.name}
-                  </span>
-                  <span className="text-[10px] text-slate-500 block leading-tight">
-                    {cat.desc}
-                  </span>
-                </button>
-              ))}
-            </div></div>
+            {/* Continuous Scrolling Marquee Animation Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Continuous Scrolling Marquee Animation
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Smoothly auto-scrolls the offer text horizontally like a dynamic ticker across the top.
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={announcementFloating}
+                onClick={() => setAnnouncementFloating(!announcementFloating)}
+                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
+                  announcementFloating ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    announcementFloating ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Quick Offer Presets */}
+            <div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                Quick Offer Templates (Click to apply):
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  '⚡ Special Offer: Flat 20% OFF on all items! Use code: SAVE20',
+                  '🚚 Free Express Shipping on all orders above ₹499',
+                  '🎉 New Season Drop Online Now • 100% Authentic & Certified',
+                  '🌿 Pure & Handcrafted Daily • Fresh Dispatch Within 24 Hours',
+                ].map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setAnnouncementText(preset);
+                      setAnnouncementEnabled(true);
+                    }}
+                    className="text-left text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500 text-slate-700 dark:text-slate-300 transition shadow-2xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Tag className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span>{preset}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Layout Styling & Component Shapes */}
+      <div className="bg-white dark:bg-slate-900/60 p-4 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+            Layout Styling & Component Shapes
+          </label>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+            Customize header arrangement, card edge curvatures & elevation shadows, and button border-radius across your digital storefront. Changes take effect on all pages in real time.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Header Style</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
+              Top bar navigation layout on desktop and mobile.
+            </p>
+            <select
+              value={headerStyle}
+              onChange={(e) => setHeaderStyle(e.target.value)}
+              className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
+            >
+              <option value="sticky-action">Sticky Action Bar (Standard)</option>
+              <option value="minimal-center">Centered Brand Logo (Boutique)</option>
+              <option value="quick-search-bar">Quick Search Bar (Retail & FMCG)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Card Style</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
+              Product and category card borders, corner curves & shadows.
+            </p>
+            <select
+              value={cardStyle}
+              onChange={(e) => setCardStyle(e.target.value)}
+              className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
+            >
+              <option value="elevated-modern">Elevated Modern (16px curve, soft shadow)</option>
+              <option value="rounded-soft">Curved Friendly (24px bubble curve)</option>
+              <option value="framed-luxury">Framed Luxury (6px refined frame)</option>
+              <option value="minimal-bleed">Crisp Minimal (0px square flush edge)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Button Shape</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
+              Corner radius for purchase, quote & CTA buttons.
+            </p>
+            <select
+              value={buttonStyle}
+              onChange={(e) => setButtonStyle(e.target.value)}
+              className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
+            >
+              <option value="rounded-heavy">Smooth Rounded (12px comfortable radius)</option>
+              <option value="sharp-pill">Full Pill (9999px capsule curve)</option>
+              <option value="square-solid">Crisp Square (2px precision industrial edges)</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
   const renderLogoBannerSection = () => (
     <div className="space-y-6">
       {/* Logo & Banner Upload */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Store Brand Assets (Logo & Banner)
             </label>
@@ -1391,7 +1499,7 @@ export default function BrandStudioPage() {
   const renderColorsTypographySection = () => (
     <div className="space-y-6">
       {/* Color Palette & Contrast Validation */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Color Palette & Contrast Safety
@@ -1482,7 +1590,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Typography Preset Selection */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Curated Typography Pairing
             </label>
@@ -1520,7 +1628,7 @@ export default function BrandStudioPage() {
   const renderHomeSection = () => (
     <div className="space-y-6">
       {/* Top Announcement Bar */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-xs font-bold text-slate-900 block">
@@ -1589,7 +1697,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Hero Showcase Texts */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Hero Showcase Section
@@ -1668,7 +1776,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Hero Showcase Image Upload & URL */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-xs font-bold text-slate-900 flex items-center gap-2">
@@ -1829,7 +1937,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Section Visibility & Reordering */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Homepage Section Flow & Order
@@ -1887,7 +1995,7 @@ export default function BrandStudioPage() {
 
   const renderProductsSection = () => (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Products Catalog Header
@@ -1952,7 +2060,7 @@ export default function BrandStudioPage() {
   const renderAboutSection = () => (
     <div className="space-y-6">
       {/* Header Banner */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 About Us Page Header
@@ -1990,7 +2098,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Heritage Story Narrative */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Store Origin & Heritage Story
@@ -2026,7 +2134,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* About Us Feature & Story Image */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-xs font-bold text-slate-900 flex items-center gap-2">
@@ -2173,7 +2281,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Mission & Vision */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Mission & Vision Statements
             </label>
@@ -2215,7 +2323,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* 3 Core Trust Pillars */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 3 Core Trust / Value Pillars
@@ -2286,7 +2394,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Physical Address & Contact Support */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Physical Location & Customer Support
             </label>
@@ -2346,7 +2454,7 @@ export default function BrandStudioPage() {
   const renderFooterSection = () => (
     <div className="space-y-6">
       {/* Social Media Accounts & Links Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <div className="flex items-center gap-2">
                 <Share2 className="w-4 h-4 text-pink-600" />
@@ -2453,7 +2561,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Footer Brand Bio & Tagline */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Footer Brand Description
@@ -2472,7 +2580,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Value Props & Trust Badges Strip */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-xs font-bold text-slate-900 block">
@@ -2568,7 +2676,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Copyright Text */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Bottom Copyright Notice
@@ -2676,7 +2784,7 @@ export default function BrandStudioPage() {
         <title>{t('themes.title')} | {store?.name || 'Seller Dashboard'}</title>
       </Head>
 
-      <div className="space-y-6">
+      <div className="space-y-6 w-full max-w-full overflow-x-clip">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -2809,35 +2917,59 @@ export default function BrandStudioPage() {
         </div>
 
         {/* Responsive Grid: Full width on mobile, 6/6 split on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full max-w-full">
           {/* Controls Column */}
-          <div className="col-span-12 lg:col-span-6 w-full space-y-4">
-            {/* Mobile Non-Blocking Notice & Aikyam Contact */}
+          <div className="col-span-12 lg:col-span-6 w-full max-w-full space-y-4">
+            {/* Mobile Prominent Desktop & Support Guidance Card */}
             <div
-              className="lg:hidden p-4 rounded-xl border text-xs space-y-2 transition-colors"
+              className="lg:hidden p-4 sm:p-5 rounded-2xl border shadow-xs transition-colors space-y-3"
               style={{
                 backgroundColor: 'var(--merchant-surface)',
                 borderColor: 'var(--merchant-border)',
                 color: 'var(--merchant-text)',
               }}
             >
-              <div className="flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                <div className="space-y-1.5 leading-relaxed">
-                  <p className="font-medium" style={{ color: 'var(--merchant-text)' }}>
-                    {t('themes.mobileNotice')}
-                  </p>
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                    <span style={{ color: 'var(--merchant-text-muted)' }}>{t('themes.needHelp')}</span>
-                    <a
-                      href="mailto:business@aikyamaisystems.com?subject=LetzShop%20Custom%20E-commerce%20Requirement"
-                      className="font-bold underline hover:opacity-80"
-                      style={{ color: 'var(--merchant-primary)' }}
-                    >
-                      {t('themes.contactAikyam')}
-                    </a>
-                  </div>
+              <div className="flex items-center justify-between gap-2 border-b pb-2.5" style={{ borderColor: 'var(--merchant-border)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <Monitor className="w-4 h-4" />
+                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    DESKTOP RECOMMENDED
+                  </span>
                 </div>
+              </div>
+
+              <div className="space-y-1.5 leading-relaxed">
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100" style={{ color: 'var(--merchant-text)' }}>
+                  {t('themes.mobileNotice') && t('themes.mobileNotice') !== 'mobileNotice'
+                    ? t('themes.mobileNotice')
+                    : 'Adjusting your store theme requires a larger screen size'}
+                </p>
+                <p className="text-xs sm:text-sm leading-normal opacity-85" style={{ color: 'var(--merchant-text-secondary)' }}>
+                  {t('themes.mobileNoticeDetail') && t('themes.mobileNoticeDetail') !== 'mobileNoticeDetail'
+                    ? t('themes.mobileNoticeDetail')
+                    : 'To modify layouts, typography, and preview your storefront in real time, kindly switch to a desktop or laptop computer. Alternatively, contact the LetzShop team to help you customize and modify your store user interface and themes.'}
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t" style={{ borderColor: 'var(--merchant-border)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>
+                  {t('themes.needHelp') && t('themes.needHelp') !== 'needHelp'
+                    ? t('themes.needHelp')
+                    : 'Need help modifying your store theme or UI?'}
+                </span>
+                <a
+                  href="mailto:business@aikyamaisystems.com?subject=LetzShop%20Theme%20%26%20UI%20Customization%20Request"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition hover:opacity-90 shadow-xs cursor-pointer"
+                  style={{
+                    backgroundColor: 'var(--merchant-primary)',
+                    color: '#ffffff',
+                  }}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Contact LetzShop Support Team</span>
+                </a>
               </div>
             </div>
 
@@ -2895,41 +3027,22 @@ export default function BrandStudioPage() {
             )}
           </div>
 
-          {/* Desktop Live Storefront Interactive Preview Column (Hidden on screens below lg < 1024px) */}
-          <div className="hidden lg:block lg:col-span-6 sticky top-20">
-            <div
-              className="rounded-2xl p-4 shadow-xl border space-y-4 transition-colors"
-              style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
-            >
-              <div
-                className="flex items-center justify-between border-b pb-3"
-                style={{ borderColor: 'var(--merchant-border)' }}
-              >
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text)' }}>
-                    {t('themes.livePreviewFor', { theme: currentThemeObj.name })}
-                  </span>
-                </div>
-              </div>
-
-              {/* Rendered Preview Mockup Frame */}
-              <div className="mx-auto rounded-xl overflow-hidden shadow-2xl transition-all duration-300">
-                {store && (
-                  <MiniStorePreview
-                    store={store}
-                    iframeRef={iframeRef}
-                    activePage={activePreviewPage}
-                    onPageChange={(page) => {
-                      setActivePreviewPage(page);
-                      if (page === 'home') setActiveTab('HOME');
-                      else if (page === 'products') setActiveTab('PRODUCTS');
-                      else if (page === 'about') setActiveTab('ABOUT');
-                    }}
-                  />
-                )}
-              </div>
-            </div>
+          {/* Desktop Live Storefront Interactive Preview Column (Sticky & Internally Scrollable) */}
+          <div className="hidden lg:flex lg:flex-col lg:col-span-6 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] min-h-[600px] z-20">
+            {store && (
+              <MiniStorePreview
+                store={store}
+                iframeRef={iframeRef}
+                activePage={activePreviewPage}
+                themeName={currentThemeObj.name}
+                onPageChange={(page) => {
+                  setActivePreviewPage(page);
+                  if (page === 'home') setActiveTab('HOME');
+                  else if (page === 'products') setActiveTab('PRODUCTS');
+                  else if (page === 'about') setActiveTab('ABOUT');
+                }}
+              />
+            )}
           </div>
         </div>
       </div>

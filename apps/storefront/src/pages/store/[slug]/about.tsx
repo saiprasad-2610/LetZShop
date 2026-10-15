@@ -52,6 +52,7 @@ export default function StoreAboutPage() {
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
+                  ...event.data.themeConfig?.branding,
                 },
               },
             };

@@ -143,7 +143,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     : null;
 
   return (
-    <div className="min-h-screen bg-merchant-bg text-merchant-text flex flex-col md:flex-row">
+    <div className="min-h-screen bg-merchant-bg text-merchant-text flex flex-col md:flex-row w-full max-w-full overflow-x-clip">
       {/* =========================================================================
           1. DESKTOP & TABLET LEFT SIDEBAR (Sticky/Fixed)
           - Tablet (768px-1023px): Collapsible icon rail (68px or 240px)
@@ -220,9 +220,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         </nav>
 
         {/* Bottom Area: Merchant Profile, Language Switcher, Theme Switcher & Logout */}
-        <div className="p-3 border-t border-merchant-sidebar-border space-y-2">
+        <div className="p-3 border-t border-merchant-sidebar-border space-y-2.5">
           {/* Language Switcher */}
-          <SellerLanguageSelect compact={tabletCollapsed} />
+          <SellerLanguageSelect fullWidth={!tabletCollapsed} compact={tabletCollapsed} />
 
           {/* Theme Toggle Component */}
           <ThemeToggle
@@ -271,8 +271,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Hamburger opens left slide-in drawer
       ========================================================================= */}
       {/* Top App Bar for Mobile */}
-      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-3 py-2.5 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-3 py-2 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs w-full max-w-full gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
@@ -283,20 +283,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           </button>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
-              S
+              L
             </span>
-            <span className="font-bold text-sm tracking-tight text-merchant-sidebar-text truncate max-w-[110px] xs:max-w-[160px]">
+            <span className="font-bold text-xs sm:text-sm tracking-tight text-merchant-sidebar-text truncate max-w-[120px] sm:max-w-[200px]">
               {title || 'Dashboard'}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Quick language switcher on mobile top bar beside theme toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Quick language switcher on mobile top bar */}
           <SellerLanguageSelect showIcon={false} compact className="shrink-0" />
-          {/* Quick theme toggle on mobile app bar */}
-          <ThemeToggle collapsed className="w-8 h-8 !p-1 shrink-0" />
-          {getStatusBadge(true)}
+          {/* Quick theme toggle on mobile app bar beside language */}
+          <ThemeToggle collapsed className="w-8 h-8 !p-1.5 shrink-0" />
         </div>
       </div>
 
@@ -369,7 +368,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
         {/* Drawer Bottom Actions */}
         <div className="p-4 border-t border-merchant-sidebar-border space-y-2.5">
-          <SellerLanguageSelect />
+          <SellerLanguageSelect fullWidth />
           <ThemeToggle showLabel />
 
           {storefrontUrl && (
@@ -400,12 +399,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Offset margin on desktop/tablet to accommodate fixed left sidebar
       ========================================================================= */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${
+        className={`flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-clip transition-all duration-200 ${
           tabletCollapsed ? 'md:ml-[68px] lg:ml-60' : 'md:ml-60'
         }`}
       >
         {/* Main Content Viewport */}
-        <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto box-border">{children}</main>
       </div>
     </div>
   );

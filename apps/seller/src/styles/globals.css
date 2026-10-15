@@ -161,13 +161,25 @@
 }
 
 html,
-body,
-#__next {
+body {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
   background-color: var(--merchant-bg);
   color: var(--merchant-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Polished subtle transitions for theme switches (150-200ms) */
@@ -253,8 +265,36 @@ footer {
 
 [data-merchant-theme="dark"] .brand-studio-controls .bg-slate-50,
 [data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100\/90,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100\/80,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-50\/60,
 .dark .brand-studio-controls .bg-slate-50,
-.dark .brand-studio-controls .bg-slate-100 {
+.dark .brand-studio-controls .bg-slate-100,
+.dark .brand-studio-controls .bg-slate-100\/90,
+.dark .brand-studio-controls .bg-slate-100\/80,
+.dark .brand-studio-controls .bg-slate-50\/60 {
   background-color: var(--merchant-surface-raised) !important;
+  border-color: var(--merchant-border) !important;
+}
+
+/* Explicit high-contrast theme preset callout styling for both light and dark themes */
+.theme-best-suited-box {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box,
+.dark .theme-best-suited-box {
+  background-color: #1a1c24 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box span,
+.dark .theme-best-suited-box span {
+  color: #60a5fa !important;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box p,
+.dark .theme-best-suited-box p {
+  color: #e2e8f0 !important;
 }
 

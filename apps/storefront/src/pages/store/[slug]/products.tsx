@@ -65,6 +65,7 @@ export default function StoreProductsPage() {
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
+                  ...event.data.themeConfig?.branding,
                 },
               },
             };
@@ -328,7 +329,7 @@ export default function StoreProductsPage() {
             )}
           </div>
         ) : (
-          <div className={`grid gap-3.5 sm:gap-6 ${
+          <div className={`store-product-grid grid gap-3.5 sm:gap-6 ${
             themeCode === 'foundry' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
             themeCode === 'local' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
             themeCode === 'atelier' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :

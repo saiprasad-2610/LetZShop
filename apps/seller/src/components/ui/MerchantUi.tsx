@@ -43,32 +43,32 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
       onClick={toggleTheme}
       title={isDark ? 'Switch to Light Theme (Sage + Gold)' : 'Switch to Dark Theme (Graphite + Violet)'}
       aria-label={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-      className={`group relative flex items-center rounded-xl text-xs font-semibold transition-all duration-200 select-none ${
+      className={`group relative flex items-center rounded-xl text-xs font-semibold transition-all duration-200 select-none shrink-0 ${
         collapsed
-          ? 'w-full justify-center p-2'
-          : 'w-full justify-between px-3 py-2'
+          ? 'justify-center p-1.5 md:w-[46px] md:h-[44px] md:min-w-[44px]'
+          : 'w-full justify-between px-3.5 py-2.5 md:min-h-[46px] lg:min-h-[48px] lg:px-4'
       } ${
         isDark
           ? 'bg-[#22242F] text-[#E5E7EB] hover:bg-[#2D2F3A] border border-white/10 hover:border-violet-500/40'
           : 'bg-[#ECFDF5] text-[#1F2937] hover:bg-[#D1FAE5] border border-[#DDE7DF] hover:border-[#65A30D]/40'
       } ${className}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <div
-          className={`w-6 h-6 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${
+          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 ${
             isDark
               ? 'bg-violet-600/20 text-violet-300'
               : 'bg-amber-100 text-amber-700'
           }`}
         >
-          {isDark ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+          {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         </div>
         {!collapsed && showLabel && (
           <div className="text-left flex flex-col leading-tight">
-            <span className="text-[11px] font-bold">
+            <span className="text-xs font-bold">
               {isDark ? 'Dark Theme' : 'Light Theme'}
             </span>
-            <span className="text-[9px] opacity-70">
+            <span className="text-[10px] opacity-70">
               {isDark ? 'Graphite + Violet' : 'Sage + Gold'}
             </span>
           </div>

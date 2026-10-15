@@ -96,12 +96,50 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   const headingFont = presetFont?.heading || themeConfig?.typography?.fontHeading || fontHeadingMap[themeCode] || fontHeadingMap.atelier;
   const bodyFont = presetFont?.body || themeConfig?.typography?.fontBody || fontBodyMap[themeCode] || fontBodyMap.atelier;
 
+  // Resolve dynamic button shape
+  const buttonStyle = themeConfig?.buttonStyle || themeArchetype.buttonStyle || 'rounded-heavy';
+  let btnRadius = '12px';
+  if (buttonStyle === 'sharp-pill' || buttonStyle === 'pill-friendly' || buttonStyle === 'quick-add') {
+    btnRadius = '9999px';
+  } else if (buttonStyle === 'square-solid') {
+    btnRadius = '2px';
+  } else {
+    btnRadius = '12px';
+  }
+
+  // Resolve dynamic card styling & radius
+  const cardStyle = themeConfig?.cardStyle || themeArchetype.cardStyle || 'elevated-modern';
+  let cardRadius = '16px';
+  let cardShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)';
+  let cardBorder = '1px solid rgba(0, 0, 0, 0.08)';
+
+  if (cardStyle === 'rounded-soft') {
+    cardRadius = '24px';
+    cardShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.06)';
+  } else if (cardStyle === 'framed-luxury') {
+    cardRadius = '6px';
+    cardShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.05)';
+    cardBorder = '1.5px solid rgba(0, 0, 0, 0.15)';
+  } else if (cardStyle === 'minimal-bleed') {
+    cardRadius = '0px';
+    cardShadow = 'none';
+    cardBorder = '1px solid rgba(0, 0, 0, 0.1)';
+  } else if (cardStyle === 'spec-sheet-card') {
+    cardRadius = '2px';
+    cardShadow = 'none';
+    cardBorder = '1px solid rgba(0, 0, 0, 0.2)';
+  }
+
   const styleVariables = {
     '--theme-primary': primary,
     '--theme-accent': accent,
     '--theme-background': background,
     '--theme-font-heading': headingFont,
     '--theme-font-body': bodyFont,
+    '--theme-btn-radius': btnRadius,
+    '--theme-card-radius': cardRadius,
+    '--theme-card-shadow': cardShadow,
+    '--theme-card-border': cardBorder,
   } as React.CSSProperties;
 
   return (
@@ -113,6 +151,20 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
           href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        <style>{`
+          .store-card,
+          .store-product-grid > div,
+          [data-theme-card="true"] {
+            border-radius: ${cardRadius} !important;
+            box-shadow: ${cardShadow} !important;
+            border: ${cardBorder} !important;
+          }
+          .store-btn,
+          .store-product-grid button,
+          [data-theme-btn="true"] {
+            border-radius: ${btnRadius} !important;
+          }
+        `}</style>
       </Head>
       <div
         style={{

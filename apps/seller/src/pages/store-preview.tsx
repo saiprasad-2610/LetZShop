@@ -346,7 +346,7 @@ export default function StorePreviewPage() {
             Directly renders MiniStorePreview.
             No second toolbar, no duplicate cards, no repeated merchant headings.
         ========================================================================= */}
-        <div className="w-full">
+        <div className="w-full h-[calc(100vh-220px)] min-h-[640px]">
           <MiniStorePreview
             store={store}
             products={products}
