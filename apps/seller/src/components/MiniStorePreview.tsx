@@ -61,7 +61,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   return (
     <div className="w-full h-full flex flex-col rounded-2xl border border-merchant-border overflow-hidden bg-merchant-surface shadow-xl transition-colors duration-150">
       {/* 1. Universal Preview Toolbar (Fixed at top of preview panel) */}
-      <div className="bg-merchant-surface-raised px-3.5 py-2.5 flex items-center justify-between gap-2.5 border-b border-merchant-border shrink-0 select-none">
+      <div className="bg-merchant-surface-raised px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-merchant-border shrink-0 select-none">
         {/* Left: Window Controls & Live Indicator */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex items-center space-x-1.5 shrink-0">

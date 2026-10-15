@@ -222,13 +222,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         {/* Bottom Area: Merchant Profile, Language Switcher, Theme Switcher & Logout */}
         <div className="p-3 border-t border-merchant-sidebar-border space-y-2.5">
           {/* Language Switcher */}
-          <SellerLanguageSelect fullWidth={!tabletCollapsed} compact={tabletCollapsed} />
-
-          {/* Theme Toggle Component */}
-          <ThemeToggle
-            collapsed={tabletCollapsed}
-            showLabel={!tabletCollapsed}
-          />
+          <div className={`merchant-navigation-controls space-y-2.5 ${tabletCollapsed ? 'hidden lg:block' : ''}`}>
+            <SellerLanguageSelect />
+            <ThemeToggle />
+          </div>
 
           {/* Subscription link */}
           <button
@@ -403,6 +400,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           tabletCollapsed ? 'md:ml-[68px] lg:ml-60' : 'md:ml-60'
         }`}
       >
+        {/* The collapsed tablet rail cannot contain a readable language select. */}
+        {tabletCollapsed && (
+          <div className="hidden md:flex lg:hidden items-center justify-end gap-2 px-4 pt-3 merchant-navigation-controls">
+            <SellerLanguageSelect />
+            <ThemeToggle collapsed />
+          </div>
+        )}
         {/* Main Content Viewport */}
         <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto box-border">{children}</main>
       </div>

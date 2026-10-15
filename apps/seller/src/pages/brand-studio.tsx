@@ -3065,7 +3065,7 @@ export default function BrandStudioPage() {
           </div>
 
           {/* Desktop Live Storefront Interactive Preview Column (Sticky & Internally Scrollable) */}
-          <div className="hidden lg:flex lg:flex-col lg:col-span-6 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] min-h-[600px] z-20">
+          <div className="hidden lg:flex lg:flex-col lg:col-span-6 lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] min-h-0 min-w-0 self-start z-20">
             {store && (
               <MiniStorePreview
                 store={store}
