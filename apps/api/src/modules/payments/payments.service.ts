@@ -187,6 +187,10 @@ export class PaymentsService {
     });
     if (!plan) throw new NotFoundException('Subscription plan not found.');
 
+    if (plan.code.toUpperCase().includes('GROWTH')) {
+      throw new BadRequestException('The Growth plan is coming soon and cannot be purchased or activated at this time.');
+    }
+
     // Check if tenant already has an active subscription for this plan (Requirement 12: already-active subscription)
     if (!allowActiveRenewal) {
       const now = new Date();
