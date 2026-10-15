@@ -246,7 +246,10 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
     }`}>
       {/* 1. Universal Top Announcement Bar with Theme Styling & Floating Marquee */}
       {isAnnouncementEnabled && (
-        <div className={`${getThemeStripClasses()} py-1.5 px-4 overflow-hidden select-none`}>
+        <div
+          className={`${getThemeStripClasses()} py-1.5 px-4 overflow-hidden select-none`}
+          style={{ borderRadius: 'var(--theme-announcement-radius, 0)' }}
+        >
           {isFloating ? (
             <div className="relative w-full overflow-hidden whitespace-nowrap flex items-center">
               <div className="inline-flex animate-marquee gap-10 items-center">

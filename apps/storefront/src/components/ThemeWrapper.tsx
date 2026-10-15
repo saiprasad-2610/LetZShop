@@ -41,9 +41,13 @@ const FONT_FAMILIES: Record<string, { heading: string; body: string }> = {
     heading: "'Montserrat', system-ui, sans-serif",
     body: "'Inter', system-ui, sans-serif",
   },
-  'Cabinet Grotesk': {
-    heading: "'Space Grotesk', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
+  'Noto Sans Devanagari': {
+    heading: "'Noto Sans Devanagari', system-ui, sans-serif",
+    body: "'Noto Sans Devanagari', system-ui, sans-serif",
+  },
+  'Noto Serif Devanagari': {
+    heading: "'Noto Serif Devanagari', Georgia, serif",
+    body: "'Noto Serif Devanagari', 'Plus Jakarta Sans', system-ui, sans-serif",
   },
 };
 
@@ -130,16 +134,28 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     cardBorder = '1px solid rgba(0, 0, 0, 0.2)';
   }
 
+  // Resolve announcement bar bottom-edge shape
+  const announcementBarStyle = themeConfig?.announcementBarStyle || 'square';
+  let announcementBorderRadius = '0';
+  if (announcementBarStyle === 'soft') announcementBorderRadius = '0 0 8px 8px';
+  else if (announcementBarStyle === 'rounded') announcementBorderRadius = '0 0 16px 16px';
+  else if (announcementBarStyle === 'pill') announcementBorderRadius = '0 0 9999px 9999px';
+
   const styleVariables = {
     '--theme-primary': primary,
     '--theme-accent': accent,
     '--theme-background': background,
     '--theme-font-heading': headingFont,
     '--theme-font-body': bodyFont,
+    // Sync Tailwind font-serif / font-sans utilities with selected theme font
+    // Without this, elements using font-serif/font-sans classes ignore the merchant's choice
+    '--font-serif': headingFont,
+    '--font-sans': bodyFont,
     '--theme-btn-radius': btnRadius,
     '--theme-card-radius': cardRadius,
     '--theme-card-shadow': cardShadow,
     '--theme-card-border': cardBorder,
+    '--theme-announcement-radius': announcementBorderRadius,
   } as React.CSSProperties;
 
   return (
@@ -148,7 +164,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
         <style>{`

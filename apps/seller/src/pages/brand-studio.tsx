@@ -138,6 +138,7 @@ export default function BrandStudioPage() {
   const [cardStyle, setCardStyle] = useState('framed-luxury');
   const [buttonStyle, setButtonStyle] = useState('sharp-pill');
   const [imageRatio, setImageRatio] = useState('3/4');
+  const [announcementBarStyle, setAnnouncementBarStyle] = useState('square');
 
   // HOME PAGE Specific Customization
   const [homeHeroBadge, setHomeHeroBadge] = useState('ARTISANAL ATELIER • HALLMARKED & CERTIFIED');
@@ -294,6 +295,7 @@ export default function BrandStudioPage() {
         if (cfg.cardStyle) setCardStyle(cfg.cardStyle);
         if (cfg.buttonStyle) setButtonStyle(cfg.buttonStyle);
         if (cfg.imageRatio) setImageRatio(cfg.imageRatio);
+        if (cfg.announcementBarStyle) setAnnouncementBarStyle(cfg.announcementBarStyle);
         if (cfg.physicalStoreAddress) setPhysicalStoreAddress(cfg.physicalStoreAddress);
         if (cfg.physicalStoreTimings) setPhysicalStoreTimings(cfg.physicalStoreTimings);
 
@@ -404,6 +406,7 @@ export default function BrandStudioPage() {
             cardStyle,
             buttonStyle,
             imageRatio,
+            announcementBarStyle,
             storeStory: aboutStoryP1,
             physicalStoreAddress,
             physicalStoreTimings,
@@ -504,6 +507,7 @@ export default function BrandStudioPage() {
     cardStyle,
     buttonStyle,
     imageRatio,
+    announcementBarStyle,
     homeHeroBadge,
     homeHeroTitle,
     homeHeroSubtitle,
@@ -829,6 +833,7 @@ export default function BrandStudioPage() {
           cardStyle,
           buttonStyle,
           imageRatio,
+          announcementBarStyle,
           storeStory: aboutStoryP1,
           physicalStoreAddress,
           physicalStoreTimings,
@@ -1604,7 +1609,8 @@ export default function BrandStudioPage() {
                 { id: 'Cinzel', name: 'Cinzel Heritage', desc: 'Regal Royal Craft' },
                 { id: 'Outfit', name: 'Outfit Contemporary', desc: 'Friendly Lifestyle' },
                 { id: 'Montserrat', name: 'Montserrat Bold', desc: 'Impactful Streetwear' },
-                { id: 'Cabinet Grotesk', name: 'Cabinet Grotesk', desc: 'Punchy Geometric' },
+                { id: 'Noto Sans Devanagari', name: 'Noto Sans Devanagari', desc: 'Devanagari — Marathi & Hindi' },
+                { id: 'Noto Serif Devanagari', name: 'Noto Serif Devanagari', desc: 'Devanagari — Traditional Script' },
               ].map((ty) => (
                 <button
                   key={ty.id}
@@ -1691,6 +1697,37 @@ export default function BrandStudioPage() {
                       }`}
                     />
                   </button>
+                </div>
+
+                {/* Announcement Bar Shape */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Announcement Bar Shape
+                  </label>
+                  <p className="text-[10px] text-slate-400 mb-2 leading-tight">
+                    Controls the bottom-edge shape of the top announcement strip on your storefront.
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { value: 'square', label: 'Square' },
+                      { value: 'soft', label: 'Soft' },
+                      { value: 'rounded', label: 'Rounded' },
+                      { value: 'pill', label: 'Pill' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAnnouncementBarStyle(opt.value)}
+                        className={`py-2 rounded-xl border text-[11px] font-medium transition ${
+                          announcementBarStyle === opt.value
+                            ? 'border-blue-600 bg-blue-50/30 ring-2 ring-blue-500/20 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
