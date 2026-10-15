@@ -31,7 +31,7 @@ import { ShiprocketShippingProvider } from '../shipping/providers/shiprocket-shi
 
 import { DashboardService } from './dashboard.service';
 import { ReportsService } from './reports.service';
-import { isValidLocale, sanitizeLocale, SUPPORTED_LOCALES } from '@simply/i18n';
+import { isActiveLocale, sanitizeLocale, ACTIVE_LOCALES } from '@simply/i18n';
 
 @ApiTags('Seller Dashboard & Merchant APIs')
 @ApiBearerAuth()
@@ -75,8 +75,8 @@ export class SellerController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: { preferredLocale?: string }
   ) {
-    if (body.preferredLocale && !isValidLocale(body.preferredLocale)) {
-      throw new BadRequestException(`Invalid locale specified. Must be one of: ${SUPPORTED_LOCALES.join(', ')}`);
+    if (body.preferredLocale && !isActiveLocale(body.preferredLocale)) {
+      throw new BadRequestException(`Invalid locale specified. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
     }
     const updated = await this.prisma.user.update({
       where: { id: user.userId },
@@ -151,8 +151,8 @@ export class SellerController {
       enabledStorefrontLocales?: string[];
     }
   ) {
-    if (body.storefrontDefaultLocale && !isValidLocale(body.storefrontDefaultLocale)) {
-      throw new BadRequestException(`Invalid storefront default locale. Must be one of: ${SUPPORTED_LOCALES.join(', ')}`);
+    if (body.storefrontDefaultLocale && !isActiveLocale(body.storefrontDefaultLocale)) {
+      throw new BadRequestException(`Invalid storefront default locale. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
     }
 
     if (body.enabledStorefrontLocales) {
@@ -160,8 +160,8 @@ export class SellerController {
         throw new BadRequestException('At least one storefront language must be enabled.');
       }
       for (const loc of body.enabledStorefrontLocales) {
-        if (!isValidLocale(loc)) {
-          throw new BadRequestException(`Invalid locale '${loc}' in enabledStorefrontLocales list.`);
+        if (!isActiveLocale(loc)) {
+          throw new BadRequestException(`Invalid locale '${loc}' in enabledStorefrontLocales list. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
         }
       }
     }

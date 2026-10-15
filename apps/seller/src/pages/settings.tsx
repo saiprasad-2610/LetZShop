@@ -516,17 +516,17 @@ export default function SettingsPage() {
 
 
   return (
-    <Layout>
+    <Layout title={t('settings.storeSettings')}>
       <Head>
-        <title>Store Settings | Simply Seller</title>
+        <title>{t('settings.storeSettings')} | Simply Seller</title>
       </Head>
 
       <div className="space-y-6 max-w-3xl">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">Store Settings</h1>
+          <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">{t('settings.storeSettings')}</h1>
           <p className="text-sm text-[var(--merchant-text-muted)]">
-            Configure your business profile, payment gateways, and logistics integrations
+            {t('settings.subtitle')}
           </p>
         </div>
 
