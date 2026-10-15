@@ -7,17 +7,18 @@ import {
   AlertCircle, 
   Globe, 
   Lock, 
-  Clock, 
   ShieldCheck,
   Zap,
   ArrowRight,
   History,
   FileText,
-  Calendar,
-  Download
+  Download,
+  Mail,
+  Clock
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n } from '@simply/i18n';
 import { formatPaise } from '@simply/ui';
 import { getStorefrontUrl } from '../utils/config';
 
@@ -37,6 +38,7 @@ const loadRazorpayScript = (): Promise<boolean> => {
 
 export default function SubscriptionPage() {
   const { api, user } = useAuth();
+  const { t, locale } = useSellerI18n();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<any[]>([]);
   const [currentSub, setCurrentSub] = useState<any>(null);
@@ -65,14 +67,22 @@ export default function SubscriptionPage() {
     }
   };
 
+  const isLive = (store?.status === 'LIVE' || store?.status === 'ACTIVE') && currentSub?.status === 'ACTIVE';
+  const isExpired = currentSub?.status === 'EXPIRED' || store?.status === 'SUSCRIPTION_EXPIRED' || store?.status === 'SUSPENDED';
+
+  // Find authoritative starter/launch plan from backend (pricePaise: 99900 = ₹999)
+  const launchPlan = plans.find((p) => p.pricePaise === 99900) || plans[0];
+
   const handleActivatePlan = async (plan: any) => {
-    // 10. Double-clicking subscription payment must not create duplicate subscriptions
     if (activating) return;
-    setActivating(plan.id);
+    const planToActivate = plan || launchPlan;
+    if (!planToActivate) return;
+
+    setActivating(planToActivate.id);
 
     try {
-      if (currentSub?.planId === plan.id && isLive) {
-        alert('You already have an active subscription to this plan.');
+      if (currentSub?.planId === planToActivate.id && isLive) {
+        alert(t('subscription.alreadySubscribed'));
         setActivating(null);
         return;
       }
@@ -80,21 +90,20 @@ export default function SubscriptionPage() {
       // Load Razorpay Checkout SDK
       const sdkReady = await loadRazorpayScript();
       if (!sdkReady) {
-        alert('Unable to load Razorpay payment checkout. Please check your network connection.');
+        alert(t('subscription.razorpayUnavailable'));
         setActivating(null);
         return;
       }
 
-      // Backend calculates authoritative plan amount and creates Razorpay Test Mode Order (Requirements 2, 3)
-      const orderData = await api.subscriptions.createOrder(plan.id, 'MONTHLY');
+      // Backend calculates authoritative plan amount and creates Razorpay Order
+      const orderData = await api.subscriptions.createOrder(planToActivate.id, 'MONTHLY');
 
-      // Open Razorpay Checkout using returned order_id and public Key ID (Requirement 4)
       const options = {
         key: orderData.keyId,
         amount: orderData.amountPaise,
         currency: orderData.currency || 'INR',
-        name: 'AIKYAM Platform',
-        description: `Subscription: ${plan.name}`,
+        name: 'LetzShop Platform',
+        description: `Plan: ${planToActivate.name}`,
         order_id: orderData.providerOrderId,
         prefill: {
           name: user?.fullName || '',
@@ -106,7 +115,6 @@ export default function SubscriptionPage() {
         },
         modal: {
           ondismiss: function () {
-            // Failed/cancelled payment must leave store PRIVATE (Requirement 9)
             setActivating(null);
           },
         },
@@ -116,7 +124,6 @@ export default function SubscriptionPage() {
           razorpay_signature: string;
         }) {
           try {
-            // Send razorpay_payment_id, razorpay_order_id, razorpay_signature to backend (Requirement 5)
             await api.subscriptions.verify({
               paymentOrderId: orderData.paymentOrderId,
               razorpay_payment_id: response.razorpay_payment_id,
@@ -124,10 +131,10 @@ export default function SubscriptionPage() {
               razorpay_signature: response.razorpay_signature,
             });
 
-            alert('Subscription payment verified successfully! Your store is now LIVE to the public.');
+            alert(t('subscription.paymentSuccess'));
             await loadSubscriptionInfo();
           } catch (verifyErr: any) {
-            alert(verifyErr.message || 'Payment verification failed. Store remains private.');
+            alert(verifyErr.message || t('subscription.paymentFailed'));
           } finally {
             setActivating(null);
           }
@@ -136,35 +143,41 @@ export default function SubscriptionPage() {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', function (errResp: any) {
-        // Failed/cancelled payment leaves store PRIVATE (Requirement 9)
-        alert('Payment failed: ' + (errResp.error?.description || 'Payment was unsuccessful.'));
+        alert(t('subscription.paymentFailed') + (errResp.error?.description || ''));
         setActivating(null);
       });
       rzp.open();
     } catch (err: any) {
-      alert(err.message || 'Failed to initiate subscription payment.');
+      alert(err.message || t('subscription.paymentFailed'));
       setActivating(null);
     }
   };
 
-  const isLive = (store?.status === 'LIVE' || store?.status === 'ACTIVE') && currentSub?.status === 'ACTIVE';
-  const isExpired = currentSub?.status === 'EXPIRED' || store?.status === 'SUSCRIPTION_EXPIRED' || store?.status === 'SUSPENDED';
-  const isUnpaid = !currentSub || currentSub?.status === 'UNPAID' || store?.status === 'PRIVATE_PREVIEW' || store?.status === 'DRAFT';
+  // Custom email link construction with prefilled subject and body
+  const customEmailSubject = encodeURIComponent(t('subscription.customRequirementSubject'));
+  const customEmailBody = encodeURIComponent(
+    t('subscription.customRequirementBody', {
+      storeName: store?.name || 'My Store',
+      phone: user?.phone || 'N/A',
+      email: user?.email || 'N/A',
+    })
+  );
+  const customEmailHref = `mailto:business@aikyamaisystems.com?subject=${customEmailSubject}&body=${customEmailBody}`;
 
   return (
     <Layout>
       <Head>
-        <title>Store Publishing & Subscription | Simply Seller</title>
+        <title>{t('subscription.title')} | Simply Seller</title>
       </Head>
 
       <div className="space-y-8 max-w-5xl mx-auto">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-[var(--merchant-text)] tracking-tight">
-            Store Publishing & Subscription
+            {t('subscription.title')}
           </h1>
-          <p className="text-sm text-[var(--merchant-text-muted)]">
-            Transparent pricing with zero hidden commissions. Keep 100% of your customer revenue.
+          <p className="text-sm text-[var(--merchant-text-muted)] mt-1">
+            {t('subscription.subtitle')}
           </p>
         </div>
 
@@ -184,155 +197,278 @@ export default function SubscriptionPage() {
                 {isLive ? (
                   <>
                     <Globe className="w-5 h-5 text-emerald-500" />
-                    <span className="font-bold text-[var(--merchant-text)] text-base">Your Store is LIVE</span>
+                    <span className="font-bold text-[var(--merchant-text)] text-base">
+                      {t('subscription.currentStoreLive')}
+                    </span>
                   </>
                 ) : isExpired ? (
                   <>
                     <AlertCircle className="w-5 h-5 text-rose-500" />
-                    <span className="font-bold text-[var(--merchant-text)] text-base">Store Offline (Subscription Expired)</span>
+                    <span className="font-bold text-[var(--merchant-text)] text-base">
+                      {t('subscription.storeOfflineExpired')}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Lock className="w-5 h-5 text-amber-500" />
-                    <span className="font-bold text-[var(--merchant-text)] text-base">Your Store is Private</span>
+                    <span className="font-bold text-[var(--merchant-text)] text-base">
+                      {t('subscription.storePrivate')}
+                    </span>
                   </>
                 )}
               </div>
 
               <p className="text-xs text-[var(--merchant-text-muted)]">
                 {isLive
-                  ? `Active on the ${currentSub?.plan?.name || 'Pro'} plan. Valid through ${new Date(
-                      currentSub?.currentPeriodEnd
-                    ).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}.`
+                  ? t('subscription.liveDesc', {
+                      plan: currentSub?.plan?.name || t('subscription.plan1Name'),
+                      date: currentSub?.currentPeriodEnd
+                        ? new Date(currentSub.currentPeriodEnd).toLocaleDateString(locale, {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : '',
+                    })
                   : isExpired
-                  ? 'Your subscription expired. Public shoppers currently see a maintenance screen. Private preview remains accessible.'
-                  : 'Your storefront is configured and ready for shoppers! Select a plan below to publish publicly.'}
+                  ? t('subscription.expiredDesc')
+                  : t('subscription.privateDesc')}
               </p>
             </div>
 
-            {isLive && (
+            {isLive && store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store?.slug}`}
+                href={`${getStorefrontUrl()}/store/${store.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto shrink-0"
               >
-                Visit Public Storefront
+                {t('subscription.visitPublicStorefront')}
               </a>
             )}
           </div>
         </div>
 
-        {/* Pricing Plans Grid */}
+        {/* 3-Tier Pricing Model */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-[var(--merchant-text)]">Choose a Merchant Plan</h2>
+          <h2 className="text-lg font-bold text-[var(--merchant-text)]">
+            {t('subscription.choosePlanTitle')}
+          </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((p) => {
-              const isCurrent = currentSub?.planId === p.id && isLive;
-              const isPopular = p.name.toLowerCase().includes('growth') || p.name.toLowerCase().includes('pro');
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            
+            {/* PLAN 1 — Launch (₹999) */}
+            <div
+              className={`bg-[var(--merchant-surface)] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative ${
+                isLive
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                  : 'border-[var(--merchant-primary)] ring-2 ring-[var(--merchant-primary)]/20 shadow-md'
+              }`}
+            >
+              {isLive ? (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                  {t('subscription.currentPlan')}
+                </span>
+              ) : (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--merchant-primary)] text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                  {t('subscription.mostPopular')}
+                </span>
+              )}
 
-              return (
-                <div
-                  key={p.id}
-                  className={`bg-[var(--merchant-surface)] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative ${
-                    isCurrent
-                      ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                      : isPopular
-                      ? 'border-[var(--merchant-accent)] ring-1 ring-[var(--merchant-accent)]/30 shadow-md'
-                      : 'border-[var(--merchant-border)] hover:border-[var(--merchant-border-strong)]'
-                  }`}
-                >
-                  {isPopular && !isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--merchant-accent)] text-slate-900 text-[11px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
-                      Most Popular
-                    </span>
-                  )}
-                  {isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
-                      Current Plan
-                    </span>
-                  )}
-
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-[var(--merchant-text)]">{p.name}</h3>
-                      <p className="text-xs text-[var(--merchant-text-muted)] mt-1">{p.description}</p>
-                    </div>
-
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
-                        {formatPaise(p.pricePaise)}
-                      </span>
-                      <span className="text-xs text-[var(--merchant-text-muted)] font-medium">/ month</span>
-                    </div>
-
-                    <div className="border-t border-[var(--merchant-border)] pt-4 space-y-2 text-xs text-[var(--merchant-text-secondary)]">
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>Up to {p.maxProducts} active products</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>0% transaction fees on all orders</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>All 6 foundational themes + Brand Studio</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>Razorpay + COD payment gateway</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>Shiprocket shipping integration</span>
-                      </div>
-                    </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-xl text-[var(--merchant-text)]">
+                      {t('subscription.plan1Name')}
+                    </h3>
                   </div>
+                  <p className="text-xs text-[var(--merchant-text-muted)] mt-1.5 min-h-[32px]">
+                    {t('subscription.plan1Desc')}
+                  </p>
+                </div>
 
-                  <div className="pt-6">
-                    <button
-                      type="button"
-                      disabled={isCurrent || activating === p.id}
-                      onClick={() => handleActivatePlan(p)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                        isCurrent
-                          ? 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] cursor-default'
-                          : isPopular
-                          ? 'bg-[var(--merchant-accent)] hover:bg-[var(--merchant-accent-hover)] text-slate-900 shadow-xs'
-                          : 'bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-xs'
-                      }`}
-                    >
-                      {activating === p.id ? (
-                        'Activating...'
-                      ) : isCurrent ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-500" /> Active
-                        </>
-                      ) : (
-                        <>
-                          <span>Activate Plan</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
+                <div className="flex items-baseline gap-1 py-1">
+                  <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
+                    {t('subscription.plan1Price')}
+                  </span>
+                </div>
+
+                <div className="border-t border-[var(--merchant-border)] pt-4 space-y-2.5 text-xs text-[var(--merchant-text-secondary)]">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature1')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature2')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature3')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature4')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature5')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan1Feature6')}</span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+
+              <div className="pt-6 mt-auto">
+                <button
+                  type="button"
+                  disabled={isLive || activating !== null}
+                  onClick={() => handleActivatePlan(launchPlan)}
+                  className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    isLive
+                      ? 'bg-[var(--merchant-surface-muted)] text-emerald-400 border border-emerald-500/30 cursor-default'
+                      : 'bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-xs'
+                  }`}
+                >
+                  {activating ? (
+                    t('subscription.activating')
+                  ) : isLive ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span>{t('subscription.active')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t('subscription.activatePlan')}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* PLAN 2 — Growth (₹2,999 — COMING SOON) */}
+            <div className="bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative opacity-90">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                {t('subscription.comingSoon')}
+              </span>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-bold text-xl text-[var(--merchant-text)]">
+                    {t('subscription.plan2Name')}
+                  </h3>
+                  <p className="text-xs text-[var(--merchant-text-muted)] mt-1.5 min-h-[32px]">
+                    {t('subscription.plan2Desc')}
+                  </p>
+                </div>
+
+                <div className="flex items-baseline gap-1 py-1">
+                  <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
+                    {t('subscription.plan2Price')}
+                  </span>
+                </div>
+
+                <div className="border-t border-[var(--merchant-border)] pt-4 space-y-2.5 text-xs text-[var(--merchant-text-secondary)]">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan2Feature1')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan2Feature2')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan2Feature3')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan2Feature4')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 mt-auto">
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-3 rounded-xl text-xs font-bold bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{t('subscription.comingSoon')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* PLAN 3 — Custom Website / E-commerce Solution by Aikyam */}
+            <div className="bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--merchant-accent)]" />
+                    <h3 className="font-bold text-xl text-[var(--merchant-text)]">
+                      {t('subscription.plan3Name')}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[var(--merchant-text-muted)] mt-1.5 min-h-[32px]">
+                    {t('subscription.plan3Desc')}
+                  </p>
+                </div>
+
+                {/* No price displayed */}
+                <div className="py-2.5 px-3 rounded-lg bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)]">
+                  <span className="text-xs font-semibold text-[var(--merchant-text)]">
+                    {t('subscription.plan3Price')}
+                  </span>
+                </div>
+
+                <div className="border-t border-[var(--merchant-border)] pt-4 space-y-2.5 text-xs text-[var(--merchant-text-secondary)]">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-[var(--merchant-primary)] flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan3Feature1')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-[var(--merchant-primary)] flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan3Feature2')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-[var(--merchant-primary)] flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan3Feature3')}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-[var(--merchant-primary)] flex-shrink-0 mt-0.5" />
+                    <span>{t('subscription.plan3Feature4')}</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[var(--merchant-text-muted)] italic pt-1">
+                  {t('subscription.customRequirementNotice')}
+                </p>
+              </div>
+
+              <div className="pt-6 mt-auto">
+                <a
+                  href={customEmailHref}
+                  className="w-full py-3 rounded-xl text-xs font-bold bg-[var(--merchant-surface-raised)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] border border-[var(--merchant-border)] shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Mail className="w-4 h-4 text-[var(--merchant-primary)]" />
+                  <span>{t('subscription.contactAikyam')}</span>
+                </a>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Subscription Details & Billing History (Requirement: Production-Level History & Validation) */}
+        {/* Subscription Details & Billing History */}
         {currentSub && (
           <div className="space-y-4 pt-8 border-t border-[var(--merchant-border)]">
             <h2 className="text-lg font-bold text-[var(--merchant-text)] flex items-center gap-2">
-              <History className="w-5 h-5 text-[var(--merchant-text-muted)]" /> Subscription Details & Billing History
+              <History className="w-5 h-5 text-[var(--merchant-text-muted)]" />
+              <span>{t('subscription.billingDetailsTitle')}</span>
             </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -341,35 +477,42 @@ export default function SubscriptionPage() {
               <div className="bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] p-6 shadow-xs flex flex-col justify-between transition-colors">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--merchant-text)] flex items-center gap-2 mb-4">
-                    <CreditCard className="w-4 h-4 text-emerald-500" /> Current Subscription
+                    <CreditCard className="w-4 h-4 text-emerald-500" />
+                    <span>{t('subscription.currentSubTitle')}</span>
                   </h3>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
-                      <span className="text-[var(--merchant-text-muted)]">Plan</span>
-                      <span className="font-semibold text-[var(--merchant-text)]">{currentSub.plan?.name || 'Unknown'}</span>
+                      <span className="text-[var(--merchant-text-muted)]">{t('subscription.planLabel')}</span>
+                      <span className="font-semibold text-[var(--merchant-text)]">
+                        {currentSub.plan?.name || t('subscription.plan1Name')}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
-                      <span className="text-[var(--merchant-text-muted)]">Status</span>
+                      <span className="text-[var(--merchant-text-muted)]">{t('subscription.statusLabel')}</span>
                       <span className={`font-bold ${isLive ? 'text-emerald-500' : 'text-amber-500'}`}>
                         {currentSub.status}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
-                      <span className="text-[var(--merchant-text-muted)]">Period Start</span>
+                      <span className="text-[var(--merchant-text-muted)]">{t('subscription.periodStart')}</span>
                       <span className="font-medium text-[var(--merchant-text-secondary)]">
-                        {new Date(currentSub.currentPeriodStart).toLocaleDateString()}
+                        {currentSub.currentPeriodStart
+                          ? new Date(currentSub.currentPeriodStart).toLocaleDateString(locale)
+                          : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-[var(--merchant-border)]">
-                      <span className="text-[var(--merchant-text-muted)]">Period End</span>
+                      <span className="text-[var(--merchant-text-muted)]">{t('subscription.periodEnd')}</span>
                       <span className="font-medium text-[var(--merchant-text-secondary)]">
-                        {new Date(currentSub.currentPeriodEnd).toLocaleDateString()}
+                        {currentSub.currentPeriodEnd
+                          ? new Date(currentSub.currentPeriodEnd).toLocaleDateString(locale)
+                          : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[var(--merchant-text-muted)]">Auto-Renew</span>
+                      <span className="text-[var(--merchant-text-muted)]">{t('subscription.autoRenew')}</span>
                       <span className="font-medium text-[var(--merchant-text-secondary)]">
-                        {!currentSub.cancelAtPeriodEnd ? 'Enabled' : 'Disabled'}
+                        {!currentSub.cancelAtPeriodEnd ? t('subscription.enabled') : t('subscription.disabled')}
                       </span>
                     </div>
                   </div>
@@ -380,33 +523,36 @@ export default function SubscriptionPage() {
               <div className="lg:col-span-2 bg-[var(--merchant-surface)] rounded-2xl border border-[var(--merchant-border)] shadow-xs overflow-hidden flex flex-col transition-colors">
                 <div className="px-6 py-4 border-b border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)]">
                   <h3 className="text-sm font-semibold text-[var(--merchant-text)] flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[var(--merchant-primary)]" /> Invoice History
+                    <FileText className="w-4 h-4 text-[var(--merchant-primary)]" />
+                    <span>{t('subscription.invoiceHistory')}</span>
                   </h3>
                 </div>
                 
                 {(!currentSub.invoices || currentSub.invoices.length === 0) ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-[var(--merchant-text-muted)]">
                     <FileText className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-sm">No billing history available yet.</p>
+                    <p className="text-sm">{t('subscription.noInvoices')}</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border-b border-[var(--merchant-border)]">
                         <tr>
-                          <th className="px-6 py-3 font-medium">Invoice #</th>
-                          <th className="px-6 py-3 font-medium">Date</th>
-                          <th className="px-6 py-3 font-medium">Amount</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium text-right">Action</th>
+                          <th className="px-6 py-3 font-medium">{t('subscription.invoiceNum')}</th>
+                          <th className="px-6 py-3 font-medium">{t('subscription.date')}</th>
+                          <th className="px-6 py-3 font-medium">{t('subscription.amount')}</th>
+                          <th className="px-6 py-3 font-medium">{t('subscription.status')}</th>
+                          <th className="px-6 py-3 font-medium text-right">{t('subscription.action')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--merchant-border)]">
                         {currentSub.invoices.map((inv: any) => (
                           <tr key={inv.id} className="hover:bg-[var(--merchant-surface-muted)]/50 transition-colors">
-                            <td className="px-6 py-4 font-mono text-xs text-[var(--merchant-text-secondary)]">{inv.invoiceNumber}</td>
+                            <td className="px-6 py-4 font-mono text-xs text-[var(--merchant-text-secondary)]">
+                              {inv.invoiceNumber}
+                            </td>
                             <td className="px-6 py-4 text-[var(--merchant-text-secondary)]">
-                              {new Date(inv.createdAt).toLocaleDateString()}
+                              {new Date(inv.createdAt).toLocaleDateString(locale)}
                             </td>
                             <td className="px-6 py-4 font-medium text-[var(--merchant-text)]">
                               {formatPaise(inv.amountPaise)}
@@ -430,10 +576,10 @@ export default function SubscriptionPage() {
                                     : 'text-[var(--merchant-text-muted)] cursor-not-allowed'
                                 }`}
                                 onClick={() => inv.invoicePdfUrl && window.open(inv.invoicePdfUrl, '_blank')}
-                                title={!inv.invoicePdfUrl ? "Invoice PDF not generated yet" : "Download PDF"}
+                                title={!inv.invoicePdfUrl ? 'PDF unavailable' : 'Download PDF'}
                               >
                                 <Download className="w-3.5 h-3.5" />
-                                PDF
+                                {t('subscription.downloadPdf')}
                               </button>
                             </td>
                           </tr>
@@ -451,23 +597,23 @@ export default function SubscriptionPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-[var(--merchant-border)]">
           <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
             <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Strict Tenant Privacy</h4>
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">{t('subscription.trustTitle1')}</h4>
             <p className="text-[11px] text-[var(--merchant-text-muted)]">
-              Your customer data, margins, and sales records are isolated and encrypted per tenant.
+              {t('subscription.trustDesc1')}
             </p>
           </div>
           <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
             <Zap className="w-5 h-5 text-[var(--merchant-accent)]" />
-            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Lightning Fast PWA</h4>
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">{t('subscription.trustTitle2')}</h4>
             <p className="text-[11px] text-[var(--merchant-text-muted)]">
-              Built on Next.js 14 and Fastify for sub-second load times across 4G and 5G networks.
+              {t('subscription.trustDesc2')}
             </p>
           </div>
           <div className="p-4 bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl space-y-1 transition-colors">
             <CreditCard className="w-5 h-5 text-[var(--merchant-primary)]" />
-            <h4 className="text-xs font-bold text-[var(--merchant-text)]">Direct Merchant Settlement</h4>
+            <h4 className="text-xs font-bold text-[var(--merchant-text)]">{t('subscription.trustTitle3')}</h4>
             <p className="text-[11px] text-[var(--merchant-text-muted)]">
-              All buyer payments route directly into your verified bank account via Razorpay.
+              {t('subscription.trustDesc3')}
             </p>
           </div>
         </div>

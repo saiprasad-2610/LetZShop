@@ -44,6 +44,9 @@ import {
   Image as ImageIcon,
   Minus,
   Plus,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { MiniStorePreview } from '../components/MiniStorePreview';
@@ -70,6 +73,7 @@ export default function BrandStudioPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop');
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [openMobileAccordion, setOpenMobileAccordion] = useState<string | null>('THEME_STYLE');
   const [store, setStore] = useState<any>(null);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -939,15 +943,10 @@ export default function BrandStudioPage() {
 
   const currentThemeObj = FOUNDATIONAL_THEMES[selectedThemeId] || FOUNDATIONAL_THEMES.atelier;
 
-  // Render controls content
-  const renderControls = () => (
-    <div className="space-y-6 brand-studio-controls">
-      {/* ======================================================== */}
-      {/* TAB 1: THEME & GLOBAL STYLING */}
-      {/* ======================================================== */}
-      {activeTab === 'THEME' && (
-        <div className="space-y-6">
-          {/* Foundational Theme Selection */}
+  // Modular Section Renderers
+  const renderThemeStyleSection = () => (
+    <div className="space-y-6">
+      {/* Foundational Theme Selection */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
@@ -1034,8 +1033,100 @@ export default function BrandStudioPage() {
               })}
             </div>
           </div>
+      {/* Layout Composition Fine-Tuning */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+              Layout Styling & Component Shapes
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Header Style</label>
+                <select
+                  value={headerStyle}
+                  onChange={(e) => setHeaderStyle(e.target.value)}
+                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
+                >
+                  <option value="minimal-center">Minimal Centered (Atelier)</option>
+                  <option value="sticky-action">Sticky Action (Pulse)</option>
+                  <option value="warm-friendly">Warm Friendly (Harvest)</option>
+                  <option value="industrial-meta">Industrial Meta (Foundry)</option>
+                  <option value="spacious-lifestyle">Spacious Lifestyle (Habitat)</option>
+                  <option value="quick-search-bar">Quick Search Bar (Local)</option>
+                </select>
+              </div>
 
-          {/* Logo & Banner Upload */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Card Style</label>
+                <select
+                  value={cardStyle}
+                  onChange={(e) => setCardStyle(e.target.value)}
+                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
+                >
+                  <option value="framed-luxury">Framed Luxury</option>
+                  <option value="elevated-modern">Elevated Modern</option>
+                  <option value="rounded-soft">Rounded Soft</option>
+                  <option value="spec-sheet-card">Spec Sheet Card</option>
+                  <option value="minimal-bleed">Minimal Bleed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Button Shape</label>
+                <select
+                  value={buttonStyle}
+                  onChange={(e) => setButtonStyle(e.target.value)}
+                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
+                >
+                  <option value="sharp-pill">Sharp Pill</option>
+                  <option value="rounded-heavy">Rounded Heavy</option>
+                  <option value="pill-friendly">Pill Friendly</option>
+                  <option value="square-solid">Square Solid</option>
+                </select>
+              </div>
+            </div>
+          </div>
+      {/* Quick Category Presets */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Instant Category Presets</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                One-click setup: Automatically configures the optimal theme, palette, and typography for your business.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {[
+                { name: 'Jewellery & Watches', desc: 'Atelier / Gold & Charcoal', code: 'atelier' },
+                { name: 'Streetwear & Apparel', desc: 'Pulse / Electric Pink & Bold', code: 'pulse' },
+                { name: 'Tea, Sweets & Gourmet', desc: 'Harvest / Forest & Amber', code: 'harvest' },
+                { name: 'Manufacturing & Tools', desc: 'Foundry / Industrial Slate', code: 'foundry' },
+                { name: 'Furniture & Living', desc: 'Habitat / Terracotta & Linen', code: 'habitat' },
+                { name: 'Retail & Superstore', desc: 'Local / Royal Blue & Green', code: 'local' },
+              ].map((cat) => (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => handleApplyQuickPreset(cat.name)}
+                  className="text-left p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition group space-y-1"
+                >
+                  <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 block">
+                    {cat.name}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block leading-tight">
+                    {cat.desc}
+                  </span>
+                </button>
+              ))}
+            </div></div>
+    </div>
+  );
+
+  const renderLogoBannerSection = () => (
+    <div className="space-y-6">
+      {/* Logo & Banner Upload */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Store Brand Assets (Logo & Banner)
@@ -1294,8 +1385,12 @@ export default function BrandStudioPage() {
               </div>
             </div>
           </div>
+    </div>
+  );
 
-          {/* Color Palette & Contrast Validation */}
+  const renderColorsTypographySection = () => (
+    <div className="space-y-6">
+      {/* Color Palette & Contrast Validation */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
@@ -1419,106 +1514,12 @@ export default function BrandStudioPage() {
               ))}
             </div>
           </div>
+    </div>
+  );
 
-          {/* Layout Composition Fine-Tuning */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Layout Styling & Component Shapes
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Header Style</label>
-                <select
-                  value={headerStyle}
-                  onChange={(e) => setHeaderStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="minimal-center">Minimal Centered (Atelier)</option>
-                  <option value="sticky-action">Sticky Action (Pulse)</option>
-                  <option value="warm-friendly">Warm Friendly (Harvest)</option>
-                  <option value="industrial-meta">Industrial Meta (Foundry)</option>
-                  <option value="spacious-lifestyle">Spacious Lifestyle (Habitat)</option>
-                  <option value="quick-search-bar">Quick Search Bar (Local)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Card Style</label>
-                <select
-                  value={cardStyle}
-                  onChange={(e) => setCardStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="framed-luxury">Framed Luxury</option>
-                  <option value="elevated-modern">Elevated Modern</option>
-                  <option value="rounded-soft">Rounded Soft</option>
-                  <option value="spec-sheet-card">Spec Sheet Card</option>
-                  <option value="minimal-bleed">Minimal Bleed</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Button Shape</label>
-                <select
-                  value={buttonStyle}
-                  onChange={(e) => setButtonStyle(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-                >
-                  <option value="sharp-pill">Sharp Pill</option>
-                  <option value="rounded-heavy">Rounded Heavy</option>
-                  <option value="pill-friendly">Pill Friendly</option>
-                  <option value="square-solid">Square Solid</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Category Presets */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Instant Category Presets</span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                One-click setup: Automatically configures the optimal theme, palette, and typography for your business.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {[
-                { name: 'Jewellery & Watches', desc: 'Atelier / Gold & Charcoal', code: 'atelier' },
-                { name: 'Streetwear & Apparel', desc: 'Pulse / Electric Pink & Bold', code: 'pulse' },
-                { name: 'Tea, Sweets & Gourmet', desc: 'Harvest / Forest & Amber', code: 'harvest' },
-                { name: 'Manufacturing & Tools', desc: 'Foundry / Industrial Slate', code: 'foundry' },
-                { name: 'Furniture & Living', desc: 'Habitat / Terracotta & Linen', code: 'habitat' },
-                { name: 'Retail & Superstore', desc: 'Local / Royal Blue & Green', code: 'local' },
-              ].map((cat) => (
-                <button
-                  key={cat.name}
-                  type="button"
-                  onClick={() => handleApplyQuickPreset(cat.name)}
-                  className="text-left p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition group space-y-1"
-                >
-                  <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 block">
-                    {cat.name}
-                  </span>
-                  <span className="text-[10px] text-slate-500 block leading-tight">
-                    {cat.desc}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* TAB 2: HOME PAGE CUSTOMIZATION */}
-      {/* ======================================================== */}
-      {activeTab === 'HOME' && (
-        <div className="space-y-6">
-          {/* Top Announcement Bar */}
+  const renderHomeSection = () => (
+    <div className="space-y-6">
+      {/* Top Announcement Bar */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1881,15 +1882,12 @@ export default function BrandStudioPage() {
               ))}
             </div>
           </div>
-        </div>
-      )}
+    </div>
+  );
 
-      {/* ======================================================== */}
-      {/* TAB 3: PRODUCTS PAGE CUSTOMIZATION */}
-      {/* ======================================================== */}
-      {activeTab === 'PRODUCTS' && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+  const renderProductsSection = () => (
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Products Catalog Header
@@ -1948,15 +1946,12 @@ export default function BrandStudioPage() {
               The Products Catalog page automatically synchronizes with your store inventory: category filtering pills, real-time keyword search, sorting (featured, price low/high, newest), and Quick-Add cart buttons work right out of the box.
             </p>
           </div>
-        </div>
-      )}
+    </div>
+  );
 
-      {/* ======================================================== */}
-      {/* TAB 4: ABOUT US PAGE CUSTOMIZATION */}
-      {/* ======================================================== */}
-      {activeTab === 'ABOUT' && (
-        <div className="space-y-6">
-          {/* Header Banner */}
+  const renderAboutSection = () => (
+    <div className="space-y-6">
+      {/* Header Banner */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
@@ -2345,15 +2340,12 @@ export default function BrandStudioPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+    </div>
+  );
 
-      {/* ======================================================== */}
-      {/* TAB 5: FOOTER & SOCIAL MEDIA SETTINGS */}
-      {/* ======================================================== */}
-      {activeTab === 'FOOTER' && (
-        <div className="space-y-6">
-          {/* Social Media Accounts & Links Card */}
+  const renderFooterSection = () => (
+    <div className="space-y-6">
+      {/* Social Media Accounts & Links Card */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
               <div className="flex items-center gap-2">
@@ -2593,8 +2585,88 @@ export default function BrandStudioPage() {
               className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
             />
           </div>
+    </div>
+  );
+
+  // Mobile Accordion Customizer
+  const renderMobileAccordion = () => {
+    const mobileSections = [
+      { id: 'THEME_STYLE', label: t('themes.sectionThemeStyle'), icon: Palette, render: renderThemeStyleSection },
+      { id: 'LOGO_BANNER', label: t('themes.sectionLogoBanner'), icon: UploadCloud, render: renderLogoBannerSection },
+      { id: 'COLORS_TYPO', label: t('themes.sectionColorsTypography'), icon: Type, render: renderColorsTypographySection },
+      { id: 'HOME_SECTIONS', label: t('themes.sectionHomeSections'), icon: Home, render: renderHomeSection },
+      { id: 'PRODUCT_GRID', label: t('themes.sectionProductGrid'), icon: ShoppingBag, render: renderProductsSection },
+      { id: 'ABOUT_STORE', label: t('themes.sectionAboutStore'), icon: BookOpen, render: renderAboutSection },
+      { id: 'FOOTER_LINKS', label: t('themes.sectionFooterLinks'), icon: Share2, render: renderFooterSection },
+    ];
+
+    return (
+      <div className="space-y-2.5">
+        {mobileSections.map((sec) => {
+          const isOpen = openMobileAccordion === sec.id;
+          const Icon = sec.icon;
+          return (
+            <div
+              key={sec.id}
+              className="rounded-2xl border transition-all overflow-hidden"
+              style={{
+                backgroundColor: 'var(--merchant-surface)',
+                borderColor: isOpen ? 'var(--merchant-primary)' : 'var(--merchant-border)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenMobileAccordion(isOpen ? null : sec.id)}
+                className="w-full p-3.5 sm:p-4 flex items-center justify-between text-left transition hover:opacity-90 cursor-pointer"
+                style={{ backgroundColor: isOpen ? 'var(--merchant-surface-raised)' : 'transparent' }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                    style={{
+                      backgroundColor: isOpen ? 'var(--merchant-primary)' : 'var(--merchant-surface-raised)',
+                      color: isOpen ? '#ffffff' : 'var(--merchant-text)',
+                    }}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold truncate" style={{ color: 'var(--merchant-text)' }}>
+                    {sec.label}
+                  </span>
+                </div>
+                {isOpen ? (
+                  <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {isOpen && (
+                <div className="p-3.5 sm:p-4 border-t space-y-4" style={{ borderColor: 'var(--merchant-border)' }}>
+                  {sec.render()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Desktop Controls
+  const renderControls = () => (
+    <div className="space-y-6 brand-studio-controls">
+      {activeTab === 'THEME' && (
+        <div className="space-y-6">
+          {renderThemeStyleSection()}
+          {renderLogoBannerSection()}
+          {renderColorsTypographySection()}
         </div>
       )}
+      {activeTab === 'HOME' && renderHomeSection()}
+      {activeTab === 'PRODUCTS' && renderProductsSection()}
+      {activeTab === 'ABOUT' && renderAboutSection()}
+      {activeTab === 'FOOTER' && renderFooterSection()}
     </div>
   );
 
@@ -2616,17 +2688,18 @@ export default function BrandStudioPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             {store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store.slug}`}
+                href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-bold transition shadow-2xs hover:opacity-90"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 border rounded-xl text-xs font-bold transition shadow-2xs hover:opacity-90"
               >
-                <span>{t('navigation.viewStorefront')}</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <Eye className="w-3.5 h-3.5 text-blue-500" />
+                <span>{t('themes.previewStore')}</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
               </a>
             )}
 
@@ -2634,7 +2707,7 @@ export default function BrandStudioPage() {
               onClick={handleSaveThemeConfig}
               disabled={saving}
               style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               {saving ? t('themes.savingChanges') : t('themes.saveChanges')}
@@ -2653,7 +2726,7 @@ export default function BrandStudioPage() {
             </div>
             {store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store.slug}`}
+                href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500 transition shrink-0"
@@ -2664,9 +2737,9 @@ export default function BrandStudioPage() {
           </div>
         )}
 
-        {/* 5 Page / Module Navigation Tabs */}
+        {/* Desktop 5 Page Navigation Tabs (Hidden on mobile < lg) */}
         <div
-          className="grid grid-cols-2 sm:grid-cols-5 p-1 rounded-xl max-w-3xl gap-1 border transition-colors"
+          className="hidden lg:grid grid-cols-5 p-1 rounded-xl max-w-3xl gap-1 border transition-colors"
           style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
         >
           <button
@@ -2735,10 +2808,39 @@ export default function BrandStudioPage() {
           </button>
         </div>
 
-        {/* Desktop Split View: Controls Left, Live Interactive Preview Right */}
+        {/* Responsive Grid: Full width on mobile, 6/6 split on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Controls Column */}
-          <div className="lg:col-span-6 hidden lg:block">
+          <div className="col-span-12 lg:col-span-6 w-full space-y-4">
+            {/* Mobile Non-Blocking Notice & Aikyam Contact */}
+            <div
+              className="lg:hidden p-4 rounded-xl border text-xs space-y-2 transition-colors"
+              style={{
+                backgroundColor: 'var(--merchant-surface)',
+                borderColor: 'var(--merchant-border)',
+                color: 'var(--merchant-text)',
+              }}
+            >
+              <div className="flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <div className="space-y-1.5 leading-relaxed">
+                  <p className="font-medium" style={{ color: 'var(--merchant-text)' }}>
+                    {t('themes.mobileNotice')}
+                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span style={{ color: 'var(--merchant-text-muted)' }}>{t('themes.needHelp')}</span>
+                    <a
+                      href="mailto:business@aikyamaisystems.com?subject=LetzShop%20Custom%20E-commerce%20Requirement"
+                      className="font-bold underline hover:opacity-80"
+                      style={{ color: 'var(--merchant-primary)' }}
+                    >
+                      {t('themes.contactAikyam')}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {loading ? (
               <div
                 className="p-12 text-center rounded-2xl border"
@@ -2753,12 +2855,48 @@ export default function BrandStudioPage() {
                 </p>
               </div>
             ) : (
-              renderControls()
+              <>
+                {/* Mobile Accordion Editor (< lg) */}
+                <div className="lg:hidden space-y-3">
+                  {renderMobileAccordion()}
+
+                  {/* Mobile Quick Action Buttons Bar */}
+                  <div className="pt-4 pb-6 flex items-center gap-3">
+                    {store?.slug && (
+                      <a
+                        href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 py-3 px-4 rounded-xl text-xs font-bold border flex items-center justify-center gap-2 text-center shadow-xs transition hover:opacity-90"
+                        style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                      >
+                        <Eye className="w-4 h-4 text-blue-500" />
+                        <span>{t('themes.previewStore')}</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveThemeConfig}
+                      disabled={saving}
+                      style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
+                      className="flex-1 py-3 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:opacity-90"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{saving ? t('themes.savingChanges') : t('themes.saveChanges')}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Desktop Tabs Editor (>= lg) */}
+                <div className="hidden lg:block">
+                  {renderControls()}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Live Storefront Interactive Preview Column */}
-          <div className="lg:col-span-6 sticky top-20">
+          {/* Desktop Live Storefront Interactive Preview Column (Hidden on screens below lg < 1024px) */}
+          <div className="hidden lg:block lg:col-span-6 sticky top-20">
             <div
               className="rounded-2xl p-4 shadow-xl border space-y-4 transition-colors"
               style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
@@ -2770,19 +2908,8 @@ export default function BrandStudioPage() {
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text)' }}>
-                    Live Storefront Preview ({currentThemeObj.name})
+                    {t('themes.livePreviewFor', { theme: currentThemeObj.name })}
                   </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Mobile Controls Drawer Trigger for < 1024px */}
-                  <button
-                    onClick={() => setMobileDrawerOpen(true)}
-                    style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
-                    className="lg:hidden px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 hover:opacity-90"
-                  >
-                    <Sliders className="w-3 h-3" /> Edit Fields
-                  </button>
                 </div>
               </div>
 
@@ -2806,45 +2933,6 @@ export default function BrandStudioPage() {
           </div>
         </div>
       </div>
-
-      {/* Mobile Drawer for Controls (on screens < 1024px) */}
-      {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs">
-          <div
-            className="rounded-t-3xl max-h-[85vh] h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 border-t"
-            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
-          >
-            <div
-              className="flex items-center justify-between p-4 border-b"
-              style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
-            >
-              <span className="text-sm font-bold" style={{ color: 'var(--merchant-text)' }}>
-                Customizer Controls
-              </span>
-              <button
-                onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 opacity-60 hover:opacity-100 rounded-lg"
-                style={{ color: 'var(--merchant-text)' }}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">{renderControls()}</div>
-            <div
-              className="p-4 border-t flex gap-2"
-              style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)' }}
-            >
-              <button
-                onClick={() => setMobileDrawerOpen(false)}
-                style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold hover:opacity-90"
-              >
-                Close & View Preview
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   );
 }

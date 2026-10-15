@@ -29,6 +29,7 @@ import { formatPaise, resolveVariantDisplayMedia } from '@simply/ui';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
 import { useStorefrontI18n } from '@simply/i18n';
+import { getProductTranslation } from '../../../utils/productTranslation';
 
 function formatItemVariantLabel(item: any): string | null {
   if (item.variantTitle && item.variantTitle !== 'Default') {
@@ -315,7 +316,8 @@ export default function StoreCartPage() {
                     selectedOptionValues: item.variant?.optionValues,
                   });
                   const variantLabel = formatItemVariantLabel(item);
-                  const productTitle = product.translations?.find((tr: any) => tr.locale === locale)?.name || product.title || product.name || 'Product';
+                  const trans = getProductTranslation(product.translations, locale);
+                  const productTitle = trans?.name?.trim() || product.title || product.name || 'Product';
                   const targetVariantId = item.variantId || variant.id;
                   const isRemoving = removingItemId === targetVariantId;
                   const hasCompare = variant.compareAtPricePaise && variant.compareAtPricePaise > variant.pricePaise;

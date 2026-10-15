@@ -31,6 +31,7 @@ export class DashboardService {
       where: { id: storeId, tenantId, deletedAt: null },
       include: {
         branding: true,
+        themeConfigs: true,
         tenant: {
           include: {
             subscriptions: {
@@ -61,6 +62,7 @@ export class DashboardService {
       previousOrders,
       currentEnquiriesCount,
       previousEnquiriesCount,
+      currentEnquiriesRaw,
       pendingOrdersCount,
       lowStockCount,
       activeProductsCount,
@@ -177,6 +179,21 @@ export class DashboardService {
             },
           })
         : Promise.resolve(0),
+
+      // Enquiries list for current period time-series sparkline
+      (this.prisma as any).enquiry?.findMany
+        ? (this.prisma as any).enquiry.findMany({
+            where: {
+              tenantId,
+              storeId,
+              createdAt: { gte: period.startDate, lte: period.endDate },
+            },
+            select: {
+              id: true,
+              createdAt: true,
+            },
+          })
+        : Promise.resolve([]),
 
       // Pending seller action orders
       this.prisma.order.count({
@@ -332,7 +349,7 @@ export class DashboardService {
     };
 
     // 5. Generate Pre-Aggregated Time-Series Sales Data
-    const salesSeries = this.buildSalesSeries(eligibleCurrentOrders, period);
+    const salesSeries = this.buildSalesSeries(eligibleCurrentOrders, period, currentEnquiriesRaw);
 
     // 6. Top 5 Products by Revenue and Quantity
     const topProducts = this.buildTopProducts(eligibleCurrentOrders);
@@ -414,6 +431,7 @@ export class DashboardService {
         previewSecret: store.previewSecret,
         timezone: store.timezone,
         branding: store.branding,
+        themeConfigs: store.themeConfigs,
       },
     };
   }
@@ -423,7 +441,8 @@ export class DashboardService {
    */
   private buildSalesSeries(
     eligibleOrders: any[],
-    period: { key: string; groupBy: 'hour' | 'day' | 'week' | 'month'; startDate: Date; endDate: Date }
+    period: { key: string; groupBy: 'hour' | 'day' | 'week' | 'month'; startDate: Date; endDate: Date },
+    enquiries: any[] = []
   ) {
     interface Bucket {
       date: string;
@@ -453,6 +472,13 @@ export class DashboardService {
       }
     };
 
+    const recordEnquiry = (bucketKey: string) => {
+      const bucket = bucketMap.get(bucketKey);
+      if (bucket) {
+        bucket.enquiries = (bucket.enquiries || 0) + 1;
+      }
+    };
+
     if (period.groupBy === 'hour') {
       // 24 hours: 00:00 to 23:00
       for (let h = 0; h < 24; h++) {
@@ -462,12 +488,18 @@ export class DashboardService {
           label: hourStr,
           revenuePaise: 0,
           orders: 0,
+          enquiries: 0,
         });
       }
 
       for (const order of eligibleOrders) {
         const hourKey = formatIstHour(order.createdAt);
         recordOrder(hourKey, order);
+      }
+
+      for (const enq of enquiries) {
+        const hourKey = formatIstHour(enq.createdAt);
+        recordEnquiry(hourKey);
       }
     } else if (period.groupBy === 'day') {
       // Continuous days from startDate to endDate
@@ -484,6 +516,7 @@ export class DashboardService {
             label: `${dayNum} ${monthShort}`,
             revenuePaise: 0,
             orders: 0,
+            enquiries: 0,
           });
         }
         cur.setDate(cur.getDate() + 1);
@@ -493,27 +526,57 @@ export class DashboardService {
         const dateKey = formatIstDate(order.createdAt);
         recordOrder(dateKey, order);
       }
+
+      for (const enq of enquiries) {
+        const dateKey = formatIstDate(enq.createdAt);
+        recordEnquiry(dateKey);
+      }
     } else if (period.groupBy === 'month') {
-      // Month buckets
-      const cur = new Date(period.startDate);
-      while (cur <= period.endDate) {
-        const monthKey = formatIstMonth(cur);
-        if (!bucketMap.has(monthKey)) {
-          const istCur = new Date(cur.getTime() + (5 * 60 + 30) * 60 * 1000);
-          const monthLabel = istCur.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
-          bucketMap.set(monthKey, {
-            date: monthKey,
-            label: monthLabel,
-            revenuePaise: 0,
-            orders: 0,
-          });
+      // Month buckets from start month to end month (inclusive in Asia/Kolkata timezone)
+      const istStart = new Date(period.startDate.getTime() + (5 * 60 + 30) * 60 * 1000);
+      const istEnd = new Date(period.endDate.getTime() + (5 * 60 + 30) * 60 * 1000);
+      let curYear = istStart.getUTCFullYear();
+      let curMonth = istStart.getUTCMonth();
+      const endYear = istEnd.getUTCFullYear();
+      const endMonth = istEnd.getUTCMonth();
+
+      while (curYear < endYear || (curYear === endYear && curMonth <= endMonth)) {
+        const monthKey = `${curYear}-${String(curMonth + 1).padStart(2, '0')}`;
+        const tempDate = new Date(Date.UTC(curYear, curMonth, 1));
+        const monthLabel = tempDate.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+        bucketMap.set(monthKey, {
+          date: monthKey,
+          label: monthLabel,
+          revenuePaise: 0,
+          orders: 0,
+          enquiries: 0,
+        });
+
+        curMonth++;
+        if (curMonth > 11) {
+          curMonth = 0;
+          curYear++;
         }
-        cur.setMonth(cur.getMonth() + 1);
       }
 
       for (const order of eligibleOrders) {
         const monthKey = formatIstMonth(order.createdAt);
-        recordOrder(monthKey, order);
+        if (bucketMap.has(monthKey)) {
+          recordOrder(monthKey, order);
+        } else {
+          const lastKey = Array.from(bucketMap.keys()).pop();
+          if (lastKey) recordOrder(lastKey, order);
+        }
+      }
+
+      for (const enq of enquiries) {
+        const monthKey = formatIstMonth(enq.createdAt);
+        if (bucketMap.has(monthKey)) {
+          recordEnquiry(monthKey);
+        } else {
+          const lastKey = Array.from(bucketMap.keys()).pop();
+          if (lastKey) recordEnquiry(lastKey);
+        }
       }
     } else {
       // Weekly buckets
@@ -526,6 +589,7 @@ export class DashboardService {
           label: `W${weekNum}`,
           revenuePaise: 0,
           orders: 0,
+          enquiries: 0,
         });
         cur.setDate(cur.getDate() + 7);
         weekNum++;
@@ -541,6 +605,16 @@ export class DashboardService {
         }
         recordOrder(matchedKey, order);
       }
+
+      for (const enq of enquiries) {
+        let matchedKey = Array.from(bucketMap.keys())[0];
+        for (const key of bucketMap.keys()) {
+          if (new Date(key) <= enq.createdAt) {
+            matchedKey = key;
+          }
+        }
+        recordEnquiry(matchedKey);
+      }
     }
 
     return Array.from(bucketMap.values()).map((b) => {
@@ -551,7 +625,7 @@ export class DashboardService {
         ...b,
         customers,
         aovPaise,
-        enquiries: 0,
+        enquiries: b.enquiries || 0,
       };
     });
   }

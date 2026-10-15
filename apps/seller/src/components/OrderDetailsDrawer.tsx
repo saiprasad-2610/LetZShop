@@ -122,7 +122,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   onClose,
   onStatusUpdated,
 }) => {
-  const { api, store } = useAuth();
+  const { api, store, user } = useAuth();
   const { t, locale } = useSellerI18n();
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -2626,6 +2626,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
           isOpen={showInvoiceModal}
           onClose={() => setShowInvoiceModal(false)}
           order={order}
+          store={store || order.store}
+          user={user}
         />
       )}
     </>

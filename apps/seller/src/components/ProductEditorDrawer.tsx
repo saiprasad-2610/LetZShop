@@ -769,15 +769,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     if (mode === 'SELL_ONLINE' || mode === 'SELL_AND_ENQUIRY') {
       if (!hasVariants || variants.length === 0) {
         const numPrice = Number(basePriceRupees);
-        if (basePriceRupees === '' || isNaN(numPrice) || numPrice < 0) {
+        if (basePriceRupees === '' || isNaN(numPrice)) {
           errors.price = 'Enter a valid price.';
+        } else if (numPrice < 1) {
+          errors.price = 'The price of the product has to be higher than ₹1.';
         }
       } else {
         const invalidVar = variants.find(
-          (v) => v.isActive && (v.pricePaise === null || v.pricePaise === undefined || v.pricePaise < 0)
+          (v) => v.isActive && (v.pricePaise === null || v.pricePaise === undefined || v.pricePaise < 100)
         );
         if (invalidVar) {
-          errors.general = `Price is required for variant "${invalidVar.title}".`;
+          errors.general = `The price for variant "${invalidVar.title}" has to be higher than ₹1.`;
         }
       }
     }
@@ -1464,7 +1466,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 {parseFloat(basePriceRupees) > 0 && parseFloat(basePriceRupees) < PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES && (
                   <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 flex items-start gap-1">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>Prices below ₹{PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES} require COD or multiple quantity to meet the online payment gateway minimum (₹{PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES}).</span>
+                    <span>The price of the product has to be higher than ₹1.</span>
                   </p>
                 )}
               </div>

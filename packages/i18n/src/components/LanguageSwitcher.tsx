@@ -25,7 +25,9 @@ export const SellerLanguageSelect: React.FC<{
         onChange={(e) => setLocale(e.target.value as SupportedLocale)}
         aria-label={t('common.language')}
         title={t('common.language')}
-        className="bg-transparent text-xs font-semibold py-1 px-2 rounded-lg border border-merchant-sidebar-border text-merchant-sidebar-text hover:bg-merchant-sidebar-hover focus:outline-none focus:ring-1 focus:ring-merchant-primary cursor-pointer transition"
+        className={`bg-transparent font-semibold rounded-lg border border-merchant-sidebar-border text-merchant-sidebar-text hover:bg-merchant-sidebar-hover focus:outline-none focus:ring-1 focus:ring-merchant-primary cursor-pointer transition ${
+          compact ? 'py-1 px-1.5 text-[11px]' : 'py-1 px-2 text-xs'
+        }`}
       >
         {availableLocales.map((loc) => (
           <option

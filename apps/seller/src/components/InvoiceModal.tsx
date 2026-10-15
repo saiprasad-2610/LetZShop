@@ -6,20 +6,75 @@ interface InvoiceModalProps {
   order: any;
   isOpen: boolean;
   onClose: () => void;
+  store?: any;
+  user?: any;
   storeName?: string;
+  merchantName?: string;
   storePhone?: string;
   storeEmail?: string;
+  storeAddress?: string;
+  gstin?: string;
 }
 
 export function InvoiceModal({
   order,
   isOpen,
   onClose,
-  storeName = 'LetzShop Store',
+  store,
+  user,
+  storeName,
+  merchantName,
   storePhone,
   storeEmail,
+  storeAddress,
+  gstin,
 }: InvoiceModalProps) {
   if (!isOpen || !order) return null;
+
+  // Resolve Store & Merchant details
+  const currentStore = store || order.store || {};
+  const currentUser = user || currentStore.tenant?.owner || {};
+
+  const resolvedStoreName =
+    storeName ||
+    currentStore.name ||
+    'LetzShop Store';
+
+  const resolvedMerchantName =
+    merchantName ||
+    currentUser.fullName ||
+    currentUser.name ||
+    currentStore.ownerName ||
+    currentStore.merchantName ||
+    '';
+
+  const resolvedStorePhone =
+    storePhone ||
+    currentStore.supportPhone ||
+    currentStore.contactPhone ||
+    currentStore.whatsappNumber ||
+    currentUser.phone ||
+    '';
+
+  const resolvedStoreEmail =
+    storeEmail ||
+    currentStore.supportEmail ||
+    currentStore.contactEmail ||
+    currentUser.email ||
+    '';
+
+  const resolvedStoreAddress =
+    storeAddress ||
+    currentStore.businessAddress ||
+    currentStore.address ||
+    '';
+
+  const resolvedGstin =
+    gstin ||
+    currentStore.gstNumber ||
+    currentStore.gstin ||
+    order.gstin ||
+    '';
 
   const paymentDetails = getPaymentDisplayDetails(order);
   const deliveryAddress =
@@ -91,23 +146,62 @@ export function InvoiceModal({
         {/* PRINTABLE INVOICE CONTENT */}
         <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-xs text-slate-700 print:overflow-visible print:p-8">
           {/* Top Brand & Metadata */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
-            <div>
-              <h1 id="invoice-modal-title" className="text-xl font-bold text-slate-900 tracking-tight">
-                {storeName}
-              </h1>
-              <p className="text-[11px] text-slate-500 mt-0.5">Official Order Receipt & Invoice</p>
-              {storePhone && <p className="text-[11px] text-slate-500">Phone: +91 {storePhone}</p>}
-              {storeEmail && <p className="text-[11px] text-slate-500">Email: {storeEmail}</p>}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-slate-200">
+            <div className="space-y-1 max-w-sm">
+              <div className="flex items-center gap-2">
+                {currentStore.branding?.logoUrl && (
+                  <img
+                    src={currentStore.branding.logoUrl}
+                    alt={resolvedStoreName}
+                    className="w-8 h-8 rounded-lg object-contain border border-slate-200"
+                  />
+                )}
+                <h1 id="invoice-modal-title" className="text-xl font-bold text-slate-900 tracking-tight">
+                  {resolvedStoreName}
+                </h1>
+              </div>
+              <p className="text-[11px] font-medium text-slate-500">Official Order Receipt & Tax Invoice</p>
+
+              {/* Store & Merchant details */}
+              <div className="pt-2 space-y-0.5 text-[11px] text-slate-600">
+                {resolvedMerchantName && (
+                  <p>
+                    <span className="font-semibold text-slate-700">Merchant / Proprietor:</span> {resolvedMerchantName}
+                  </p>
+                )}
+                {resolvedStoreAddress && (
+                  <p>
+                    <span className="font-semibold text-slate-700">Store Address:</span> {resolvedStoreAddress}
+                  </p>
+                )}
+                {resolvedStorePhone && (
+                  <p>
+                    <span className="font-semibold text-slate-700">Phone:</span> +91 {resolvedStorePhone.replace(/\D/g, '').slice(-10)}
+                  </p>
+                )}
+                {resolvedStoreEmail && (
+                  <p>
+                    <span className="font-semibold text-slate-700">Email:</span> {resolvedStoreEmail}
+                  </p>
+                )}
+                {resolvedGstin && (
+                  <p>
+                    <span className="font-semibold text-slate-700">GSTIN:</span> <span className="font-mono">{resolvedGstin}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="text-left sm:text-right space-y-0.5">
+            <div className="text-left sm:text-right space-y-1">
               <span className="inline-block px-2.5 py-0.5 bg-slate-100 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Order #{order.orderNumber}
               </span>
               <p className="text-slate-500 text-[11px]">Date: <strong className="text-slate-800">{orderDate}</strong></p>
               <p className="text-slate-500 text-[11px]">
                 Order Status: <strong className="text-slate-800 uppercase">{order.status}</strong>
+              </p>
+              <p className="text-slate-500 text-[11px]">
+                Payment Status: <strong className={`uppercase ${order.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-700'}`}>{order.paymentStatus}</strong>
               </p>
             </div>
           </div>
@@ -275,6 +369,12 @@ export function InvoiceModal({
                 <span>Subtotal</span>
                 <span className="font-mono">{formatPaise(order.subtotalPaise)}</span>
               </div>
+              {order.taxPaise > 0 && (
+                <div className="flex justify-between text-slate-600">
+                  <span>Taxes (GST)</span>
+                  <span className="font-mono">{formatPaise(order.taxPaise)}</span>
+                </div>
+              )}
               {order.shippingPaise > 0 && (
                 <div className="flex justify-between text-slate-600">
                   <span>Shipping Fee</span>
@@ -295,8 +395,13 @@ export function InvoiceModal({
           </div>
 
           {/* Footer note */}
-          <div className="text-center pt-4 border-t border-slate-100 text-[11px] text-slate-400">
-            Thank you for shopping with {storeName}! This is a computer-generated invoice.
+          <div className="text-center pt-4 border-t border-slate-100 text-[11px] text-slate-400 space-y-0.5">
+            <p>Thank you for shopping with {resolvedStoreName}! This is a computer-generated invoice.</p>
+            {(resolvedStoreEmail || resolvedStorePhone) && (
+              <p className="text-[10px] text-slate-400">
+                For questions or support, contact: {resolvedStoreEmail || ''}{resolvedStoreEmail && resolvedStorePhone ? ' · ' : ''}{resolvedStorePhone ? `+91 ${resolvedStorePhone.replace(/\D/g, '').slice(-10)}` : ''}
+              </p>
+            )}
           </div>
         </div>
       </div>

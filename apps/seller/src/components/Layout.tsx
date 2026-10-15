@@ -271,27 +271,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Hamburger opens left slide-in drawer
       ========================================================================= */}
       {/* Top App Bar for Mobile */}
-      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-4 py-3 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-3 py-2.5 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
             aria-label="Open Navigation Drawer"
-            className="p-1.5 -ml-1 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text hover:bg-merchant-sidebar-hover rounded-lg transition-colors"
+            className="p-1.5 -ml-1 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text hover:bg-merchant-sidebar-hover rounded-lg transition-colors shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
               S
             </span>
-            <span className="font-bold text-sm tracking-tight text-merchant-sidebar-text">{title || 'Dashboard'}</span>
+            <span className="font-bold text-sm tracking-tight text-merchant-sidebar-text truncate max-w-[110px] xs:max-w-[160px]">
+              {title || 'Dashboard'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Quick language switcher on mobile top bar beside theme toggle */}
+          <SellerLanguageSelect showIcon={false} compact className="shrink-0" />
           {/* Quick theme toggle on mobile app bar */}
-          <ThemeToggle collapsed className="w-8 h-8 !p-1" />
+          <ThemeToggle collapsed className="w-8 h-8 !p-1 shrink-0" />
           {getStatusBadge(true)}
         </div>
       </div>

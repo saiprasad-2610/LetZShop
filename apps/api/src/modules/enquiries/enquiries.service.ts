@@ -14,9 +14,42 @@ export interface CreateEnquiryInput {
   requestedQuantity?: number;
 }
 
+export interface CreateWhatsappEnquiryInput {
+  storeId: string;
+  productId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  message?: string;
+}
+
 @Injectable()
 export class EnquiriesService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  public async recordWhatsappEnquiry(input: CreateWhatsappEnquiryInput) {
+    const store = await this.prisma.store.findUnique({ where: { id: input.storeId } });
+    if (!store) throw new NotFoundException('Store not found.');
+
+    const rawPhone = input.customerPhone || store.whatsappNumber || store.supportPhone || '9876543210';
+    const cleanPhone = normalizePhone(rawPhone);
+    const validPhone = isValidIndianPhone(cleanPhone) ? cleanPhone : '9876543210';
+
+    return this.prisma.enquiry.create({
+      data: {
+        tenantId: store.tenantId,
+        storeId: store.id,
+        productId: input.productId || null,
+        customerName: input.customerName || 'WhatsApp Buyer',
+        customerPhone: validPhone,
+        customerEmail: input.customerEmail || null,
+        companyName: null,
+        message: input.message || 'WhatsApp buyer enquiry initiated from storefront',
+        requestedQuantity: 1,
+        status: EnquiryStatus.NEW,
+      },
+    });
+  }
 
   public async createEnquiry(input: CreateEnquiryInput) {
     const store = await this.prisma.store.findUnique({ where: { id: input.storeId } });
@@ -31,9 +64,6 @@ export class EnquiriesService {
       const product = await this.prisma.product.findUnique({ where: { id: input.productId } });
       if (!product || product.storeId !== store.id) {
         throw new NotFoundException('Product not found in this store.');
-      }
-      if (product.mode === ProductMode.SELL_ONLINE) {
-        throw new BadRequestException('This product is configured for direct online purchase only.');
       }
       if (input.requestedQuantity && input.requestedQuantity < product.minOrderQuantity) {
         throw new BadRequestException(`Minimum order quantity for this item is ${product.minOrderQuantity}.`);

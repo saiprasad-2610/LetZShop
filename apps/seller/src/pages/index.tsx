@@ -33,6 +33,7 @@ import {
   Globe,
   CreditCard,
   Truck,
+  Building2,
 } from 'lucide-react';
 import { getStorefrontUrl } from '../utils/config';
 
@@ -209,19 +210,28 @@ export default function CompactDashboardPage() {
   const customersSeries = salesSeriesList.map((s: any) => s.customers ?? 0);
   const aovSeries = salesSeriesList.map((s: any) => (s.aovPaise ?? 0) / 100);
 
+  // Active store resolution (prefer fresh store data from dashboard API if available)
+  const activeStore = dashboardData?.store || store;
+
   // Setup / Readiness evaluation (truthful checks)
-  const isLive = store?.status === 'LIVE' || store?.status === 'ACTIVE';
+  const isLive = activeStore?.status === 'LIVE' || activeStore?.status === 'ACTIVE';
   const isSubscriptionValid = Boolean(
-    store?.subscription?.status === 'ACTIVE' ||
-    store?.subscriptionStatus === 'ACTIVE' ||
-    (store?.status !== 'EXPIRED' && !attention.subscriptionRequiresAction)
+    activeStore?.subscription?.status === 'ACTIVE' ||
+    activeStore?.subscriptionStatus === 'ACTIVE' ||
+    (activeStore?.status !== 'EXPIRED' && !attention.subscriptionRequiresAction)
   );
-  const isStorePublic = Boolean(store?.isPubliclyAccessible && isLive);
-  const isBrandingComplete = Boolean(store?.branding?.logoUrl || store?.branding?.heroMediaId);
+  const isStorePublic = Boolean(activeStore?.isPubliclyAccessible && isLive);
+  const effectiveBranding = activeStore?.branding || store?.branding;
+  const hasBrandingMedia = Boolean(effectiveBranding?.logoUrl || effectiveBranding?.heroMediaId || effectiveBranding?.bannerUrl);
+  const hasCustomTheme = Boolean(
+    (activeStore?.themeConfigs && activeStore.themeConfigs.length > 0) ||
+    (effectiveBranding?.primaryColor && effectiveBranding?.primaryColor !== '#1E3A8A')
+  );
+  const isBrandingComplete = Boolean(hasBrandingMedia || hasCustomTheme);
   const isPaymentConfigured = Boolean(!attention.paymentSetupIncomplete);
   const isShippingConfigured = Boolean(!attention.shippingSetupIncomplete);
   const hasProducts = Boolean(metrics.activeProducts > 0);
-  const hasBusinessInfo = Boolean(store?.name && store?.slug);
+  const hasBusinessInfo = Boolean(activeStore?.name && activeStore?.slug);
 
   const [storePreviewed, setStorePreviewed] = useState(false);
   useEffect(() => {
@@ -229,6 +239,7 @@ export default function CompactDashboardPage() {
       setStorePreviewed(localStorage.getItem('simply_store_previewed') === 'true');
     }
   }, []);
+  const isStorePreviewed = Boolean(storePreviewed || activeStore?.status === 'LIVE' || isLive);
 
   // =========================================================================
   // DYNAMIC ATTENTION PRIORITY RULES (STRICTLY TRUTHFUL & ORDERED)
@@ -331,7 +342,7 @@ export default function CompactDashboardPage() {
     { label: t('dashboard.businessInfo'), done: hasBusinessInfo },
     { label: t('dashboard.productsAdded'), done: hasProducts },
     { label: t('dashboard.storeDesigned'), done: isBrandingComplete },
-    { label: t('dashboard.storePreviewed'), done: storePreviewed },
+    { label: t('dashboard.storePreviewed'), done: isStorePreviewed },
     { label: t('dashboard.payments'), done: isPaymentConfigured },
     { label: t('dashboard.deliverySetup'), done: isShippingConfigured },
   ];
@@ -351,9 +362,9 @@ export default function CompactDashboardPage() {
     steps: Array<{ step: number; title: string; desc: string }>;
   };
 
-  if (!isSubscriptionValid || store?.status === 'EXPIRED') {
+  if (!isSubscriptionValid || activeStore?.status === 'EXPIRED') {
     nextAction = {
-      priority: 1,
+      priority: 0,
       badge: 'PLAN',
       title: t('dashboard.choosePlanTitle'),
       description: t('dashboard.choosePlanDesc'),
@@ -371,43 +382,47 @@ export default function CompactDashboardPage() {
         label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Sparkles,
     };
-  } else if (!isLive || !isStorePublic) {
+  } else if (!hasBusinessInfo) {
+    // Step 1: Business info
     nextAction = {
-      priority: 2,
-      badge: 'PUBLISH',
-      title: t('dashboard.publishStoreTitle'),
-      description: t('dashboard.publishStoreDesc'),
-      stepsLabel: t('dashboard.growthStepsHeading'),
+      priority: 1,
+      badge: 'BUSINESS INFO',
+      title: 'Complete Your Business Profile',
+      description: 'Set your official store name, handle slug, and primary contact channels so customers can find you.',
+      stepsLabel: 'Step 1 of 6: Setup business details in 3 quick actions:',
       steps: [
-        { step: 1, title: 'Inspect Store Preview', desc: 'Review your catalog, layout and pricing on mobile view.' },
-        { step: 2, title: 'Confirm Contact Details', desc: 'Verify your store phone number, email and address.' },
-        { step: 3, title: 'Switch to Live Mode', desc: 'Enable public access so customers can visit and buy online.' },
+        { step: 1, title: 'Store Name & Handle', desc: 'Choose a memorable brand name and unique web address slug.' },
+        { step: 2, title: 'Contact & WhatsApp', desc: 'Provide phone and WhatsApp so shoppers can reach you directly.' },
+        { step: 3, title: 'Store Location', desc: 'Add your business address and operating city for customer trust.' },
       ],
       primaryCta: {
-        label: t('dashboard.publishStore'),
-        action: () => router.push('/store-preview'),
+        label: 'Update Business Info',
+        action: () => router.push('/settings'),
       },
       secondaryCta: {
         label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
-      icon: Globe,
+      icon: Building2,
     };
   } else if (!hasProducts) {
+    // Step 2: Products added
     nextAction = {
-      priority: 3,
+      priority: 2,
       badge: 'CATALOG',
       title: t('dashboard.addProductsTitle'),
       description: t('dashboard.addProductsDesc'),
-      stepsLabel: t('dashboard.growthStepsHeading'),
+      stepsLabel: 'Step 2 of 6: Add items to your catalog in 3 quick actions:',
       steps: [
         { step: 1, title: 'Enter Product Details', desc: 'Provide title, description, and assign the right category.' },
         { step: 2, title: 'Upload Product Photos', desc: 'Add 1 to 3 crisp photos showcasing your item from different angles.' },
@@ -421,18 +436,20 @@ export default function CompactDashboardPage() {
         label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Package,
     };
   } else if (!isBrandingComplete) {
+    // Step 3: Store designed
     nextAction = {
-      priority: 4,
+      priority: 3,
       badge: 'BRANDING',
       title: t('dashboard.brandingTitle'),
       description: t('dashboard.brandingDesc'),
-      stepsLabel: t('dashboard.growthStepsHeading'),
+      stepsLabel: 'Step 3 of 6: Style your storefront in 3 quick actions:',
       steps: [
         { step: 1, title: 'Theme Colors & Fonts', desc: 'Pick your brand palette, header style, and font pairing in Brand Studio.' },
         { step: 2, title: 'Banner & Store Logo', desc: 'Upload your storefront hero cover banner and distinct logo mark.' },
@@ -446,18 +463,47 @@ export default function CompactDashboardPage() {
         label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Palette,
     };
+  } else if (!isStorePreviewed) {
+    // Step 4: Store previewed
+    nextAction = {
+      priority: 4,
+      badge: 'PREVIEW',
+      title: 'Review Your Storefront Preview',
+      description: 'Preview how your catalogue and layout look to mobile and desktop buyers before launch.',
+      stepsLabel: 'Step 4 of 6: Inspect store experience in 3 quick actions:',
+      steps: [
+        { step: 1, title: 'Review Mobile Layout', desc: 'Inspect responsive header, product grids, and category carousels.' },
+        { step: 2, title: 'Test Cart & Navigation', desc: 'Add an item to cart and verify checkout order summary flow.' },
+        { step: 3, title: 'Confirm Storefront Ready', desc: 'Check WhatsApp direct enquiry and contact links on your storefront.' },
+      ],
+      primaryCta: {
+        label: t('navigation.storePreview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
+      },
+      secondaryCta: {
+        label: t('dashboard.customizeStore'),
+        action: () => router.push('/brand-studio'),
+      },
+      icon: Eye,
+    };
   } else if (!isPaymentConfigured) {
+    // Step 5: Payments
     nextAction = {
       priority: 5,
       badge: 'PAYMENTS',
       title: t('dashboard.paymentTitle'),
       description: t('dashboard.paymentDesc'),
-      stepsLabel: t('dashboard.growthStepsHeading'),
+      stepsLabel: 'Step 5 of 6: Configure payments in 3 quick actions:',
       steps: [
         { step: 1, title: 'Select Payment Modes', desc: 'Choose UPI QR, Razorpay gateway, or Cash on Delivery.' },
         { step: 2, title: 'Provide Account Details', desc: 'Enter your merchant UPI VPA or Razorpay API credentials.' },
@@ -469,17 +515,22 @@ export default function CompactDashboardPage() {
       },
       secondaryCta: {
         label: t('navigation.storePreview'),
-        action: () => router.push('/store-preview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
       },
       icon: CreditCard,
     };
   } else if (!isShippingConfigured) {
+    // Step 6: Delivery setup
     nextAction = {
       priority: 6,
       badge: 'DELIVERY',
       title: t('dashboard.deliveryTitle'),
       description: t('dashboard.deliveryDesc'),
-      stepsLabel: t('dashboard.growthStepsHeading'),
+      stepsLabel: 'Step 6 of 6: Setup shipping & delivery in 3 quick actions:',
       steps: [
         { step: 1, title: 'Set Serviceable Areas', desc: 'Define cities, states or serviceable pincodes.' },
         { step: 2, title: 'Define Shipping Rates', desc: 'Set standard flat shipping fee and free delivery cart threshold.' },
@@ -491,11 +542,16 @@ export default function CompactDashboardPage() {
       },
       secondaryCta: {
         label: t('navigation.storePreview'),
-        action: () => router.push('/store-preview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
       },
       icon: Truck,
     };
   } else {
+    // All 6 steps complete!
     nextAction = {
       priority: 7,
       badge: 'GROW',
@@ -514,14 +570,15 @@ export default function CompactDashboardPage() {
       secondaryCta: {
         label: t('dashboard.viewStore'),
         action: () => {
-          if (store?.slug) {
-            window.open(`${baseStorefrontUrl}/store/${store.slug}`, '_blank');
+          if (activeStore?.slug) {
+            window.open(`${baseStorefrontUrl}/store/${activeStore.slug}`, '_blank');
           }
         },
       },
       icon: Share2,
     };
   }
+
 
   if (authLoading || (loading && !dashboardData)) {
     return (

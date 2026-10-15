@@ -146,6 +146,7 @@ export class StoresService {
               },
               orderBy: { sortOrder: 'asc' },
             },
+            translations: true,
           },
         },
       },

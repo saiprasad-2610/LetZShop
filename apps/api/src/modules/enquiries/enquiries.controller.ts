@@ -18,6 +18,13 @@ export class EnquiriesController {
     return this.enquiriesService.createEnquiry(input);
   }
 
+  @Public()
+  @Post('whatsapp')
+  @ApiOperation({ summary: 'Record buyer WhatsApp click enquiry (Public)' })
+  async recordWhatsappEnquiry(@Body() input: any) {
+    return this.enquiriesService.recordWhatsappEnquiry(input);
+  }
+
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
   @Get()

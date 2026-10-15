@@ -10,11 +10,14 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { useStorefrontI18n } from '@simply/i18n';
+import { getProductTranslation } from '../../../utils/productTranslation';
 
 export default function StoreSearchPage() {
   const router = useRouter();
   const { slug, q, category, preview, embedded } = router.query;
   const { api, setStoreId, addItem } = useCart();
+  const { locale } = useStorefrontI18n();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -228,7 +231,8 @@ export default function StoreSearchPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((p) => {
-              const title = p.name || p.title || 'Product';
+              const trans = getProductTranslation(p.translations, locale);
+              const title = trans?.name?.trim() || p.name || p.title || 'Product';
               const primaryVariant = p.variants?.[0];
               const pricePaise = p.basePricePaise ?? primaryVariant?.pricePaise ?? 0;
               const comparePaise = p.compareAtPricePaise ?? primaryVariant?.compareAtPricePaise;

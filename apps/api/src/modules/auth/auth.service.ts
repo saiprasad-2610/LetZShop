@@ -314,6 +314,10 @@ export class AuthService {
                   where: { deletedAt: null },
                   take: 1,
                   orderBy: { createdAt: 'asc' },
+                  include: {
+                    branding: true,
+                    themeConfigs: true,
+                  },
                 },
               },
             },
@@ -383,6 +387,10 @@ export class AuthService {
                 stores: {
                   take: 1,
                   orderBy: { createdAt: 'asc' },
+                  include: {
+                    branding: true,
+                    themeConfigs: true,
+                  },
                 },
               },
             },

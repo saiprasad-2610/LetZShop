@@ -377,7 +377,8 @@ export class ReportsService {
 
     const stockMap = new Map<string, number>();
     for (const v of variantsWithStock) {
-      const available = (v.inventory?.stockOnHand ?? 0) - (v.inventory?.stockReserved ?? 0);
+      // stockOnHand is already decremented by reserved quantities upon order creation
+      const available = v.inventory?.stockOnHand ?? 0;
       stockMap.set(v.id, Math.max(0, available));
     }
 

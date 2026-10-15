@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n } from '@simply/i18n';
 import { formatPaise } from '@simply/ui';
 import {
   exportReportToExcel,
@@ -46,39 +47,49 @@ type DatePreset =
   | 'all'
   | 'custom';
 
-const DATE_PRESETS: { key: DatePreset; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: '7d', label: 'Last 7 Days' },
-  { key: '30d', label: 'Last 30 Days' },
-  { key: 'this_month', label: 'This Month' },
-  { key: 'last_month', label: 'Last Month' },
-  { key: 'all', label: 'All Time' },
-  { key: 'custom', label: 'Custom Range' },
-];
-
-const ORDER_STATUS_OPTIONS = [
-  { value: 'ALL', label: 'All Order Statuses' },
-  { value: 'NEW', label: 'New' },
-  { value: 'CONFIRMED', label: 'Confirmed' },
-  { value: 'ACCEPTED', label: 'Accepted' },
-  { value: 'READY', label: 'Ready to Ship' },
-  { value: 'DISPATCHED', label: 'Dispatched' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
-const PAYMENT_STATUS_OPTIONS = [
-  { value: 'ALL', label: 'All Payment Statuses' },
-  { value: 'PAID', label: 'Paid' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'FAILED', label: 'Failed' },
-  { value: 'REFUNDED', label: 'Refunded' },
-];
-
 export default function ReportsPage() {
   const { user, store, api, token, loading: authLoading } = useAuth();
+  const { t, locale } = useSellerI18n();
   const router = useRouter();
+
+  const datePresets = useMemo<{ key: DatePreset; label: string }[]>(
+    () => [
+      { key: 'today', label: t('reports.today') },
+      { key: 'yesterday', label: t('reports.yesterday') },
+      { key: '7d', label: t('reports.last7Days') },
+      { key: '30d', label: t('reports.last30Days') },
+      { key: 'this_month', label: t('reports.thisMonth') },
+      { key: 'last_month', label: t('reports.lastMonth') },
+      { key: 'all', label: t('reports.allTime') },
+      { key: 'custom', label: t('reports.customRange') },
+    ],
+    [t]
+  );
+
+  const orderStatusOptions = useMemo(
+    () => [
+      { value: 'ALL', label: t('reports.allOrderStatus') },
+      { value: 'NEW', label: t('orderStatus.NEW') || 'New' },
+      { value: 'CONFIRMED', label: t('orderStatus.CONFIRMED') || 'Confirmed' },
+      { value: 'ACCEPTED', label: t('orderStatus.ACCEPTED') || 'Accepted' },
+      { value: 'READY', label: t('orderStatus.READY') || 'Ready to Ship' },
+      { value: 'DISPATCHED', label: t('orderStatus.DISPATCHED') || 'Dispatched' },
+      { value: 'COMPLETED', label: t('orderStatus.COMPLETED') || 'Completed' },
+      { value: 'CANCELLED', label: t('orderStatus.CANCELLED') || 'Cancelled' },
+    ],
+    [t]
+  );
+
+  const paymentStatusOptions = useMemo(
+    () => [
+      { value: 'ALL', label: t('reports.allPaymentStatus') },
+      { value: 'PAID', label: t('paymentStatus.PAID') || 'Paid' },
+      { value: 'PENDING', label: t('paymentStatus.PENDING') || 'Pending' },
+      { value: 'FAILED', label: t('paymentStatus.FAILED') || 'Failed' },
+      { value: 'REFUNDED', label: t('paymentStatus.REFUNDED') || 'Refunded' },
+    ],
+    [t]
+  );
 
   // Tab & Filter States
   const [reportType, setReportType] = useState<ReportType>('sales');
@@ -135,15 +146,17 @@ export default function ReportsPage() {
       else end = null;
     }
 
+    const presetLabel = datePresets.find((p) => p.key === datePreset)?.label || t('reports.selectedPeriod');
+
     return {
       startDate: start ? start.toISOString() : undefined,
       endDate: end ? end.toISOString() : undefined,
       label:
         datePreset === 'custom' && customStartDate && customEndDate
-          ? `${customStartDate} to ${customEndDate}`
-          : DATE_PRESETS.find((p) => p.key === datePreset)?.label || 'Selected Period',
+          ? `${customStartDate} ${t('reports.toText')} ${customEndDate}`
+          : presetLabel,
     };
-  }, [datePreset, customStartDate, customEndDate]);
+  }, [datePreset, customStartDate, customEndDate, datePresets, t]);
 
   // Fetch Report Data from API
   const fetchReport = useCallback(
@@ -214,7 +227,7 @@ export default function ReportsPage() {
         supportPhone: store?.supportPhone,
         supportEmail: store?.supportEmail,
       });
-      setExportSuccessMsg('Excel (.xlsx) report downloaded successfully!');
+      setExportSuccessMsg(t('reports.excelSuccess'));
       setTimeout(() => setExportSuccessMsg(null), 4000);
     } catch (err: any) {
       alert('Failed to generate Excel file: ' + err.message);
@@ -234,7 +247,7 @@ export default function ReportsPage() {
         supportPhone: store?.supportPhone,
         supportEmail: store?.supportEmail,
       });
-      setExportSuccessMsg('Customized PDF report generated and downloaded!');
+      setExportSuccessMsg(t('reports.pdfSuccess'));
       setTimeout(() => setExportSuccessMsg(null), 4000);
     } catch (err: any) {
       alert('Failed to generate PDF file: ' + err.message);
@@ -258,7 +271,7 @@ export default function ReportsPage() {
 
   return (
     <Layout
-      title="Reports & Exports"
+      title={t('reports.title')}
       actions={
         <div className="flex items-center gap-2">
           {/* Print Button */}
@@ -269,7 +282,7 @@ export default function ReportsPage() {
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-muted)] rounded-lg shadow-2xs transition disabled:opacity-50"
           >
             <Printer className="w-3.5 h-3.5 text-[var(--merchant-text-muted)]" />
-            <span>Print</span>
+            <span>{t('reports.print')}</span>
           </button>
 
           {/* Excel Export Button */}
@@ -281,7 +294,7 @@ export default function ReportsPage() {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg shadow-2xs transition disabled:opacity-50"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-            <span>{exportingExcel ? 'Exporting...' : 'Export Excel (.xlsx)'}</span>
+            <span>{exportingExcel ? t('reports.exportingExcel') : t('reports.exportExcel')}</span>
           </button>
 
           {/* PDF Export Button */}
@@ -293,13 +306,13 @@ export default function ReportsPage() {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] rounded-lg shadow-2xs transition disabled:opacity-50"
           >
             <FileDown className="w-4 h-4 text-white" />
-            <span>{exportingPdf ? 'Generating...' : 'Download PDF'}</span>
+            <span>{exportingPdf ? t('reports.generatingPdf') : t('reports.downloadPdf')}</span>
           </button>
         </div>
       }
     >
       <Head>
-        <title>Reports & Analytics | ShopOnGo Merchant Portal</title>
+        <title>{t('reports.title')} | {store?.name || 'LetzShop'}</title>
       </Head>
 
       <div className="space-y-6 max-w-7xl mx-auto pb-16">
@@ -313,13 +326,11 @@ export default function ReportsPage() {
                 <FileSpreadsheet className="w-5 h-5" />
               </span>
               <h1 className="text-xl font-bold text-[var(--merchant-text)] tracking-tight">
-                Business Intelligence & Reports
+                {t('reports.title')}
               </h1>
             </div>
             <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-2xl">
-              Extract formatted transaction records, revenue breakdown, inventory movement, and
-              customer lists for account reconciliation and audit. Download in Excel (.xlsx) or
-              branded PDF.
+              {t('reports.pageSubtitle')}
             </p>
           </div>
 
@@ -331,7 +342,7 @@ export default function ReportsPage() {
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)] bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] rounded-xl border border-[var(--merchant-border)] transition disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <span>{t('reports.refresh')}</span>
             </button>
 
             <button
@@ -341,7 +352,7 @@ export default function ReportsPage() {
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] hover:bg-[var(--merchant-surface-muted)] rounded-xl shadow-2xs transition disabled:opacity-50"
             >
               <Printer className="w-3.5 h-3.5 text-[var(--merchant-text-muted)]" />
-              <span>Print</span>
+              <span>{t('reports.print')}</span>
             </button>
 
             <button
@@ -352,7 +363,7 @@ export default function ReportsPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl shadow-2xs transition disabled:opacity-50 cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-              <span>{exportingExcel ? 'Exporting...' : 'Export Excel (.xlsx)'}</span>
+              <span>{exportingExcel ? t('reports.exportingExcel') : t('reports.exportExcel')}</span>
             </button>
 
             <button
@@ -363,7 +374,7 @@ export default function ReportsPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] rounded-xl shadow-2xs transition disabled:opacity-50 cursor-pointer"
             >
               <FileDown className="w-4 h-4 text-white" />
-              <span>{exportingPdf ? 'Generating...' : 'Download PDF'}</span>
+              <span>{exportingPdf ? t('reports.generatingPdf') : t('reports.downloadPdf')}</span>
             </button>
           </div>
         </div>
@@ -383,27 +394,27 @@ export default function ReportsPage() {
           {[
             {
               id: 'sales' as ReportType,
-              label: 'Sales & Revenue',
+              label: t('reports.tabSales'),
               icon: TrendingUp,
-              desc: 'Daily gross, net, taxes & shipping',
+              desc: t('reports.tabSalesDesc'),
             },
             {
               id: 'orders' as ReportType,
-              label: 'Orders Register',
+              label: t('reports.tabOrders'),
               icon: ShoppingBag,
-              desc: 'Every itemized order with buyer & address',
+              desc: t('reports.tabOrdersDesc'),
             },
             {
               id: 'products' as ReportType,
-              label: 'Product Performance',
+              label: t('reports.tabProducts'),
               icon: Package,
-              desc: 'Units sold, revenue & current stock',
+              desc: t('reports.tabProductsDesc'),
             },
             {
               id: 'customers' as ReportType,
-              label: 'Customers & LTV',
+              label: t('reports.tabCustomers'),
               icon: Users,
-              desc: 'Repeat buyers, contact numbers & total spend',
+              desc: t('reports.tabCustomersDesc'),
             },
           ].map((tab) => {
             const isActive = reportType === tab.id;
@@ -435,9 +446,9 @@ export default function ReportsPage() {
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-semibold text-[var(--merchant-text-muted)] mr-1 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
-                Timeframe:
+                {t('reports.timeframe')}
               </span>
-              {DATE_PRESETS.map((p) => {
+              {datePresets.map((p) => {
                 const isSelected = datePreset === p.key;
                 return (
                   <button
@@ -463,7 +474,7 @@ export default function ReportsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter table rows..."
+                placeholder={t('reports.filterPlaceholder')}
                 className="w-full pl-9 pr-3 py-1.5 text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-lg focus:outline-none focus:border-[var(--merchant-primary)]"
               />
               {searchQuery && (
@@ -482,7 +493,7 @@ export default function ReportsPage() {
           {datePreset === 'custom' && (
             <div className="flex items-center gap-3 pt-2 border-t border-[var(--merchant-border)] flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">From:</span>
+                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">{t('reports.fromDate')}</span>
                 <input
                   type="date"
                   value={customStartDate}
@@ -491,7 +502,7 @@ export default function ReportsPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">To:</span>
+                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">{t('reports.toDate')}</span>
                 <input
                   type="date"
                   value={customEndDate}
@@ -506,13 +517,13 @@ export default function ReportsPage() {
           {(reportType === 'sales' || reportType === 'orders') && (
             <div className="flex items-center gap-3 pt-2 border-t border-[var(--merchant-border)] flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">Order Status:</span>
+                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">{t('reports.orderStatus')}</span>
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
                   className="px-2.5 py-1.5 text-xs border border-[var(--merchant-input-border)] rounded-lg bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:outline-none focus:border-[var(--merchant-primary)]"
                 >
-                  {ORDER_STATUS_OPTIONS.map((opt) => (
+                  {orderStatusOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -521,13 +532,13 @@ export default function ReportsPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">Payment Status:</span>
+                <span className="text-xs text-[var(--merchant-text-muted)] font-medium">{t('reports.paymentStatus')}</span>
                 <select
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value)}
                   className="px-2.5 py-1.5 text-xs border border-[var(--merchant-input-border)] rounded-lg bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:outline-none focus:border-[var(--merchant-primary)]"
                 >
-                  {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                  {paymentStatusOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -546,49 +557,49 @@ export default function ReportsPage() {
             <>
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Revenue
+                  {t('reports.totalRevenue')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.totalRevenuePaise || 0)}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Gross: {formatPaise(summary.totalGrossSalesPaise || 0)}
+                  {t('reports.gross')} {formatPaise(summary.totalGrossSalesPaise || 0)}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Orders
+                  {t('reports.totalOrders')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1">
                   {summary.totalOrders ?? 0}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Paid: {summary.paidOrdersCount ?? 0} | Pending: {summary.pendingOrdersCount ?? 0}
+                  {t('reports.paid')} {summary.paidOrdersCount ?? 0} | {t('reports.pending')} {summary.pendingOrdersCount ?? 0}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Net Sales
+                  {t('reports.netSales')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.totalNetSalesPaise || 0)}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Discounts: {formatPaise(summary.totalDiscountPaise || 0)}
+                  {t('reports.discounts')} {formatPaise(summary.totalDiscountPaise || 0)}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Average Order Value
+                  {t('reports.avgOrderValue')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.avgOrderValuePaise || 0)}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  GST Tax: {formatPaise(summary.totalTaxPaise || 0)}
+                  {t('reports.gstTax')} {formatPaise(summary.totalTaxPaise || 0)}
                 </p>
               </div>
             </>
@@ -598,49 +609,49 @@ export default function ReportsPage() {
             <>
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Orders
+                  {t('reports.totalOrders')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1">
                   {summary.totalOrders ?? 0}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Avg Value: {formatPaise(summary.avgOrderValuePaise || 0)}
+                  {t('reports.avgValue')} {formatPaise(summary.avgOrderValuePaise || 0)}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Order Value
+                  {t('reports.totalOrderValue')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.totalRevenuePaise || 0)}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  All fulfilled & active orders
+                  {t('reports.allFulfilledActive')}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Paid Orders
+                  {t('reports.paidOrders')}
                 </p>
                 <h3 className="text-xl font-bold text-emerald-500 mt-1">
                   {summary.paidOrdersCount ?? 0}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Pending: {summary.pendingOrdersCount ?? 0}
+                  {t('reports.pending')} {summary.pendingOrdersCount ?? 0}
                 </p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Completed / Fulfilled
+                  {t('reports.completedFulfilled')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-primary)] mt-1">
                   {summary.completedOrdersCount ?? 0}
                 </h3>
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                  Cancelled: {summary.cancelledOrdersCount ?? 0}
+                  {t('reports.cancelled')} {summary.cancelledOrdersCount ?? 0}
                 </p>
               </div>
             </>
@@ -650,42 +661,42 @@ export default function ReportsPage() {
             <>
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Products Sold
+                  {t('reports.productsSold')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1">
                   {summary.totalProductsSold ?? 0}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Unique catalog items</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.uniqueCatalogItems')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Units Sold
+                  {t('reports.totalUnitsSold')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1">
                   {summary.totalUnitsSold ?? 0}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Across all customer carts</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.acrossAllCarts')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Product Sales
+                  {t('reports.productSales')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.totalProductRevenuePaise || 0)}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Excludes tax & shipping</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.excludesTaxShipping')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Top Product
+                  {t('reports.topProduct')}
                 </p>
                 <h3 className="text-base font-bold text-[var(--merchant-text)] mt-1 truncate" title={summary.topProduct}>
-                  {summary.topProduct || 'None'}
+                  {summary.topProduct || t('reports.none')}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Highest volume sales</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.highestVolumeSales')}</p>
               </div>
             </>
           )}
@@ -694,42 +705,42 @@ export default function ReportsPage() {
             <>
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Customers
+                  {t('reports.totalCustomers')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1">
                   {summary.totalCustomers ?? 0}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">In current store</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.inCurrentStore')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Repeat Customers
+                  {t('reports.repeatCustomers')}
                 </p>
                 <h3 className="text-xl font-bold text-emerald-500 mt-1">
                   {summary.repeatCustomers ?? 0}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">&gt;1 orders placed</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.moreThan1Order')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Total Customer Spend
+                  {t('reports.totalCustomerSpend')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.totalSpentPaise || 0)}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Cumulative LTV</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.cumulativeLtv')}</p>
               </div>
 
               <div className="bg-[var(--merchant-surface)] p-4 rounded-2xl border border-[var(--merchant-border)] shadow-2xs transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-text-muted)]">
-                  Avg. Customer Value
+                  {t('reports.avgCustomerValue')}
                 </p>
                 <h3 className="text-xl font-bold text-[var(--merchant-text)] mt-1 font-mono">
                   {formatPaise(summary.avgCustomerValuePaise || 0)}
                 </h3>
-                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">Revenue / Customer</p>
+                <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">{t('reports.revenuePerCustomer')}</p>
               </div>
             </>
           )}
@@ -743,20 +754,23 @@ export default function ReportsPage() {
           <div className="px-5 py-4 border-b border-[var(--merchant-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--merchant-surface-muted)]">
             <div>
               <h2 className="text-sm font-bold text-[var(--merchant-text)]">
-                {reportType === 'sales' && 'Sales & Revenue Breakdown'}
-                {reportType === 'orders' && 'Itemized Orders Ledger'}
-                {reportType === 'products' && 'Product Sales & Live Stock Matrix'}
-                {reportType === 'customers' && 'Customer Profiles & Order Frequency'}
+                {reportType === 'sales' && t('reports.salesBreakdown')}
+                {reportType === 'orders' && t('reports.ordersLedger')}
+                {reportType === 'products' && t('reports.productsMatrix')}
+                {reportType === 'customers' && t('reports.customersProfiles')}
               </h2>
               <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                Showing {filteredRecords.length} of {reportData?.records?.length || 0} records for{' '}
-                {computedDateRange.label}
+                {t('reports.showingRecords', {
+                  shown: filteredRecords.length,
+                  total: reportData?.records?.length || 0,
+                  range: computedDateRange.label,
+                })}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-[var(--merchant-text-muted)] font-medium hidden sm:inline">
-                Ready to download:
+                {t('reports.readyToDownload')}
               </span>
               <button
                 type="button"
@@ -784,7 +798,7 @@ export default function ReportsPage() {
             <div className="py-20 text-center space-y-3">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[var(--merchant-primary)]" />
               <p className="text-xs text-[var(--merchant-text-muted)] font-medium">
-                Compiling business records and calculating aggregates...
+                {t('reports.compiling')}
               </p>
             </div>
           ) : filteredRecords.length === 0 ? (
@@ -792,10 +806,9 @@ export default function ReportsPage() {
               <div className="w-12 h-12 rounded-full bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] flex items-center justify-center mx-auto">
                 <FileSpreadsheet className="w-6 h-6" />
               </div>
-              <p className="text-sm font-semibold text-[var(--merchant-text)]">No records found</p>
+              <p className="text-sm font-semibold text-[var(--merchant-text)]">{t('reports.noRecords')}</p>
               <p className="text-xs text-[var(--merchant-text-muted)] max-w-sm mx-auto">
-                No transactions or catalog activity matched the selected timeframe and filter
-                parameters. Try adjusting your date range.
+                {t('reports.noRecordsDesc')}
               </p>
             </div>
           ) : (
@@ -806,22 +819,22 @@ export default function ReportsPage() {
                   <>
                     <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="py-3 px-4">Date</th>
-                        <th className="py-3 px-4 text-center">Orders</th>
-                        <th className="py-3 px-4 text-right">Gross Sales</th>
-                        <th className="py-3 px-4 text-right">Discounts</th>
-                        <th className="py-3 px-4 text-right">Net Sales</th>
-                        <th className="py-3 px-4 text-right">Taxes (GST)</th>
-                        <th className="py-3 px-4 text-right">Shipping</th>
-                        <th className="py-3 px-4 text-right">Paid Sales</th>
-                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">Total Revenue</th>
+                        <th className="py-3 px-4">{t('reports.colDate')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colOrders')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colGrossSales')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colDiscounts')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colNetSales')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colTaxes')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colShipping')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colPaidSales')}</th>
+                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">{t('reports.colTotalRevenue')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--merchant-border)]">
                       {filteredRecords.map((r: any, idx: number) => (
                         <tr key={idx} className="hover:bg-[var(--merchant-surface-muted)]/50 transition-colors">
                           <td className="py-3 px-4 font-medium text-[var(--merchant-text)] whitespace-nowrap">
-                            {new Date(r.date).toLocaleDateString('en-IN', {
+                            {new Date(r.date).toLocaleDateString(locale, {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric',
@@ -856,7 +869,7 @@ export default function ReportsPage() {
                     </tbody>
                     <tfoot className="bg-[var(--merchant-surface-muted)] border-t-2 border-[var(--merchant-border)] font-bold text-[var(--merchant-text)]">
                       <tr>
-                        <td className="py-3 px-4 uppercase text-[11px]">Total Summary</td>
+                        <td className="py-3 px-4 uppercase text-[11px]">{t('reports.totalSummary')}</td>
                         <td className="py-3 px-4 text-center">{summary.totalOrders ?? 0}</td>
                         <td className="py-3 px-4 text-right font-mono">
                           {formatPaise(summary.totalGrossSalesPaise || 0)}
@@ -876,7 +889,7 @@ export default function ReportsPage() {
                           {formatPaise(summary.totalShippingPaise || 0)}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-emerald-500">
-                          {summary.paidOrdersCount ?? 0} Paid
+                          {summary.paidOrdersCount ?? 0} {t('paymentStatus.PAID') || 'Paid'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-sm font-extrabold text-[var(--merchant-text)]">
                           {formatPaise(summary.totalRevenuePaise || 0)}
@@ -891,14 +904,14 @@ export default function ReportsPage() {
                   <>
                     <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="py-3 px-4">Order #</th>
-                        <th className="py-3 px-4">Date</th>
-                        <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4">Phone / City</th>
-                        <th className="py-3 px-4">Items Summary</th>
-                        <th className="py-3 px-4 text-center">Payment</th>
-                        <th className="py-3 px-4 text-center">Status</th>
-                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">Amount</th>
+                        <th className="py-3 px-4">{t('reports.colOrderNum')}</th>
+                        <th className="py-3 px-4">{t('reports.colDate')}</th>
+                        <th className="py-3 px-4">{t('reports.colCustomer')}</th>
+                        <th className="py-3 px-4">{t('reports.colPhoneCity')}</th>
+                        <th className="py-3 px-4">{t('reports.colItemsSummary')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colPayment')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colStatus')}</th>
+                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">{t('reports.colAmount')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--merchant-border)]">
@@ -908,7 +921,7 @@ export default function ReportsPage() {
                             #{r.orderNumber}
                           </td>
                           <td className="py-3 px-4 text-[var(--merchant-text-muted)] whitespace-nowrap">
-                            {new Date(r.date).toLocaleString('en-IN', {
+                            {new Date(r.date).toLocaleString(locale, {
                               day: 'numeric',
                               month: 'short',
                               hour: '2-digit',
@@ -929,7 +942,7 @@ export default function ReportsPage() {
                           </td>
                           <td className="py-3 px-4 max-w-xs truncate text-[var(--merchant-text-secondary)]">
                             <span className="font-semibold text-[var(--merchant-text)]">
-                              {r.itemsCount} {r.itemsCount === 1 ? 'item' : 'items'}
+                              {r.itemsCount} {r.itemsCount === 1 ? t('reports.itemWord') : t('reports.itemsWord')}
                             </span>
                             <span className="block text-[11px] text-[var(--merchant-text-muted)] truncate">
                               {r.itemsSummary}
@@ -943,12 +956,12 @@ export default function ReportsPage() {
                                   : 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
                               }`}
                             >
-                              {r.paymentStatus}
+                              {t('paymentStatus.' + r.paymentStatus) || r.paymentStatus}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center whitespace-nowrap">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)]">
-                              {r.status}
+                              {t('orderStatus.' + r.status) || r.status}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right font-mono font-bold text-[var(--merchant-text)] whitespace-nowrap">
@@ -959,10 +972,13 @@ export default function ReportsPage() {
                     </tbody>
                     <tfoot className="bg-[var(--merchant-surface-muted)] border-t-2 border-[var(--merchant-border)] font-bold text-[var(--merchant-text)]">
                       <tr>
-                        <td className="py-3 px-4 uppercase text-[11px]">Total Summary</td>
+                        <td className="py-3 px-4 uppercase text-[11px]">{t('reports.totalSummary')}</td>
                         <td colSpan={6} className="py-3 px-4 text-[var(--merchant-text-muted)] font-normal">
-                          {summary.totalOrders ?? 0} Orders ({summary.paidOrdersCount ?? 0} Paid,{' '}
-                          {summary.pendingOrdersCount ?? 0} Pending)
+                          {t('reports.ordersSummaryFooter', {
+                            total: summary.totalOrders ?? 0,
+                            paid: summary.paidOrdersCount ?? 0,
+                            pending: summary.pendingOrdersCount ?? 0,
+                          })}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-sm font-extrabold text-[var(--merchant-text)]">
                           {formatPaise(summary.totalRevenuePaise || 0)}
@@ -977,14 +993,14 @@ export default function ReportsPage() {
                   <>
                     <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="py-3 px-4">Product Name</th>
-                        <th className="py-3 px-4">Variant</th>
-                        <th className="py-3 px-4">SKU</th>
-                        <th className="py-3 px-4 text-center">Units Sold</th>
-                        <th className="py-3 px-4 text-center">Current Stock</th>
-                        <th className="py-3 px-4 text-right">Avg Selling Price</th>
-                        <th className="py-3 px-4 text-center">Orders Count</th>
-                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">Total Revenue</th>
+                        <th className="py-3 px-4">{t('reports.colProductName')}</th>
+                        <th className="py-3 px-4">{t('reports.colVariant')}</th>
+                        <th className="py-3 px-4">{t('reports.colSku')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colUnitsSold')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colCurrentStock')}</th>
+                        <th className="py-3 px-4 text-right">{t('reports.colAvgSellingPrice')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colOrdersCount')}</th>
+                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">{t('reports.colTotalRevenue')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--merchant-border)]">
@@ -1007,7 +1023,7 @@ export default function ReportsPage() {
                                     : 'bg-emerald-500/15 text-emerald-500'
                                 }`}
                               >
-                                {r.currentStock} in stock
+                                {t('reports.inStock', { count: r.currentStock })}
                               </span>
                             ) : (
                               '—'
@@ -1027,12 +1043,12 @@ export default function ReportsPage() {
                     </tbody>
                     <tfoot className="bg-[var(--merchant-surface-muted)] border-t-2 border-[var(--merchant-border)] font-bold text-[var(--merchant-text)]">
                       <tr>
-                        <td className="py-3 px-4 uppercase text-[11px]">Total Summary</td>
+                        <td className="py-3 px-4 uppercase text-[11px]">{t('reports.totalSummary')}</td>
                         <td colSpan={2} className="py-3 px-4 text-[var(--merchant-text-muted)] font-normal">
-                          {summary.totalProductsSold ?? 0} Catalog items
+                          {t('reports.catalogItemsCount', { count: summary.totalProductsSold ?? 0 })}
                         </td>
                         <td className="py-3 px-4 text-center font-extrabold text-[var(--merchant-primary)]">
-                          {summary.totalUnitsSold ?? 0} units
+                          {t('reports.unitsCount', { count: summary.totalUnitsSold ?? 0 })}
                         </td>
                         <td colSpan={3}></td>
                         <td className="py-3 px-4 text-right font-mono text-sm font-extrabold text-[var(--merchant-text)]">
@@ -1048,14 +1064,14 @@ export default function ReportsPage() {
                   <>
                     <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="py-3 px-4">Customer Name</th>
-                        <th className="py-3 px-4">Phone Number</th>
-                        <th className="py-3 px-4">Email</th>
-                        <th className="py-3 px-4 text-center">Checkout Type</th>
-                        <th className="py-3 px-4 text-center">Orders Placed</th>
-                        <th className="py-3 px-4">First Order</th>
-                        <th className="py-3 px-4">Latest Order</th>
-                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">Total Spend (LTV)</th>
+                        <th className="py-3 px-4">{t('reports.colCustomerName')}</th>
+                        <th className="py-3 px-4">{t('reports.colPhoneNumber')}</th>
+                        <th className="py-3 px-4">{t('reports.colEmail')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.colCheckoutType')}</th>
+                        <th className="py-3 px-4 text-center">{t('reports.ordersPlaced')}</th>
+                        <th className="py-3 px-4">{t('reports.colFirstOrder')}</th>
+                        <th className="py-3 px-4">{t('reports.colLastOrder')}</th>
+                        <th className="py-3 px-4 text-right font-bold text-[var(--merchant-text)]">{t('reports.colTotalSpend')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--merchant-border)]">
@@ -1066,7 +1082,7 @@ export default function ReportsPage() {
                           <td className="py-3 px-4 text-[var(--merchant-text-muted)]">{r.email}</td>
                           <td className="py-3 px-4 text-center">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)]">
-                              {r.isGuest ? 'Guest Checkout' : 'Registered'}
+                              {r.isGuest ? t('reports.guestCheckout') : t('reports.registered')}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -1077,18 +1093,18 @@ export default function ReportsPage() {
                                   : 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)]'
                               }`}
                             >
-                              {r.ordersCount} {r.ordersCount === 1 ? 'order' : 'orders'}
+                              {r.ordersCount} {r.ordersCount === 1 ? t('reports.orderWord') : t('reports.ordersWord')}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-[var(--merchant-text-muted)] whitespace-nowrap">
-                            {new Date(r.firstOrderDate).toLocaleDateString('en-IN', {
+                            {new Date(r.firstOrderDate).toLocaleDateString(locale, {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric',
                             })}
                           </td>
                           <td className="py-3 px-4 text-[var(--merchant-text-muted)] whitespace-nowrap">
-                            {new Date(r.lastOrderDate).toLocaleDateString('en-IN', {
+                            {new Date(r.lastOrderDate).toLocaleDateString(locale, {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric',
@@ -1102,16 +1118,19 @@ export default function ReportsPage() {
                     </tbody>
                     <tfoot className="bg-[var(--merchant-surface-muted)] border-t-2 border-[var(--merchant-border)] font-bold text-[var(--merchant-text)]">
                       <tr>
-                        <td className="py-3 px-4 uppercase text-[11px]">Total Summary</td>
+                        <td className="py-3 px-4 uppercase text-[11px]">{t('reports.totalSummary')}</td>
                         <td colSpan={3} className="py-3 px-4 text-[var(--merchant-text-muted)] font-normal">
-                          {summary.totalCustomers ?? 0} Customers ({summary.repeatCustomers ?? 0} Repeat)
+                          {t('reports.customersSummaryFooter', {
+                            total: summary.totalCustomers ?? 0,
+                            repeat: summary.repeatCustomers ?? 0,
+                          })}
                         </td>
                         <td className="py-3 px-4 text-center font-extrabold text-[var(--merchant-primary)]">
                           {filteredRecords.reduce(
                             (acc: number, r: any) => acc + (r.ordersCount || 0),
                             0
                           )}{' '}
-                          Orders
+                          {t('reports.ordersWord')}
                         </td>
                         <td colSpan={2}></td>
                         <td className="py-3 px-4 text-right font-mono text-sm font-extrabold text-[var(--merchant-text)]">

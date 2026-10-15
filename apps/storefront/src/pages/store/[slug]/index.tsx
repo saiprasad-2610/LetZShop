@@ -32,6 +32,8 @@ import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
 import { useStorefrontI18n } from '@simply/i18n';
+import { logWhatsappEnquiry } from '../../../utils/enquiry';
+import { getProductTranslation } from '../../../utils/productTranslation';
 
 export default function StoreHomePage() {
   const router = useRouter();
@@ -676,6 +678,15 @@ export default function StoreHomePage() {
                     href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20here%20is%20my%20order%20list:`}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => {
+                      if (store?.id) {
+                        logWhatsappEnquiry({
+                          storeId: store.id,
+                          customerName: 'WhatsApp Buyer',
+                          message: `WhatsApp direct list enquiry for ${store.name}`,
+                        });
+                      }
+                    }}
                     className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
                   >
                     ⚡ Send List on WhatsApp
@@ -1330,9 +1341,9 @@ export default function StoreHomePage() {
               'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
             }`}>
               {filteredProducts.map((p: any) => {
-                const trans = p.translations?.find((tr: any) => tr.locale === locale);
-                const title = trans?.name || p.name || p.title || 'Product';
-                const description = trans?.description || p.description;
+                const trans = getProductTranslation(p.translations, locale);
+                const title = trans?.name?.trim() || p.name || p.title || 'Product';
+                const description = trans?.description?.trim() || p.description;
                 const primaryVariant = p.variants?.[0];
                 const pricePaise = p.basePricePaise ?? primaryVariant?.pricePaise ?? 0;
                 const comparePaise = p.compareAtPricePaise ?? primaryVariant?.compareAtPricePaise;
@@ -1623,6 +1634,16 @@ export default function StoreHomePage() {
                             href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20Item%3A%20${encodeURIComponent(title)}%20(SKU%3A%20PRD-${p.id.slice(0, 6).toUpperCase()})`}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={() => {
+                              if (store?.id) {
+                                logWhatsappEnquiry({
+                                  storeId: store.id,
+                                  productId: p.id,
+                                  customerName: 'WhatsApp Buyer',
+                                  message: `RFQ Quote enquiry for ${title}`,
+                                });
+                              }
+                            }}
                             className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <MessageSquare className="w-3 h-3" />

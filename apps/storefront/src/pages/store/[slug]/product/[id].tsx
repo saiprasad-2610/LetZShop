@@ -27,6 +27,8 @@ import { getSellerStorePreviewUrl } from '../../../../utils/config';
 import { ProductReviewsSection } from '../../../../components/ProductReviewsSection';
 import { useStorefrontI18n } from '@simply/i18n';
 import { normalizeIndianPhone } from '@simply/api-contracts';
+import { logWhatsappEnquiry } from '../../../../utils/enquiry';
+import { getProductTranslation } from '../../../../utils/productTranslation';
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -477,9 +479,9 @@ export default function ProductDetailPage() {
   const isOutOfStock = stockQuantity <= 0;
   const isLowStock = stockQuantity > 0 && stockQuantity < 5;
 
-  const trans = product.translations?.find((tr: any) => tr.locale === locale);
-  const displayTitle = trans?.name || product.title || product.name || 'Product';
-  const displayDescription = trans?.description || product.description || '';
+  const trans = getProductTranslation(product.translations, locale);
+  const displayTitle = trans?.name?.trim() || product.title || product.name || 'Product';
+  const displayDescription = trans?.description?.trim() || product.description || '';
 
   const buildWhatsAppEnquiryUrl = () => {
     if (!hasValidPhone) return null;
@@ -527,6 +529,15 @@ export default function ProductDetailPage() {
   const handleWhatsAppEnquiry = () => {
     const url = buildWhatsAppEnquiryUrl();
     if (url) {
+      if (store?.id) {
+        logWhatsappEnquiry({
+          storeId: store.id,
+          productId: product.id,
+          customerName: 'WhatsApp Buyer',
+          customerPhone: normalizedMerchantPhone || undefined,
+          message: `WhatsApp enquiry for ${displayTitle}${activeVariant ? ` (${activeVariant.title || activeVariant.sku})` : ''}`,
+        });
+      }
       window.open(url, '_blank', 'noopener,noreferrer');
     } else if (!hasValidPhone && isPreviewMode) {
       toast.warning('WhatsApp Missing', t('storefront.whatsappMissingWarning'));

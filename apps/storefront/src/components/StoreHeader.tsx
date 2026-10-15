@@ -5,6 +5,7 @@ import { ShoppingBag, Search, Menu, X, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getWordmark } from '@simply/ui';
 import { useStorefrontI18n, StorefrontLanguageSelect } from '@simply/i18n';
+import { logWhatsappEnquiry } from '../utils/enquiry';
 
 interface StoreHeaderProps {
   store: any;
@@ -241,6 +242,15 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
               href={`https://wa.me/919822012345?text=Hi%20${encodeURIComponent(store.name)}%2C%20please%20send%20catalog%20and%20quotation`}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                if (store?.id) {
+                  logWhatsappEnquiry({
+                    storeId: store.id,
+                    customerName: 'WhatsApp Buyer',
+                    message: `Catalog & quotation enquiry for ${store.name}`,
+                  });
+                }
+              }}
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-800 text-white font-mono text-xs font-semibold shadow-sm transition"
             >
               <span>Instant RFQ</span>
@@ -325,6 +335,15 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
               href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20${encodeURIComponent(store.name)}`}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                if (store?.id) {
+                  logWhatsappEnquiry({
+                    storeId: store.id,
+                    customerName: 'WhatsApp Buyer',
+                    message: `B2B RFQ quotation enquiry for ${store.name}`,
+                  });
+                }
+              }}
               className="block text-sm font-bold text-sky-700 py-1 font-mono"
             >
               📞 Request B2B Quotation (WhatsApp)
