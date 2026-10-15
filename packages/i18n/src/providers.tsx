@@ -3,9 +3,11 @@ import {
   SupportedLocale,
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
+  ACTIVE_LOCALES,
   LOCALE_REGISTRY,
   LocaleMetadata,
   sanitizeLocale,
+  isActiveLocale,
 } from './registry';
 import { createTranslator, TranslateFunction } from './translator';
 import { formatCurrency, formatDate, formatNumber } from './formatters';
@@ -93,7 +95,7 @@ export const SellerLocaleProvider: React.FC<SellerLocaleProviderProps> = ({
 
   const t = useMemo(() => createTranslator(locale), [locale]);
   const metadata = useMemo(() => LOCALE_REGISTRY[locale] || LOCALE_REGISTRY[DEFAULT_LOCALE], [locale]);
-  const availableLocales = useMemo(() => SUPPORTED_LOCALES.map((code) => LOCALE_REGISTRY[code]), []);
+  const availableLocales = useMemo(() => ACTIVE_LOCALES.map((code) => LOCALE_REGISTRY[code]), []);
 
   const curFormat = useCallback(
     (amountPaise: number) => formatCurrency(amountPaise, locale),
@@ -145,7 +147,7 @@ export function useSellerI18n(): I18nContextValue {
       formatNumber: (n, o) => formatNumber(n, DEFAULT_LOCALE, o),
       direction: 'ltr',
       metadata: LOCALE_REGISTRY[DEFAULT_LOCALE],
-      availableLocales: SUPPORTED_LOCALES.map((code) => LOCALE_REGISTRY[code]),
+      availableLocales: ACTIVE_LOCALES.map((code) => LOCALE_REGISTRY[code]),
       initStoreLocales: () => {},
     };
   }
@@ -230,10 +232,11 @@ export const StorefrontLocaleProvider: React.FC<StorefrontLocaleProviderProps> =
 
   const availableLocales = useMemo(() => {
     const list = Array.isArray(currentEnabled) && currentEnabled.length > 0
-      ? currentEnabled.map((code) => sanitizeLocale(code))
-      : SUPPORTED_LOCALES;
+      ? currentEnabled.filter(isActiveLocale)
+      : ACTIVE_LOCALES;
 
-    return Array.from(new Set(list)).map((c) => LOCALE_REGISTRY[c] || LOCALE_REGISTRY[DEFAULT_LOCALE]);
+    const effectiveList = list.length > 0 ? list : ACTIVE_LOCALES;
+    return Array.from(new Set(effectiveList)).map((c) => LOCALE_REGISTRY[c] || LOCALE_REGISTRY[DEFAULT_LOCALE]);
   }, [currentEnabled]);
 
   const curFormat = useCallback(
@@ -285,7 +288,7 @@ export function useStorefrontI18n(): I18nContextValue {
       formatNumber: (n, o) => formatNumber(n, DEFAULT_LOCALE, o),
       direction: 'ltr',
       metadata: LOCALE_REGISTRY[DEFAULT_LOCALE],
-      availableLocales: SUPPORTED_LOCALES.map((code) => LOCALE_REGISTRY[code]),
+      availableLocales: ACTIVE_LOCALES.map((code) => LOCALE_REGISTRY[code]),
       initStoreLocales: () => {},
     };
   }
@@ -325,7 +328,7 @@ export const LandingLocaleProvider: React.FC<{ initialLocale?: string; children:
 
   const t = useMemo(() => createTranslator(locale), [locale]);
   const metadata = useMemo(() => LOCALE_REGISTRY[locale] || LOCALE_REGISTRY[DEFAULT_LOCALE], [locale]);
-  const availableLocales = useMemo(() => SUPPORTED_LOCALES.map((code) => LOCALE_REGISTRY[code]), []);
+  const availableLocales = useMemo(() => ACTIVE_LOCALES.map((code) => LOCALE_REGISTRY[code]), []);
 
   const curFormat = useCallback(
     (amountPaise: number) => formatCurrency(amountPaise, locale),
@@ -376,7 +379,7 @@ export function useLandingI18n(): I18nContextValue {
       formatNumber: (n, o) => formatNumber(n, DEFAULT_LOCALE, o),
       direction: 'ltr',
       metadata: LOCALE_REGISTRY[DEFAULT_LOCALE],
-      availableLocales: SUPPORTED_LOCALES.map((code) => LOCALE_REGISTRY[code]),
+      availableLocales: ACTIVE_LOCALES.map((code) => LOCALE_REGISTRY[code]),
       initStoreLocales: () => {},
     };
   }

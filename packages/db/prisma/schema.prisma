@@ -416,7 +416,7 @@ model Store {
   isPubliclyAccessible Boolean     @default(false) @map("is_publicly_accessible")
   previewSecret        String      @default(uuid()) @map("preview_secret")
   storefrontDefaultLocale String   @default("en-IN") @map("storefront_default_locale")
-  enabledStorefrontLocales String[] @default(["en-IN", "mr-IN", "hi-IN", "gu-IN", "kn-IN", "ta-IN", "te-IN", "bn-IN", "ml-IN", "pa-IN"]) @map("enabled_storefront_locales")
+  enabledStorefrontLocales String[] @default(["en-IN", "mr-IN", "hi-IN"]) @map("enabled_storefront_locales")
   supportPhone         String?                   @map("support_phone")
   supportEmail         String?                   @map("support_email")
   whatsappNumber       String?                   @map("whatsapp_number")

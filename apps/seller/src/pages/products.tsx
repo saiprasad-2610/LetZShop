@@ -32,9 +32,11 @@ import { TableSkeleton } from '../components/ui/Skeletons';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SafeImage } from '../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 
 export default function ProductsPage() {
   const { api } = useAuth();
+  const { t } = useSellerI18n();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'inventory'>('products');
   const [loading, setLoading] = useState(true);
@@ -257,7 +259,7 @@ export default function ProductsPage() {
   return (
     <Layout title="Products & Catalog">
       <Head>
-        <title>Products & Catalog | Simply Seller</title>
+        <title>{t('products.title')} | LetzShop Merchant Portal</title>
       </Head>
 
       <div className="space-y-6">
@@ -265,10 +267,10 @@ export default function ProductsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--merchant-text)] tracking-tight">
-              Products & Catalog
+              {t('products.title')}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--merchant-text-muted)] mt-0.5">
-              Manage your showcase, colour/size variant matrix, and stock inventory
+              {t('products.subtitle') || 'Manage your catalogue, categories, and variant inventory'}
             </p>
           </div>
 
@@ -277,10 +279,10 @@ export default function ProductsPage() {
               onClick={() => loadData()}
               disabled={loading}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-[var(--merchant-surface)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold shadow-xs transition disabled:opacity-60 cursor-pointer"
-              title="Refresh catalog data"
+              title={t('common.refresh')}
             >
               <RefreshCw className={`w-3.5 h-3.5 text-[var(--merchant-text-muted)] ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
-              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+              <span>{loading ? t('common.updating') : t('common.refresh')}</span>
             </button>
             <button
               onClick={() => {
@@ -290,7 +292,7 @@ export default function ProductsPage() {
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Add Product
+              {t('products.addProduct')}
             </button>
           </div>
         </div>
@@ -306,7 +308,7 @@ export default function ProductsPage() {
             }`}
           >
             <Package className="w-4 h-4" />
-            All Products
+            {t('products.productsTab')}
           </button>
           <button
             onClick={() => setActiveTab('categories')}
@@ -317,7 +319,7 @@ export default function ProductsPage() {
             }`}
           >
             <Tag className="w-4 h-4" />
-            Categories
+            {t('products.categoriesTab')}
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
@@ -328,7 +330,7 @@ export default function ProductsPage() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            Inventory & Stock
+            {t('products.inventoryTab')}
           </button>
         </div>
 
@@ -342,7 +344,7 @@ export default function ProductsPage() {
                   <Search className="w-4 h-4 absolute left-3 top-3 text-[var(--merchant-text-muted)]" />
                   <input
                     type="text"
-                    placeholder="Search products by name or SKU..."
+                    placeholder={t('products.searchProducts')}
                     value={searchQuery}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -358,7 +360,7 @@ export default function ProductsPage() {
                       type="button"
                       onClick={handleClearSearch}
                       className="absolute right-2.5 top-2.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] p-0.5 rounded-md transition"
-                      title="Clear search"
+                      title={t('common.clear')}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -374,8 +376,8 @@ export default function ProductsPage() {
                   }}
                   className="px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] cursor-pointer"
                 >
-                  <option value="">All Categories</option>
-                  <option value="uncategorized">Uncategorized</option>
+                  <option value="">{t('products.allCategories')}</option>
+                  <option value="uncategorized">{t('products.uncategorized')}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -387,7 +389,7 @@ export default function ProductsPage() {
                   type="submit"
                   className="px-4 py-2.5 bg-[var(--merchant-surface-raised)] border border-[var(--merchant-border)] text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition"
                 >
-                  Search
+                  {t('common.search')}
                 </button>
 
                 {(searchQuery || categoryFilter || stockFilter !== 'ALL') && (
@@ -395,10 +397,10 @@ export default function ProductsPage() {
                     type="button"
                     onClick={handleResetAllFilters}
                     className="px-3.5 py-2.5 border border-[var(--merchant-border)] text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition flex items-center justify-center gap-1.5"
-                    title="Reset all filters"
+                    title={t('common.resetAll')}
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Reset</span>
+                    <span>{t('common.reset')}</span>
                   </button>
                 )}
               </form>
@@ -406,10 +408,10 @@ export default function ProductsPage() {
               {/* Quick Stock Filters */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
                 {[
-                  { id: 'ALL', label: 'All Products' },
-                  { id: 'IN_STOCK', label: 'In Stock' },
-                  { id: 'LOW_STOCK', label: 'Low Stock (< 5)' },
-                  { id: 'OUT_OF_STOCK', label: 'Out of Stock' },
+                  { id: 'ALL', label: t('products.allProducts') },
+                  { id: 'IN_STOCK', label: t('products.inStockFilter') },
+                  { id: 'LOW_STOCK', label: t('products.lowStockFilter') },
+                  { id: 'OUT_OF_STOCK', label: t('products.outOfStockFilter') },
                 ].map((pill) => (
                   <button
                     key={pill.id}
@@ -435,24 +437,24 @@ export default function ProductsPage() {
                 <div className="p-8 text-center bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl">
                   <Package className="w-8 h-8 text-[var(--merchant-text-muted)] mx-auto mb-2 opacity-50" />
                   <h4 className="font-bold text-[var(--merchant-text)] text-sm mb-1">
-                    No products match your filters
+                    {t('products.noProductsMatchFilter')}
                   </h4>
                   <p className="text-xs text-[var(--merchant-text-muted)] mb-3">
-                    Try clearing your search query or selecting a different category.
+                    {t('products.noProductsMatchFilterDesc')}
                   </p>
                   <button
                     onClick={handleResetAllFilters}
                     className="px-4 py-2 bg-[var(--merchant-surface-raised)] border border-[var(--merchant-border)] text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition"
                   >
-                    Clear All Filters
+                    {t('common.resetAll')}
                   </button>
                 </div>
               ) : (
                 <EmptyState
                   icon={Package}
-                  title="No products in catalog"
-                  description="Get started by adding your first product with photography, colour & size variants, and pricing."
-                  actionText="Add Product"
+                  title={t('products.noProductsInCatalog')}
+                  description={t('products.noProductsInCatalogDesc')}
+                  actionText={t('products.addProduct')}
                   onAction={() => {
                     setEditingProductId(null);
                     setEditorOpen(true);
@@ -463,16 +465,16 @@ export default function ProductsPage() {
               <div className="p-8 text-center bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl">
                 <Package className="w-8 h-8 text-[var(--merchant-text-muted)] mx-auto mb-2 opacity-50" />
                 <h4 className="font-bold text-[var(--merchant-text)] text-sm mb-1">
-                  No products with this stock status
+                  {t('products.noProductsStockStatus')}
                 </h4>
                 <p className="text-xs text-[var(--merchant-text-muted)] mb-3">
-                  No products matched the current stock status filter.
+                  {t('products.noProductsStockStatusDesc')}
                 </p>
                 <button
                   onClick={() => setStockFilter('ALL')}
                   className="px-4 py-2 bg-[var(--merchant-surface-raised)] border border-[var(--merchant-border)] text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition"
                 >
-                  Show All Products
+                  {t('products.allProducts')}
                 </button>
               </div>
             ) : (
@@ -481,13 +483,13 @@ export default function ProductsPage() {
                     <table className="w-full text-left text-xs">
                       <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider">
                         <tr>
-                          <th className="py-3 px-4">Product Details</th>
-                          <th className="py-3 px-4">Category</th>
-                          <th className="py-3 px-4">Price / MRP</th>
-                          <th className="py-3 px-4">Stock</th>
-                          <th className="py-3 px-4">Variants</th>
-                          <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
+                          <th className="py-3 px-4">{t('products.productCol')}</th>
+                          <th className="py-3 px-4">{t('products.categoryCol')}</th>
+                          <th className="py-3 px-4">{t('products.priceCol')}</th>
+                          <th className="py-3 px-4">{t('products.stockCol')}</th>
+                          <th className="py-3 px-4">{t('products.variants')}</th>
+                          <th className="py-3 px-4">{t('products.statusCol')}</th>
+                          <th className="py-3 px-4 text-right">{t('products.actionsCol')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--merchant-border)]">
@@ -550,7 +552,7 @@ export default function ProductsPage() {
                                       : 'bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border-[var(--merchant-border)]'
                                   }`}
                                 >
-                                  {p.category?.name || 'Uncategorized'}
+                                  {p.category?.name || t('products.uncategorized')}
                                 </span>
                               </td>
 
@@ -576,10 +578,10 @@ export default function ProductsPage() {
                                 }`}
                               >
                                 {isOutOfStock
-                                  ? 'Out of Stock'
+                                  ? t('inventory.outOfStock')
                                   : isLowStock
-                                  ? `${totalStock} Left (Low)`
-                                  : `${totalStock} In Stock`}
+                                  ? `${totalStock} ${t('products.lowStockFilter')}`
+                                  : `${totalStock} ${t('inventory.inStock')}`}
                               </span>
                             </td>
 
@@ -587,10 +589,10 @@ export default function ProductsPage() {
                             <td className="py-3.5 px-4 text-[var(--merchant-text-secondary)]">
                               {variantCount > 0 ? (
                                 <span className="font-medium text-[11px]">
-                                  {variantCount} variants
+                                  {variantCount} {t('products.variants')}
                                 </span>
                               ) : (
-                                <span className="text-[11px] text-[var(--merchant-text-muted)]">Single item</span>
+                                <span className="text-[11px] text-[var(--merchant-text-muted)]">{t('products.singleItem')}</span>
                               )}
                             </td>
 
@@ -610,21 +612,21 @@ export default function ProductsPage() {
                                     setEditingProductId(p.id);
                                     setEditorOpen(true);
                                   }}
-                                  title="Edit Product"
+                                  title={t('common.edit')}
                                   className="p-1.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-primary)] hover:bg-[var(--merchant-surface-raised)] rounded-lg transition"
                                 >
                                   <Edit3 className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDuplicate(p.id)}
-                                  title="Duplicate Product"
+                                  title={t('products.duplicate')}
                                   className="p-1.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] hover:bg-[var(--merchant-surface-raised)] rounded-lg transition"
                                 >
                                   <Copy className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(p.id)}
-                                  title="Archive Product"
+                                  title={t('common.delete')}
                                   className="p-1.5 text-[var(--merchant-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -647,13 +649,13 @@ export default function ProductsPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-xs text-[var(--merchant-text-muted)]">
-                Organize your catalog into customer-facing collections
+                {t('products.categoriesSubtitle')}
               </p>
               <button
                 onClick={() => setShowAddCategoryModal(true)}
                 className="px-3.5 py-1.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
               >
-                <Plus className="w-3.5 h-3.5" /> New Category
+                <Plus className="w-3.5 h-3.5" /> {t('products.addCategory')}
               </button>
             </div>
 
@@ -662,15 +664,15 @@ export default function ProductsPage() {
             ) : categories.length === 0 ? (
               <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl p-8 text-center space-y-3">
                 <Tag className="w-8 h-8 text-[var(--merchant-text-muted)] mx-auto" />
-                <h3 className="text-sm font-bold text-[var(--merchant-text)]">No categories created yet</h3>
+                <h3 className="text-sm font-bold text-[var(--merchant-text)]">{t('products.noCategoriesYet')}</h3>
                 <p className="text-xs text-[var(--merchant-text-muted)] max-w-sm mx-auto">
-                  Create categories like Sarees, Kurtas, or Accessories to group your products for easier shopping.
+                  {t('products.noCategoriesDesc')}
                 </p>
                 <button
                   onClick={() => setShowAddCategoryModal(true)}
                   className="px-3.5 py-1.5 bg-[var(--merchant-primary)] text-white rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition shadow-xs"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Create First Category
+                  <Plus className="w-3.5 h-3.5" /> {t('products.createFirstCategory')}
                 </button>
               </div>
             ) : (
@@ -684,11 +686,11 @@ export default function ProductsPage() {
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-[var(--merchant-text)] text-sm line-clamp-1">{c.name}</span>
                         <span className="text-[10px] font-mono bg-[var(--merchant-surface-muted)] px-2 py-0.5 rounded text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)] shrink-0">
-                          {c._count?.products ?? 0} {c._count?.products === 1 ? 'item' : 'items'}
+                          {c._count?.products ?? 0} {c._count?.products === 1 ? t('common.item') : t('common.items')}
                         </span>
                       </div>
                       <p className="text-xs text-[var(--merchant-text-muted)] line-clamp-2 min-h-[2rem]">
-                        {c.description || 'No description provided.'}
+                        {c.description || t('products.noDescription')}
                       </p>
                     </div>
 
@@ -702,7 +704,7 @@ export default function ProductsPage() {
                         className="text-[11px] font-semibold text-[var(--merchant-primary)] hover:underline flex items-center gap-1"
                       >
                         <Package className="w-3 h-3" />
-                        View Products
+                        {t('products.viewProducts')}
                       </button>
 
                       <div className="flex items-center gap-1">
@@ -713,14 +715,14 @@ export default function ProductsPage() {
                             setEditCategoryDesc(c.description || '');
                           }}
                           className="p-1.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] hover:bg-[var(--merchant-surface-muted)] rounded-lg transition"
-                          title="Edit Category"
+                          title={t('products.editCategory')}
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteCategory(c)}
                           className="p-1.5 text-[var(--merchant-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
-                          title="Delete Category"
+                          title={t('common.delete')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -746,14 +748,14 @@ export default function ProductsPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm sm:text-base font-bold text-[var(--merchant-text)]">
-                        Live Stock & Anti-Overselling Guard
+                        {t('inventory.guardTitle')}
                       </h2>
                       <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        Atomic Protection Active
+                        {t('inventory.guardActive')}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-2xl leading-relaxed">
-                      Real-time inventory ledger protecting your store against overselling. When shoppers start checkout, items are reserved atomically so two buyers cannot purchase the same last unit during flash sales or high traffic.
+                      {t('inventory.guardDesc')}
                     </p>
                   </div>
                 </div>
@@ -763,10 +765,10 @@ export default function ProductsPage() {
                     onClick={() => loadData()}
                     disabled={loading}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text-secondary)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold transition disabled:opacity-60 cursor-pointer"
-                    title="Refresh stock levels"
+                    title={t('common.refresh')}
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
-                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+                    <span>{loading ? t('common.updating') : t('common.refresh')}</span>
                   </button>
                 </div>
               </div>
@@ -776,45 +778,45 @@ export default function ProductsPage() {
                 <div className="p-3 bg-[var(--merchant-surface-muted)]/50 rounded-xl border border-[var(--merchant-border)]">
                   <div className="text-[10px] uppercase tracking-wider text-[var(--merchant-text-muted)] font-semibold flex items-center gap-1.5">
                     <Boxes className="w-3.5 h-3.5 text-blue-500" />
-                    Available to Sell
+                    {t('inventory.availableToSell')}
                   </div>
                   <div className="text-lg font-bold font-mono text-[var(--merchant-text)] mt-1">
                     {inventoryList.reduce((acc, i) => acc + (i.availableQuantity ?? i.stockOnHand ?? 0), 0)}
                   </div>
-                  <div className="text-[10px] text-[var(--merchant-text-muted)]">Unreserved stock on hand</div>
+                  <div className="text-[10px] text-[var(--merchant-text-muted)]">{t('inventory.unreservedStock')}</div>
                 </div>
 
                 <div className="p-3 bg-[var(--merchant-surface-muted)]/50 rounded-xl border border-[var(--merchant-border)]">
                   <div className="text-[10px] uppercase tracking-wider text-[var(--merchant-text-muted)] font-semibold flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-                    Reserved in Orders
+                    {t('inventory.reservedInOrders')}
                   </div>
                   <div className="text-lg font-bold font-mono text-amber-500 mt-1">
                     {inventoryList.reduce((acc, i) => acc + (i.reservedQuantity ?? i.stockReserved ?? 0), 0)}
                   </div>
-                  <div className="text-[10px] text-[var(--merchant-text-muted)]">Held in active checkout</div>
+                  <div className="text-[10px] text-[var(--merchant-text-muted)]">{t('inventory.heldInCheckout')}</div>
                 </div>
 
                 <div className="p-3 bg-[var(--merchant-surface-muted)]/50 rounded-xl border border-[var(--merchant-border)]">
                   <div className="text-[10px] uppercase tracking-wider text-[var(--merchant-text-muted)] font-semibold flex items-center gap-1.5">
                     <ShoppingCart className="w-3.5 h-3.5 text-indigo-500" />
-                    In Customer Carts
+                    {t('inventory.inCustomerCarts')}
                   </div>
                   <div className="text-lg font-bold font-mono text-[var(--merchant-text)] mt-1">
                     {inventoryList.reduce((acc, i) => acc + (i.inCart ?? 0), 0)}
                   </div>
-                  <div className="text-[10px] text-[var(--merchant-text-muted)]">Active shopper carts</div>
+                  <div className="text-[10px] text-[var(--merchant-text-muted)]">{t('inventory.activeCarts')}</div>
                 </div>
 
                 <div className="p-3 bg-[var(--merchant-surface-muted)]/50 rounded-xl border border-[var(--merchant-border)]">
                   <div className="text-[10px] uppercase tracking-wider text-[var(--merchant-text-muted)] font-semibold flex items-center gap-1.5">
                     <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
-                    Total Units Sold
+                    {t('inventory.totalUnitsSold')}
                   </div>
                   <div className="text-lg font-bold font-mono text-[var(--merchant-text)] mt-1">
                     {inventoryList.reduce((acc, i) => acc + (i.totalSold ?? 0), 0)}
                   </div>
-                  <div className="text-[10px] text-[var(--merchant-text-muted)]">Purchased to date</div>
+                  <div className="text-[10px] text-[var(--merchant-text-muted)]">{t('inventory.purchasedToDate')}</div>
                 </div>
               </div>
             </div>
@@ -826,7 +828,7 @@ export default function ProductsPage() {
                   <Search className="w-4 h-4 absolute left-3 top-3 text-[var(--merchant-text-muted)]" />
                   <input
                     type="text"
-                    placeholder="Search by product name, variant, or SKU..."
+                    placeholder={t('inventory.searchPlaceholder')}
                     value={inventorySearch}
                     onChange={(e) => setInventorySearch(e.target.value)}
                     className="w-full pl-9 pr-8 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl text-xs placeholder:text-[var(--merchant-text-muted)] focus:outline-none focus:border-[var(--merchant-primary)]"
@@ -846,8 +848,8 @@ export default function ProductsPage() {
                   onChange={(e) => setInventoryCategoryFilter(e.target.value)}
                   className="px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] cursor-pointer"
                 >
-                  <option value="">All Categories</option>
-                  <option value="uncategorized">Uncategorized</option>
+                  <option value="">{t('products.allCategories')}</option>
+                  <option value="uncategorized">{t('products.uncategorized')}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -860,10 +862,10 @@ export default function ProductsPage() {
                     onClick={handleResetInventoryFilters}
                     disabled={loading}
                     className="px-2.5 py-2 border border-[var(--merchant-border)] text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl text-xs font-semibold hover:bg-[var(--merchant-surface-muted)] transition flex items-center justify-center gap-1 disabled:opacity-60 cursor-pointer"
-                    title="Reset filters and refresh"
+                    title={t('inventory.resetAndRefresh')}
                   >
                     <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
-                    <span>Reset</span>
+                    <span>{t('common.reset')}</span>
                   </button>
                 )}
               </div>
@@ -873,12 +875,12 @@ export default function ProductsPage() {
                 {(['ALL', 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] as const).map((filterKey) => {
                   const label =
                     filterKey === 'ALL'
-                      ? 'All Items'
+                      ? t('inventory.allItems')
                       : filterKey === 'IN_STOCK'
-                      ? 'In Stock'
+                      ? t('inventory.inStock')
                       : filterKey === 'LOW_STOCK'
-                      ? 'Low Stock (< 5)'
-                      : 'Out of Stock';
+                      ? t('products.lowStockFilter')
+                      : t('inventory.outOfStock');
                   const active = inventoryStockFilter === filterKey;
                   return (
                     <button
@@ -906,26 +908,26 @@ export default function ProductsPage() {
                   <table className="w-full text-left text-xs min-w-[750px]">
                     <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider">
                       <tr>
-                        <th className="py-3.5 px-4">Product & Item</th>
-                        <th className="py-3.5 px-4">SKU</th>
-                        <th className="py-3.5 px-4">Available to Sell</th>
-                        <th className="py-3.5 px-4">Reserved (In Orders)</th>
-                        <th className="py-3.5 px-4 text-center">In Carts</th>
-                        <th className="py-3.5 px-4 text-center">Units Sold</th>
-                        <th className="py-3.5 px-4 text-right">Quick Restock</th>
+                        <th className="py-3.5 px-4">{t('inventory.productAndItem')}</th>
+                        <th className="py-3.5 px-4">{t('products.sku')}</th>
+                        <th className="py-3.5 px-4">{t('inventory.availableToSell')}</th>
+                        <th className="py-3.5 px-4">{t('inventory.reservedInOrders')}</th>
+                        <th className="py-3.5 px-4 text-center">{t('inventory.inCustomerCarts')}</th>
+                        <th className="py-3.5 px-4 text-center">{t('inventory.totalUnitsSold')}</th>
+                        <th className="py-3.5 px-4 text-right">{t('inventory.quickRestock')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--merchant-border)]">
                       {displayedInventory.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="py-12 text-center text-[var(--merchant-text-muted)]">
-                            <p className="font-semibold">No inventory records matching your filter.</p>
+                            <p className="font-semibold">{t('inventory.noInventoryRecords')}</p>
                             {(inventorySearch || inventoryCategoryFilter || inventoryStockFilter !== 'ALL') && (
                               <button
                                 onClick={handleResetInventoryFilters}
                                 className="mt-2 text-xs text-[var(--merchant-primary)] hover:underline font-semibold cursor-pointer"
                               >
-                                Reset filters & Refresh
+                                {t('inventory.resetAndRefresh')}
                               </button>
                             )}
                           </td>
@@ -959,7 +961,7 @@ export default function ProductsPage() {
                                   </div>
                                   <div className="text-[11px] text-[var(--merchant-text-secondary)] mt-0.5 flex flex-wrap items-center gap-1.5">
                                     <span className="inline-block px-1.5 py-0.2 rounded bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] text-[10px]">
-                                      {inv.variantTitle || 'Standard / Default'}
+                                      {inv.variantTitle || t('inventory.standardDefault')}
                                     </span>
                                     {inv.categoryName ? (
                                       <span className="inline-block px-1.5 py-0.2 rounded bg-[var(--merchant-primary)]/10 text-[var(--merchant-primary)] border border-[var(--merchant-primary)]/20 text-[10px] font-semibold">
@@ -967,7 +969,7 @@ export default function ProductsPage() {
                                       </span>
                                     ) : (
                                       <span className="inline-block px-1.5 py-0.2 rounded bg-[var(--merchant-surface-muted)] text-[var(--merchant-text-muted)] border border-[var(--merchant-border)] text-[10px]">
-                                        Uncategorized
+                                        {t('products.uncategorized')}
                                       </span>
                                     )}
                                   </div>
@@ -990,15 +992,15 @@ export default function ProductsPage() {
                                 </span>
                                 {isOutOfStock ? (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                                    Out
+                                    {t('inventory.outOfStock')}
                                   </span>
                                 ) : isLowStock ? (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                    Low
+                                    {t('products.lowStockFilter')}
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                    In Stock
+                                    {t('inventory.inStock')}
                                   </span>
                                 )}
                               </div>
@@ -1012,7 +1014,7 @@ export default function ProductsPage() {
                                 </span>
                                 {reserved > 0 && (
                                   <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="Locked by active orders/checkout">
-                                    Locked
+                                    {t('inventory.locked')}
                                   </span>
                                 )}
                               </div>
@@ -1043,7 +1045,7 @@ export default function ProductsPage() {
                                 }}
                                 className="px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] border border-[var(--merchant-border)] rounded-xl text-xs font-semibold transition"
                               >
-                                Adjust Stock
+                                {t('inventory.adjustStock')}
                               </button>
                             </td>
                           </tr>
@@ -1064,9 +1066,9 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="bg-[var(--merchant-surface)] rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-[var(--merchant-border)] transition-colors">
             <div>
-              <h3 className="font-bold text-[var(--merchant-text)] text-sm">Adjust Stock Level</h3>
+              <h3 className="font-bold text-[var(--merchant-text)] text-sm">{t('inventory.adjustStockTitle')}</h3>
               <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
-                Update on-hand inventory count. Database ledger records this change atomically.
+                {t('inventory.adjustStockDesc')}
               </p>
             </div>
 
@@ -1088,7 +1090,7 @@ export default function ProductsPage() {
                   {stockModalItem.productName || 'Product'}
                 </div>
                 <div className="text-[11px] text-[var(--merchant-text-muted)] flex items-center gap-2 mt-0.5">
-                  <span>{stockModalItem.variantTitle || 'Default Variant'}</span>
+                  <span>{stockModalItem.variantTitle || t('inventory.standardDefault')}</span>
                   <span>•</span>
                   <span className="font-mono font-semibold">{stockModalItem.sku || 'N/A'}</span>
                 </div>
@@ -1098,15 +1100,15 @@ export default function ProductsPage() {
             {/* Stock counts overview */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 rounded-lg bg-[var(--merchant-surface-muted)]/50 border border-[var(--merchant-border)]">
-                <span className="text-[var(--merchant-text-muted)] block text-[10px] uppercase font-semibold">Current Available</span>
+                <span className="text-[var(--merchant-text-muted)] block text-[10px] uppercase font-semibold">{t('inventory.available')}</span>
                 <span className="font-mono font-bold text-base text-[var(--merchant-text)]">
-                  {stockModalItem.availableQuantity ?? stockModalItem.stockOnHand ?? 0} units
+                  {stockModalItem.availableQuantity ?? stockModalItem.stockOnHand ?? 0} {t('common.items')}
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-[var(--merchant-surface-muted)]/50 border border-[var(--merchant-border)]">
-                <span className="text-[var(--merchant-text-muted)] block text-[10px] uppercase font-semibold">Locked in Orders</span>
+                <span className="text-[var(--merchant-text-muted)] block text-[10px] uppercase font-semibold">{t('inventory.reservedInOrders')}</span>
                 <span className="font-mono font-bold text-base text-amber-500">
-                  {stockModalItem.reservedQuantity ?? stockModalItem.stockReserved ?? 0} units
+                  {stockModalItem.reservedQuantity ?? stockModalItem.stockReserved ?? 0} {t('common.items')}
                 </span>
               </div>
             </div>
@@ -1115,10 +1117,10 @@ export default function ProductsPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-[var(--merchant-text-secondary)]">
-                  New Available Stock (On Hand)
+                  {t('inventory.newAvailableStock')}
                 </label>
                 <span className="text-[11px] font-mono font-semibold text-[var(--merchant-text-muted)]">
-                  Change:{' '}
+                  {t('inventory.change')}:{' '}
                   {stockAdjustment - (stockModalItem.availableQuantity ?? stockModalItem.stockOnHand ?? 0) >= 0 ? '+' : ''}
                   {stockAdjustment - (stockModalItem.availableQuantity ?? stockModalItem.stockOnHand ?? 0)}
                 </span>
@@ -1133,7 +1135,7 @@ export default function ProductsPage() {
 
               {/* Quick increment buttons */}
               <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-[10px] text-[var(--merchant-text-muted)] mr-1">Quick Add:</span>
+                <span className="text-[10px] text-[var(--merchant-text-muted)] mr-1">{t('inventory.quickAdd')}:</span>
                 {[1, 5, 10, 25, 50].map((inc) => (
                   <button
                     key={inc}
@@ -1149,22 +1151,22 @@ export default function ProductsPage() {
                   onClick={() => setStockAdjustment(0)}
                   className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 text-[10px] font-semibold transition ml-auto"
                 >
-                  Set to 0
+                  {t('inventory.setToZero')}
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">Reason for Adjustment</label>
+              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">{t('inventory.reasonForAdjustment')}</label>
               <select
                 value={stockReason}
                 onChange={(e) => setStockReason(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
               >
-                <option value="RESTOCK">Supplier Restock (New Inventory Received)</option>
-                <option value="CORRECTION">Inventory Audit Correction</option>
-                <option value="DAMAGED">Damaged / Written Off</option>
-                <option value="RETURN">Customer Return Restocked</option>
+                <option value="RESTOCK">{t('products.reasonRestock')}</option>
+                <option value="CORRECTION">{t('products.reasonCorrection')}</option>
+                <option value="DAMAGED">{t('products.reasonDamaged')}</option>
+                <option value="RETURN">{t('products.reasonReturn')}</option>
               </select>
             </div>
 
@@ -1174,14 +1176,14 @@ export default function ProductsPage() {
                 onClick={() => setStockModalItem(null)}
                 className="px-3 py-2 text-xs text-[var(--merchant-text-secondary)] hover:bg-[var(--merchant-surface-muted)] rounded-xl transition"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleAdjustStock}
                 className="px-4 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold transition shadow-xs"
               >
-                Save Stock Level
+                {t('inventory.saveStockLevel')}
               </button>
             </div>
           </div>
@@ -1195,10 +1197,10 @@ export default function ProductsPage() {
             onSubmit={handleCreateCategory}
             className="bg-[var(--merchant-surface)] rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl border border-[var(--merchant-border)] transition-colors"
           >
-            <h3 className="font-bold text-[var(--merchant-text)] text-sm">Create New Category</h3>
+            <h3 className="font-bold text-[var(--merchant-text)] text-sm">{t('products.addCategory')}</h3>
             <div>
               <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
-                Category Name *
+                {t('products.categoryName')} *
               </label>
               <input
                 type="text"
@@ -1210,12 +1212,12 @@ export default function ProductsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">Description</label>
+              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">{t('products.description')}</label>
               <textarea
                 rows={2}
                 value={newCategoryDesc}
                 onChange={(e) => setNewCategoryDesc(e.target.value)}
-                placeholder="Optional collection description"
+                placeholder={t('products.categoryDescription')}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-xl text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
               />
             </div>
@@ -1225,13 +1227,13 @@ export default function ProductsPage() {
                 onClick={() => setShowAddCategoryModal(false)}
                 className="px-3 py-1.5 text-xs text-[var(--merchant-text-secondary)] hover:bg-[var(--merchant-surface-muted)] rounded-lg transition"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-1.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold transition shadow-xs"
               >
-                Create Category
+                {t('products.addCategory')}
               </button>
             </div>
           </form>
@@ -1245,27 +1247,27 @@ export default function ProductsPage() {
             onSubmit={handleUpdateCategory}
             className="bg-[var(--merchant-surface)] rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl border border-[var(--merchant-border)] transition-colors"
           >
-            <h3 className="font-bold text-[var(--merchant-text)] text-sm">Edit Category</h3>
+            <h3 className="font-bold text-[var(--merchant-text)] text-sm">{t('products.editCategory')}</h3>
             <div>
               <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">
-                Category Name *
+                {t('products.categoryName')} *
               </label>
               <input
                 type="text"
                 required
                 value={editCategoryName}
                 onChange={(e) => setEditCategoryName(e.target.value)}
-                placeholder="Category name"
+                placeholder={t('products.categoryName')}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-xl text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">Description</label>
+              <label className="block text-xs font-semibold text-[var(--merchant-text-secondary)] mb-1">{t('products.description')}</label>
               <textarea
                 rows={2}
                 value={editCategoryDesc}
                 onChange={(e) => setEditCategoryDesc(e.target.value)}
-                placeholder="Optional collection description"
+                placeholder={t('products.categoryDescription')}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] placeholder-[var(--merchant-text-muted)] rounded-xl text-xs focus:border-[var(--merchant-primary)] focus:outline-none"
               />
             </div>
@@ -1275,13 +1277,13 @@ export default function ProductsPage() {
                 onClick={() => setEditingCategory(null)}
                 className="px-3 py-1.5 text-xs text-[var(--merchant-text-secondary)] hover:bg-[var(--merchant-surface-muted)] rounded-lg transition"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-1.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold transition shadow-xs"
               >
-                Save Changes
+                {t('common.save')}
               </button>
             </div>
           </form>

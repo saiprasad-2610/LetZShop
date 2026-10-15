@@ -19,7 +19,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, type SupportedLocale } from '@simply/i18n';
+import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, ACTIVE_LOCALES, type SupportedLocale } from '@simply/i18n';
 import { parseRupeesToPaise, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/ui';
 import { validateProductImageFile, formatBytes } from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
@@ -1042,7 +1042,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     onChange={(e) => setActiveTranslationLocale(e.target.value as SupportedLocale)}
                     className="text-xs bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg px-2 py-1 text-[var(--merchant-text)] font-medium focus:outline-none focus:border-[var(--merchant-primary)]"
                   >
-                    {SUPPORTED_LOCALES.filter((l) => l !== 'en-IN').map((loc) => {
+                    {ACTIVE_LOCALES.filter((l) => l !== 'en-IN').map((loc) => {
                       const info = LOCALE_REGISTRY[loc];
                       const hasData = Boolean(
                         translations[loc]?.name?.trim() || translations[loc]?.description?.trim()
@@ -1150,17 +1150,45 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Selling Mode</label>
+                  <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">
+                    {t('products.sellingMode', {}, 'Selling Mode')}
+                  </label>
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value as any)}
                     className="w-full px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                   >
-                    <option value="SELL_ONLINE">Sell Online (Direct Checkout)</option>
-                    <option value="ENQUIRY_ONLY">Enquiry Only (Price on Request)</option>
-                    <option value="SELL_AND_ENQUIRY">Sell Online & Allow Enquiries</option>
+                    <option value="SELL_ONLINE">{t('products.sellOnline', {}, 'Sell Online (Direct Checkout)')}</option>
+                    <option value="ENQUIRY_ONLY">{t('products.enquiryOnly', {}, 'Enquiry Only (Price on Request)')}</option>
+                    <option value="SELL_AND_ENQUIRY">{t('products.sellAndEnquiry', {}, 'Sell Online & Allow Enquiries')}</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Allow WhatsApp Enquiries Setting */}
+              <div className="pt-2">
+                <label className="flex items-start sm:items-center gap-2.5 p-3 rounded-xl border border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)] cursor-pointer hover:border-[var(--merchant-primary)]/40 transition">
+                  <input
+                    type="checkbox"
+                    checked={mode === 'SELL_AND_ENQUIRY' || mode === 'ENQUIRY_ONLY'}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setMode(mode === 'ENQUIRY_ONLY' ? 'ENQUIRY_ONLY' : 'SELL_AND_ENQUIRY');
+                      } else {
+                        setMode('SELL_ONLINE');
+                      }
+                    }}
+                    className="mt-0.5 sm:mt-0 w-4 h-4 rounded border-gray-300 text-[var(--merchant-primary)] focus:ring-[var(--merchant-primary)] shrink-0"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-[var(--merchant-text)] block">
+                      {t('products.allowWhatsappEnquiry', {}, 'Allow WhatsApp Enquiries')}
+                    </span>
+                    <span className="text-[11px] text-[var(--merchant-text-muted)] block mt-0.5">
+                      {t('products.allowWhatsappEnquiryDesc', {}, 'Buyers can chat with your store on WhatsApp with product and variant details prefilled.')}
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
           </div>

@@ -33,7 +33,7 @@ export const SellerLanguageSelect: React.FC<{
             value={loc.code}
             className="bg-slate-900 text-white py-1"
           >
-            {loc.nativeName} ({loc.name})
+            {loc.nativeName}
           </option>
         ))}
       </select>

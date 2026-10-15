@@ -5,6 +5,7 @@ import { useAuth, apiClient } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
 import { SafeImage } from '../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 import {
   TrendingUp,
   ShoppingBag,
@@ -110,8 +111,17 @@ function generateBusinessInsight(
 }
 
 export default function AnalyticsPage() {
+  const { t } = useSellerI18n();
   const { user, store, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  const periodOptions: PeriodOption[] = useMemo(() => [
+    { key: '7d', label: t('analytics.days7'), comparisonLabel: t('analytics.prevPeriod', { period: '7d' }) },
+    { key: '30d', label: t('analytics.days30'), comparisonLabel: t('analytics.prevPeriod', { period: '30d' }) },
+    { key: '90d', label: t('analytics.days90'), comparisonLabel: t('analytics.prevPeriod', { period: '90d' }) },
+    { key: '6m', label: t('analytics.months6'), comparisonLabel: t('analytics.prevPeriod', { period: '6m' }) },
+    { key: '1y', label: t('analytics.months12'), comparisonLabel: t('analytics.prevPeriod', { period: '12m' }) },
+  ], [t]);
 
   // State
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('30d');
@@ -179,7 +189,7 @@ export default function AnalyticsPage() {
   const paymentMix: any[] = dashboardData?.paymentMix || [];
 
   const currentPeriodConfig =
-    PERIOD_OPTIONS.find((p) => p.key === selectedPeriod) || PERIOD_OPTIONS[1];
+    periodOptions.find((p) => p.key === selectedPeriod) || periodOptions[1];
 
   // SVG Area/Line Chart Calculations
   const chartPoints = useMemo(() => {
@@ -355,9 +365,9 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <Layout title="Analytics">
+    <Layout title={t('navigation.analytics')}>
       <Head>
-        <title>Analytics | LetzShop Merchant Portal</title>
+        <title>{t('navigation.analytics')} | LetzShop Merchant Portal</title>
       </Head>
 
       <div className="space-y-4 md:space-y-5 max-w-7xl mx-auto">
@@ -368,14 +378,14 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg md:text-xl font-bold tracking-tight text-[var(--merchant-text)]">
-                Analytics
+                {t('navigation.analytics')}
               </h1>
               <span className="hidden sm:inline-flex items-center text-[11px] font-medium text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)] px-2 py-0.5 rounded-md border border-[var(--merchant-border)]">
-                Store Overview
+                {t('analytics.overview')}
               </span>
             </div>
             <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
-              Live business pulse, sales performance, product mix, and buyer geography.
+              {t('analytics.subtitle')}
             </p>
           </div>
 
@@ -383,7 +393,7 @@ export default function AnalyticsPage() {
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {/* Desktop Segmented Chips */}
             <div className="hidden sm:inline-flex items-center bg-[var(--merchant-surface-muted)] p-1 rounded-xl border border-[var(--merchant-border)]">
-              {PERIOD_OPTIONS.map((opt) => (
+              {periodOptions.map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
@@ -407,7 +417,7 @@ export default function AnalyticsPage() {
                 aria-label="Select analytics reporting period"
                 className="w-full appearance-none bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] text-[var(--merchant-text)] text-xs font-semibold rounded-xl px-3 py-2 pr-8 shadow-2xs focus:outline-hidden"
               >
-                {PERIOD_OPTIONS.map((opt) => (
+                {periodOptions.map((opt) => (
                   <option key={opt.key} value={opt.key}>
                     {opt.label}
                   </option>
@@ -425,7 +435,7 @@ export default function AnalyticsPage() {
           <section className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-6 text-center">
             <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
             <h3 className="text-sm font-bold text-[var(--merchant-text)]">
-              Analytics unavailable
+              {t('analytics.unavailable')}
             </h3>
             <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-md mx-auto">
               {error}
@@ -436,7 +446,7 @@ export default function AnalyticsPage() {
               className="mt-3.5 px-4 py-1.5 text-xs font-semibold bg-[var(--merchant-primary)] text-white rounded-lg hover:bg-[var(--merchant-primary-hover)] inline-flex items-center gap-1.5 shadow-xs transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Retry</span>
+              <span>{t('common.retry')}</span>
             </button>
           </section>
         )}
@@ -493,7 +503,7 @@ export default function AnalyticsPage() {
               <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
                 <div>
                   <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
-                    <span>Revenue</span>
+                    <span>{t('analytics.revenue')}</span>
                     <TrendingUp className="w-3.5 h-3.5 text-[var(--merchant-primary)]" />
                   </div>
                   <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
@@ -509,7 +519,7 @@ export default function AnalyticsPage() {
               <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
                 <div>
                   <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
-                    <span>Orders</span>
+                    <span>{t('analytics.orders')}</span>
                     <ShoppingBag className="w-3.5 h-3.5 text-blue-500" />
                   </div>
                   <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
@@ -525,7 +535,7 @@ export default function AnalyticsPage() {
               <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
                 <div>
                   <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
-                    <span>Avg Order Value</span>
+                    <span>{t('analytics.averageOrderValue')}</span>
                     <CreditCard className="w-3.5 h-3.5 text-amber-500" />
                   </div>
                   <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
@@ -541,7 +551,7 @@ export default function AnalyticsPage() {
               <div className="bg-[var(--merchant-surface)] rounded-xl md:rounded-2xl p-4 border border-[var(--merchant-border)] shadow-2xs flex flex-col justify-between transition-shadow hover:shadow-xs">
                 <div>
                   <div className="flex items-center justify-between text-xs text-[var(--merchant-text-muted)] font-medium">
-                    <span>Repeat Customers</span>
+                    <span>{t('analytics.repeatCustomers')}</span>
                     <Users className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
                   <div className="text-xl md:text-2xl font-black text-[var(--merchant-text)] tracking-tight mt-1">
@@ -567,10 +577,10 @@ export default function AnalyticsPage() {
                     <div>
                       <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
                         <TrendingUp className="w-4 h-4 text-[var(--merchant-primary)]" />
-                        <span>Sales Performance</span>
+                        <span>{t('analytics.salesPerformance')}</span>
                       </h2>
                       <p className="text-[11px] text-[var(--merchant-text-muted)]">
-                        Trend across {currentPeriodConfig.label.toLowerCase()}
+                        {t('analytics.trendAcross', { period: currentPeriodConfig.label.toLowerCase() })}
                       </p>
                     </div>
 
@@ -585,7 +595,7 @@ export default function AnalyticsPage() {
                             : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
                         }`}
                       >
-                        Revenue
+                        {t('analytics.revenue')}
                       </button>
                       <button
                         type="button"
@@ -597,7 +607,7 @@ export default function AnalyticsPage() {
                             : 'text-[var(--merchant-text-secondary)] hover:text-[var(--merchant-text)]'
                         }`}
                       >
-                        Orders
+                        {t('analytics.orders')}
                       </button>
                     </div>
                   </div>
@@ -670,7 +680,7 @@ export default function AnalyticsPage() {
                             {chartPoints[hoveredPointIndex].item.label || chartPoints[hoveredPointIndex].item.date}
                           </div>
                           <div className="font-bold text-[var(--merchant-text)] text-xs mt-0.5">
-                            {formatPaise(chartPoints[hoveredPointIndex].item.revenuePaise)} · {chartPoints[hoveredPointIndex].item.orders} orders
+                            {formatPaise(chartPoints[hoveredPointIndex].item.revenuePaise)} · {chartPoints[hoveredPointIndex].item.orders} {t('analytics.ordersCount')}
                           </div>
                         </div>
                       )}
@@ -688,10 +698,10 @@ export default function AnalyticsPage() {
                     <div className="py-12 text-center">
                       <ShoppingBag className="w-8 h-8 text-[var(--merchant-text-muted)] opacity-40 mx-auto mb-2" />
                       <p className="text-xs font-semibold text-[var(--merchant-text)]">
-                        No sales recorded in this period
+                        {t('analytics.noSalesInPeriod')}
                       </p>
                       <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                        Completed transactions will appear on this timeline.
+                        {t('analytics.completedTransactionsTimeline')}
                       </p>
                     </div>
                   )}
@@ -704,10 +714,10 @@ export default function AnalyticsPage() {
                   <div className="mb-3">
                     <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
                       <CreditCard className="w-4 h-4 text-emerald-500" />
-                      <span>Payment Mix</span>
+                      <span>{t('analytics.paymentMix')}</span>
                     </h2>
                     <p className="text-[11px] text-[var(--merchant-text-muted)]">
-                      Order volume by payment channel
+                      {t('analytics.orderVolumeByChannel')}
                     </p>
                   </div>
 
@@ -748,7 +758,7 @@ export default function AnalyticsPage() {
                             {metrics.orders}
                           </span>
                           <span className="text-[9px] font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider">
-                            Orders
+                            {t('analytics.ordersCount')}
                           </span>
                         </div>
                       </div>
@@ -780,10 +790,10 @@ export default function AnalyticsPage() {
                     <div className="py-10 text-center">
                       <CreditCard className="w-8 h-8 text-[var(--merchant-text-muted)] opacity-40 mx-auto mb-2" />
                       <p className="text-xs font-semibold text-[var(--merchant-text)]">
-                        No payments yet
+                        {t('analytics.noPaymentsYet')}
                       </p>
                       <p className="text-[11px] text-[var(--merchant-text-muted)] mt-0.5">
-                        Payment breakdown will display when orders are placed.
+                        {t('analytics.noPaymentsDesc')}
                       </p>
                     </div>
                   )}
@@ -800,10 +810,10 @@ export default function AnalyticsPage() {
                     <div>
                       <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
                         <Package className="w-4 h-4 text-[var(--merchant-primary)]" />
-                        <span>Top Products</span>
+                        <span>{t('analytics.topProducts')}</span>
                       </h2>
                       <p className="text-[11px] text-[var(--merchant-text-muted)]">
-                        Top 5 best performing items
+                        {t('analytics.top5Items')}
                       </p>
                     </div>
 
@@ -818,7 +828,7 @@ export default function AnalyticsPage() {
                             : 'text-[var(--merchant-text-secondary)]'
                         }`}
                       >
-                        Revenue
+                        {t('analytics.revenue')}
                       </button>
                       <button
                         type="button"
@@ -830,7 +840,7 @@ export default function AnalyticsPage() {
                             : 'text-[var(--merchant-text-secondary)]'
                         }`}
                       >
-                        Units
+                        {t('analytics.units')}
                       </button>
                     </div>
                   </div>
@@ -870,7 +880,7 @@ export default function AnalyticsPage() {
                               <div className="text-right shrink-0 font-bold text-[var(--merchant-text)] text-xs">
                                 {topProductMetric === 'revenue'
                                   ? formatPaise(p.revenuePaise)
-                                  : `${p.quantitySold} units`}
+                                  : `${p.quantitySold} ${t('analytics.units')}`}
                               </div>
                             </div>
 
@@ -887,7 +897,7 @@ export default function AnalyticsPage() {
                     </div>
                   ) : (
                     <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
-                      No product sales recorded in this period.
+                      {t('analytics.noProductSales')}
                     </div>
                   )}
                 </div>
@@ -899,10 +909,10 @@ export default function AnalyticsPage() {
                   <div className="mb-3">
                     <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-indigo-500" />
-                      <span>Customers</span>
+                      <span>{t('analytics.customers')}</span>
                     </h2>
                     <p className="text-[11px] text-[var(--merchant-text-muted)]">
-                      New vs returning buyer split
+                      {t('analytics.newVsReturningSplit')}
                     </p>
                   </div>
 
@@ -951,7 +961,7 @@ export default function AnalyticsPage() {
                             {customerInsights.repeatRate}%
                           </span>
                           <span className="text-[8px] font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider">
-                            Repeat
+                            {t('analytics.repeat')}
                           </span>
                         </div>
                       </div>
@@ -961,7 +971,7 @@ export default function AnalyticsPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-[var(--merchant-primary)] shrink-0" />
-                            <span className="text-[var(--merchant-text)]">New Buyers</span>
+                            <span className="text-[var(--merchant-text)]">{t('analytics.newBuyers')}</span>
                           </div>
                           <span className="font-semibold text-[var(--merchant-text)]">
                             {customerInsights.newCustomers} ({customerSegments.newPct}%)
@@ -970,7 +980,7 @@ export default function AnalyticsPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                            <span className="text-[var(--merchant-text)]">Returning</span>
+                            <span className="text-[var(--merchant-text)]">{t('analytics.returning')}</span>
                           </div>
                           <span className="font-semibold text-emerald-600">
                             {customerInsights.returningCustomers} ({customerSegments.retPct}%)
@@ -981,14 +991,14 @@ export default function AnalyticsPage() {
                       {/* Optional Top Buyer secondary snippet */}
                       {customerInsights.topCustomers?.[0] && (
                         <div className="w-full mt-2.5 pt-2 border-t border-[var(--merchant-border)] text-[11px] text-[var(--merchant-text-muted)] truncate">
-                          <span className="font-semibold text-[var(--merchant-text)]">Top Customer:</span>{' '}
-                          {customerInsights.topCustomers[0].name} · {customerInsights.topCustomers[0].ordersCount} orders · {formatPaise(customerInsights.topCustomers[0].totalSpendPaise)}
+                          <span className="font-semibold text-[var(--merchant-text)]">{t('analytics.topCustomer')}:</span>{' '}
+                          {customerInsights.topCustomers[0].name} · {customerInsights.topCustomers[0].ordersCount} {t('analytics.ordersCount')} · {formatPaise(customerInsights.topCustomers[0].totalSpendPaise)}
                         </div>
                       )}
                     </div>
                   ) : (
                     <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
-                      No customer orders recorded in this period.
+                      {t('analytics.noCustomerOrders')}
                     </div>
                   )}
                 </div>
@@ -1001,10 +1011,10 @@ export default function AnalyticsPage() {
                     <div>
                       <h2 className="text-sm font-bold text-[var(--merchant-text)] tracking-tight flex items-center gap-1.5">
                         <MapPin className="w-4 h-4 text-emerald-500" />
-                        <span>Top Locations</span>
+                        <span>{t('analytics.topLocations')}</span>
                       </h2>
                       <p className="text-[11px] text-[var(--merchant-text-muted)]">
-                        Normalized geography
+                        {t('analytics.normalizedGeography')}
                       </p>
                     </div>
 
@@ -1019,7 +1029,7 @@ export default function AnalyticsPage() {
                               : 'text-[var(--merchant-text-secondary)]'
                           }`}
                         >
-                          State
+                          {t('analytics.state')}
                         </button>
                         <button
                           type="button"
@@ -1030,7 +1040,7 @@ export default function AnalyticsPage() {
                               : 'text-[var(--merchant-text-secondary)]'
                           }`}
                         >
-                          City
+                          {t('analytics.city')}
                         </button>
                       </div>
                     )}
@@ -1052,7 +1062,7 @@ export default function AnalyticsPage() {
                                 {label}
                               </span>
                               <span className="font-mono text-[11px] text-[var(--merchant-text-muted)]">
-                                {loc.ordersCount} ord · {formatPaise(loc.revenuePaise)}
+                                {loc.ordersCount} {t('analytics.ordersCount')} · {formatPaise(loc.revenuePaise)}
                               </span>
                             </div>
 
@@ -1069,7 +1079,7 @@ export default function AnalyticsPage() {
                     </div>
                   ) : (
                     <div className="py-8 text-center text-xs text-[var(--merchant-text-muted)]">
-                      No geographic order data recorded yet.
+                      {t('analytics.noGeographicData')}
                     </div>
                   )}
                 </div>
@@ -1084,7 +1094,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-[var(--merchant-text)] tracking-tight uppercase">
-                    Business Insight
+                    {t('analytics.businessInsight')}
                   </h3>
                   <p className="text-xs text-[var(--merchant-text-secondary)] mt-0.5 leading-relaxed max-w-3xl">
                     {businessInsightText}
@@ -1097,7 +1107,7 @@ export default function AnalyticsPage() {
                 onClick={() => router.push('/orders')}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--merchant-primary)] hover:text-[var(--merchant-primary-hover)] shrink-0 self-start sm:self-auto transition-colors"
               >
-                <span>View Orders</span>
+                <span>{t('analytics.viewOrders')}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </section>

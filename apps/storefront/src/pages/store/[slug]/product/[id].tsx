@@ -26,6 +26,7 @@ import { formatPaise } from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../../utils/config';
 import { ProductReviewsSection } from '../../../../components/ProductReviewsSection';
 import { useStorefrontI18n } from '@simply/i18n';
+import { normalizeIndianPhone } from '@simply/api-contracts';
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -462,8 +463,14 @@ export default function ProductDetailPage() {
   }
 
   const { store, themeConfig } = storeData;
-  const isEnquiryOnly = product.productType === 'ENQUIRY_ONLY';
-  const isSellAndEnquiry = product.productType === 'SELL_AND_ENQUIRY';
+  const isEnquiryOnly = product.mode === 'ENQUIRY_ONLY' || product.productType === 'ENQUIRY_ONLY';
+  const isSellAndEnquiry = product.mode === 'SELL_AND_ENQUIRY' || product.productType === 'SELL_AND_ENQUIRY';
+  const allowsEnquiry = isEnquiryOnly || isSellAndEnquiry;
+
+  const rawMerchantPhone = store?.whatsappNumber || store?.supportPhone || store?.contactPhone;
+  const normalizedMerchantPhone = normalizeIndianPhone(rawMerchantPhone);
+  const hasValidPhone = Boolean(normalizedMerchantPhone && normalizedMerchantPhone.length >= 10);
+
   const currentPricePaise = activeVariant?.pricePaise || product.basePricePaise;
   const comparePricePaise = activeVariant?.compareAtPricePaise || product.compareAtPricePaise;
   const stockQuantity = activeVariant?.inventory?.availableQuantity ?? 10;
@@ -473,6 +480,58 @@ export default function ProductDetailPage() {
   const trans = product.translations?.find((tr: any) => tr.locale === locale);
   const displayTitle = trans?.name || product.title || product.name || 'Product';
   const displayDescription = trans?.description || product.description || '';
+
+  const buildWhatsAppEnquiryUrl = () => {
+    if (!hasValidPhone) return null;
+
+    const variantDetails: string[] = [];
+    if (selectedOptions && Object.keys(selectedOptions).length > 0) {
+      Object.entries(selectedOptions).forEach(([k, v]) => {
+        variantDetails.push(`${k}: ${v}`);
+      });
+    } else if (activeVariant?.title && activeVariant.title !== 'Default' && activeVariant.title !== 'Standard') {
+      variantDetails.push(activeVariant.title);
+    }
+
+    const priceText = formatPaise(currentPricePaise);
+    const prodUrl = typeof window !== 'undefined'
+      ? window.location.href
+      : `https://letzshop.store/store/${slug}/product/${id}`;
+
+    const greeting = `${t('storefront.enquiryGreeting')} ${store?.name || ''},`.trim();
+    const interested = t('storefront.enquiryInterested');
+    const priceLine = `${t('storefront.enquiryPrice')}: ${priceText}`;
+    const productLine = `${t('storefront.enquiryProduct')}:\n${prodUrl}`;
+    const prompt = t('storefront.enquiryPrompt');
+    const sentVia = t('storefront.enquirySentVia');
+
+    const lines = [
+      greeting,
+      '',
+      interested,
+      '',
+      displayTitle,
+      ...(variantDetails.length > 0 ? [variantDetails.join('\n')] : []),
+      ...(!isEnquiryOnly ? [priceLine] : []),
+      '',
+      productLine,
+      '',
+      prompt,
+      '',
+      sentVia,
+    ];
+
+    return `https://wa.me/${normalizedMerchantPhone}?text=${encodeURIComponent(lines.join('\n'))}`;
+  };
+
+  const handleWhatsAppEnquiry = () => {
+    const url = buildWhatsAppEnquiryUrl();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else if (!hasValidPhone && isPreviewMode) {
+      toast.warning('WhatsApp Missing', t('storefront.whatsappMissingWarning'));
+    }
+  };
 
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
@@ -822,16 +881,25 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* ENQUIRY_ONLY or SELL_AND_ENQUIRY: Request Quotation / WhatsApp Enquiry */}
-              {(isEnquiryOnly || isSellAndEnquiry) && (
-                <button
-                  type="button"
-                  onClick={() => setEnquiryModalOpen(true)}
-                  className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Request Bulk Quotation / Custom Enquiry
-                </button>
+              {/* ENQUIRY_ONLY or SELL_AND_ENQUIRY: WhatsApp Enquiry */}
+              {allowsEnquiry && (
+                <div className="space-y-2">
+                  {hasValidPhone ? (
+                    <button
+                      type="button"
+                      onClick={handleWhatsAppEnquiry}
+                      className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {t('storefront.enquiryButton')}
+                    </button>
+                  ) : isPreviewMode ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <span>{t('storefront.whatsappMissingWarning')}</span>
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
 
@@ -1040,28 +1108,42 @@ export default function ProductDetailPage() {
                 disabled={addingToCart || isOutOfStock}
                 onClick={handleAddToCart}
                 className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-xs rounded-xl transition"
-                aria-label="Add to cart"
+                aria-label={t('storefront.addToCart')}
               >
-                {cartSuccess ? '✓ Added' : addingToCart ? '...' : <ShoppingBag className="w-4 h-4" />}
+                {cartSuccess ? '✓' : addingToCart ? '...' : <ShoppingBag className="w-4 h-4" />}
               </button>
               <button
                 type="button"
                 disabled={isOutOfStock}
                 onClick={handleBuyNow}
-                className="px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition"
+                className="px-4 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
               >
-                Buy Now
+                {t('storefront.buyNow')}
               </button>
+              {allowsEnquiry && hasValidPhone && (
+                <button
+                  type="button"
+                  onClick={handleWhatsAppEnquiry}
+                  className="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center"
+                  aria-label={t('storefront.enquiryButton')}
+                  title={t('storefront.enquiryButton')}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              )}
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => setEnquiryModalOpen(true)}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition"
-            >
-              Request Quote
-            </button>
+            hasValidPhone && (
+              <button
+                type="button"
+                onClick={handleWhatsAppEnquiry}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                <MessageSquare className="w-4 h-4" />
+                {t('storefront.enquiryButton')}
+              </button>
+            )
           )}
         </div>
       </div>

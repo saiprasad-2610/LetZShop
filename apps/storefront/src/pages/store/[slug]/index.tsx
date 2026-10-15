@@ -1341,7 +1341,9 @@ export default function StoreHomePage() {
                   primaryMedia?.publicUrl ||
                   (primaryMedia?.storageKey ? `/media/file/${primaryMedia.storageKey}` : undefined) ||
                   p.images?.[0]?.url;
-                const isEnquiryOnly = p.productType === 'ENQUIRY_ONLY';
+                const isEnquiryOnly = p.mode === 'ENQUIRY_ONLY' || p.productType === 'ENQUIRY_ONLY';
+                const isSellAndEnquiry = p.mode === 'SELL_AND_ENQUIRY' || p.productType === 'SELL_AND_ENQUIRY';
+                const allowsEnquiry = isEnquiryOnly || isSellAndEnquiry;
                 const hasVariants = p.variants && p.variants.length > 0;
                 const isAdded = addedId === p.id;
                 const isAdding = addingId === p.id;

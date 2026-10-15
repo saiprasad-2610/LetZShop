@@ -58,9 +58,11 @@ import {
 } from '@simply/ui';
 import { SafeImage } from '../components/ui/SafeImage';
 import { getStorefrontUrl } from '../utils/config';
+import { useSellerI18n } from '@simply/i18n';
 
 export default function BrandStudioPage() {
   const { api } = useAuth();
+  const { t } = useSellerI18n();
   const [activeTab, setActiveTab] = useState<'THEME' | 'HOME' | 'PRODUCTS' | 'ABOUT' | 'FOOTER'>('THEME');
   const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
   const [loading, setLoading] = useState(true);
@@ -2597,9 +2599,9 @@ export default function BrandStudioPage() {
   );
 
   return (
-    <Layout title="Brand Studio">
+    <Layout title={t('themes.title')}>
       <Head>
-        <title>Brand Studio & Store Customization | Simply Seller</title>
+        <title>{t('themes.title')} | {store?.name || 'Seller Dashboard'}</title>
       </Head>
 
       <div className="space-y-6">
@@ -2607,10 +2609,10 @@ export default function BrandStudioPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--merchant-text)' }}>
-              Brand Studio & Store Customizer
+              {t('themes.title')}
             </h1>
             <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--merchant-text-muted)' }}>
-              Customize colors, fonts, layouts, pages, and footer with social media accounts
+              {t('themes.subtitle')}
             </p>
           </div>
 
@@ -2623,7 +2625,7 @@ export default function BrandStudioPage() {
                 style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-bold transition shadow-2xs hover:opacity-90"
               >
-                <span>View Live Store</span>
+                <span>{t('navigation.viewStorefront')}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
@@ -2635,7 +2637,7 @@ export default function BrandStudioPage() {
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Publishing Design...' : 'Publish Design'}
+              {saving ? t('themes.savingChanges') : t('themes.saveChanges')}
             </button>
           </div>
         </div>
@@ -2646,8 +2648,7 @@ export default function BrandStudioPage() {
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div className="text-xs">
-                <span className="font-bold block">Storefront Published Successfully!</span>
-                <span>Your dynamic design, custom texts, colors, footer, and social media links are now live for customers across all pages.</span>
+                <span className="font-bold block">{t('themes.changesSaved')}</span>
               </div>
             </div>
             {store?.slug && (
@@ -2657,7 +2658,7 @@ export default function BrandStudioPage() {
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500 transition shrink-0"
               >
-                Open Storefront
+                {t('navigation.viewStorefront')}
               </a>
             )}
           </div>
@@ -2678,7 +2679,7 @@ export default function BrandStudioPage() {
             className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <Palette className="w-3.5 h-3.5" style={{ color: 'var(--merchant-primary)' }} />
-            <span className="truncate">Theme & Colors</span>
+            <span className="truncate">{t('themes.themeTab')}</span>
           </button>
 
           <button
@@ -2691,7 +2692,7 @@ export default function BrandStudioPage() {
             className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <Home className="w-3.5 h-3.5 text-amber-500" />
-            <span className="truncate">Home Page</span>
+            <span className="truncate">{t('themes.homeTab')}</span>
           </button>
 
           <button
@@ -2704,7 +2705,7 @@ export default function BrandStudioPage() {
             className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="truncate">Products Page</span>
+            <span className="truncate">{t('themes.productsTab')}</span>
           </button>
 
           <button
@@ -2717,7 +2718,7 @@ export default function BrandStudioPage() {
             className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="truncate">About Us</span>
+            <span className="truncate">{t('themes.aboutTab')}</span>
           </button>
 
           <button
@@ -2730,7 +2731,7 @@ export default function BrandStudioPage() {
             className="py-2 px-2.5 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-2xs"
           >
             <Share2 className="w-3.5 h-3.5 text-pink-500" />
-            <span className="truncate">Footer & Socials</span>
+            <span className="truncate">{t('themes.footerTab')}</span>
           </button>
         </div>
 

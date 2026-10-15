@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n } from '@simply/i18n';
 
 interface SellerReview {
   id: string;
@@ -64,6 +65,7 @@ interface ProductOption {
 export default function SellerReviewsPage() {
   const router = useRouter();
   const { api, store, loading: authLoading } = useAuth();
+  const { t, locale } = useSellerI18n();
 
   // Data states
   const [reviews, setReviews] = useState<SellerReview[]>([]);
@@ -229,7 +231,7 @@ export default function SellerReviewsPage() {
         details: reportDetails.trim() || undefined,
       });
       setReportSuccessMessage(
-        `Report received for Order #${reportingReview.order.orderNumber}. Sent for platform review.`
+        t('reviews.reportSuccess', { order: reportingReview.order.orderNumber })
       );
       setReportingReview(null);
       setReportReason('Abusive / offensive content');
@@ -243,9 +245,9 @@ export default function SellerReviewsPage() {
   };
 
   return (
-    <Layout title="Customer Reviews">
+    <Layout title={t('reviews.pageTitle')}>
       <Head>
-        <title>Customer Reviews | {store?.name || 'Seller Dashboard'}</title>
+        <title>{t('reviews.pageTitle')} | {store?.name || 'Seller Dashboard'}</title>
       </Head>
 
       <div className="space-y-6">
@@ -269,10 +271,10 @@ export default function SellerReviewsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-merchant-text tracking-tight">
-              Customer Product Reviews
+              {t('reviews.pageTitle')}
             </h1>
             <p className="text-xs text-merchant-text-muted mt-1">
-              Verified feedback submitted by buyers following confirmed order delivery
+              {t('reviews.subtitle')}
             </p>
           </div>
 
@@ -284,7 +286,7 @@ export default function SellerReviewsPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-merchant-surface border border-merchant-border hover:bg-merchant-surface-muted rounded-xl text-xs font-semibold text-merchant-text shadow-2xs transition cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-merchant-primary ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <span>{t('common.refresh')}</span>
             </button>
           </div>
         </div>
@@ -294,20 +296,20 @@ export default function SellerReviewsPage() {
           {/* Card 1: Total Reviews */}
           <div className="p-4 sm:p-5 bg-merchant-surface-raised border border-merchant-border rounded-2xl shadow-xs space-y-1">
             <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
-              Total Reviews
+              {t('reviews.totalReviews')}
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold text-merchant-text font-mono">
               {summary.total}
             </div>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-              Live on storefront
+              {t('reviews.liveOnStorefront')}
             </p>
           </div>
 
           {/* Card 2: Average Rating */}
           <div className="p-4 sm:p-5 bg-merchant-surface-raised border border-merchant-border rounded-2xl shadow-xs space-y-1">
             <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
-              Average Rating
+              {t('reviews.averageRating')}
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-extrabold text-merchant-text font-mono">
@@ -316,22 +318,22 @@ export default function SellerReviewsPage() {
               <span className="text-amber-500 text-lg">★</span>
             </div>
             <p className="text-[11px] text-merchant-text-muted">
-              {summary.total > 0 ? `Across ${summary.total} verified reviews` : 'No reviews recorded yet'}
+              {summary.total > 0 ? t('reviews.acrossReviews', { count: summary.total }) : t('reviews.noReviewsYet')}
             </p>
           </div>
 
           {/* Card 3: 5-Star Reviews */}
           <div className="p-4 sm:p-5 bg-merchant-surface-raised border border-merchant-border rounded-2xl shadow-xs space-y-1">
             <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
-              5-Star Reviews
+              {t('reviews.fiveStarReviews')}
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold text-amber-500 font-mono">
               {summary.fiveStarCount}
             </div>
             <p className="text-[11px] text-merchant-text-muted">
               {summary.total > 0
-                ? `${Math.round((summary.fiveStarCount / summary.total) * 100)}% highest satisfaction`
-                : 'Top rating count'}
+                ? t('reviews.highestSatisfaction', { percent: Math.round((summary.fiveStarCount / summary.total) * 100) })
+                : t('reviews.topRatingCount')}
             </p>
           </div>
 
@@ -346,19 +348,19 @@ export default function SellerReviewsPage() {
                 ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5'
                 : 'border-merchant-border'
             }`}
-            title="Click to filter reviews below 3 stars"
+            title={t('reviews.below3Stars')}
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-merchant-text-muted uppercase tracking-wider">
-                Negative Reviews
+                {t('reviews.negativeReviews')}
               </span>
               {summary.negativeCount > 0 ? (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                  &lt; 3 Stars
+                  {t('reviews.below3Stars')}
                 </span>
               ) : (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  0 Critical
+                  {t('reviews.zeroCritical')}
                 </span>
               )}
             </div>
@@ -366,7 +368,7 @@ export default function SellerReviewsPage() {
               {summary.negativeCount}
             </div>
             <p className="text-[11px] text-merchant-text-muted">
-              {summary.negativeCount === 1 ? '1 review with < 3 stars' : `${summary.negativeCount} reviews with < 3 stars`}
+              {summary.negativeCount === 1 ? t('reviews.reviewWithBelow3') : t('reviews.reviewsWithBelow3', { count: summary.negativeCount })}
             </p>
           </div>
         </div>
@@ -377,10 +379,10 @@ export default function SellerReviewsPage() {
           <div className="lg:col-span-2 p-4 sm:p-5 bg-merchant-surface-raised border border-merchant-border rounded-2xl shadow-xs space-y-3">
             <div className="flex items-center justify-between border-b border-merchant-border pb-2.5">
               <span className="text-xs font-bold text-merchant-text uppercase tracking-wider">
-                Rating Breakdown
+                {t('reviews.ratingBreakdown')}
               </span>
               <span className="text-[11px] text-merchant-text-muted font-mono">
-                {summary.total} active review{summary.total === 1 ? '' : 's'}
+                {summary.total === 1 ? t('reviews.activeReviewCount') : t('reviews.activeReviewsCount', { count: summary.total })}
               </span>
             </div>
 
@@ -423,18 +425,18 @@ export default function SellerReviewsPage() {
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 font-bold text-indigo-900 dark:text-indigo-200">
                 <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Verified Reviews & Moderation</span>
+                <span>{t('reviews.verifiedPolicyTitle')}</span>
               </div>
               <p className="text-[11px] leading-relaxed text-indigo-800/80 dark:text-indigo-300/80">
-                Reviews are genuine, verified feedback submitted exclusively by buyers who completed purchase and delivery.
+                {t('reviews.verifiedPolicyDesc1')}
               </p>
               <p className="text-[11px] leading-relaxed text-indigo-800/80 dark:text-indigo-300/80">
-                To maintain consumer trust, merchants cannot directly delete negative reviews. If a review contains abusive, obscene, or false content, click <strong>Report Review</strong> to request SuperAdmin moderation.
+                {t('reviews.verifiedPolicyDesc2')}
               </p>
             </div>
 
             <div className="pt-2 border-t border-indigo-500/20 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-              ✓ Platform-wide policy protection active
+              ✓ {t('reviews.policyActive')}
             </div>
           </div>
         </div>
@@ -447,7 +449,7 @@ export default function SellerReviewsPage() {
               <Search className="w-4 h-4 text-merchant-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search reviews by customer, product, order #, or keywords..."
+                placeholder={t('reviews.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-9 py-2 bg-merchant-surface border border-merchant-border rounded-xl text-xs text-merchant-text placeholder:text-merchant-text-muted focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
@@ -471,7 +473,7 @@ export default function SellerReviewsPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl transition self-start lg:self-auto cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
-                <span>Clear All Filters</span>
+                <span>{t('reviews.clearAllFilters')}</span>
               </button>
             )}
           </div>
@@ -481,7 +483,7 @@ export default function SellerReviewsPage() {
             {/* Rating Filter */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Rating
+                {t('reviews.rating')}
               </label>
               <select
                 value={ratingFilter}
@@ -491,20 +493,20 @@ export default function SellerReviewsPage() {
                 }}
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
-                <option value="ALL">All Ratings</option>
-                <option value="BELOW_3">Negative (&lt; 3 Stars)</option>
-                <option value="5">5 Stars</option>
-                <option value="4">4 Stars</option>
-                <option value="3">3 Stars</option>
-                <option value="2">2 Stars</option>
-                <option value="1">1 Star</option>
+                <option value="ALL">{t('reviews.allRatings')}</option>
+                <option value="BELOW_3">{t('reviews.negativeBelow3')}</option>
+                <option value="5">{t('reviews.starsCount', { stars: 5 })}</option>
+                <option value="4">{t('reviews.starsCount', { stars: 4 })}</option>
+                <option value="3">{t('reviews.starsCount', { stars: 3 })}</option>
+                <option value="2">{t('reviews.starsCount', { stars: 2 })}</option>
+                <option value="1">{t('reviews.starCount')}</option>
               </select>
             </div>
 
             {/* Product Filter */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Product
+                {t('reviews.product')}
               </label>
               <select
                 value={productFilter}
@@ -514,7 +516,7 @@ export default function SellerReviewsPage() {
                 }}
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text truncate focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
-                <option value="ALL">All Products</option>
+                <option value="ALL">{t('reviews.allProducts')}</option>
                 {productsList.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -526,7 +528,7 @@ export default function SellerReviewsPage() {
             {/* Date Range Filter */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Date Range
+                {t('reviews.dateRange')}
               </label>
               <select
                 value={dateRangeFilter}
@@ -536,18 +538,18 @@ export default function SellerReviewsPage() {
                 }}
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="90d">Last 3 Months</option>
+                <option value="all">{t('reviews.allTimeFilter')}</option>
+                <option value="today">{t('common.today')}</option>
+                <option value="7d">{t('reviews.last7Days')}</option>
+                <option value="30d">{t('reviews.last30Days')}</option>
+                <option value="90d">{t('reviews.last90Days')}</option>
               </select>
             </div>
 
             {/* Moderation Status Filter */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Status
+                {t('reviews.status')}
               </label>
               <select
                 value={statusFilter}
@@ -557,17 +559,17 @@ export default function SellerReviewsPage() {
                 }}
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
-                <option value="ACTIVE">Active Reviews</option>
-                <option value="SENT_FOR_REVIEW">Sent for Review</option>
-                <option value="REMOVED">Taken Down by Admin</option>
-                <option value="ALL">All Reviews</option>
+                <option value="ACTIVE">{t('reviews.statusActive')}</option>
+                <option value="SENT_FOR_REVIEW">{t('reviews.statusSentForReview')}</option>
+                <option value="REMOVED">{t('reviews.statusRemoved')}</option>
+                <option value="ALL">{t('reviews.allReviews')}</option>
               </select>
             </div>
 
             {/* Sorting */}
             <div>
               <label className="block text-[10px] font-bold text-merchant-text-muted uppercase mb-1">
-                Sort By
+                {t('reviews.sortBy')}
               </label>
               <select
                 value={sortBy}
@@ -577,10 +579,10 @@ export default function SellerReviewsPage() {
                 }}
                 className="w-full px-2.5 py-1.5 bg-merchant-surface border border-merchant-border rounded-lg text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="highest_rating">Highest Rating</option>
-                <option value="lowest_rating">Lowest Rating</option>
+                <option value="newest">{t('reviews.sortNewest')}</option>
+                <option value="oldest">{t('reviews.sortOldest')}</option>
+                <option value="highest_rating">{t('reviews.sortHighestRating')}</option>
+                <option value="lowest_rating">{t('reviews.sortLowestRating')}</option>
               </select>
             </div>
           </div>
@@ -591,10 +593,10 @@ export default function SellerReviewsPage() {
           <div className="px-5 py-4 border-b border-merchant-border flex items-center justify-between">
             <h3 className="text-xs font-bold text-merchant-text uppercase tracking-wider flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-merchant-primary" />
-              <span>Customer Feedback Feed</span>
+              <span>{t('reviews.feedbackFeed')}</span>
             </h3>
             <span className="text-xs text-merchant-text-muted font-mono">
-              {totalCount} item{totalCount === 1 ? '' : 's'}
+              {totalCount === 1 ? t('reviews.feedItem') : t('reviews.feedItems', { count: totalCount })}
             </span>
           </div>
 
@@ -618,7 +620,7 @@ export default function SellerReviewsPage() {
               <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center mx-auto">
                 <AlertCircle className="w-5 h-5" />
               </div>
-              <p className="text-xs font-bold text-merchant-text">Unable to load reviews</p>
+              <p className="text-xs font-bold text-merchant-text">{t('reviews.unableToLoad')}</p>
               <p className="text-[11px] text-merchant-text-muted max-w-sm mx-auto">{error}</p>
               <button
                 type="button"
@@ -626,7 +628,7 @@ export default function SellerReviewsPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-merchant-primary text-white text-xs font-semibold rounded-xl hover:opacity-90 transition cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry</span>
+                <span>{t('common.retry')}</span>
               </button>
             </div>
           ) : reviews.length === 0 ? (
@@ -636,12 +638,12 @@ export default function SellerReviewsPage() {
                 <Star className="w-5 h-5" />
               </div>
               <p className="text-xs font-bold text-merchant-text">
-                {hasActiveFilters ? 'No reviews match your filters' : 'No reviews received yet'}
+                {hasActiveFilters ? t('reviews.noReviewsMatch') : t('reviews.noReviewsReceived')}
               </p>
               <p className="text-[11px] text-merchant-text-muted max-w-sm mx-auto">
                 {hasActiveFilters
-                  ? 'Try broadening your search term or resetting the selected filters.'
-                  : 'Customer reviews will appear here after delivered orders are reviewed.'}
+                  ? t('reviews.broadenSearch')
+                  : t('reviews.reviewsAppearHere')}
               </p>
               {hasActiveFilters && (
                 <button
@@ -650,7 +652,7 @@ export default function SellerReviewsPage() {
                   className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-merchant-surface border border-merchant-border rounded-xl text-xs font-semibold text-merchant-text hover:bg-merchant-surface-muted transition cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
-                  <span>Clear Filters</span>
+                  <span>{t('reviews.clearFilters')}</span>
                 </button>
               )}
             </div>
@@ -696,13 +698,13 @@ export default function SellerReviewsPage() {
                         }`}
                       >
                         {rev.status === 'SENT_FOR_REVIEW'
-                          ? 'Sent for Review'
+                          ? t('reviews.sentForReviewBadge')
                           : rev.status === 'REMOVED'
-                          ? 'Taken Down by Admin'
-                          : 'Active'}
+                          ? t('reviews.takenDownBadge')
+                          : t('reviews.activeBadge')}
                       </span>
                       <span className="text-[11px] text-merchant-text-muted font-mono">
-                        {new Date(rev.createdAt).toLocaleDateString('en-IN', {
+                        {new Date(rev.createdAt).toLocaleDateString(locale, {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
@@ -716,10 +718,10 @@ export default function SellerReviewsPage() {
                     <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
                       <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Sent for Review:</strong> You reported this review to platform administrators for moderation.
+                        <strong>{t('reviews.sentForReviewBadge')}:</strong> {t('reviews.sentForReviewNotice')}
                         {rev.moderationReason && (
                           <span className="block mt-0.5 text-amber-700 dark:text-amber-300">
-                            Reason: {rev.moderationReason}
+                            {t('reviews.moderationReasonPrefix')} {rev.moderationReason}
                           </span>
                         )}
                       </div>
@@ -729,8 +731,8 @@ export default function SellerReviewsPage() {
                   {/* Removed notice if applicable */}
                   {rev.status === 'REMOVED' && (
                     <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-[11px] text-rose-700 dark:text-rose-300">
-                      <strong>Moderation Notice:</strong>{' '}
-                      {rev.moderationReason || 'This review was taken down by platform moderation and is not visible to buyers.'}
+                      <strong>{t('reviews.moderationNotice')}</strong>{' '}
+                      {rev.moderationReason || t('reviews.takenDownDefault')}
                     </div>
                   )}
 
@@ -744,12 +746,12 @@ export default function SellerReviewsPage() {
                     {/* Customer & Verified Status */}
                     <div className="flex items-center gap-3">
                       <span className="font-semibold text-merchant-text">
-                        Customer: {rev.reviewerName}
+                        {t('reviews.customerLabel')} {rev.reviewerName}
                       </span>
                       {rev.verifiedPurchase && (
                         <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" />
-                          <span>Verified Purchase</span>
+                          <span>{t('reviews.verifiedPurchase')}</span>
                         </span>
                       )}
                     </div>
@@ -760,9 +762,9 @@ export default function SellerReviewsPage() {
                       <Link
                         href={`/orders?search=${encodeURIComponent(rev.order.orderNumber)}`}
                         className="inline-flex items-center gap-1 text-merchant-text-muted hover:text-merchant-text font-mono hover:underline"
-                        title="View Order Details"
+                        title={t('reviews.viewOrderDetails')}
                       >
-                        <span>Order #{rev.order.orderNumber}</span>
+                        <span>{t('reviews.orderNumber', { number: rev.order.orderNumber })}</span>
                         <ExternalLink className="w-3 h-3 opacity-60" />
                       </Link>
 
@@ -770,7 +772,7 @@ export default function SellerReviewsPage() {
                       <Link
                         href="/products"
                         className="inline-flex items-center gap-1.5 font-semibold text-merchant-primary hover:underline"
-                        title="View Product in Catalog"
+                        title={t('reviews.viewProductInCatalog')}
                       >
                         {rev.product.image ? (
                           <img
@@ -790,30 +792,30 @@ export default function SellerReviewsPage() {
                           type="button"
                           onClick={() => setReportingReview(rev)}
                           className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-rose-600 transition p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md cursor-pointer ml-1"
-                          title="Report to SuperAdmin moderation"
+                          title={t('reviews.reportTooltip')}
                         >
                           <Flag className="w-3 h-3" />
-                          <span>Report Review</span>
+                          <span>{t('reviews.reportReview')}</span>
                         </button>
                       )}
 
                       {rev.status === 'SENT_FOR_REVIEW' && (
                         <span
                           className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-medium"
-                          title="Review submitted for moderation"
+                          title={t('reviews.sentForReviewNotice')}
                         >
                           <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                          <span>Sent for Review</span>
+                          <span>{t('reviews.sentForReviewBadge')}</span>
                         </span>
                       )}
 
                       {rev.status === 'REMOVED' && (
                         <span
                           className="inline-flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md font-medium"
-                          title="Review taken down by platform moderation"
+                          title={t('reviews.takenDownDefault')}
                         >
                           <X className="w-3 h-3" />
-                          <span>Taken Down by Admin</span>
+                          <span>{t('reviews.takenDownBadge')}</span>
                         </span>
                       )}
                     </div>
@@ -827,8 +829,11 @@ export default function SellerReviewsPage() {
           {totalPages > 1 && !loading && (
             <div className="px-5 py-3.5 border-t border-merchant-border bg-merchant-surface flex items-center justify-between text-xs text-merchant-text-muted">
               <div>
-                Showing {(currentPage - 1) * pageSize + 1}–
-                {Math.min(currentPage * pageSize, totalCount)} of {totalCount} reviews
+                {t('reviews.showingPagination', {
+                  from: (currentPage - 1) * pageSize + 1,
+                  to: Math.min(currentPage * pageSize, totalCount),
+                  total: totalCount,
+                })}
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -865,7 +870,7 @@ export default function SellerReviewsPage() {
               <div className="flex items-center gap-2">
                 <Flag className="w-4 h-4 text-rose-500" />
                 <h3 className="text-sm font-bold text-merchant-text">
-                  Request Moderation for Review
+                  {t('reviews.requestModerationTitle')}
                 </h3>
               </div>
               <button
@@ -878,14 +883,16 @@ export default function SellerReviewsPage() {
             </div>
 
             <p className="text-xs text-merchant-text-muted leading-relaxed">
-              Merchants cannot delete customer feedback directly. Submit a report if this review for{' '}
-              <strong className="text-merchant-text">{reportingReview.product.name}</strong> (Order #{reportingReview.order.orderNumber}) violates community guidelines.
+              {t('reviews.requestModerationDesc', {
+                product: reportingReview.product.name,
+                order: reportingReview.order.orderNumber,
+              })}
             </p>
 
             <form onSubmit={handleSubmitReport} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-bold text-merchant-text mb-1">
-                  Reason for Moderation <span className="text-rose-500">*</span>
+                  {t('reviews.moderationReasonLabel')} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={reportReason}
@@ -893,24 +900,24 @@ export default function SellerReviewsPage() {
                   className="w-full px-3 py-2 bg-merchant-surface border border-merchant-border rounded-xl text-xs text-merchant-text focus:outline-hidden focus:ring-1 focus:ring-merchant-primary"
                   required
                 >
-                  <option value="Abusive / offensive content">Abusive / offensive content</option>
-                  <option value="Spam or promotional">Spam or promotional</option>
-                  <option value="Unrelated to product">Unrelated to product</option>
-                  <option value="Contains personal information">Contains personal information</option>
-                  <option value="False or misleading content">False or misleading content</option>
-                  <option value="Other policy violation">Other policy violation</option>
+                  <option value="Abusive / offensive content">{t('reviews.reasonAbusive')}</option>
+                  <option value="Spam or promotional">{t('reviews.reasonSpam')}</option>
+                  <option value="Unrelated to product">{t('reviews.reasonUnrelated')}</option>
+                  <option value="Contains personal information">{t('reviews.reasonPersonal')}</option>
+                  <option value="False or misleading content">{t('reviews.reasonFalse')}</option>
+                  <option value="Other policy violation">{t('reviews.reasonOther')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-merchant-text mb-1">
-                  Additional Details (Optional)
+                  {t('reviews.additionalDetailsLabel')}
                 </label>
                 <textarea
                   rows={3}
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
-                  placeholder="Provide context for the platform administrator..."
+                  placeholder={t('reviews.detailsContextPlaceholder')}
                   className="w-full px-3 py-2 bg-merchant-surface border border-merchant-border rounded-xl text-xs text-merchant-text placeholder:text-merchant-text-muted focus:outline-hidden focus:ring-1 focus:ring-merchant-primary resize-none"
                 />
               </div>
@@ -922,14 +929,14 @@ export default function SellerReviewsPage() {
                   disabled={reportSubmitting}
                   className="px-3.5 py-1.5 text-xs font-semibold text-merchant-text-muted hover:text-merchant-text"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={reportSubmitting}
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
-                  {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                  {reportSubmitting ? t('reviews.submittingReport') : t('reviews.submitReportBtn')}
                 </button>
               </div>
             </form>

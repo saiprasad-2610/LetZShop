@@ -106,15 +106,27 @@ export const LOCALE_REGISTRY: Record<SupportedLocale, LocaleMetadata> = {
   },
 };
 
+export type ActiveLocale = 'en-IN' | 'mr-IN' | 'hi-IN';
+
+export const ACTIVE_LOCALES: readonly ActiveLocale[] = [
+  'en-IN',
+  'mr-IN',
+  'hi-IN',
+] as const;
+
+export function isActiveLocale(code: unknown): code is ActiveLocale {
+  return typeof code === 'string' && (ACTIVE_LOCALES as readonly string[]).includes(code);
+}
+
 export function isValidLocale(code: unknown): code is SupportedLocale {
   return typeof code === 'string' && SUPPORTED_LOCALES.includes(code as SupportedLocale);
 }
 
-export function sanitizeLocale(code: unknown, fallback: SupportedLocale = DEFAULT_LOCALE): SupportedLocale {
-  if (isValidLocale(code)) return code;
+export function sanitizeLocale(code: unknown, fallback: ActiveLocale = DEFAULT_LOCALE as ActiveLocale): ActiveLocale {
+  if (isActiveLocale(code)) return code;
   if (typeof code === 'string') {
     const trimmed = code.trim().toLowerCase();
-    const match = SUPPORTED_LOCALES.find(
+    const match = ACTIVE_LOCALES.find(
       (loc) => loc.toLowerCase() === trimmed || loc.split('-')[0].toLowerCase() === trimmed
     );
     if (match) return match;

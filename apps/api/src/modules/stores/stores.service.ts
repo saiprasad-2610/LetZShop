@@ -204,6 +204,8 @@ export class StoresService {
       mapsUrl: fullStore?.mapsUrl,
       socialLinks: fullStore?.socialLinks || {},
       fulfillmentMode: fullStore?.fulfillmentMode || 'DELIVERY',
+      storefrontDefaultLocale: fullStore?.storefrontDefaultLocale || 'en-IN',
+      enabledStorefrontLocales: fullStore?.enabledStorefrontLocales || ['en-IN', 'mr-IN', 'hi-IN'],
       businessHours: fullStore?.businessHours || [],
       branding: sanitizedBranding,
       sections: fullStore?.sections || [],

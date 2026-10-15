@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, type SupportedLocale } from '@simply/i18n';
+import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, ACTIVE_LOCALES, isActiveLocale, type SupportedLocale } from '@simply/i18n';
 import Link from 'next/link';
 
 export default function SettingsPage() {
@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [enabledStorefrontLocales, setEnabledStorefrontLocales] = useState<SupportedLocale[]>([
     'en-IN',
     'mr-IN',
+    'hi-IN',
   ]);
   const [savingLocalization, setSavingLocalization] = useState(false);
   const [localizationSaveMsg, setLocalizationSaveMsg] = useState<{
@@ -138,11 +139,12 @@ export default function SettingsPage() {
       setContactPhone(s.contactPhone || '');
       setContactEmail(s.contactEmail || '');
       setAddress(s.address || '');
-      if (s.storefrontDefaultLocale) {
+      if (s.storefrontDefaultLocale && isActiveLocale(s.storefrontDefaultLocale)) {
         setStorefrontDefaultLocale(s.storefrontDefaultLocale as SupportedLocale);
       }
       if (Array.isArray(s.enabledStorefrontLocales) && s.enabledStorefrontLocales.length > 0) {
-        setEnabledStorefrontLocales(s.enabledStorefrontLocales as SupportedLocale[]);
+        const activeOnly = (s.enabledStorefrontLocales as SupportedLocale[]).filter(isActiveLocale);
+        setEnabledStorefrontLocales(activeOnly.length > 0 ? activeOnly : ['en-IN', 'mr-IN', 'hi-IN']);
       }
     } catch (err) {
       console.error('Failed to load settings', err);
@@ -702,11 +704,11 @@ export default function SettingsPage() {
                 onChange={(e) => setMerchantLocale(e.target.value as SupportedLocale)}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
               >
-                {SUPPORTED_LOCALES.map((loc) => {
+                {ACTIVE_LOCALES.map((loc) => {
                   const info = LOCALE_REGISTRY[loc];
                   return (
                     <option key={loc} value={loc}>
-                      {info.nativeName} ({info.name})
+                      {info.nativeName}
                     </option>
                   );
                 })}
@@ -725,11 +727,11 @@ export default function SettingsPage() {
                 onChange={(e) => setStorefrontDefaultLocale(e.target.value as SupportedLocale)}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
               >
-                {SUPPORTED_LOCALES.map((loc) => {
+                {ACTIVE_LOCALES.map((loc) => {
                   const info = LOCALE_REGISTRY[loc];
                   return (
                     <option key={loc} value={loc}>
-                      {info.nativeName} ({info.name})
+                      {info.nativeName}
                     </option>
                   );
                 })}
@@ -745,7 +747,7 @@ export default function SettingsPage() {
               Select which language choices are available in the storefront language switcher for your customers.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {SUPPORTED_LOCALES.map((loc) => {
+              {ACTIVE_LOCALES.map((loc) => {
                 const info = LOCALE_REGISTRY[loc];
                 const isChecked = enabledStorefrontLocales.includes(loc);
                 return (
@@ -774,8 +776,7 @@ export default function SettingsPage() {
                       className="rounded border-gray-300 text-[var(--merchant-primary)] focus:ring-[var(--merchant-primary)]"
                     />
                     <div className="truncate">
-                      <span className="block truncate">{info.nativeName}</span>
-                      <span className="text-[10px] opacity-75 font-normal">{info.name}</span>
+                      <span className="block truncate font-medium">{info.nativeName}</span>
                     </div>
                   </label>
                 );
