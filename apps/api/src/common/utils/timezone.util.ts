@@ -82,6 +82,7 @@ export function parseDashboardPeriod(
       };
     }
 
+    case '90d':
     case '3m': {
       const days = 90;
       const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -91,8 +92,8 @@ export function parseDashboardPeriod(
       const previousEndDate = startDate;
 
       return {
-        key: '3m',
-        label: '3 Months',
+        key: normalizedKey,
+        label: normalizedKey === '90d' ? '90 Days' : '3 Months',
         startDate,
         endDate,
         previousStartDate,
@@ -120,6 +121,7 @@ export function parseDashboardPeriod(
       };
     }
 
+    case '12m':
     case '1y': {
       const days = 365;
       const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -129,8 +131,8 @@ export function parseDashboardPeriod(
       const previousEndDate = startDate;
 
       return {
-        key: '1y',
-        label: '1 Year',
+        key: normalizedKey,
+        label: normalizedKey === '12m' ? '12 Months' : '1 Year',
         startDate,
         endDate,
         previousStartDate,

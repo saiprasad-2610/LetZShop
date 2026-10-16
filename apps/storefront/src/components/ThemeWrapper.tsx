@@ -1,6 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
-import { FOUNDATIONAL_THEMES, ThemeConfig } from '@simply/ui';
+import { FOUNDATIONAL_THEMES, ThemeConfig, normalizeHexColor, getContrastRatio, STOREFRONT_FONT_FAMILIES, resolveStorefrontFont } from '@simply/ui';
 
 interface ThemeWrapperProps {
   themeConfig?: any;
@@ -8,44 +8,7 @@ interface ThemeWrapperProps {
   children: React.ReactNode;
 }
 
-const FONT_FAMILIES: Record<string, { heading: string; body: string }> = {
-  'Playfair Display': {
-    heading: "'Playfair Display', Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Plus Jakarta Sans': {
-    heading: "'Plus Jakarta Sans', system-ui, sans-serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Inter': {
-    heading: "'Inter', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Space Grotesk': {
-    heading: "'Space Grotesk', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'DM Serif Display': {
-    heading: "'DM Serif Display', Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Cinzel': {
-    heading: "'Cinzel', Garamond, Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Outfit': {
-    heading: "'Outfit', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Montserrat': {
-    heading: "'Montserrat', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Cabinet Grotesk': {
-    heading: "'Space Grotesk', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-};
+const FONT_FAMILIES = STOREFRONT_FONT_FAMILIES;
 
 export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   themeConfig,
@@ -55,12 +18,14 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   const themeCode = themeConfig?.themeId || 'atelier';
   const themeArchetype: ThemeConfig = FOUNDATIONAL_THEMES[themeCode] || FOUNDATIONAL_THEMES.atelier;
 
-  const primary = themeConfig?.palette?.primary || branding?.primaryColor || themeArchetype.palette.primary;
-  const accent = themeConfig?.palette?.accent || branding?.accentColor || themeArchetype.palette.accent;
-  const background = themeConfig?.palette?.background || themeArchetype.palette.background;
+  const primary = normalizeHexColor(themeConfig?.palette?.primary) || normalizeHexColor(branding?.primaryColor) || themeArchetype.palette.primary;
+  const accent = normalizeHexColor(themeConfig?.palette?.accent) || normalizeHexColor(branding?.accentColor) || themeArchetype.palette.accent;
+  const background = normalizeHexColor(themeConfig?.palette?.background) || themeArchetype.palette.background;
+  const onPrimary = getContrastRatio(primary, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
+  const onAccent = getContrastRatio(accent, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
 
   // Resolve typography: vendor selected preset > vendor custom heading/body > theme default
-  const selectedPreset = themeConfig?.typography?.preset || themeConfig?.typography?.fontHeading || '';
+  const selectedPreset = resolveStorefrontFont(themeConfig?.typography?.preset || themeConfig?.typography?.fontHeading || '');
   const presetFont = FONT_FAMILIES[selectedPreset];
 
   const fontHeadingMap: Record<string, string> = {
@@ -96,12 +61,64 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   const headingFont = presetFont?.heading || themeConfig?.typography?.fontHeading || fontHeadingMap[themeCode] || fontHeadingMap.atelier;
   const bodyFont = presetFont?.body || themeConfig?.typography?.fontBody || fontBodyMap[themeCode] || fontBodyMap.atelier;
 
+  // Resolve dynamic button shape
+  const buttonStyle = themeConfig?.buttonStyle || themeArchetype.buttonStyle || 'rounded-heavy';
+  let btnRadius = '12px';
+  if (buttonStyle === 'sharp-pill' || buttonStyle === 'pill-friendly' || buttonStyle === 'quick-add') {
+    btnRadius = '9999px';
+  } else if (buttonStyle === 'square-solid') {
+    btnRadius = '2px';
+  } else {
+    btnRadius = '12px';
+  }
+
+  // Resolve dynamic card styling & radius
+  const cardStyle = themeConfig?.cardStyle || themeArchetype.cardStyle || 'elevated-modern';
+  let cardRadius = '16px';
+  let cardShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)';
+  let cardBorder = '1px solid rgba(0, 0, 0, 0.08)';
+
+  if (cardStyle === 'rounded-soft') {
+    cardRadius = '24px';
+    cardShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.06)';
+  } else if (cardStyle === 'framed-luxury') {
+    cardRadius = '6px';
+    cardShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.05)';
+    cardBorder = '1.5px solid rgba(0, 0, 0, 0.15)';
+  } else if (cardStyle === 'minimal-bleed') {
+    cardRadius = '0px';
+    cardShadow = 'none';
+    cardBorder = '1px solid rgba(0, 0, 0, 0.1)';
+  } else if (cardStyle === 'spec-sheet-card') {
+    cardRadius = '2px';
+    cardShadow = 'none';
+    cardBorder = '1px solid rgba(0, 0, 0, 0.2)';
+  }
+
+  // Resolve announcement bar bottom-edge shape
+  const announcementBarStyle = themeConfig?.announcementBarStyle || 'square';
+  let announcementBorderRadius = '0';
+  if (announcementBarStyle === 'soft') announcementBorderRadius = '0 0 8px 8px';
+  else if (announcementBarStyle === 'rounded') announcementBorderRadius = '0 0 16px 16px';
+  else if (announcementBarStyle === 'pill') announcementBorderRadius = '0 0 9999px 9999px';
+
   const styleVariables = {
     '--theme-primary': primary,
     '--theme-accent': accent,
     '--theme-background': background,
+    '--theme-on-primary': onPrimary,
+    '--theme-on-accent': onAccent,
     '--theme-font-heading': headingFont,
     '--theme-font-body': bodyFont,
+    // Sync Tailwind font-serif / font-sans utilities with selected theme font
+    // Without this, elements using font-serif/font-sans classes ignore the merchant's choice
+    '--font-serif': headingFont,
+    '--font-sans': bodyFont,
+    '--theme-btn-radius': btnRadius,
+    '--theme-card-radius': cardRadius,
+    '--theme-card-shadow': cardShadow,
+    '--theme-card-border': cardBorder,
+    '--theme-announcement-radius': announcementBorderRadius,
   } as React.CSSProperties;
 
   return (
@@ -110,11 +127,15 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </Head>
       <div
+        data-custom-primary={primary.toUpperCase() !== themeArchetype.palette.primary.toUpperCase() || undefined}
+        data-custom-accent={accent.toUpperCase() !== themeArchetype.palette.accent.toUpperCase() || undefined}
+        data-custom-background={background.toUpperCase() !== themeArchetype.palette.background.toUpperCase() || undefined}
+        data-custom-typography={Boolean(presetFont) || undefined}
         style={{
           ...styleVariables,
           backgroundColor: 'var(--theme-background)',

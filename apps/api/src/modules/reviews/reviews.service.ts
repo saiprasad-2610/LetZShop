@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantContext, AuthenticatedUser } from '@simply/types';
+import { ReviewModerationService } from './review-moderation.service';
 import { MailService } from '../notifications/mail.service';
 
 export interface SubmitReviewDto {
@@ -21,6 +22,7 @@ export class ReviewsService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly mailService: MailService,
+    private readonly moderation: ReviewModerationService,
   ) {}
 
   /**
@@ -310,96 +312,13 @@ export class ReviewsService {
   /**
    * Super Admin Moderation: List all reviews with filters.
    */
-  async getAdminReviews(query: {
-    status?: string;
-    search?: string;
-    storeId?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    const page = Math.max(1, Number(query.page) || 1);
-    const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
-    const skip = (page - 1) * limit;
+  async getAdminReviews(query: Parameters<ReviewModerationService['getReviews']>[0]) { return this.moderation.getReviews(query); }
 
-    const where: any = {};
+  async getAdminReviewFilters() { return this.moderation.getFilters(); }
 
-    if (query.status && query.status !== 'ALL') {
-      where.status = query.status;
-    }
+  async moderateReview(reviewId:string,moderator:{userId:string;fullName:string},action:'REMOVE'|'RESTORE',reason?:string) { return this.moderation.moderate(reviewId,moderator.userId,action,reason); }
 
-    if (query.storeId) {
-      where.storeId = query.storeId;
-    }
-
-    if (query.search?.trim()) {
-      const s = query.search.trim();
-      where.OR = [
-        { reviewerName: { contains: s, mode: 'insensitive' } },
-        { body: { contains: s, mode: 'insensitive' } },
-        { title: { contains: s, mode: 'insensitive' } },
-        { product: { name: { contains: s, mode: 'insensitive' } } },
-        { store: { name: { contains: s, mode: 'insensitive' } } },
-        { order: { orderNumber: { contains: s, mode: 'insensitive' } } },
-      ];
-    }
-
-    const [total, reviews] = await Promise.all([
-      this.prisma.productReview.count({ where }),
-      this.prisma.productReview.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          store: { select: { id: true, name: true, slug: true } },
-          product: { select: { id: true, name: true, slug: true } },
-          order: { select: { id: true, orderNumber: true, status: true } },
-        },
-      }),
-    ]);
-
-    return {
-      items: reviews,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
-
-  /**
-   * Super Admin Moderation: Remove (soft-delete) or Restore review.
-   */
-  async moderateReview(
-    reviewId: string,
-    moderator: { userId: string; fullName: string },
-    action: 'REMOVE' | 'RESTORE',
-    reason?: string
-  ) {
-    const review = await this.prisma.productReview.findUnique({
-      where: { id: reviewId },
-    });
-    if (!review) {
-      throw new NotFoundException(`Review "${reviewId}" not found.`);
-    }
-
-    const newStatus = action === 'REMOVE' ? 'REMOVED' : 'ACTIVE';
-    const moderationReason =
-      reason?.trim() ||
-      (action === 'REMOVE'
-        ? 'Removed by Platform Administrator'
-        : 'Restored by Platform Administrator');
-
-    return await this.prisma.productReview.update({
-      where: { id: reviewId },
-      data: {
-        status: newStatus,
-        moderatedAt: new Date(),
-        moderatedBy: moderator.fullName || moderator.userId,
-        moderationReason,
-      },
-    });
-  }
+  async updateReviewReport(reportId:string,actorId:string,status:'UNDER_REVIEW'|'DISMISSED',note?:string) { return this.moderation.updateReport(reportId,actorId,status,note); }
 
   /**
    * Seller Portal: View reviews for their store's products with filtering, search, metrics, and pagination.
@@ -498,7 +417,7 @@ export class ReviewsService {
     // 'ALL' -> all reviews
     // 'ACTIVE' (default) -> active reviews (including those sent for review, excluding removed)
     if (query.status === 'SENT_FOR_REVIEW') {
-      where.status = 'SENT_FOR_REVIEW';
+      where.reports = { some: { status: { in: ['PENDING', 'UNDER_REVIEW'] } } };
     } else if (query.status === 'REMOVED') {
       where.status = 'REMOVED';
     } else if (query.status === 'ALL') {
@@ -575,6 +494,7 @@ export class ReviewsService {
         take: pageSize,
         orderBy,
         include: {
+          reports: { orderBy: { createdAt: 'desc' }, take: 1 },
           product: {
             select: {
               id: true,
@@ -601,6 +521,7 @@ export class ReviewsService {
     // Format reviews for client (ensuring privacy: no customer email or phone)
     const reviews = rawReviews.map((r) => ({
       id: r.id,
+      report: r.reports[0] ? { id: r.reports[0].id, status: r.reports[0].status, reason: r.reports[0].reason, merchantNote: r.reports[0].merchantNote, createdAt: r.reports[0].createdAt, resolvedAt: r.reports[0].resolvedAt } : null,
       storeId: r.storeId,
       productId: r.productId,
       orderId: r.orderId,
@@ -682,14 +603,7 @@ export class ReviewsService {
       throw new BadRequestException('This review has already been removed by platform moderation.');
     }
 
-    // Update status to SENT_FOR_REVIEW and record the reason
-    await this.prisma.productReview.update({
-      where: { id: reviewId },
-      data: {
-        status: 'SENT_FOR_REVIEW',
-        moderationReason: reason + (details ? ` - ${details}` : ''),
-      },
-    });
+    const report = await this.moderation.createReport(reviewId, tenant.tenantId, storeId, user?.userId, reason, details);
 
     this.logger.log(
       `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
@@ -721,7 +635,8 @@ export class ReviewsService {
     return {
       success: true,
       message: 'Moderation request received. Platform administrators will review this submission.',
-      reportedAt: new Date().toISOString(),
+      reportedAt: report.createdAt.toISOString(),
+      report: { id: report.id, status: report.status },
     };
   }
 }

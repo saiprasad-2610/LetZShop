@@ -314,6 +314,10 @@ export class AuthService {
                   where: { deletedAt: null },
                   take: 1,
                   orderBy: { createdAt: 'asc' },
+                  include: {
+                    branding: true,
+                    themeConfigs: true,
+                  },
                 },
               },
             },
@@ -383,6 +387,10 @@ export class AuthService {
                 stores: {
                   take: 1,
                   orderBy: { createdAt: 'asc' },
+                  include: {
+                    branding: true,
+                    themeConfigs: true,
+                  },
                 },
               },
             },
@@ -530,7 +538,7 @@ export class AuthService {
           { phone: rawId },
           { phone: normalizedPh },
         ],
-        role: UserRole.PLATFORM_ADMIN,
+        AND: [{ OR: [{ role: UserRole.PLATFORM_ADMIN }, { isSuperAdmin: true }] }],
         deletedAt: null,
       },
       include: {
@@ -538,21 +546,8 @@ export class AuthService {
       },
     });
 
-    // Fallback if bootstrap admin
     if (!admin) {
-      admin = await this.prisma.user.findFirst({
-        where: {
-          role: UserRole.PLATFORM_ADMIN,
-          deletedAt: null,
-        },
-        include: {
-          credentials: true,
-        },
-      });
-    }
-
-    if (!admin) {
-      throw new UnauthorizedException('No platform administrator account found in the system.');
+      throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
 
     if (!admin.isActive) {
@@ -560,31 +555,20 @@ export class AuthService {
     }
 
     // Verify secret
-    const isMaster = secret === 'Admin@ShopOnGo2026!' || secret === '123456' || secret === 'ShopOnGoAdmin';
     const pinCred = admin.credentials?.find((c) => c.credentialType === CredentialType.PIN);
-
-    let isValid = isMaster;
-    if (!isValid && pinCred?.pinHash) {
-      const testHash = this.hashPin(secret);
-      if (testHash === pinCred.pinHash) {
-        isValid = true;
-      }
+    if (pinCred?.lockedUntil && pinCred.lockedUntil > new Date()) {
+      throw new UnauthorizedException('Administrator login temporarily locked. Try again later.');
     }
+    const isValid = Boolean(pinCred?.pinHash && this.verifyPin(secret, pinCred.pinHash));
 
     if (!isValid) {
+      if (pinCred) {
+        const failed = await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { failedPinAttempts: { increment: 1 } } });
+        if (failed.failedPinAttempts >= 5) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
+      }
       throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
-
-    // Ensure PIN credential exists
-    if (!pinCred) {
-      await this.prisma.sellerCredential.create({
-        data: {
-          userId: admin.id,
-          credentialType: CredentialType.PIN,
-          pinHash: this.hashPin('123456'),
-        },
-      }).catch(() => {});
-    }
+    await this.prisma.sellerCredential.update({ where: { id: pinCred!.id }, data: { failedPinAttempts: 0, lockedUntil: null } });
 
     const tokens = await this.createSessionAndIssueTokens(admin, undefined, undefined, userAgent, ipAddress);
 
@@ -965,20 +949,26 @@ export class AuthService {
 
       const session = await this.prisma.session.findUnique({
         where: { id: payload.sessionId },
+        include: { user: true },
       });
 
       if (!session || session.isRevoked || session.expiresAt < new Date()) {
         throw new UnauthorizedException('Session is no longer valid or has been revoked.');
       }
 
+      if (session.userId !== payload.sub || !session.user.isActive || session.user.deletedAt) {
+        throw new UnauthorizedException('Account is no longer active.');
+      }
+      const isPlatformAdmin = session.user.isSuperAdmin || session.user.role === UserRole.PLATFORM_ADMIN;
+
       return {
         userId: payload.sub,
         phone: payload.phone,
-        role: payload.role,
+        role: payload.role === UserRole.PLATFORM_ADMIN && !isPlatformAdmin ? session.user.role : payload.role,
         tenantId: payload.tenantId,
         storeId: payload.storeId,
         sessionId: payload.sessionId,
-        isPlatformAdmin: payload.isPlatformAdmin || false,
+        isPlatformAdmin,
       };
     } catch (err: any) {
       throw new UnauthorizedException(err.message || 'Invalid authentication token.');

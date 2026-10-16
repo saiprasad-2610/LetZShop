@@ -2,6 +2,8 @@ import { Injectable, Inject, NotFoundException, BadRequestException } from '@nes
 import { PrismaClient } from '@prisma/client';
 import { StorageProvider } from '@simply/storage';
 import { TenantContext } from '@simply/types';
+import { validateProductImageBuffer } from '@simply/validation';
+import * as path from 'path';
 
 export const STORAGE_PROVIDER_TOKEN = 'STORAGE_PROVIDER';
 
@@ -29,10 +31,16 @@ export class MediaService {
     });
     if (!product) throw new NotFoundException('Product not found in this store.');
 
-    // 2. Validate MIME type & 5MB file size limit
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
-    if (!allowedMime.includes(file.mimeType)) {
-      throw new BadRequestException(`Invalid image MIME type: ${file.mimeType}. Allowed: ${allowedMime.join(', ')}`);
+    // 2. Validate real binary magic bytes & file size (5MB limit)
+    const validation = validateProductImageBuffer(file.buffer, file.originalFilename);
+    if (!validation.isValid || !validation.mimeType) {
+      throw new BadRequestException(validation.error || 'Invalid product image file.');
+    }
+
+    // Ensure filename has proper extension matching verified MIME type
+    let safeFilename = file.originalFilename || `image${validation.extension}`;
+    if (!path.extname(safeFilename)) {
+      safeFilename = `${safeFilename}${validation.extension}`;
     }
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -45,8 +53,8 @@ export class MediaService {
       tenantId: tenant.tenantId,
       storeId: tenant.storeId,
       buffer: file.buffer,
-      originalFilename: file.originalFilename,
-      mimeType: file.mimeType,
+      originalFilename: safeFilename,
+      mimeType: validation.mimeType,
       prefix: 'products',
     });
 
@@ -82,24 +90,24 @@ export class MediaService {
     },
     altText?: string
   ) {
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMime.includes(file.mimeType)) {
-      throw new BadRequestException(
-        `Upload a supported image format (${allowedMime.map((m) => m.replace('image/', '').toUpperCase()).join(', ')}). Received: ${file.mimeType}`
-      );
+    // 1. Validate real binary magic bytes & file size (5MB limit)
+    const validation = validateProductImageBuffer(file.buffer, file.originalFilename);
+    if (!validation.isValid || !validation.mimeType) {
+      throw new BadRequestException(validation.error || 'Invalid product image file.');
     }
 
-    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (file.buffer.length > MAX_SIZE) {
-      throw new BadRequestException('File size exceeds 5MB limit.');
+    // Ensure filename has proper extension matching verified MIME type
+    let safeFilename = file.originalFilename || `image${validation.extension}`;
+    if (!path.extname(safeFilename)) {
+      safeFilename = `${safeFilename}${validation.extension}`;
     }
 
     const uploadResult = await this.storageProvider.upload({
       tenantId: tenant.tenantId,
       storeId: tenant.storeId,
       buffer: file.buffer,
-      originalFilename: file.originalFilename,
-      mimeType: file.mimeType,
+      originalFilename: safeFilename,
+      mimeType: validation.mimeType,
       prefix: 'products',
     });
 
@@ -110,7 +118,7 @@ export class MediaService {
         storageProvider: 'LOCAL',
         storageKey: uploadResult.storageKey,
         publicUrl: uploadResult.publicUrl,
-        fileName: file.originalFilename,
+        fileName: safeFilename,
         mimeType: uploadResult.mimeType,
         sizeBytes: uploadResult.sizeBytes,
         altText: altText || null,
@@ -132,7 +140,7 @@ export class MediaService {
     },
     type: 'logo' | 'banner' | 'favicon'
   ) {
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
     if (!allowedMime.includes(file.mimeType)) {
       throw new BadRequestException(`Invalid asset MIME type: ${file.mimeType}. Allowed: ${allowedMime.join(', ')}`);
     }

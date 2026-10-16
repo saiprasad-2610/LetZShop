@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { 
   Tag, 
   Plus, 
   Trash2, 
   Copy, 
   Check, 
-  Share2, 
-  Percent, 
   Sparkles, 
-  Calendar, 
   CheckCircle2, 
   X, 
   AlertCircle,
-  TrendingUp,
-  ShoppingBag,
-  ExternalLink,
   MessageSquare
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n } from '@simply/i18n';
 import { formatPaise } from '@simply/ui';
 import { getStorefrontUrl } from '../utils/config';
 
@@ -100,6 +94,7 @@ const DEFAULT_COUPONS: CouponItem[] = [
 
 export default function CouponsManagementPage() {
   const { store } = useAuth();
+  const { t, locale } = useSellerI18n();
   const [coupons, setCoupons] = useState<CouponItem[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -155,7 +150,7 @@ export default function CouponsManagementPage() {
   };
 
   const handleDeleteCoupon = (id: string) => {
-    if (confirm('Are you sure you want to delete this promotional coupon code?')) {
+    if (confirm(t('coupons.confirmDelete'))) {
       const updated = coupons.filter((c) => c.id !== id);
       saveCoupons(updated);
     }
@@ -167,23 +162,23 @@ export default function CouponsManagementPage() {
 
     const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
     if (!cleanCode) {
-      setFormError('Please enter a valid coupon code (letters and numbers only).');
+      setFormError(t('coupons.errEnterCode'));
       return;
     }
 
     if (coupons.some((c) => c.code === cleanCode)) {
-      setFormError(`Coupon code "${cleanCode}" already exists. Please choose a unique code.`);
+      setFormError(t('coupons.errCodeExists', { code: cleanCode }));
       return;
     }
 
     const numericVal = parseFloat(valAmount);
     if (isNaN(numericVal) || numericVal <= 0) {
-      setFormError('Please enter a valid discount value greater than 0.');
+      setFormError(t('coupons.errValidValue'));
       return;
     }
 
     if (type === 'PERCENTAGE' && numericVal > 100) {
-      setFormError('Percentage discount cannot exceed 100%.');
+      setFormError(t('coupons.errMaxPercent'));
       return;
     }
 
@@ -246,7 +241,7 @@ export default function CouponsManagementPage() {
   return (
     <Layout>
       <Head>
-        <title>Promotions & Coupons | Simply Seller</title>
+        <title>{t('coupons.title')} | Simply Seller</title>
       </Head>
 
       <div className="space-y-6 max-w-5xl pb-16">
@@ -254,10 +249,11 @@ export default function CouponsManagementPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--merchant-border)' }}>
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5" style={{ color: 'var(--merchant-text)' }}>
-              <Tag className="w-6 h-6" style={{ color: 'var(--merchant-primary)' }} /> Promotional Coupons & Discounts
+              <Tag className="w-6 h-6" style={{ color: 'var(--merchant-primary)' }} />
+              <span>{t('coupons.title')}</span>
             </h1>
             <p className="text-sm mt-1" style={{ color: 'var(--merchant-text-muted)' }}>
-              Create and manage promo codes, festive discounts, and loyalty offers for your store.
+              {t('coupons.subtitle')}
             </p>
           </div>
 
@@ -267,9 +263,10 @@ export default function CouponsManagementPage() {
               setModalOpen(true);
             }}
             style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xs transition shrink-0 hover:opacity-90"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xs transition shrink-0 hover:opacity-90 cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Create New Coupon
+            <Plus className="w-4 h-4" />
+            <span>{t('coupons.createNewCoupon')}</span>
           </button>
         </div>
 
@@ -279,29 +276,41 @@ export default function CouponsManagementPage() {
             className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
             style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
           >
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Active Coupons</span>
-            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>{activeCount} of {coupons.length}</div>
-            <p className="text-xs text-emerald-400 font-medium">Ready for buyer checkout</p>
-          </div>
-
-          <div
-            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
-            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
-          >
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Total Redemptions</span>
-            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>{totalUsages}</div>
-            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>Orders placed with coupon codes</p>
-          </div>
-
-          <div
-            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
-            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
-          >
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>Storefront Sync</span>
-            <div className="text-2xl font-black text-emerald-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-6 h-6" /> Live
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.activeCoupons')}
+            </span>
+            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>
+              {activeCount} of {coupons.length}
             </div>
-            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>Auto-validated during checkout</p>
+            <p className="text-xs text-emerald-400 font-medium">{t('coupons.readyForCheckout')}</p>
+          </div>
+
+          <div
+            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.totalRedemptions')}
+            </span>
+            <div className="text-2xl font-black" style={{ color: 'var(--merchant-text)' }}>{totalUsages}</div>
+            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.ordersPlacedWithCoupons')}
+            </p>
+          </div>
+
+          <div
+            className="p-5 rounded-2xl border shadow-2xs space-y-1 transition-colors"
+            style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.storefrontSync')}
+            </span>
+            <div className="text-2xl font-black text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-6 h-6" /> {t('coupons.liveStatus')}
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.autoValidated')}
+            </p>
           </div>
         </div>
 
@@ -312,17 +321,19 @@ export default function CouponsManagementPage() {
         >
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-400" />
-            <h2 className="text-sm font-bold tracking-wider uppercase text-amber-400">Quick Campaign Launchers</h2>
+            <h2 className="text-sm font-bold tracking-wider uppercase text-amber-400">
+              {t('coupons.quickLaunchers')}
+            </h2>
           </div>
           <p className="text-xs" style={{ color: 'var(--merchant-text-secondary)' }}>
-            One-click create proven promotional campaigns designed for Indian festive & seasonal buying:
+            {t('coupons.quickLaunchersDesc')}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <button
               onClick={() => applyTemplate('FESTIVE25', 'PERCENTAGE', '25', 'Festive Season 25% Off', '800', '400')}
               style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
-              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90 cursor-pointer"
             >
               <div className="text-xs font-bold text-amber-400 font-mono">FESTIVE25</div>
               <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>25% Festive Discount</div>
@@ -332,7 +343,7 @@ export default function CouponsManagementPage() {
             <button
               onClick={() => applyTemplate('VIP150', 'FLAT', '150', 'VIP Customer ₹150 Flat Off', '1200')}
               style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
-              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90 cursor-pointer"
             >
               <div className="text-xs font-bold text-emerald-400 font-mono">VIP150</div>
               <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>Flat ₹150 Off</div>
@@ -342,7 +353,7 @@ export default function CouponsManagementPage() {
             <button
               onClick={() => applyTemplate('WEEKEND15', 'PERCENTAGE', '15', '15% Weekend Flash Sale', '500', '200')}
               style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
-              className="text-left p-3.5 rounded-xl border transition hover:opacity-90"
+              className="text-left p-3.5 rounded-xl border transition hover:opacity-90 cursor-pointer"
             >
               <div className="text-xs font-bold text-pink-400 font-mono">WEEKEND15</div>
               <div className="text-xs font-semibold mt-1" style={{ color: 'var(--merchant-text)' }}>15% Flash Sale</div>
@@ -357,108 +368,120 @@ export default function CouponsManagementPage() {
           style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
         >
           <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--merchant-border)' }}>
-            <h2 className="text-base font-bold" style={{ color: 'var(--merchant-text)' }}>Configured Coupons ({coupons.length})</h2>
-            <span className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>Buyer applies code at Cart or Checkout</span>
+            <h2 className="text-base font-bold" style={{ color: 'var(--merchant-text)' }}>
+              {t('coupons.activeCouponsList')} ({coupons.length})
+            </h2>
+            <span className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>
+              {t('coupons.autoValidated')}
+            </span>
           </div>
 
-          <div className="divide-y" style={{ borderColor: 'var(--merchant-border)' }}>
-            {coupons.map((c) => {
-              const isCopied = copiedCode === c.code;
-              const discDisplay = c.type === 'PERCENTAGE' 
-                ? `${c.value}% OFF` 
-                : c.value === 0 ? 'FREE DELIVERY' : `₹${(c.value / 100).toFixed(0)} FLAT OFF`;
+          {coupons.length === 0 ? (
+            <div className="p-12 text-center">
+              <Tag className="w-10 h-10 mx-auto text-[var(--merchant-text-muted)] opacity-40 mb-3" />
+              <h3 className="text-sm font-bold text-[var(--merchant-text)]">{t('coupons.noCouponsFound')}</h3>
+              <p className="text-xs text-[var(--merchant-text-muted)] mt-1">{t('coupons.noCouponsDesc')}</p>
+            </div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: 'var(--merchant-border)' }}>
+              {coupons.map((c) => {
+                const isCopied = copiedCode === c.code;
+                const discDisplay = c.type === 'PERCENTAGE' 
+                  ? t('coupons.percentOff', { percent: c.value }) 
+                  : c.value === 0 ? 'FREE DELIVERY' : t('coupons.flatOff', { amount: (c.value / 100).toFixed(0) });
 
-              return (
-                <div key={c.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--merchant-surface-raised)] transition-colors">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="px-3 py-1 border rounded-lg text-xs font-mono font-bold tracking-wider"
+                return (
+                  <div key={c.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--merchant-surface-raised)] transition-colors">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="px-3 py-1 border rounded-lg text-xs font-mono font-bold tracking-wider"
+                          style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                        >
+                          {c.code}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          {discDisplay}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                            c.isActive
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              : 'opacity-60 border'
+                          }`}
+                          style={!c.isActive ? { backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text-muted)' } : undefined}
+                        >
+                          {c.isActive ? t('common.active') : t('common.inactive')}
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-medium" style={{ color: 'var(--merchant-text)' }}>
+                        {c.label}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>
+                        {c.minOrderPaise ? (
+                          <span>{t('coupons.minOrder', { amount: (c.minOrderPaise / 100).toFixed(0) })}</span>
+                        ) : (
+                          <span>{t('coupons.noMinOrder')}</span>
+                        )}
+                        {c.maxDiscountPaise && (
+                          <span>• {t('coupons.maxDiscount', { amount: (c.maxDiscountPaise / 100).toFixed(0) })}</span>
+                        )}
+                        <span>• Used: <strong style={{ color: 'var(--merchant-text)' }}>{c.usageCount || 0}</strong></span>
+                        {c.expiresAt && (
+                          <span>• {t('coupons.expires', { date: new Date(c.expiresAt).toLocaleDateString(locale) })}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                      <button
+                        onClick={() => handleCopyCode(c.code)}
                         style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
+                        className="px-2.5 py-1.5 text-xs font-medium border rounded-lg transition flex items-center gap-1 hover:opacity-90 cursor-pointer"
+                        title={t('coupons.copyCode')}
                       >
-                        {c.code}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        {discDisplay}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{isCopied ? t('coupons.copied') : t('coupons.copyCode')}</span>
+                      </button>
+
+                      <a
+                        href={getWhatsAppShareUrl(c)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1.5 text-xs font-medium text-[#25D366] bg-[#25D366]/10 border border-[#25D366]/30 hover:bg-[#25D366]/20 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        title={t('coupons.shareWhatsApp')}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>{t('coupons.shareWhatsApp')}</span>
+                      </a>
+
+                      <button
+                        onClick={() => handleToggleStatus(c.id)}
+                        className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                           c.isActive
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : 'opacity-60 border'
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
                         }`}
-                        style={!c.isActive ? { backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text-muted)' } : undefined}
                       >
-                        {c.isActive ? 'Active' : 'Disabled'}
-                      </span>
-                    </div>
+                        {c.isActive ? t('coupons.deactivate') : t('coupons.activate')}
+                      </button>
 
-                    <p className="text-xs font-medium" style={{ color: 'var(--merchant-text)' }}>
-                      {c.label}
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>
-                      {c.minOrderPaise ? (
-                        <span>Min Order: <strong style={{ color: 'var(--merchant-text)' }}>{formatPaise(c.minOrderPaise)}</strong></span>
-                      ) : (
-                        <span>No minimum order</span>
-                      )}
-                      {c.maxDiscountPaise && (
-                        <span>• Max Cap: <strong style={{ color: 'var(--merchant-text)' }}>{formatPaise(c.maxDiscountPaise)}</strong></span>
-                      )}
-                      <span>• Used: <strong style={{ color: 'var(--merchant-text)' }}>{c.usageCount || 0} times</strong></span>
-                      {c.expiresAt && (
-                        <span>• Expires: <strong style={{ color: 'var(--merchant-text)' }}>{new Date(c.expiresAt).toLocaleDateString('en-IN')}</strong></span>
-                      )}
+                      <button
+                        onClick={() => handleDeleteCoupon(c.id)}
+                        className="p-1.5 opacity-60 hover:opacity-100 hover:text-rose-400 rounded-lg transition cursor-pointer"
+                        title={t('coupons.delete')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                    <button
-                      onClick={() => handleCopyCode(c.code)}
-                      style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
-                      className="px-2.5 py-1.5 text-xs font-medium border rounded-lg transition flex items-center gap-1 hover:opacity-90"
-                      title="Copy code"
-                    >
-                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                    </button>
-
-                    <a
-                      href={getWhatsAppShareUrl(c)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 text-xs font-medium text-[#25D366] bg-[#25D366]/10 border border-[#25D366]/30 hover:bg-[#25D366]/20 rounded-lg transition flex items-center gap-1"
-                      title="Share to WhatsApp"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>Share</span>
-                    </a>
-
-                    <button
-                      onClick={() => handleToggleStatus(c.id)}
-                      className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition ${
-                        c.isActive
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                      }`}
-                    >
-                      {c.isActive ? 'Disable' : 'Enable'}
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteCoupon(c.id)}
-                      className="p-1.5 opacity-60 hover:opacity-100 hover:text-rose-400 rounded-lg transition"
-                      title="Delete coupon"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -471,11 +494,12 @@ export default function CouponsManagementPage() {
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--merchant-border)' }}>
               <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--merchant-text)' }}>
-                <Tag className="w-4 h-4" style={{ color: 'var(--merchant-primary)' }} /> Create Promotional Coupon
+                <Tag className="w-4 h-4" style={{ color: 'var(--merchant-primary)' }} />
+                <span>{t('coupons.modalTitle')}</span>
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="opacity-60 hover:opacity-100 p-1"
+                className="opacity-60 hover:opacity-100 p-1 cursor-pointer"
                 style={{ color: 'var(--merchant-text)' }}
               >
                 <X className="w-5 h-5" />
@@ -492,14 +516,14 @@ export default function CouponsManagementPage() {
             <form onSubmit={handleCreateCoupon} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Coupon Code * <span className="opacity-60 font-normal">(Auto-capitalized)</span>
+                  {t('coupons.codeLabel')} *
                 </label>
                 <input
                   type="text"
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. DIWALI20 or SAVE100"
+                  placeholder={t('coupons.codePlaceholder')}
                   style={{
                     backgroundColor: 'var(--merchant-input-bg)',
                     borderColor: 'var(--merchant-input-border)',
@@ -512,7 +536,7 @@ export default function CouponsManagementPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                    Discount Type *
+                    {t('coupons.typeLabel')} *
                   </label>
                   <select
                     value={type}
@@ -524,14 +548,14 @@ export default function CouponsManagementPage() {
                     }}
                     className="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-[var(--merchant-focus-ring)] font-medium"
                   >
-                    <option value="PERCENTAGE">Percentage (%)</option>
-                    <option value="FLAT">Flat Rupees (₹)</option>
+                    <option value="PERCENTAGE">{t('coupons.percentage')}</option>
+                    <option value="FLAT">{t('coupons.flatAmount')}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                    {type === 'PERCENTAGE' ? 'Discount % *' : 'Discount Amount (₹) *'}
+                    {t('coupons.discountValue')} *
                   </label>
                   <input
                     type="number"
@@ -540,7 +564,7 @@ export default function CouponsManagementPage() {
                     max={type === 'PERCENTAGE' ? '100' : '50000'}
                     value={valAmount}
                     onChange={(e) => setValAmount(e.target.value)}
-                    placeholder={type === 'PERCENTAGE' ? 'e.g. 15' : 'e.g. 100'}
+                    placeholder={type === 'PERCENTAGE' ? t('coupons.valPlaceholderPercent') : t('coupons.valPlaceholderFlat')}
                     style={{
                       backgroundColor: 'var(--merchant-input-bg)',
                       borderColor: 'var(--merchant-input-border)',
@@ -553,13 +577,13 @@ export default function CouponsManagementPage() {
 
               <div>
                 <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Promotional Title / Description
+                  {t('coupons.campaignName')}
                 </label>
                 <input
                   type="text"
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
-                  placeholder="e.g. 15% Off on All Orders this Festive Week"
+                  placeholder={t('coupons.campaignPlaceholder')}
                   style={{
                     backgroundColor: 'var(--merchant-input-bg)',
                     borderColor: 'var(--merchant-input-border)',
@@ -572,14 +596,14 @@ export default function CouponsManagementPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                    Minimum Order (₹)
+                    {t('coupons.minOrderLabel')}
                   </label>
                   <input
                     type="number"
                     min="0"
                     value={minOrderRupees}
                     onChange={(e) => setMinOrderRupees(e.target.value)}
-                    placeholder="e.g. 500"
+                    placeholder={t('coupons.minOrderPlaceholder')}
                     style={{
                       backgroundColor: 'var(--merchant-input-bg)',
                       borderColor: 'var(--merchant-input-border)',
@@ -592,14 +616,14 @@ export default function CouponsManagementPage() {
                 {type === 'PERCENTAGE' ? (
                   <div>
                     <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                      Max Discount Cap (₹)
+                      {t('coupons.maxDiscountLabel')}
                     </label>
                     <input
                       type="number"
                       min="0"
                       value={maxDiscountRupees}
                       onChange={(e) => setMaxDiscountRupees(e.target.value)}
-                      placeholder="e.g. 300"
+                      placeholder={t('coupons.maxDiscountPlaceholder')}
                       style={{
                         backgroundColor: 'var(--merchant-input-bg)',
                         borderColor: 'var(--merchant-input-border)',
@@ -611,7 +635,7 @@ export default function CouponsManagementPage() {
                 ) : (
                   <div>
                     <label className="block text-xs font-bold mb-1" style={{ color: 'var(--merchant-text-secondary)' }}>
-                      Expiry Date
+                      {t('coupons.expiryDateLabel')}
                     </label>
                     <input
                       type="date"
@@ -633,16 +657,16 @@ export default function CouponsManagementPage() {
                   type="button"
                   onClick={() => setModalOpen(false)}
                   style={{ backgroundColor: 'var(--merchant-surface-raised)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
-                  className="px-4 py-2 border rounded-xl text-xs font-semibold hover:opacity-90 transition"
+                  className="px-4 py-2 border rounded-xl text-xs font-semibold hover:opacity-90 transition cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
-                  className="px-5 py-2 rounded-xl text-xs font-bold transition shadow-sm hover:opacity-90"
+                  className="px-5 py-2 rounded-xl text-xs font-bold transition shadow-sm hover:opacity-90 cursor-pointer"
                 >
-                  Save & Activate Coupon
+                  {t('coupons.saveCoupon')}
                 </button>
               </div>
             </form>

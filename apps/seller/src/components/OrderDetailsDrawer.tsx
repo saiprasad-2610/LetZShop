@@ -28,7 +28,8 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
+import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod, formatCollectionMode, resolveVariantDisplayMedia } from '@simply/ui';
 import {
   buildOrderAcceptedMessage,
   buildOrderReadyMessage,
@@ -121,7 +122,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
   onClose,
   onStatusUpdated,
 }) => {
-  const { api, store } = useAuth();
+  const { api, store, user } = useAuth();
+  const { t, locale } = useSellerI18n();
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -676,16 +678,24 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
     }
   };
 
-  const statusMeta = ORDER_STATUS_CONFIG[order.status] || {
+  const rawStatusConfig = ORDER_STATUS_CONFIG[order.status] || {
     label: order.status,
     bgClass: 'bg-merchant-surface-raised border border-merchant-border',
     textClass: 'text-merchant-text',
   };
+  const statusMeta = {
+    ...rawStatusConfig,
+    label: t(`orderStatus.${order.status}`, {}, rawStatusConfig.label),
+  };
 
-  const paymentMeta = PAYMENT_STATUS_CONFIG[order.paymentStatus] || {
+  const rawPaymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] || {
     label: order.paymentStatus,
     bgClass: 'bg-merchant-surface-raised border border-merchant-border',
     textClass: 'text-merchant-text',
+  };
+  const paymentMeta = {
+    ...rawPaymentConfig,
+    label: t(`paymentStatus.${order.paymentStatus}`, {}, rawPaymentConfig.label),
   };
 
   // Payment details
@@ -1683,8 +1693,41 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
 
               <div className="border border-merchant-border rounded-2xl divide-y divide-merchant-border overflow-hidden bg-merchant-surface shadow-xs">
                 {(order.items || []).map((item: any) => {
-                  const mediaUrl =
-                    item.variant?.product?.media?.[0]?.publicUrl || null;
+                  const mediaUrl = resolveVariantDisplayMedia({
+                    itemImageUrl: item.imageUrl,
+                    variant: item.variant,
+                    productMedia: item.variant?.product?.media,
+                    selectedOptionValues: item.variant?.optionValues,
+                  });
+                  const snapshot = item.optionSnapshot || item.selectedOptions;
+                  const displayVariantTitle =
+                    item.variantTitle && item.variantTitle !== 'Default'
+                      ? item.variantTitle
+                      : snapshot && Object.keys(snapshot).length > 0
+                        ? Object.keys(snapshot)
+                            .sort((a, b) => {
+                              const order = ['colour', 'color', 'size', 'fit', 'material'];
+                              const iA = order.indexOf(a.toLowerCase());
+                              const iB = order.indexOf(b.toLowerCase());
+                              if (iA !== -1 && iB !== -1) return iA - iB;
+                              if (iA !== -1) return -1;
+                              if (iB !== -1) return 1;
+                              return a.localeCompare(b);
+                            })
+                            .map((k) => snapshot[k])
+                            .join(' · ')
+                        : item.variant?.optionValues?.length
+                          ? [...item.variant.optionValues]
+                              .sort((a: any, b: any) => {
+                                const sA = a.optionValue?.option?.sortOrder ?? 0;
+                                const sB = b.optionValue?.option?.sortOrder ?? 0;
+                                if (sA !== sB) return sA - sB;
+                                return (a.optionValue?.option?.name || '').localeCompare(b.optionValue?.option?.name || '');
+                              })
+                              .map((ov: any) => ov.optionValue?.value || ov.value)
+                              .filter(Boolean)
+                              .join(' · ')
+                          : null;
 
                   return (
                     <div key={item.id} className="p-3.5 sm:p-4 flex items-center justify-between gap-3 text-xs">
@@ -1699,8 +1742,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-merchant-text truncate">{item.productName}</p>
-                          {item.variantTitle && (
-                            <p className="text-merchant-text-muted text-[11px] truncate">{item.variantTitle}</p>
+                          {displayVariantTitle && (
+                            <p className="text-merchant-text-muted text-[11px] truncate font-medium">{displayVariantTitle}</p>
                           )}
                           {item.sku && (
                             <p className="text-merchant-text-muted font-mono text-[10px]">SKU: {item.sku}</p>
@@ -2583,6 +2626,8 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
           isOpen={showInvoiceModal}
           onClose={() => setShowInvoiceModal(false)}
           order={order}
+          store={store || order.store}
+          user={user}
         />
       )}
     </>

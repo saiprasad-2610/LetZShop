@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth, apiClient } from '../context/AuthContext';
@@ -6,6 +6,7 @@ import { Layout } from '../components/Layout';
 import { ProductEditorDrawer } from '../components/ProductEditorDrawer';
 import { DashboardMetricCard, StoreLaunchIllustration } from '../components/dashboard/DashboardEnrichment';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 import {
   TrendingUp,
   ShoppingBag,
@@ -32,6 +33,7 @@ import {
   Globe,
   CreditCard,
   Truck,
+  Building2,
 } from 'lucide-react';
 import { getStorefrontUrl } from '../utils/config';
 
@@ -50,6 +52,17 @@ const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
 export default function CompactDashboardPage() {
   const { user, store, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t, locale, formatCurrency } = useSellerI18n();
+
+  const periodOptions = useMemo<{ key: PeriodKey; label: string }[]>(() => [
+    { key: 'today', label: t('common.today') },
+    { key: '7d', label: t('common.days7') },
+    { key: '30d', label: t('common.days30') },
+    { key: '3m', label: t('common.months3') },
+    { key: '6m', label: t('common.months6') },
+    { key: '1y', label: t('common.year1') },
+    { key: 'custom', label: t('common.custom') },
+  ], [t]);
 
   // State
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('30d');
@@ -197,19 +210,28 @@ export default function CompactDashboardPage() {
   const customersSeries = salesSeriesList.map((s: any) => s.customers ?? 0);
   const aovSeries = salesSeriesList.map((s: any) => (s.aovPaise ?? 0) / 100);
 
+  // Active store resolution (prefer fresh store data from dashboard API if available)
+  const activeStore = dashboardData?.store || store;
+
   // Setup / Readiness evaluation (truthful checks)
-  const isLive = store?.status === 'LIVE' || store?.status === 'ACTIVE';
+  const isLive = activeStore?.status === 'LIVE' || activeStore?.status === 'ACTIVE';
   const isSubscriptionValid = Boolean(
-    store?.subscription?.status === 'ACTIVE' ||
-    store?.subscriptionStatus === 'ACTIVE' ||
-    (store?.status !== 'EXPIRED' && !attention.subscriptionRequiresAction)
+    activeStore?.subscription?.status === 'ACTIVE' ||
+    activeStore?.subscriptionStatus === 'ACTIVE' ||
+    (activeStore?.status !== 'EXPIRED' && !attention.subscriptionRequiresAction)
   );
-  const isStorePublic = Boolean(store?.isPubliclyAccessible && isLive);
-  const isBrandingComplete = Boolean(store?.branding?.logoUrl || store?.branding?.heroMediaId);
+  const isStorePublic = Boolean(activeStore?.isPubliclyAccessible && isLive);
+  const effectiveBranding = activeStore?.branding || store?.branding;
+  const hasBrandingMedia = Boolean(effectiveBranding?.logoUrl || effectiveBranding?.heroMediaId || effectiveBranding?.bannerUrl);
+  const hasCustomTheme = Boolean(
+    (activeStore?.themeConfigs && activeStore.themeConfigs.length > 0) ||
+    (effectiveBranding?.primaryColor && effectiveBranding?.primaryColor !== '#1E3A8A')
+  );
+  const isBrandingComplete = Boolean(hasBrandingMedia || hasCustomTheme);
   const isPaymentConfigured = Boolean(!attention.paymentSetupIncomplete);
   const isShippingConfigured = Boolean(!attention.shippingSetupIncomplete);
   const hasProducts = Boolean(metrics.activeProducts > 0);
-  const hasBusinessInfo = Boolean(store?.name && store?.slug);
+  const hasBusinessInfo = Boolean(activeStore?.name && activeStore?.slug);
 
   const [storePreviewed, setStorePreviewed] = useState(false);
   useEffect(() => {
@@ -217,97 +239,89 @@ export default function CompactDashboardPage() {
       setStorePreviewed(localStorage.getItem('simply_store_previewed') === 'true');
     }
   }, []);
+  const isStorePreviewed = Boolean(storePreviewed || activeStore?.status === 'LIVE' || isLive);
 
   // =========================================================================
   // DYNAMIC ATTENTION PRIORITY RULES (STRICTLY TRUTHFUL & ORDERED)
-  // 1. Subscription inactive / expired
-  // 2. Store private when intended to publish
-  // 3. Payment setup incomplete (disappears immediately once complete!)
-  // 4. Shipping / delivery setup incomplete
-  // 5. No products in catalog
-  // 6. Pending orders needing action
-  // 7. Low stock items
-  // 8. Store branding incomplete
-  // 9. Required business info incomplete
   // =========================================================================
   const issues: { text: string; link: string; linkText: string; priority: number }[] = [];
 
   if (attention.subscriptionRequiresAction || store?.status === 'EXPIRED') {
     issues.push({
       priority: 1,
-      text: 'Subscription plan required',
+      text: t('dashboard.subscriptionRequired'),
       link: '/subscription',
-      linkText: 'View Plans →',
+      linkText: `${t('dashboard.viewPlans')} →`,
     });
   } else if (store?.status !== 'LIVE' && !isLive) {
     issues.push({
       priority: 2,
-      text: 'Store is in Private Mode',
+      text: t('dashboard.storePrivateMode'),
       link: '/subscription',
-      linkText: 'Activate Store →',
+      linkText: `${t('dashboard.activateStore')} →`,
     });
   }
 
   if (attention.paymentSetupIncomplete) {
     issues.push({
       priority: 3,
-      text: 'Payment setup incomplete',
+      text: t('dashboard.paymentIncomplete'),
       link: '/settings',
-      linkText: 'Configure Payments →',
+      linkText: `${t('dashboard.configurePayments')} →`,
     });
   }
 
   if (attention.shippingSetupIncomplete) {
     issues.push({
       priority: 4,
-      text: 'Shipping setup incomplete',
+      text: t('dashboard.shippingIncomplete'),
       link: '/settings',
-      linkText: 'Configure Delivery →',
+      linkText: `${t('dashboard.configureDelivery')} →`,
     });
   }
 
   if (metrics.activeProducts === 0) {
     issues.push({
       priority: 5,
-      text: 'No active products in catalog',
+      text: t('dashboard.noProductsCatalog'),
       link: '/products',
-      linkText: 'Add Product →',
+      linkText: `${t('dashboard.addProduct')} →`,
     });
   }
 
   if (metrics.pendingOrders > 0) {
     issues.push({
       priority: 6,
-      text: `${metrics.pendingOrders} pending order${metrics.pendingOrders > 1 ? 's' : ''}`,
+      text: `${metrics.pendingOrders} ${t('dashboard.pendingOrdersCount')}`,
       link: '/orders',
-      linkText: 'Manage Orders →',
+      linkText: `${t('dashboard.manageOrders')} →`,
     });
   }
 
   if (metrics.lowStock > 0) {
     issues.push({
       priority: 7,
-      text: `${metrics.lowStock} item${metrics.lowStock > 1 ? 's' : ''} low on stock`,
+      text: `${metrics.lowStock} ${t('dashboard.lowStock')}`,
       link: '/products',
-      linkText: 'Restock →',
+      linkText: `${t('dashboard.restock')} →`,
     });
   }
 
   if (!isBrandingComplete) {
     issues.push({
       priority: 8,
-      text: 'Store branding incomplete',
+      text: t('dashboard.storeBrandingIncomplete'),
       link: '/brand-studio',
-      linkText: 'Customize Store →',
+      linkText: `${t('dashboard.customizeStore')} →`,
     });
   }
 
   if (!hasBusinessInfo) {
     issues.push({
       priority: 9,
-      text: 'Business information incomplete',
+      text: t('dashboard.businessInfoIncomplete'),
       link: '/settings',
-      linkText: 'Update Details →',
+      linkText: `${t('common.edit')} →`,
     });
   }
 
@@ -316,21 +330,21 @@ export default function CompactDashboardPage() {
 
   const storeStatusText =
     store?.status === 'LIVE'
-      ? 'Live'
+      ? t('common.active')
       : store?.status === 'EXPIRED'
-      ? 'Subscription Required'
-      : 'Private Mode';
+      ? t('navigation.expired')
+      : t('navigation.private');
 
   // =========================================================================
   // DYNAMIC GUIDANCE: YOUR NEXT STEP / GROW YOUR STORE (6 TRUTHFUL CHECKS)
   // =========================================================================
   const setupChecklist = [
-    { label: 'Business info', done: hasBusinessInfo },
-    { label: 'Products added', done: hasProducts },
-    { label: 'Store designed', done: isBrandingComplete },
-    { label: 'Store previewed', done: storePreviewed },
-    { label: 'Payments', done: isPaymentConfigured },
-    { label: 'Delivery setup', done: isShippingConfigured },
+    { label: t('dashboard.businessInfo'), done: hasBusinessInfo },
+    { label: t('dashboard.productsAdded'), done: hasProducts },
+    { label: t('dashboard.storeDesigned'), done: isBrandingComplete },
+    { label: t('dashboard.storePreviewed'), done: isStorePreviewed },
+    { label: t('dashboard.payments'), done: isPaymentConfigured },
+    { label: t('dashboard.deliverySetup'), done: isShippingConfigured },
   ];
   const completedSteps = setupChecklist.filter((s) => s.done).length;
   const totalSteps = setupChecklist.length; // 6
@@ -348,171 +362,216 @@ export default function CompactDashboardPage() {
     steps: Array<{ step: number; title: string; desc: string }>;
   };
 
-  if (!isSubscriptionValid || store?.status === 'EXPIRED') {
+  if (!isSubscriptionValid || activeStore?.status === 'EXPIRED') {
     nextAction = {
-      priority: 1,
+      priority: 0,
       badge: 'PLAN',
-      title: 'Choose a plan to take your store live',
-      description: 'Choose a plan and start accepting real customer orders from your own online store.',
-      stepsLabel: 'How to activate your plan in 3 quick steps:',
+      title: t('dashboard.choosePlanTitle'),
+      description: t('dashboard.choosePlanDesc'),
+      stepsLabel: t('dashboard.growthStepsHeading'),
       steps: [
         { step: 1, title: 'Pick Plan Tier', desc: 'Select Starter or Growth based on your catalog size.' },
         { step: 2, title: 'Complete Payment', desc: 'Pay securely via UPI, Card, or NetBanking.' },
         { step: 3, title: 'Launch Public Store', desc: 'Immediately enable public checkout and custom domain features.' },
       ],
       primaryCta: {
-        label: 'View Plans',
+        label: t('dashboard.viewPlans'),
         action: () => router.push('/subscription'),
       },
       secondaryCta: {
-        label: 'Preview Store',
+        label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Sparkles,
     };
-  } else if (!isLive || !isStorePublic) {
+  } else if (!hasBusinessInfo) {
+    // Step 1: Business info
     nextAction = {
-      priority: 2,
-      badge: 'PUBLISH',
-      title: 'Your store is ready to publish',
-      description: 'Review your storefront once more and make it available to customers.',
-      stepsLabel: 'How to publish your store in 3 quick steps:',
+      priority: 1,
+      badge: 'BUSINESS INFO',
+      title: 'Complete Your Business Profile',
+      description: 'Set your official store name, handle slug, and primary contact channels so customers can find you.',
+      stepsLabel: 'Step 1 of 6: Setup business details in 3 quick actions:',
       steps: [
-        { step: 1, title: 'Inspect Store Preview', desc: 'Review your catalog, layout and pricing on mobile view.' },
-        { step: 2, title: 'Confirm Contact Details', desc: 'Verify your store phone number, email and address.' },
-        { step: 3, title: 'Switch to Live Mode', desc: 'Enable public access so customers can visit and buy online.' },
+        { step: 1, title: 'Store Name & Handle', desc: 'Choose a memorable brand name and unique web address slug.' },
+        { step: 2, title: 'Contact & WhatsApp', desc: 'Provide phone and WhatsApp so shoppers can reach you directly.' },
+        { step: 3, title: 'Store Location', desc: 'Add your business address and operating city for customer trust.' },
       ],
       primaryCta: {
-        label: 'Publish Store',
-        action: () => router.push('/store-preview'),
+        label: 'Update Business Info',
+        action: () => router.push('/settings'),
       },
       secondaryCta: {
-        label: 'Preview Store',
+        label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
-      icon: Globe,
+      icon: Building2,
     };
   } else if (!hasProducts) {
+    // Step 2: Products added
     nextAction = {
-      priority: 3,
+      priority: 2,
       badge: 'CATALOG',
-      title: 'Add products to start selling',
-      description: 'Upload your items with clear photos, pricing and inventory to showcase in your store.',
-      stepsLabel: 'How to add your products in 3 quick steps:',
+      title: t('dashboard.addProductsTitle'),
+      description: t('dashboard.addProductsDesc'),
+      stepsLabel: 'Step 2 of 6: Add items to your catalog in 3 quick actions:',
       steps: [
         { step: 1, title: 'Enter Product Details', desc: 'Provide title, description, and assign the right category.' },
         { step: 2, title: 'Upload Product Photos', desc: 'Add 1 to 3 crisp photos showcasing your item from different angles.' },
         { step: 3, title: 'Set Pricing & Stock', desc: 'Define your MRP, selling discount price, and initial inventory.' },
       ],
       primaryCta: {
-        label: 'Add Product',
+        label: t('dashboard.addProduct'),
         action: () => setProductDrawerOpen(true),
       },
       secondaryCta: {
-        label: 'Preview Store',
+        label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Package,
     };
   } else if (!isBrandingComplete) {
+    // Step 3: Store designed
     nextAction = {
-      priority: 4,
+      priority: 3,
       badge: 'BRANDING',
-      title: 'Make your storefront stand out',
-      description: 'Customize your colors, banner, typography and sections to match your business.',
-      stepsLabel: 'How to complete store design in 3 quick steps:',
+      title: t('dashboard.brandingTitle'),
+      description: t('dashboard.brandingDesc'),
+      stepsLabel: 'Step 3 of 6: Style your storefront in 3 quick actions:',
       steps: [
         { step: 1, title: 'Theme Colors & Fonts', desc: 'Pick your brand palette, header style, and font pairing in Brand Studio.' },
         { step: 2, title: 'Banner & Store Logo', desc: 'Upload your storefront hero cover banner and distinct logo mark.' },
         { step: 3, title: 'Curate Showcase Sections', desc: 'Arrange featured collections, hero highlights, and store announcements.' },
       ],
       primaryCta: {
-        label: 'Customize Store',
+        label: t('dashboard.customizeStore'),
         action: () => router.push('/brand-studio'),
       },
       secondaryCta: {
-        label: 'Preview Store',
+        label: t('navigation.storePreview'),
         action: () => {
           if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
           router.push('/store-preview');
         },
       },
       icon: Palette,
     };
+  } else if (!isStorePreviewed) {
+    // Step 4: Store previewed
+    nextAction = {
+      priority: 4,
+      badge: 'PREVIEW',
+      title: 'Review Your Storefront Preview',
+      description: 'Preview how your catalogue and layout look to mobile and desktop buyers before launch.',
+      stepsLabel: 'Step 4 of 6: Inspect store experience in 3 quick actions:',
+      steps: [
+        { step: 1, title: 'Review Mobile Layout', desc: 'Inspect responsive header, product grids, and category carousels.' },
+        { step: 2, title: 'Test Cart & Navigation', desc: 'Add an item to cart and verify checkout order summary flow.' },
+        { step: 3, title: 'Confirm Storefront Ready', desc: 'Check WhatsApp direct enquiry and contact links on your storefront.' },
+      ],
+      primaryCta: {
+        label: t('navigation.storePreview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
+      },
+      secondaryCta: {
+        label: t('dashboard.customizeStore'),
+        action: () => router.push('/brand-studio'),
+      },
+      icon: Eye,
+    };
   } else if (!isPaymentConfigured) {
+    // Step 5: Payments
     nextAction = {
       priority: 5,
       badge: 'PAYMENTS',
-      title: 'Set up online payments',
-      description: 'Connect your payment account so customers can pay securely online.',
-      stepsLabel: 'How to configure payments in 3 quick steps:',
+      title: t('dashboard.paymentTitle'),
+      description: t('dashboard.paymentDesc'),
+      stepsLabel: 'Step 5 of 6: Configure payments in 3 quick actions:',
       steps: [
         { step: 1, title: 'Select Payment Modes', desc: 'Choose UPI QR, Razorpay gateway, or Cash on Delivery.' },
         { step: 2, title: 'Provide Account Details', desc: 'Enter your merchant UPI VPA or Razorpay API credentials.' },
         { step: 3, title: 'Test Checkout', desc: 'Place a test order to verify payments credit your account smoothly.' },
       ],
       primaryCta: {
-        label: 'Configure Payments',
+        label: t('dashboard.configurePayments'),
         action: () => router.push('/settings'),
       },
       secondaryCta: {
-        label: 'Preview Store',
-        action: () => router.push('/store-preview'),
+        label: t('navigation.storePreview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
       },
       icon: CreditCard,
     };
   } else if (!isShippingConfigured) {
+    // Step 6: Delivery setup
     nextAction = {
       priority: 6,
       badge: 'DELIVERY',
-      title: 'Prepare your delivery setup',
-      description: 'Configure delivery and pickup preferences before receiving customer orders.',
-      stepsLabel: 'How to configure delivery in 3 quick steps:',
+      title: t('dashboard.deliveryTitle'),
+      description: t('dashboard.deliveryDesc'),
+      stepsLabel: 'Step 6 of 6: Setup shipping & delivery in 3 quick actions:',
       steps: [
         { step: 1, title: 'Set Serviceable Areas', desc: 'Define cities, states or serviceable pincodes.' },
         { step: 2, title: 'Define Shipping Rates', desc: 'Set standard flat shipping fee and free delivery cart threshold.' },
         { step: 3, title: 'Set Dispatch Timelines', desc: 'Specify estimated handling and delivery turnaround days.' },
       ],
       primaryCta: {
-        label: 'Configure Delivery',
+        label: t('dashboard.configureDelivery'),
         action: () => router.push('/settings'),
       },
       secondaryCta: {
-        label: 'Preview Store',
-        action: () => router.push('/store-preview'),
+        label: t('navigation.storePreview'),
+        action: () => {
+          if (typeof window !== 'undefined') localStorage.setItem('simply_store_previewed', 'true');
+          setStorePreviewed(true);
+          router.push('/store-preview');
+        },
       },
       icon: Truck,
     };
   } else {
+    // All 6 steps complete!
     nextAction = {
       priority: 7,
       badge: 'GROW',
-      title: 'Your store is ready for customers',
-      description: 'Share your store link with customers and start taking orders.',
-      stepsLabel: 'How to grow your store sales in 3 quick steps:',
+      title: t('dashboard.storeReadyTitle'),
+      description: t('dashboard.storeReadySubtitle'),
+      stepsLabel: t('dashboard.growthStepsHeading'),
       steps: [
-        { step: 1, title: 'Share Direct Store Link', desc: 'Broadcast your store URL on WhatsApp, Instagram bio, and Google.' },
-        { step: 2, title: 'Launch a Welcome Coupon', desc: 'Create a first-order discount code like WELCOME10 to boost conversions.' },
-        { step: 3, title: 'Track & Fulfill Orders', desc: 'Manage incoming orders promptly to delight buyers and gain reviews.' },
+        { step: 1, title: t('dashboard.growthStep1Title'), desc: t('dashboard.growthStep1Desc') },
+        { step: 2, title: t('dashboard.growthStep2Title'), desc: t('dashboard.growthStep2Desc') },
+        { step: 3, title: t('dashboard.growthStep3Title'), desc: t('dashboard.growthStep3Desc') },
       ],
       primaryCta: {
-        label: 'Share Store',
+        label: t('dashboard.shareStore'),
         action: handleShareStore,
       },
       secondaryCta: {
-        label: 'View Store',
+        label: t('dashboard.viewStore'),
         action: () => {
-          if (store?.slug) {
-            window.open(`${baseStorefrontUrl}/store/${store.slug}`, '_blank');
+          if (activeStore?.slug) {
+            window.open(`${baseStorefrontUrl}/store/${activeStore.slug}`, '_blank');
           }
         },
       },
@@ -520,14 +579,15 @@ export default function CompactDashboardPage() {
     };
   }
 
+
   if (authLoading || (loading && !dashboardData)) {
     return (
-      <Layout title="Dashboard">
+      <Layout title={t('navigation.dashboard')}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Loading Operations Snapshot...
+              {t('common.loading')}
             </p>
           </div>
         </div>
@@ -536,9 +596,9 @@ export default function CompactDashboardPage() {
   }
 
   return (
-    <Layout title="Dashboard">
+    <Layout title={t('navigation.dashboard')}>
       <Head>
-        <title>Dashboard | Simply Merchant Portal</title>
+        <title>{t('navigation.dashboard')} | Simply Merchant Portal</title>
       </Head>
 
       <div className="space-y-2.5 sm:space-y-3">
@@ -553,7 +613,7 @@ export default function CompactDashboardPage() {
             <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] sm:text-[11px] font-bold text-[var(--merchant-primary)] uppercase tracking-wider">
-                  Dashboard
+                  {t('navigation.dashboard')}
                 </span>
                 <span className="text-[var(--merchant-text-muted)] text-xs">•</span>
                 <span className="text-[11px] sm:text-xs font-medium text-[var(--merchant-text-secondary)]">
@@ -565,12 +625,12 @@ export default function CompactDashboardPage() {
                 {isRefreshing && (
                   <span className="inline-flex items-center text-[10px] text-[var(--merchant-text-muted)] gap-1 ml-2">
                     <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                    <span>Updating...</span>
+                    <span>{t('common.updating')}</span>
                   </span>
                 )}
               </div>
               <h1 className="text-base sm:text-lg font-bold tracking-tight text-[var(--merchant-text)] truncate">
-                Welcome back, {store?.name || 'Merchant'}
+                {t('dashboard.welcomeBack')}, {store?.name || 'Merchant'}
               </h1>
             </div>
 
@@ -578,7 +638,7 @@ export default function CompactDashboardPage() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Desktop Period Selector: Compact segmented chips */}
               <div className="hidden sm:inline-flex items-center bg-[var(--merchant-surface-muted)] p-0.5 rounded-xl border border-[var(--merchant-border)]">
-                {PERIOD_OPTIONS.map((opt) => (
+                {periodOptions.map((opt) => (
                   <button
                     key={opt.key}
                     type="button"
@@ -601,7 +661,7 @@ export default function CompactDashboardPage() {
                   onChange={(e) => handlePeriodChange(e.target.value as PeriodKey)}
                   className="appearance-none bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] text-[var(--merchant-text)] text-xs font-semibold rounded-xl px-2.5 py-1.5 pr-7 shadow-2xs focus:outline-hidden"
                 >
-                  {PERIOD_OPTIONS.map((opt) => (
+                  {periodOptions.map((opt) => (
                     <option key={opt.key} value={opt.key}>
                       {opt.label}
                     </option>
@@ -618,7 +678,7 @@ export default function CompactDashboardPage() {
                 className="inline-flex items-center justify-center px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white shadow-xs transition-colors shrink-0"
               >
                 <Eye className="w-3.5 h-3.5 mr-1.5" />
-                <span>View Storefront</span>
+                <span>{t('dashboard.viewStorefront')}</span>
               </a>
             </div>
           </div>
@@ -626,14 +686,14 @@ export default function CompactDashboardPage() {
           {/* Custom Date Range Form if selected */}
           {showCustomPicker && (
             <div className="mt-2.5 pt-2.5 border-t border-[var(--merchant-border)] flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-semibold text-[var(--merchant-text)]">Custom Date Range:</span>
+              <span className="font-semibold text-[var(--merchant-text)]">{t('dashboard.customDateRange')}:</span>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
                 className="px-2.5 py-1 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-xs"
               />
-              <span className="text-[var(--merchant-text-muted)]">to</span>
+              <span className="text-[var(--merchant-text-muted)]">{t('dashboard.to')}</span>
               <input
                 type="date"
                 value={customEnd}
@@ -645,20 +705,14 @@ export default function CompactDashboardPage() {
                 onClick={handleApplyCustomPeriod}
                 className="px-3 py-1 bg-[var(--merchant-primary)] text-white text-xs font-semibold rounded-lg hover:bg-[var(--merchant-primary-hover)]"
               >
-                Apply
+                {t('common.apply')}
               </button>
             </div>
           )}
         </section>
 
         {/* =========================================================================
-        {/* =========================================================================
             PART 4: NEEDS IMMEDIATE ATTENTION — DYNAMIC & AUTO-DISMISSING
-            - Hidden when 0 issues (no Needs Immediate Attention (0)!)
-            - Shows highest-priority issue prominently with matching CTA
-            - Mobile: 2-row layout (Row 1: header + count, Row 2: issue + CTA)
-            - Desktop: clean horizontal strip
-            - Expandable list when multiple issues exist
         ========================================================================= */}
         {issues.length > 0 && (
           <div className="bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 rounded-xl px-3.5 py-2 text-xs text-amber-900 dark:text-amber-200 shadow-2xs transition-all">
@@ -667,7 +721,7 @@ export default function CompactDashboardPage() {
               <div className="flex items-center gap-2 min-w-0">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span className="font-bold text-amber-950 dark:text-amber-100 shrink-0">
-                  Needs Immediate Attention ({issues.length})
+                  {t('dashboard.needsImmediateAttention')} ({issues.length})
                 </span>
                 <span className="text-amber-400">•</span>
                 <span className="truncate text-amber-900 dark:text-amber-300 font-medium">
@@ -679,7 +733,7 @@ export default function CompactDashboardPage() {
                     onClick={() => setShowAllIssues(!showAllIssues)}
                     className="text-[10px] bg-amber-200/60 dark:bg-amber-900/60 hover:bg-amber-300/60 dark:hover:bg-amber-800/60 px-1.5 py-0.5 rounded text-amber-900 dark:text-amber-200 font-semibold shrink-0 cursor-pointer transition-colors"
                   >
-                    {showAllIssues ? 'Hide others' : `+${issues.length - 1} more`}
+                    {showAllIssues ? t('dashboard.hideOthers') : t('dashboard.moreCount', { count: issues.length - 1 })}
                   </button>
                 )}
               </div>
@@ -703,7 +757,7 @@ export default function CompactDashboardPage() {
                 <div className="flex items-center gap-1.5 min-w-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span className="font-bold text-amber-950 dark:text-amber-100 text-[11px]">
-                    Needs Immediate Attention ({issues.length})
+                    {t('dashboard.needsImmediateAttention')} ({issues.length})
                   </span>
                 </div>
                 {issues.length > 1 && (
@@ -712,7 +766,7 @@ export default function CompactDashboardPage() {
                     onClick={() => setShowAllIssues(!showAllIssues)}
                     className="text-[10px] bg-amber-200/60 dark:bg-amber-900/60 px-1.5 py-0.5 rounded text-amber-900 dark:text-amber-200 font-semibold cursor-pointer"
                   >
-                    {showAllIssues ? 'Close' : `+${issues.length - 1} more`}
+                    {showAllIssues ? t('common.close') : t('dashboard.moreCount', { count: issues.length - 1 })}
                   </button>
                 )}
               </div>
@@ -760,19 +814,15 @@ export default function CompactDashboardPage() {
 
         {/* =========================================================================
             PART 5 & 6: DASHBOARD METRICS — EXACTLY EIGHT CARDS
-            Mobile: 2 cards per row (grid-cols-2)
-            Desktop: 4 cards per row (lg:grid-cols-4)
-            Row 1: Total Sales, Orders, Enquiries / RFQs, Customers
-            Row 2: Pending Orders, Low Stock, Active Products, Avg Order Value
         ========================================================================= */}
         <section aria-label="Business and Operational Metrics" className="space-y-2 sm:space-y-2.5">
           {/* Row 1 — Business Performance with Real Period Sparklines */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 1. Total Sales */}
             <DashboardMetricCard
-              label="Total Sales"
+              label={t('dashboard.revenue')}
               value={formatPaise(metrics.revenuePaise)}
-              subtitle="Paid eligible orders"
+              subtitle={t('dashboard.paidEligibleOrders')}
               icon={<TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
               iconBgClass="bg-[var(--merchant-primary-soft)]"
               trend={comparison.revenuePercent}
@@ -782,9 +832,9 @@ export default function CompactDashboardPage() {
 
             {/* 2. Orders */}
             <DashboardMetricCard
-              label="Orders"
+              label={t('dashboard.orders')}
               value={metrics.orders}
-              subtitle="Total placed orders"
+              subtitle={t('dashboard.totalPlacedOrders')}
               icon={<ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
               iconBgClass="bg-[var(--merchant-primary-soft)]"
               trend={comparison.ordersPercent}
@@ -794,9 +844,9 @@ export default function CompactDashboardPage() {
 
             {/* 3. Enquiries / RFQs */}
             <DashboardMetricCard
-              label="Enquiries / RFQs"
+              label={t('dashboard.enquiries')}
               value={metrics.enquiries}
-              subtitle="B2B quotation requests"
+              subtitle={t('dashboard.b2bQuotationRequests')}
               icon={<MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-accent)]" />}
               iconBgClass="bg-[var(--merchant-accent-soft)]"
               trend={comparison.enquiriesPercent}
@@ -806,9 +856,9 @@ export default function CompactDashboardPage() {
 
             {/* 4. Customers */}
             <DashboardMetricCard
-              label="Customers"
+              label={t('dashboard.customers')}
               value={metrics.customers}
-              subtitle={`${returningCount} returning buyers`}
+              subtitle={`${returningCount} ${t('dashboard.returningBuyers')}`}
               icon={<Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />}
               iconBgClass="bg-emerald-500/10"
               trend={comparison.customersPercent}
@@ -821,12 +871,12 @@ export default function CompactDashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 5. Pending Orders */}
             <DashboardMetricCard
-              label="Pending Orders"
+              label={t('dashboard.pendingOrders')}
               value={metrics.pendingOrders}
-              subtitle="Needs fulfillment"
+              subtitle={t('dashboard.needsFulfillment')}
               icon={<Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />}
               iconBgClass="bg-amber-500/10"
-              actionText="Manage →"
+              actionText={`${t('common.manage')} →`}
               onAction={() => router.push('/orders')}
               statusMeterType="pending"
               statusMeterValue={metrics.pendingOrders}
@@ -834,12 +884,12 @@ export default function CompactDashboardPage() {
 
             {/* 6. Low Stock (≤ 5) */}
             <DashboardMetricCard
-              label="Low Stock (≤ 5)"
+              label={t('dashboard.lowStock')}
               value={metrics.lowStock}
-              subtitle="Variants to restock"
+              subtitle={t('dashboard.variantsToRestock')}
               icon={<AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500" />}
               iconBgClass="bg-rose-500/10"
-              actionText="Restock →"
+              actionText={`${t('dashboard.restock')} →`}
               onAction={() => router.push('/products')}
               actionColorClass="text-rose-500 hover:text-rose-600"
               statusMeterType="stock"
@@ -848,12 +898,12 @@ export default function CompactDashboardPage() {
 
             {/* 7. Active Products */}
             <DashboardMetricCard
-              label="Active Products"
+              label={t('dashboard.activeProducts')}
               value={metrics.activeProducts}
-              subtitle="Live in catalog"
+              subtitle={t('dashboard.liveInCatalog')}
               icon={<Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
               iconBgClass="bg-[var(--merchant-primary-soft)]"
-              actionText="Catalog →"
+              actionText={`${t('dashboard.catalog')} →`}
               onAction={() => router.push('/products')}
               statusMeterType="catalog"
               statusMeterValue={metrics.activeProducts}
@@ -861,9 +911,9 @@ export default function CompactDashboardPage() {
 
             {/* 8. Avg Order Value */}
             <DashboardMetricCard
-              label="Avg Order Value"
+              label={t('dashboard.averageOrderValue')}
               value={formatPaise(metrics.averageOrderValuePaise)}
-              subtitle="Per paid order"
+              subtitle={t('dashboard.perPaidOrder')}
               icon={<TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--merchant-primary)]" />}
               iconBgClass="bg-[var(--merchant-primary-soft)]"
               sparklineData={aovSeries}
@@ -874,19 +924,18 @@ export default function CompactDashboardPage() {
 
         {/* =========================================================================
             PART 9: QUICK ACTIONS — EXACTLY FOUR COMPACT INTERACTIVE CARDS
-            Add Product, Manage Orders, Customize Store, Share Store
         ========================================================================= */}
         <section aria-label="Quick Actions" className="bg-[var(--merchant-surface)] rounded-xl sm:rounded-2xl p-3 sm:p-3.5 md:py-3 md:px-4.5 border border-[var(--merchant-border)] shadow-2xs">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-[11px] sm:text-xs font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider">
-              Quick Actions
+              {t('dashboard.quickActions')}
             </h2>
             <button
               type="button"
               onClick={() => router.push('/analytics')}
               className="text-xs font-bold text-[var(--merchant-primary)] hover:text-[var(--merchant-primary-hover)] flex items-center gap-1 group"
             >
-              <span>View Business Analytics</span>
+              <span>{t('dashboard.viewBusinessAnalytics')}</span>
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
@@ -906,9 +955,9 @@ export default function CompactDashboardPage() {
               </div>
               <div className="mt-1.5">
                 <div className="text-xs sm:text-sm font-bold text-[var(--merchant-text)] group-hover:text-[var(--merchant-primary)] transition-colors truncate">
-                  Add Product
+                  {t('dashboard.addProduct')}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">1–3 Images · Variants</div>
+                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">{t('dashboard.quickActionAddProductSubtitle')}</div>
               </div>
             </button>
 
@@ -926,9 +975,9 @@ export default function CompactDashboardPage() {
               </div>
               <div className="mt-1.5">
                 <div className="text-xs sm:text-sm font-bold text-[var(--merchant-text)] group-hover:text-[var(--merchant-primary)] transition-colors truncate">
-                  Manage Orders
+                  {t('dashboard.manageOrders')}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">Fulfillment & Status</div>
+                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">{t('dashboard.quickActionManageOrdersSubtitle')}</div>
               </div>
             </button>
 
@@ -946,9 +995,9 @@ export default function CompactDashboardPage() {
               </div>
               <div className="mt-1.5">
                 <div className="text-xs sm:text-sm font-bold text-[var(--merchant-text)] group-hover:text-[var(--merchant-primary)] transition-colors truncate">
-                  Customize Store
+                  {t('dashboard.customizeStore')}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">Themes & Design</div>
+                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">{t('dashboard.quickActionCustomizeStoreSubtitle')}</div>
               </div>
             </button>
 
@@ -966,27 +1015,16 @@ export default function CompactDashboardPage() {
               </div>
               <div className="mt-1.5">
                 <div className="text-xs sm:text-sm font-bold text-[var(--merchant-text)] group-hover:text-[var(--merchant-primary)] transition-colors truncate">
-                  {copiedLink ? 'Copied to Clipboard!' : 'Share Store'}
+                  {copiedLink ? t('dashboard.copiedToClipboard') : t('dashboard.shareStore')}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">WhatsApp & Direct</div>
+                <div className="text-[10px] sm:text-[11px] text-[var(--merchant-text-muted)] font-medium mt-0.5 truncate">{t('dashboard.quickActionShareStoreSubtitle')}</div>
               </div>
             </button>
           </div>
         </section>
 
         {/* =========================================================================
-            PART 10: YOUR NEXT STEP / GROW YOUR STORE — STREAMLINED THREE-ZONE COMPOSITION
-            Zone 1: Left (~45%) Eyebrow, Title, Description, Checklist
-            Zone 2: Center (~20%) StoreLaunchIllustration (SVG Commerce)
-            Zone 3: Right (~35%) Progress (3/6), Progress Bar, CTAs
-        ============================        {/* =========================================================================
             PART 10: YOUR NEXT STEP / GROW YOUR STORE — FULL-WIDTH DYNAMIC COMPOSITION
-            - Row 1: 
-                Zone 1: Eyebrow badge, Title, Description
-                Zone 2: StoreLaunchIllustration (SVG Commerce)
-                Zone 3: Setup Progress (2 of 6 complete) + Action Buttons
-            - Row 2: Setup Checklist strictly in a SINGLE LINE across full width
-            - Row 3: Dynamic 1-2-3 Action Plan explaining steps in brief
         ========================================================================= */}
         <section
           aria-label="Your Next Step"
@@ -1009,7 +1047,7 @@ export default function CompactDashboardPage() {
                     <nextAction.icon className="w-3.5 h-3.5" />
                   </span>
                   <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--merchant-accent)]">
-                    Your Next Step • {nextAction.badge}
+                    {t('dashboard.yourNextStep')} • {nextAction.badge}
                   </span>
                 </div>
 
@@ -1032,9 +1070,9 @@ export default function CompactDashboardPage() {
                 {/* Progress counter & bar */}
                 <div className="space-y-1.5 bg-black/20 dark:bg-black/30 p-2.5 rounded-xl border border-white/10">
                   <div className="flex items-center justify-between text-xs text-white font-medium">
-                    <span className="text-white/80">Store setup</span>
+                    <span className="text-white/80">{t('dashboard.storeSetup')}</span>
                     <span className="font-bold text-white tracking-wide">
-                      {completedSteps} of {totalSteps} complete
+                      {t('dashboard.completeOf', { completed: completedSteps, total: totalSteps })}
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden">
@@ -1101,7 +1139,7 @@ export default function CompactDashboardPage() {
                 <span className="font-bold text-[var(--merchant-accent)] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                   <span>{nextAction.stepsLabel}</span>
                 </span>
-                <span className="text-white/50 text-[10px] hidden sm:inline">Actionable roadmap 1 → 2 → 3</span>
+                <span className="text-white/50 text-[10px] hidden sm:inline">{t('dashboard.actionableRoadmap')}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-2.5 w-full">

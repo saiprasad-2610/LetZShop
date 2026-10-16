@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
+import { useSellerI18n, SellerLanguageSelect } from '@simply/i18n';
 import {
   LayoutDashboard,
   Eye,
@@ -30,6 +31,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
   const { user, store, logout } = useAuth();
+  const { t } = useSellerI18n();
   const router = useRouter();
 
   // Mobile off-canvas drawer state
@@ -41,15 +43,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
   // Canonical Primary Navigation Items
   const navItems = [
-    { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { label: 'My Store Preview', href: '/store-preview', icon: Eye },
-    { label: 'Inventory', href: '/products', icon: Package },
-    { label: 'Orders', href: '/orders', icon: ShoppingBag },
-    { label: 'Reviews', href: '/reviews', icon: Star },
-    { label: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { label: 'Reports', href: '/reports', icon: FileSpreadsheet },
-    { label: 'Themes', href: '/brand-studio', icon: Palette },
-    { label: 'Settings', href: '/settings', icon: SettingsIcon },
+    { label: t('navigation.dashboard'), href: '/', icon: LayoutDashboard },
+    { label: t('navigation.storePreview'), href: '/store-preview', icon: Eye },
+    { label: t('navigation.inventory'), href: '/products', icon: Package },
+    { label: t('navigation.orders'), href: '/orders', icon: ShoppingBag },
+    { label: t('navigation.reviews'), href: '/reviews', icon: Star },
+    { label: t('navigation.analytics'), href: '/analytics', icon: BarChart3 },
+    { label: t('navigation.reports'), href: '/reports', icon: FileSpreadsheet },
+    { label: t('navigation.themes'), href: '/brand-studio', icon: Palette },
+    { label: t('navigation.settings'), href: '/settings', icon: SettingsIcon },
   ];
 
   // Helper for active route including nested routes
@@ -109,25 +111,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
             <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-            {compact ? 'LIVE' : 'Store is Live'}
+            {compact ? 'LIVE' : t('navigation.live')}
           </span>
         );
       case 'EXPIRED':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-            {compact ? 'EXPIRED' : 'Subscription Expired'}
+            {compact ? 'EXPIRED' : t('navigation.expired')}
           </span>
         );
       case 'SUSPENDED':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30">
-            {compact ? 'SUSPENDED' : 'Store Suspended'}
+            {compact ? 'SUSPENDED' : t('navigation.suspended')}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
-            {compact ? 'PRIVATE' : 'Private Mode'}
+            {compact ? 'PRIVATE' : t('navigation.private')}
           </span>
         );
     }
@@ -141,7 +143,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     : null;
 
   return (
-    <div className="min-h-screen bg-merchant-bg text-merchant-text flex flex-col md:flex-row">
+    <div className="min-h-screen bg-merchant-bg text-merchant-text flex flex-col md:flex-row w-full max-w-full overflow-x-clip">
       {/* =========================================================================
           1. DESKTOP & TABLET LEFT SIDEBAR (Sticky/Fixed)
           - Tablet (768px-1023px): Collapsible icon rail (68px or 240px)
@@ -157,11 +159,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
         <div className="p-4 border-b border-merchant-sidebar-border flex items-center justify-between min-h-[64px]">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <span className="w-8 h-8 rounded-lg bg-merchant-primary text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
-              S
+              L
             </span>
             <div className={`overflow-hidden transition-opacity duration-200 ${tabletCollapsed ? 'md:hidden lg:block' : 'block'}`}>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">Simply</span>
+                <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">LetzShop</span>
                 <span className="text-merchant-sidebar-text-muted opacity-60">•</span>
                 <span className="text-[10px] text-merchant-sidebar-text truncate font-semibold">{store?.name || 'Store'}</span>
               </div>
@@ -217,26 +219,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           })}
         </nav>
 
-        {/* Bottom Area: Merchant Profile, Theme Switcher & Logout */}
-        <div className="p-3 border-t border-merchant-sidebar-border space-y-2">
-          {/* Theme Toggle Component */}
-          <ThemeToggle
-            collapsed={tabletCollapsed}
-            showLabel={!tabletCollapsed}
-          />
+        {/* Bottom Area: Merchant Profile, Language Switcher, Theme Switcher & Logout */}
+        <div className="p-3 border-t border-merchant-sidebar-border space-y-2.5">
+          {/* Language Switcher */}
+          <div className={`merchant-navigation-controls space-y-2.5 ${tabletCollapsed ? 'hidden lg:block' : ''}`}>
+            <SellerLanguageSelect />
+            <ThemeToggle />
+          </div>
 
           {/* Subscription link */}
           <button
             type="button"
             onClick={() => router.push('/subscription')}
-            title="Subscription"
+            title={t('navigation.plan')}
             className={`w-full flex items-center rounded-xl text-xs font-medium transition-colors ${
               tabletCollapsed ? 'md:justify-center md:px-0 lg:justify-between lg:px-3' : 'justify-between px-3'
             } py-2 text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20`}
           >
             <span className="flex items-center">
               <CreditCard className={`w-3.5 h-3.5 ${tabletCollapsed ? 'md:mr-0 lg:mr-2' : 'mr-2'}`} />
-              <span className={`truncate ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>Plan</span>
+              <span className={`truncate ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>{t('navigation.plan')}</span>
             </span>
             <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-200 ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>
               {store?.status === 'LIVE' ? 'ACTIVE' : 'UPGRADE'}
@@ -247,14 +249,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           <button
             type="button"
             onClick={logout}
-            title="Logout"
+            title={t('navigation.logout')}
             className={`w-full flex items-center rounded-xl text-xs font-medium text-merchant-sidebar-text-muted hover:text-rose-500 hover:bg-merchant-sidebar-hover transition-colors ${
               tabletCollapsed ? 'md:justify-center md:px-0 lg:justify-start lg:px-3' : 'justify-start px-3'
             } py-2`}
           >
             <LogOut className={`w-3.5 h-3.5 ${tabletCollapsed ? 'md:mr-0 lg:mr-2' : 'mr-2'}`} />
             <span className={`truncate ${tabletCollapsed ? 'md:hidden lg:inline' : 'inline'}`}>
-              Logout
+              {t('navigation.logout')}
             </span>
           </button>
         </div>
@@ -266,28 +268,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Hamburger opens left slide-in drawer
       ========================================================================= */}
       {/* Top App Bar for Mobile */}
-      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-4 py-3 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="md:hidden sticky top-0 z-30 bg-merchant-sidebar text-merchant-sidebar-text px-3 py-2 border-b border-merchant-sidebar-border flex items-center justify-between shadow-xs w-full max-w-full gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
             aria-label="Open Navigation Drawer"
-            className="p-1.5 -ml-1 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text hover:bg-merchant-sidebar-hover rounded-lg transition-colors"
+            className="p-1.5 -ml-1 text-merchant-sidebar-text-muted hover:text-merchant-sidebar-text hover:bg-merchant-sidebar-hover rounded-lg transition-colors shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs">
-              S
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
+              L
             </span>
-            <span className="font-bold text-sm tracking-tight text-merchant-sidebar-text">{title || 'Dashboard'}</span>
+            <span className="font-bold text-xs sm:text-sm tracking-tight text-merchant-sidebar-text truncate max-w-[120px] sm:max-w-[200px]">
+              {title || 'Dashboard'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Quick theme toggle on mobile app bar */}
-          <ThemeToggle collapsed className="w-8 h-8 !p-1" />
-          {getStatusBadge(true)}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Quick language switcher on mobile top bar */}
+          <SellerLanguageSelect showIcon={false} compact className="shrink-0" />
+          {/* Quick theme toggle on mobile app bar beside language */}
+          <ThemeToggle collapsed className="w-8 h-8 !p-1.5 shrink-0" />
         </div>
       </div>
 
@@ -315,9 +320,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-6 h-6 rounded-md bg-merchant-primary text-white flex items-center justify-center font-bold text-xs">
-                S
+                L
               </span>
-              <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">Simply</span>
+              <span className="text-[10px] font-bold text-merchant-sidebar-text-muted uppercase tracking-wider">LetzShop</span>
             </div>
             <h2 className="text-sm font-bold text-merchant-sidebar-text truncate">{store?.name || 'Merchant'}</h2>
             <div className="mt-1">{getStatusBadge(false)}</div>
@@ -360,6 +365,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
         {/* Drawer Bottom Actions */}
         <div className="p-4 border-t border-merchant-sidebar-border space-y-2.5">
+          <SellerLanguageSelect fullWidth />
           <ThemeToggle showLabel />
 
           {storefrontUrl && (
@@ -370,7 +376,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
               className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-merchant-primary-soft text-merchant-primary border border-merchant-primary/30 hover:opacity-90 transition-opacity min-h-[44px]"
             >
               <ExternalLink className="w-4 h-4" />
-              <span>View Storefront</span>
+              <span>{t('navigation.viewStorefront')}</span>
             </a>
           )}
 
@@ -380,7 +386,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-merchant-sidebar-text-muted hover:text-rose-500 hover:bg-merchant-sidebar-hover transition-colors min-h-[44px]"
           >
             <LogOut className="w-4 h-4" />
-            <span>Logout ({user?.phone || 'Seller'})</span>
+            <span>{t('navigation.logout')} ({user?.phone || 'Seller'})</span>
           </button>
         </div>
       </aside>
@@ -390,12 +396,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
           - Offset margin on desktop/tablet to accommodate fixed left sidebar
       ========================================================================= */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${
+        className={`flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-clip transition-all duration-200 ${
           tabletCollapsed ? 'md:ml-[68px] lg:ml-60' : 'md:ml-60'
         }`}
       >
+        {/* The collapsed tablet rail cannot contain a readable language select. */}
+        {tabletCollapsed && (
+          <div className="hidden md:flex lg:hidden items-center justify-end gap-2 px-4 pt-3 merchant-navigation-controls">
+            <SellerLanguageSelect />
+            <ThemeToggle collapsed />
+          </div>
+        )}
         {/* Main Content Viewport */}
-        <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="p-2.5 sm:p-4 lg:py-3.5 lg:px-6 flex-1 max-w-7xl w-full mx-auto box-border">{children}</main>
       </div>
     </div>
   );

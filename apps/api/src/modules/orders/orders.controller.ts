@@ -31,6 +31,20 @@ export class OrdersController {
   }
 
   @Public()
+  @Post('coupon/validate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Server-side asynchronous coupon validation' })
+  async validateCoupon(
+    @Body() body: { storeId: string; code: string; subtotalPaise: number }
+  ) {
+    return this.ordersService.validateCoupon(
+      body.storeId,
+      body.code,
+      Number(body.subtotalPaise) || 0
+    );
+  }
+
+  @Public()
   @Get('track/:orderNumber')
   @ApiOperation({ summary: 'Secure public guest order tracking with cryptographic tracking token' })
   async trackOrder(

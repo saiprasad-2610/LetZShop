@@ -31,6 +31,7 @@ import { ShiprocketShippingProvider } from '../shipping/providers/shiprocket-shi
 
 import { DashboardService } from './dashboard.service';
 import { ReportsService } from './reports.service';
+import { isActiveLocale, sanitizeLocale, ACTIVE_LOCALES } from '@simply/i18n';
 
 @ApiTags('Seller Dashboard & Merchant APIs')
 @ApiBearerAuth()
@@ -66,6 +67,31 @@ export class SellerController {
       },
     });
     return { user: profile };
+  }
+
+  @Patch('preferences')
+  @ApiOperation({ summary: 'Update merchant user preferences (e.g. preferredLocale)' })
+  async updatePreferences(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { preferredLocale?: string }
+  ) {
+    if (body.preferredLocale && !isActiveLocale(body.preferredLocale)) {
+      throw new BadRequestException(`Invalid locale specified. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: user.userId },
+      data: {
+        ...(body.preferredLocale ? { preferredLocale: sanitizeLocale(body.preferredLocale) } : {}),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        email: true,
+        preferredLocale: true,
+      },
+    });
+    return { success: true, user: updated, preferredLocale: updated.preferredLocale };
   }
 
   @Get('business')
@@ -121,8 +147,25 @@ export class SellerController {
       mapsUrl?: string;
       socialLinks?: any;
       fulfillmentMode?: any;
+      storefrontDefaultLocale?: string;
+      enabledStorefrontLocales?: string[];
     }
   ) {
+    if (body.storefrontDefaultLocale && !isActiveLocale(body.storefrontDefaultLocale)) {
+      throw new BadRequestException(`Invalid storefront default locale. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
+    }
+
+    if (body.enabledStorefrontLocales) {
+      if (!Array.isArray(body.enabledStorefrontLocales) || body.enabledStorefrontLocales.length === 0) {
+        throw new BadRequestException('At least one storefront language must be enabled.');
+      }
+      for (const loc of body.enabledStorefrontLocales) {
+        if (!isActiveLocale(loc)) {
+          throw new BadRequestException(`Invalid locale '${loc}' in enabledStorefrontLocales list. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
+        }
+      }
+    }
+
     return this.prisma.store.update({
       where: { id: tenant.storeId },
       data: {
@@ -136,6 +179,8 @@ export class SellerController {
         ...(body.mapsUrl !== undefined ? { mapsUrl: body.mapsUrl } : {}),
         ...(body.socialLinks !== undefined ? { socialLinks: body.socialLinks } : {}),
         ...(body.fulfillmentMode ? { fulfillmentMode: body.fulfillmentMode } : {}),
+        ...(body.storefrontDefaultLocale ? { storefrontDefaultLocale: sanitizeLocale(body.storefrontDefaultLocale) } : {}),
+        ...(body.enabledStorefrontLocales ? { enabledStorefrontLocales: body.enabledStorefrontLocales.map((l) => sanitizeLocale(l)) } : {}),
       },
     });
   }

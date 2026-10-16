@@ -30,8 +30,16 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { SearchableLocationSelect } from '../../../components/ui/SearchableLocationSelect';
-import { formatPaise, INDIAN_STATES_AND_UTS, getCitiesForIndianState } from '@simply/ui';
+import { 
+  formatPaise, 
+  INDIAN_STATES_AND_UTS, 
+  getCitiesForIndianState,
+  resolveVariantDisplayMedia,
+  PAYMENT_GATEWAY_MIN_AMOUNT_PAISE,
+  PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES
+} from '@simply/ui';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { useStorefrontI18n } from '@simply/i18n';
 
 // Quick PIN code mapping for common Indian states & cities to assist buyers
 const PINCODE_MAP: Record<string, { city: string; state: string }> = {
@@ -49,11 +57,40 @@ const PINCODE_MAP: Record<string, { city: string; state: string }> = {
   '462001': { city: 'Bhopal', state: 'Madhya Pradesh' },
 };
 
+function formatItemVariantLabel(item: any): string | null {
+  if (item.variantTitle && item.variantTitle !== 'Default') {
+    return item.variantTitle;
+  }
+  const variant = item.variant;
+  if (!variant) return null;
+  if (Array.isArray(variant.optionValues) && variant.optionValues.length > 0) {
+    const sorted = [...variant.optionValues].sort((a: any, b: any) => {
+      const sortA = a.optionValue?.option?.sortOrder ?? a.option?.sortOrder ?? 0;
+      const sortB = b.optionValue?.option?.sortOrder ?? b.option?.sortOrder ?? 0;
+      if (sortA !== sortB) return sortA - sortB;
+      const nameA = a.optionValue?.option?.name || a.option?.name || '';
+      const nameB = b.optionValue?.option?.name || b.option?.name || '';
+      return nameA.localeCompare(nameB);
+    });
+    const values = sorted
+      .map((ov: any) => ov.optionValue?.value || ov.value)
+      .filter(Boolean);
+    if (values.length > 0) {
+      return values.join(' · ');
+    }
+  }
+  if (variant.title && variant.title !== 'Default' && variant.title !== 'Standard') {
+    return variant.title;
+  }
+  return null;
+}
+
 export default function StoreCheckoutPage() {
   const router = useRouter();
   const { slug, preview } = router.query;
   const isEmbedded = router.query.embedded === 'true';
   const toast = useToast();
+  const { locale, t, initStoreLocales } = useStorefrontI18n();
 
   const { 
     cart, 
@@ -65,6 +102,7 @@ export default function StoreCheckoutPage() {
     clearCart,
     appliedCoupon,
     couponError,
+    isCheckingCoupon,
     applyCoupon,
     removeCoupon,
     discountPaise,
@@ -101,6 +139,11 @@ export default function StoreCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'RAZORPAY'>('COD');
   const [couponInput, setCouponInput] = useState('');
 
+  const taxableAmountPaise = Math.max(0, subtotalPaise - discountPaise);
+  const taxPaise = Math.round(taxableAmountPaise * 0.05);
+  const effectiveShippingPaise = fulfillmentType === 'PICKUP' ? 0 : shippingPaise;
+  const calculatedGrandTotalPaise = Math.max(0, taxableAmountPaise + effectiveShippingPaise + taxPaise);
+
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (preview === 'true' || storeData?.isPreview) params.set('preview', 'true');
@@ -119,6 +162,9 @@ export default function StoreCheckoutPage() {
     try {
       const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
+      if (res.store && initStoreLocales) {
+        initStoreLocales(res.store.storefrontDefaultLocale, res.store.enabledStorefrontLocales);
+      }
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -164,12 +210,16 @@ export default function StoreCheckoutPage() {
     }
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponInput.trim()) return;
-    const ok = applyCoupon(couponInput);
+  const handleApplyCoupon = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const cleanCode = couponInput.trim();
+    if (!cleanCode) return;
+    const ok = await applyCoupon(cleanCode);
     if (ok) {
-      toast.success('Coupon Applied!', `You saved with ${couponInput.toUpperCase()}`);
+      toast.success('Coupon Applied!', `You saved with ${cleanCode.toUpperCase()}`);
       setCouponInput('');
     } else {
       toast.error('Invalid Coupon', couponError || 'This promo code could not be applied');
@@ -221,6 +271,23 @@ export default function StoreCheckoutPage() {
       }
     }
 
+    if (paymentMethod === 'RAZORPAY' && calculatedGrandTotalPaise > 0 && calculatedGrandTotalPaise < PAYMENT_GATEWAY_MIN_AMOUNT_PAISE) {
+      if (storeData?.store?.paymentSettings?.codEnabled !== false) {
+        toast.warning(
+          'Online Payment Minimum',
+          `Online payment is available for orders of ₹${PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES} or more. Switched to Cash on Delivery.`
+        );
+        setPaymentMethod('COD');
+        return;
+      } else {
+        toast.error(
+          'Order Below Minimum',
+          `Online payment requires a minimum order of ₹${PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES}. Please add items to your cart.`
+        );
+        return;
+      }
+    }
+
     // ------------------------------------------------------------------------
     // MERCHANT PREVIEW MODE: ZERO COMMERCE MUTATION SIMULATION
     // ------------------------------------------------------------------------
@@ -244,16 +311,27 @@ export default function StoreCheckoutPage() {
           } : null,
           pickupStoreAddress: storeData?.store?.businessAddress || 'Store Location',
           paymentMethod,
-          items: items.map((it: any) => ({
-            id: it.id,
-            title: it.variant?.product?.title || it.variant?.title || 'Item',
-            quantity: it.quantity,
-            pricePaise: it.variant?.pricePaise || 0,
-            lineTotalPaise: (it.variant?.pricePaise || 0) * it.quantity,
-          })),
+          items: items.map((it: any) => {
+            const mediaUrl = resolveVariantDisplayMedia({
+              itemImageUrl: it.imageUrl,
+              variant: it.variant,
+              productMedia: it.variant?.product?.media,
+              selectedOptionValues: it.variant?.optionValues,
+            });
+            return {
+              id: it.id,
+              title: it.variant?.product?.title || it.variant?.title || 'Item',
+              variantTitle: formatItemVariantLabel(it),
+              sku: it.sku || it.variant?.sku,
+              imageUrl: mediaUrl,
+              quantity: it.quantity,
+              pricePaise: it.variant?.pricePaise || 0,
+              lineTotalPaise: (it.variant?.pricePaise || 0) * it.quantity,
+            };
+          }),
           subtotalPaise,
           discountPaise,
-          totalPaise: grandTotalPaise,
+          totalPaise: calculatedGrandTotalPaise,
           couponCode: appliedCoupon?.code,
           notes: orderNotes,
         };
@@ -461,12 +539,14 @@ export default function StoreCheckoutPage() {
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   href={getLink(`/store/${slug}`)}
+                  data-theme-btn="true"
                   className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition flex items-center justify-center gap-1.5"
                 >
                   <ShoppingBag className="w-4 h-4" /> Back to Store
                 </Link>
                 <a
                   href={getSellerStorePreviewUrl()}
+                  data-theme-btn="true"
                   className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center justify-center gap-1.5"
                 >
                   Exit Preview
@@ -490,7 +570,7 @@ export default function StoreCheckoutPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                  {isPreviewMode ? 'Store Checkout Preview' : 'Checkout & Delivery'}
+                  {isPreviewMode ? 'Store Checkout Preview' : t('storefront.checkout')}
                 </h1>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Fast, encrypted checkout without mandatory password creation.
@@ -512,7 +592,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">1</span>
-                      Contact Information
+                      {t('storefront.contactInfo')}
                     </h2>
                     <span className="text-[11px] text-gray-400 font-medium">OTP-free guest flow</span>
                   </div>
@@ -520,7 +600,7 @@ export default function StoreCheckoutPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Full Name <span className="text-red-500">*</span>
+                        {t('storefront.fullName')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -537,7 +617,7 @@ export default function StoreCheckoutPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Mobile Number (For delivery updates) <span className="text-red-500">*</span>
+                        {t('storefront.mobileNumber')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-2.5 text-xs font-mono text-gray-500 font-bold">+91</span>
@@ -555,7 +635,7 @@ export default function StoreCheckoutPage() {
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Email Address <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
+                        {t('storefront.email')} <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -576,7 +656,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">2</span>
-                      Delivery & Fulfillment
+                      {t('storefront.delivery')}
                     </h2>
 
                     {supportsPickup && supportsDelivery && (
@@ -738,7 +818,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">3</span>
-                      Payment Method
+                      {t('storefront.paymentMethod')}
                     </h2>
                     <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Verified Secure
@@ -766,7 +846,7 @@ export default function StoreCheckoutPage() {
                           />
                           <div>
                             <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              Cash on Delivery (COD)
+                              {t('storefront.cod')}
                               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
                                 Most Popular
                               </span>
@@ -784,40 +864,50 @@ export default function StoreCheckoutPage() {
 
                     <label
                       onClick={() => setPaymentMethod('RAZORPAY')}
-                      className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                      className={`p-4 rounded-xl border flex flex-col gap-2 cursor-pointer transition ${
                         paymentMethod === 'RAZORPAY'
                           ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          checked={paymentMethod === 'RAZORPAY'}
-                          onChange={() => setPaymentMethod('RAZORPAY')}
-                          className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                            Online Payment (UPI, Cards, Netbanking)
-                            {isPreviewMode && (
-                              <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                                Preview Mode Simulation
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-gray-500 mt-0.5">
-                            {isPreviewMode 
-                              ? 'Preview simulation — tested safely without real live credit deductions.'
-                              : 'Instant digital checkout via UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards & Netbanking.'
-                            }
-                          </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            checked={paymentMethod === 'RAZORPAY'}
+                            onChange={() => setPaymentMethod('RAZORPAY')}
+                            className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                              {t('storefront.onlinePayment')}
+                              {isPreviewMode && (
+                                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                                  Preview Mode Simulation
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              {isPreviewMode 
+                                ? 'Preview simulation — tested safely without real live credit deductions.'
+                                : 'Instant digital checkout via UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards & Netbanking.'
+                              }
+                            </p>
+                          </div>
                         </div>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-1 rounded">
+                          Instant Confirmed
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-1 rounded">
-                        Instant Confirmed
-                      </span>
+                      {calculatedGrandTotalPaise > 0 && calculatedGrandTotalPaise < PAYMENT_GATEWAY_MIN_AMOUNT_PAISE && (
+                        <div className="mt-1 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+                          <Info className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                          <span>
+                            Online payment requires an order of at least ₹{PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES}.00. You can select Cash on Delivery or add items to your cart.
+                          </span>
+                        </div>
+                      )}
                     </label>
                   </div>
                 </div>
@@ -849,26 +939,43 @@ export default function StoreCheckoutPage() {
                   <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-gray-100">
                     {items.map((item: any) => {
                       const title = item.productName || item.variant?.product?.title || item.variant?.title || 'Product';
-                      const variantName = item.variantName || item.variant?.title;
-                      const img = item.imageUrl || item.variant?.product?.media?.[0]?.publicUrl;
-                      const lineTotal = (item.unitPricePaise || item.variant?.pricePaise || 0) * (item.quantity || 1);
+                      const variantLabel = formatItemVariantLabel(item);
+                      const sku = item.sku || item.variant?.sku;
+                      const unitPrice = item.unitPricePaise || item.variant?.pricePaise || 0;
+                      const lineTotal = unitPrice * (item.quantity || 1);
+                      const img = resolveVariantDisplayMedia({
+                        itemImageUrl: item.imageUrl,
+                        variant: item.variant,
+                        productMedia: item.variant?.product?.media,
+                        selectedOptionValues: item.variant?.optionValues,
+                      });
 
                       return (
-                        <div key={item.id} className="pt-2 first:pt-0 flex items-center justify-between text-xs gap-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                        <div key={item.id} className="pt-3 first:pt-0 flex items-start justify-between text-xs gap-3">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             {img && (
-                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
                                 <SafeImage src={img} alt={title} className="w-full h-full object-cover" />
                               </div>
                             )}
-                            <div className="min-w-0">
+                            <div className="min-w-0 space-y-0.5">
                               <p className="font-semibold text-gray-900 truncate">{title}</p>
+                              {variantLabel && (
+                                <p className="text-[11px] font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded inline-block">
+                                  {variantLabel}
+                                </p>
+                              )}
+                              {sku && (
+                                <p className="text-[10px] font-mono text-gray-400">
+                                  SKU: {sku}
+                                </p>
+                              )}
                               <p className="text-[11px] text-gray-500 font-mono">
-                                Qty: {item.quantity} × {formatPaise(item.unitPricePaise || item.variant?.pricePaise || 0)}
+                                Qty: {item.quantity} × {formatPaise(unitPrice)}
                               </p>
                             </div>
                           </div>
-                          <div className="font-mono font-bold text-gray-900 flex-shrink-0">
+                          <div className="font-mono font-bold text-gray-900 flex-shrink-0 pt-0.5">
                             {formatPaise(lineTotal)}
                           </div>
                         </div>
@@ -939,21 +1046,30 @@ export default function StoreCheckoutPage() {
                       </button>
                     </div>
                   ) : (
-                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                    <div className="flex gap-2">
                       <input
                         type="text"
                         value={couponInput}
                         onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleApplyCoupon();
+                          }
+                        }}
                         placeholder="Enter coupon code"
                         className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono uppercase focus:ring-2 focus:ring-emerald-500"
                       />
                       <button
-                        type="submit"
-                        className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition"
+                        type="button"
+                        onClick={() => handleApplyCoupon()}
+                        disabled={isCheckingCoupon || !couponInput.trim()}
+                        className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition disabled:opacity-50"
                       >
-                        Apply
+                        {isCheckingCoupon ? 'Checking...' : 'Apply'}
                       </button>
-                    </form>
+                    </div>
                   )}
                   {couponError && (
                     <p className="text-[11px] text-red-600">{couponError}</p>
@@ -995,21 +1111,18 @@ export default function StoreCheckoutPage() {
                   </div>
 
                   <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
-                    <span>Grand Total</span>
+                    <span>{t('storefront.totalAmount')}</span>
                     <span className="font-mono text-emerald-800">
-                      {formatPaise(
-                        Math.max(0, subtotalPaise - discountPaise) +
-                        (fulfillmentType === 'PICKUP' ? 0 : shippingPaise) +
-                        Math.round(Math.max(0, subtotalPaise - discountPaise) * 0.05)
-                      )}
+                      {formatPaise(calculatedGrandTotalPaise)}
                     </span>
                   </div>
                 </div>
 
                 {/* Submit Order Button */}
-                <button
+                <button data-theme-tone="primary"
                   type="submit"
                   disabled={submitting || items.length === 0}
+                  data-theme-btn="true"
                   className="w-full py-4 rounded-xl text-xs font-bold text-white shadow-lg transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
                   style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
                 >
@@ -1020,12 +1133,12 @@ export default function StoreCheckoutPage() {
                     </span>
                   ) : isPreviewMode ? (
                     <>
-                      <span>Place Preview Order • {formatPaise(grandTotalPaise)}</span>
+                      <span>Place Preview Order • {formatPaise(calculatedGrandTotalPaise)}</span>
                       <CheckCircle className="w-4 h-4" />
                     </>
                   ) : (
                     <>
-                      <span>Place Order • {formatPaise(grandTotalPaise)}</span>
+                      <span>{t('storefront.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

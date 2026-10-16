@@ -47,3 +47,153 @@ export function resolveMediaUrl(url?: string | null): string {
 
   return `${cleanOrigin}/${cleanPath}`;
 }
+
+export interface ResolveVariantDisplayMediaParams {
+  productMedia?: any[];
+  variant?: any;
+  selectedOptionValues?: Record<string, string>;
+  itemImageUrl?: string | null;
+  fallbackUrl?: string;
+}
+
+/**
+ * Deterministic Variant Display Media Resolver
+ *
+ * Implements the canonical media priority for Cart, Checkout, Merchant Orders, Invoices, and Tracking:
+ * 0. Preserved itemImageUrl snapshot (if already saved on OrderItem)
+ * 1. Exact variant-specific media (explicitly associated with variant.id)
+ * 2. Media associated with selected colour / visual option value (e.g. "Black" or "White")
+ * 3. General product media (not bound to a specific variant or option)
+ * 4. First available product media
+ * 5. Deterministic fallback placeholder
+ */
+export function resolveVariantDisplayMedia(params: ResolveVariantDisplayMediaParams): string {
+  const {
+    productMedia: rawProductMedia,
+    variant,
+    selectedOptionValues,
+    itemImageUrl,
+    fallbackUrl = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80',
+  } = params;
+
+  // 0. Use historical snapshot if present
+  if (itemImageUrl && typeof itemImageUrl === 'string' && itemImageUrl.trim()) {
+    return resolveMediaUrl(itemImageUrl);
+  }
+
+  const productMedia = Array.isArray(rawProductMedia)
+    ? rawProductMedia
+    : Array.isArray(variant?.product?.media)
+    ? variant.product.media
+    : Array.isArray(variant?.product?.images)
+    ? variant.product.images
+    : [];
+
+  // 1. Priority 1: Exact variant-specific media
+  if (variant?.id) {
+    if (Array.isArray(variant.media) && variant.media.length > 0) {
+      const vMedia = variant.media[0];
+      const url = vMedia.publicUrl || vMedia.url || vMedia.filePath;
+      if (url) return resolveMediaUrl(url);
+    }
+    const matchingVarMedia = productMedia.find(
+      (m: any) => m && (m.variantId === variant.id || m.variant?.id === variant.id)
+    );
+    if (matchingVarMedia) {
+      const url = matchingVarMedia.publicUrl || matchingVarMedia.url || matchingVarMedia.filePath;
+      if (url) return resolveMediaUrl(url);
+    }
+  }
+
+  // Extract selected colour value and option value ID
+  let colourValue: string | null = null;
+  let colourOptionValueId: string | null = null;
+
+  if (selectedOptionValues && typeof selectedOptionValues === 'object') {
+    for (const [k, v] of Object.entries(selectedOptionValues)) {
+      if (k.toLowerCase() === 'colour' || k.toLowerCase() === 'color') {
+        colourValue = String(v);
+        break;
+      }
+    }
+  }
+
+  if (!colourValue && variant?.optionValues) {
+    if (Array.isArray(variant.optionValues)) {
+      for (const ov of variant.optionValues) {
+        const optName = ov.optionValue?.option?.name || ov.optionName || ov.name;
+        const optVal = ov.optionValue?.value || ov.value;
+        const valId = ov.optionValueId || ov.optionValue?.id || ov.id;
+        if (optName && (optName.toLowerCase() === 'colour' || optName.toLowerCase() === 'color')) {
+          colourValue = optVal;
+          colourOptionValueId = valId;
+          break;
+        }
+      }
+    } else if (typeof variant.optionValues === 'object') {
+      for (const [k, v] of Object.entries(variant.optionValues)) {
+        if (k.toLowerCase() === 'colour' || k.toLowerCase() === 'color') {
+          colourValue = String(v);
+          break;
+        }
+      }
+    }
+  }
+
+  // Also inspect variantTitle if available (e.g. "Black · M" or "Black / M")
+  if (!colourValue && typeof variant?.title === 'string' && variant.title !== 'Default') {
+    const parts = variant.title.split(/[\/·•,-]/).map((p: string) => p.trim());
+    if (parts.length > 0) {
+      // Find matching media by checking if any media option value matches part
+      for (const part of parts) {
+        const foundMedia = productMedia.find((m: any) => {
+          const valName = m.optionValueName || m.optionValue?.value;
+          return valName && valName.toLowerCase() === part.toLowerCase();
+        });
+        if (foundMedia) {
+          colourValue = part;
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Priority 2: Media associated with selected colour option value
+  if (colourOptionValueId || colourValue) {
+    const colMatch = productMedia.find((m: any) => {
+      if (!m) return false;
+      if (colourOptionValueId && m.optionValueId === colourOptionValueId) {
+        return true;
+      }
+      const mValName = m.optionValueName || m.optionValue?.value;
+      if (colourValue && mValName && mValName.toLowerCase() === colourValue.toLowerCase()) {
+        return true;
+      }
+      return false;
+    });
+
+    if (colMatch) {
+      const url = colMatch.publicUrl || colMatch.url || colMatch.filePath;
+      if (url) return resolveMediaUrl(url);
+    }
+  }
+
+  // 3. Priority 3: General product media (not bound to variant or option)
+  const generalMedia = productMedia.find(
+    (m: any) => m && !m.variantId && !m.optionValueId && !m.optionValueName && !m.optionValue
+  );
+  if (generalMedia) {
+    const url = generalMedia.publicUrl || generalMedia.url || generalMedia.filePath;
+    if (url) return resolveMediaUrl(url);
+  }
+
+  // 4. Priority 4: First available product media
+  if (productMedia.length > 0 && productMedia[0]) {
+    const first = productMedia[0];
+    const url = first.publicUrl || first.url || first.filePath;
+    if (url) return resolveMediaUrl(url);
+  }
+
+  // 5. Fallback placeholder
+  return fallbackUrl;
+}

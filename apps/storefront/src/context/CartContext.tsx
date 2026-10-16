@@ -102,7 +102,8 @@ interface CartContextType {
   // Coupon
   appliedCoupon: AppliedCoupon | null;
   couponError: string | null;
-  applyCoupon: (code: string) => boolean;
+  isCheckingCoupon: boolean;
+  applyCoupon: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
   discountPaise: number;
   grandTotalPaise: number;
@@ -135,7 +136,8 @@ const CartContext = createContext<CartContextType>({
   api: apiClient,
   appliedCoupon: null,
   couponError: null,
-  applyCoupon: () => false,
+  isCheckingCoupon: false,
+  applyCoupon: async () => false,
   removeCoupon: () => {},
   discountPaise: 0,
   grandTotalPaise: 0,
@@ -207,6 +209,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Coupon state
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
 
   // Order notes
   const [orderNotes, setOrderNotesState] = useState('');
@@ -546,10 +549,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ====================================================================
-  // Coupon Engine
+  // Computed Cart Quantities & Subtotals
+  // ====================================================================
+  const itemCount = (cart?.items || []).reduce((acc: number, item: any) => acc + item.quantity, 0);
+  const subtotalCalc = cart?.subtotalPaise || (cart?.items || []).reduce(
+    (acc: number, item: any) => acc + item.quantity * (item.variant?.pricePaise || 0),
+    0
+  );
+
+  // ====================================================================
+  // Coupon Engine (Server-Side Authoritative + Client Safe Fallback)
   // ====================================================================
   const applyCoupon = useCallback(
-    (code: string): boolean => {
+    async (code: string): Promise<boolean> => {
       setCouponError(null);
       const normalizedCode = code.trim().toUpperCase();
 
@@ -558,58 +570,97 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      let couponDef: any = BUILT_IN_COUPONS[normalizedCode];
+      setIsCheckingCoupon(true);
+      try {
+        const currentSubtotal = subtotalCalc;
 
-      // Check merchant-created custom coupons from the admin panel
-      if (!couponDef && typeof window !== 'undefined') {
-        try {
-          const customKey = storeId ? `simply_coupons_${storeId}` : 'simply_custom_coupons';
-          const savedCustom = localStorage.getItem('simply_custom_coupons') || localStorage.getItem(customKey);
-          if (savedCustom) {
-            const list = JSON.parse(savedCustom);
-            const found = list.find((c: any) => c.code === normalizedCode && c.isActive);
-            if (found) {
-              couponDef = {
-                code: found.code,
-                type: found.type,
-                value: found.value,
-                label: found.label,
-                minOrderPaise: found.minOrderPaise,
-                maxDiscountPaise: found.maxDiscountPaise,
-              };
+        // In preview mode or without store context, validate using built-in engine
+        if (isPreview || !storeId) {
+          let couponDef: any = BUILT_IN_COUPONS[normalizedCode];
+
+          // Check merchant-created custom coupons
+          if (!couponDef && typeof window !== 'undefined') {
+            try {
+              const customKey = storeId ? `simply_coupons_${storeId}` : 'simply_custom_coupons';
+              const savedCustom = localStorage.getItem('simply_custom_coupons') || localStorage.getItem(customKey);
+              if (savedCustom) {
+                const list = JSON.parse(savedCustom);
+                const found = list.find((c: any) => c.code === normalizedCode && c.isActive);
+                if (found) {
+                  couponDef = {
+                    code: found.code,
+                    type: found.type,
+                    value: found.value,
+                    label: found.label,
+                    minOrderPaise: found.minOrderPaise,
+                    maxDiscountPaise: found.maxDiscountPaise,
+                  };
+                }
+              }
+            } catch (e) {
+              console.error('Failed to parse custom coupons', e);
             }
           }
-        } catch (e) {
-          console.error('Failed to parse custom coupons', e);
+
+          if (!couponDef) {
+            setCouponError(`Coupon "${normalizedCode}" is not valid or has expired`);
+            return false;
+          }
+
+          if (couponDef.minOrderPaise && currentSubtotal < couponDef.minOrderPaise) {
+            const minAmount = (couponDef.minOrderPaise / 100).toFixed(0);
+            setCouponError(`Minimum order value for this coupon is ₹${minAmount}`);
+            return false;
+          }
+
+          const disc = calculateCouponDiscount(couponDef, currentSubtotal);
+          const applied: AppliedCoupon = {
+            ...couponDef,
+            discountPaise: disc,
+          };
+          setAppliedCoupon(applied);
+          try {
+            localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
+          } catch {}
+          return true;
         }
-      }
 
-      if (!couponDef) {
-        setCouponError(`Coupon "${normalizedCode}" is not valid or has expired`);
+        // Production Server-Side Authoritative Validation
+        const res: any = await apiClient.orders.validateCoupon({
+          storeId,
+          code: normalizedCode,
+          subtotalPaise: currentSubtotal,
+        });
+
+        if (!res || !res.valid) {
+          setCouponError(res?.reason || `Coupon "${normalizedCode}" is not valid or has expired`);
+          return false;
+        }
+
+        const applied: AppliedCoupon = {
+          code: res.coupon.code,
+          type: res.coupon.type,
+          value: res.coupon.value,
+          label: res.coupon.label,
+          discountPaise: res.coupon.discountPaise,
+          minOrderPaise: res.coupon.minOrderPaise,
+          maxDiscountPaise: res.coupon.maxDiscountPaise,
+        };
+        setAppliedCoupon(applied);
+        try {
+          localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
+        } catch {}
+        return true;
+      } catch (err: any) {
+        console.error('Coupon validation failed', err);
+        setCouponError(err.message || 'Failed to validate coupon code');
         return false;
+      } finally {
+        setIsCheckingCoupon(false);
       }
-
-      const currentSubtotal = subtotalCalc;
-      if (couponDef.minOrderPaise && currentSubtotal < couponDef.minOrderPaise) {
-        const minAmount = (couponDef.minOrderPaise / 100).toFixed(0);
-        setCouponError(`Minimum order amount of ₹${minAmount} required for this coupon`);
-        return false;
-      }
-
-      const disc = calculateCouponDiscount(couponDef, currentSubtotal);
-
-      const applied: AppliedCoupon = {
-        ...couponDef,
-        discountPaise: disc,
-      };
-      setAppliedCoupon(applied);
-      try {
-        localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
-      } catch {}
-      return true;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cart]
+    [cart, isPreview, storeId, subtotalCalc]
   );
 
   const removeCoupon = useCallback(() => {
@@ -628,18 +679,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // ====================================================================
-  // Computed Values
+  // Computed Coupon, Shipping & Grand Totals
   // ====================================================================
-  const itemCount = (cart?.items || []).reduce((acc: number, item: any) => acc + item.quantity, 0);
-  const subtotalCalc = cart?.subtotalPaise || (cart?.items || []).reduce(
-    (acc: number, item: any) => acc + item.quantity * (item.variant?.pricePaise || 0),
-    0
-  );
+  // Recalculate coupon discount when subtotal changes with minimum spend validation
+  const isCouponMinOrderSatisfied =
+    !appliedCoupon?.minOrderPaise || subtotalCalc >= appliedCoupon.minOrderPaise;
 
-  // Recalculate coupon discount when subtotal changes
-  const discountPaise = appliedCoupon
-    ? calculateCouponDiscount(appliedCoupon, subtotalCalc)
-    : 0;
+  const discountPaise =
+    appliedCoupon && isCouponMinOrderSatisfied
+      ? calculateCouponDiscount(appliedCoupon, subtotalCalc)
+      : 0;
 
   const flatRatePaise = shippingSettings?.flatRatePaise ?? 0;
   const freeShippingThresholdPaise = shippingSettings?.freeShippingThresholdPaise ?? null;
@@ -674,6 +723,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         api: apiClient,
         appliedCoupon,
         couponError,
+        isCheckingCoupon,
         applyCoupon,
         removeCoupon,
         discountPaise,

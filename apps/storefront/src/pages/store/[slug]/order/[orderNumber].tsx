@@ -18,10 +18,12 @@ import { ThemeWrapper } from '../../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../../components/StoreHeader';
 import { StoreFooter } from '../../../../components/StoreFooter';
 import { formatPaise, getPaymentDisplayDetails, formatPaymentMethod } from '@simply/ui';
+import { useStorefrontI18n } from '@simply/i18n';
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
-  const { slug, orderNumber, t } = router.query;
+  const { slug, orderNumber, t: trackingToken } = router.query;
+  const { t, locale, initStoreLocales } = useStorefrontI18n();
   const { api, setStoreId } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,8 @@ export default function OrderConfirmationPage() {
 
   useEffect(() => {
     if (!slug || !orderNumber) return;
-    loadOrder(String(slug), String(orderNumber), t ? String(t) : undefined);
-  }, [slug, orderNumber, t]);
+    loadOrder(String(slug), String(orderNumber), trackingToken ? String(trackingToken) : undefined);
+  }, [slug, orderNumber, trackingToken]);
 
   const loadOrder = async (storeSlug: string, orderNum: string, token?: string) => {
     setLoading(true);
@@ -44,6 +46,13 @@ export default function OrderConfirmationPage() {
       ]);
       setStoreData(sRes);
       setOrder(oRes);
+      if (sRes.store) {
+        initStoreLocales({
+          storeSlug: String(storeSlug),
+          defaultLocale: sRes.store.storefrontDefaultLocale,
+          enabledLocales: sRes.store.enabledStorefrontLocales,
+        });
+      }
       if (sRes.store?.id) {
         setStoreId(sRes.store.id);
       }
@@ -245,43 +254,60 @@ export default function OrderConfirmationPage() {
             </h2>
 
             <div className="divide-y divide-gray-100 text-xs">
-              {(order.items || []).map((item: any) => (
-                <div key={item.id} className="py-3 first:pt-0 last:pb-0 flex justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.titleSnapshot}</p>
-                    {item.variantTitleSnapshot && (
-                      <p className="text-gray-500 text-[11px]">{item.variantTitleSnapshot}</p>
-                    )}
-                    <p className="text-gray-400 font-mono text-[11px]">
-                      Qty: {item.quantity} × {formatPaise(item.unitPricePaise)}
-                    </p>
+              {(order.items || []).map((item: any, idx: number) => {
+                const title = item.productName || item.titleSnapshot || 'Product';
+                const variantLabel = item.variantTitle || item.variantTitleSnapshot;
+                const unitPrice = item.unitPricePaise || 0;
+                const lineTotal = item.totalPricePaise || (item.quantity * unitPrice);
+
+                return (
+                  <div key={item.id || idx} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {item.imageUrl && (
+                        <div className="w-11 h-11 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                          <img src={item.imageUrl} alt={title} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{title}</p>
+                        {variantLabel && (
+                          <p className="text-gray-500 text-[11px] font-medium">{variantLabel}</p>
+                        )}
+                        {item.sku && (
+                          <p className="text-gray-400 font-mono text-[10px]">SKU: {item.sku}</p>
+                        )}
+                        <p className="text-gray-400 font-mono text-[11px]">
+                          Qty: {item.quantity} × {formatPaise(unitPrice)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="font-mono font-bold text-gray-900 flex-shrink-0">
+                      {formatPaise(lineTotal)}
+                    </div>
                   </div>
-                  <div className="font-mono font-bold text-gray-900">
-                    {formatPaise(item.totalPricePaise)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="pt-3 border-t border-gray-200 space-y-1.5 text-xs text-gray-600">
               <div className="flex justify-between">
-                <span>Subtotal</span>
+                <span>{t('common.subtotal')}</span>
                 <span className="font-mono">{formatPaise(order.subtotalPaise || order.totalPaise || 0)}</span>
               </div>
               {order.discountPaise && order.discountPaise > 0 ? (
                 <div className="flex justify-between text-emerald-700 font-semibold">
-                  <span>Coupon Savings</span>
+                  <span>{t('checkout.couponDiscount')}</span>
                   <span className="font-mono">- {formatPaise(order.discountPaise)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between">
-                <span>Delivery</span>
+                <span>{t('checkout.freeDelivery')}</span>
                 <span className="text-emerald-700 font-semibold">
                   {order.shippingPaise && order.shippingPaise > 0 ? formatPaise(order.shippingPaise) : 'FREE'}
                 </span>
               </div>
               <div className="pt-2 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-900">
-                <span>Total Amount</span>
+                <span>{t('common.total')}</span>
                 <span className="font-mono text-emerald-800">{formatPaise(order.totalPaise || order.totalAmountPaise || 0)}</span>
               </div>
             </div>
@@ -395,7 +421,7 @@ export default function OrderConfirmationPage() {
             style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Continue Shopping at {store.name}</span>
+            <span>{t('storefront.continueShopping')}</span>
           </Link>
         </div>
       </main>

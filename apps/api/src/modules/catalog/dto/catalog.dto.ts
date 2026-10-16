@@ -147,6 +147,33 @@ export class CreateProductAttributeDto {
   sortOrder?: number;
 }
 
+export class ProductMediaItemDto {
+  @ApiProperty({ example: 'media-asset-id-123' })
+  @IsNotEmpty()
+  @IsString()
+  mediaAssetId: string;
+
+  @ApiPropertyOptional({ example: 'opt-val-123' })
+  @IsOptional()
+  @IsString()
+  optionValueId?: string;
+
+  @ApiPropertyOptional({ example: 'White' })
+  @IsOptional()
+  @IsString()
+  optionValue?: string;
+
+  @ApiPropertyOptional({ example: 'var-123' })
+  @IsOptional()
+  @IsString()
+  variantId?: string;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
 export class CreateProductDto {
   @ApiPropertyOptional({ example: 'prod-123' })
   @IsOptional()
@@ -208,12 +235,18 @@ export class CreateProductDto {
   @IsString()
   sku?: string;
 
-  @ApiProperty({ example: ['media-uuid-1'], description: 'Media asset IDs to attach (1 to 3 images required)' })
+  @ApiPropertyOptional({ example: ['media-uuid-1'], description: 'Media asset IDs to attach' })
+  @IsOptional()
   @IsArray({ message: 'mediaAssetIds must be an array.' })
-  @ArrayMinSize(1, { message: 'Every product needs at least one image.' })
-  @ArrayMaxSize(3, { message: 'A maximum of 3 images is allowed per product.' })
   @IsString({ each: true })
-  mediaAssetIds: string[];
+  mediaAssetIds?: string[];
+
+  @ApiPropertyOptional({ type: [ProductMediaItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductMediaItemDto)
+  media?: ProductMediaItemDto[];
 
   @ApiPropertyOptional({ example: 1, default: 1 })
   @IsOptional()
@@ -260,4 +293,37 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
   variants?: CreateProductVariantDto[];
+
+  @ApiPropertyOptional({ type: () => [ProductTranslationDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTranslationDto)
+  translations?: ProductTranslationDto[];
+}
+
+export class ProductTranslationDto {
+  @ApiProperty({ example: 'mr-IN' })
+  @IsString()
+  locale: string;
+
+  @ApiPropertyOptional({ example: 'क्लासिक कॉटन शर्ट' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'उत्तम दर्जाचे कॉटन शर्ट' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  seoTitle?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  seoDescription?: string;
 }

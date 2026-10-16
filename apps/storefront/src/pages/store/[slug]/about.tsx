@@ -52,6 +52,7 @@ export default function StoreAboutPage() {
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
+                  ...event.data.themeConfig?.branding,
                 },
               },
             };
@@ -230,8 +231,9 @@ export default function StoreAboutPage() {
               <p>{storyParagraph2}</p>
             </div>
             <div className="pt-2">
-              <Link
+              <Link data-theme-tone="primary"
                 href={getLink(`/store/${slug}/products`)}
+                data-theme-btn="true"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
               >

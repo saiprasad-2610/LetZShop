@@ -235,6 +235,7 @@ model User {
   role           UserRole           @default(SELLER_OWNER)
   isSuperAdmin   Boolean            @default(false)
   isActive       Boolean            @default(true)
+  preferredLocale String            @default("en-IN") @map("preferred_locale")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   deletedAt      DateTime?          @map("deleted_at")
@@ -414,6 +415,8 @@ model Store {
   timezone             String      @default("Asia/Kolkata")
   isPubliclyAccessible Boolean     @default(false) @map("is_publicly_accessible")
   previewSecret        String      @default(uuid()) @map("preview_secret")
+  storefrontDefaultLocale String   @default("en-IN") @map("storefront_default_locale")
+  enabledStorefrontLocales String[] @default(["en-IN", "mr-IN", "hi-IN"]) @map("enabled_storefront_locales")
   supportPhone         String?                   @map("support_phone")
   supportEmail         String?                   @map("support_email")
   whatsappNumber       String?                   @map("whatsapp_number")
@@ -753,6 +756,7 @@ model Product {
   enquiries  Enquiry[]
   orderItems OrderItem[]
   reviews    ProductReview[]
+  translations ProductTranslation[]
 
   @@unique([storeId, slug])
   @@index([tenantId, storeId, status])
@@ -792,6 +796,7 @@ model ProductOptionValue {
 
   option        ProductOption               @relation(fields: [optionId], references: [id], onDelete: Cascade)
   variantValues ProductVariantOptionValue[]
+  media         ProductMedia[]
 
   @@unique([optionId, value])
   @@index([optionId])
@@ -849,25 +854,28 @@ model ProductMedia {
   tenantId     String      @map("tenant_id")
   storeId      String      @map("store_id")
   productId    String      @map("product_id")
-  variantId    String?     @map("variant_id") // Links variant-specific or colour-specific images
-  mediaAssetId String?     @map("media_asset_id")
-  storageKey   String      @map("storage_key")
-  publicUrl    String      @map("public_url")
-  filePath     String      @map("file_path")
-  mimeType     String      @map("mime_type")
-  sizeBytes    Int         @map("size_bytes")
-  width        Int?
-  height       Int?
-  altText      String?     @map("alt_text")
-  sortOrder    Int         @default(0) @map("sort_order")
-  createdAt    DateTime    @default(now()) @map("created_at")
+  variantId     String?             @map("variant_id") // Links variant-specific images
+  optionValueId String?             @map("option_value_id") // Links colour- or option-specific images
+  mediaAssetId  String?             @map("media_asset_id")
+  storageKey    String              @map("storage_key")
+  publicUrl     String              @map("public_url")
+  filePath      String              @map("file_path")
+  mimeType      String              @map("mime_type")
+  sizeBytes     Int                 @map("size_bytes")
+  width         Int?
+  height        Int?
+  altText       String?             @map("alt_text")
+  sortOrder     Int                 @default(0) @map("sort_order")
+  createdAt     DateTime            @default(now()) @map("created_at")
 
-  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  mediaAsset MediaAsset?     @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant     ProductVariant?     @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  optionValue ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+  mediaAsset  MediaAsset?         @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
   @@index([variantId])
+  @@index([optionValueId])
   @@map("product_media")
 }
 
@@ -909,6 +917,24 @@ model ProductDocument {
   @@index([productId, sortOrder])
   @@index([storeId])
   @@map("product_documents")
+}
+
+model ProductTranslation {
+  id             String   @id @default(uuid())
+  productId      String   @map("product_id")
+  locale         String   // e.g. "mr-IN", "hi-IN"
+  name           String
+  description    String?
+  seoTitle       String?  @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@index([productId])
+  @@map("product_translations")
 }
 
 // ==============================================================================
@@ -1128,6 +1154,7 @@ model OrderItem {
   unitPricePaise  Int      @map("unit_price_paise")
   taxPaise        Int      @default(0) @map("tax_paise")
   totalPaise      Int      @map("total_paise")
+  imageUrl        String?  @map("image_url") // Snapshot of variant/colour image at order time
   createdAt       DateTime @default(now()) @map("created_at")
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -1503,10 +1530,38 @@ model ProductReview {
   product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  reports   ReviewReport[]
 
   @@unique([orderItemId, productId])
   @@index([productId, status])
   @@index([storeId, status])
   @@index([orderId])
   @@map("product_reviews")
+}
+
+enum ReviewReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model ReviewReport {
+  id           String             @id @default(uuid())
+  reviewId     String             @map("review_id")
+  reportedById String?            @map("reported_by_id")
+  reason       String
+  merchantNote String?            @map("merchant_note")
+  status       ReviewReportStatus @default(PENDING)
+  adminNote    String?            @map("admin_note")
+  resolvedById String?            @map("resolved_by_id")
+  resolvedAt   DateTime?          @map("resolved_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  review       ProductReview      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
+  @@index([status, createdAt])
+  // The migration adds a partial unique index allowing only one open report per review.
+  @@map("review_reports")
 }

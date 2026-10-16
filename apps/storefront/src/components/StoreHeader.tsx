@@ -4,6 +4,9 @@ import { useRouter } from 'next/router';
 import { ShoppingBag, Search, Menu, X, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getWordmark } from '@simply/ui';
+import { useStorefrontI18n, StorefrontLanguageSelect } from '@simply/i18n';
+import { logWhatsappEnquiry } from '../utils/enquiry';
+import { AnnouncementMarquee } from './AnnouncementMarquee';
 
 interface StoreHeaderProps {
   store: any;
@@ -13,6 +16,7 @@ interface StoreHeaderProps {
 export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) => {
   const router = useRouter();
   const { itemCount } = useCart();
+  const { t } = useStorefrontI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const themeCode = themeConfig?.themeId || 'atelier';
@@ -78,6 +82,160 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
     }
   };
 
+
+  const resolvedHeaderStyle =
+    themeConfig?.headerStyle ||
+    (themeCode === 'atelier'
+      ? 'minimal-center'
+      : themeCode === 'local'
+      ? 'quick-search-bar'
+      : 'sticky-action');
+
+  const renderBrandWordmark = () => (
+    <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+      {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
+        <img
+          src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
+          alt={store.name}
+          style={{
+            width: `${logoSize}px`,
+            height: `${logoSize}px`,
+            maxHeight: `${logoSize}px`,
+            maxWidth: `${logoSize}px`,
+          }}
+          className="rounded-full object-contain p-0.5 bg-white border border-gray-200/80 shadow-xs group-hover:scale-105 transition-all shrink-0"
+        />
+      ) : (
+        <span
+          style={{
+            width: `${logoSize}px`,
+            height: `${logoSize}px`,
+            fontSize: `${Math.max(10, Math.round(logoSize * 0.4))}px`,
+            backgroundColor: 'var(--theme-primary, #111827)',
+          }}
+          className={`rounded-lg flex items-center justify-center font-black text-white shadow-xs shrink-0 group-hover:scale-105 transition-all ${
+            themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
+            themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
+            themeCode === 'foundry' ? 'rounded-sm font-mono' :
+            themeCode === 'horizon' ? 'rounded-lg bg-blue-600' :
+            themeCode === 'canvas' ? 'rounded-lg bg-slate-900 text-white' : 'rounded-lg'
+          }`}
+        >
+          {wordmark.monogram}
+        </span>
+      )}
+
+      <div className="flex flex-col text-left">
+        <span
+          style={{
+            fontSize: `${storeNameSize}px`,
+            lineHeight: '1.2',
+          }}
+          className={`font-bold tracking-tight transition-all ${
+            themeCode === 'atelier' ? 'font-serif tracking-wide text-stone-900 group-hover:text-amber-800' :
+            themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-slate-900 group-hover:text-pink-600' :
+            themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
+            themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
+            themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
+            themeCode === 'canvas' ? 'font-sans font-black uppercase text-slate-900 group-hover:text-amber-600' :
+            themeCode === 'horizon' ? 'font-sans font-bold text-slate-900 group-hover:text-blue-600' :
+            'font-bold text-gray-900 group-hover:text-blue-700'
+          }`}
+        >
+          {store.name}
+        </span>
+        <span className="text-[10px] text-gray-400 font-mono tracking-wider uppercase -mt-0.5 hidden xs:inline">
+          {themeCode === 'harvest' ? 'Pure & Artisanal' :
+           themeCode === 'atelier' ? 'Haute Maison' :
+           themeCode === 'pulse' ? 'Verified Drop' :
+           themeCode === 'foundry' ? 'Direct OEM Supply' :
+           themeCode === 'habitat' ? 'Sanctuary Living' :
+           themeCode === 'horizon' ? 'Enterprise & Heritage' :
+           themeCode === 'canvas' ? 'Cinematic Flagship' : 'Official Store'}
+        </span>
+      </div>
+    </Link>
+  );
+
+  const renderNavLinks = (extraClass = '') => (
+    <nav className={`items-center gap-6 text-sm font-medium ${
+      themeCode === 'atelier' ? 'uppercase text-xs tracking-widest text-stone-600' :
+      themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-slate-700' :
+      themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
+    } ${extraClass}`}>
+      <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
+        {t('storefront.home')}
+      </Link>
+      <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
+        {t('storefront.products')}
+      </Link>
+      <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-gray-900 transition">
+        {t('storefront.aboutUs')}
+      </Link>
+    </nav>
+  );
+
+  const renderActions = (showSearchIcon = true) => (
+    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <StorefrontLanguageSelect />
+      {showSearchIcon && (
+        <Link
+          href={getQueryPath(`/store/${slug}/search`)}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          title="Search Products"
+          aria-label="Search Catalog"
+        >
+          <Search className="w-5 h-5" />
+        </Link>
+      )}
+
+      {/* Foundry Specific Quick RFQ Button */}
+      {themeCode === 'foundry' && (
+        <a
+          href={`https://wa.me/919822012345?text=Hi%20${encodeURIComponent(store.name)}%2C%20please%20send%20catalog%20and%20quotation`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => {
+            if (store?.id) {
+              logWhatsappEnquiry({
+                storeId: store.id,
+                customerName: 'WhatsApp Buyer',
+                message: `Catalog & quotation enquiry for ${store.name}`,
+              });
+            }
+          }}
+          data-theme-btn="true"
+          className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-800 text-white font-mono text-xs font-semibold shadow-sm transition"
+        >
+          <span>Instant RFQ</span>
+        </a>
+      )}
+
+      <Link data-theme-tone="primary"
+        href={getQueryPath(`/store/${slug}/cart`)}
+        data-theme-btn="true"
+        className="relative flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 store-btn"
+        style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+        aria-label={`Shopping Cart with ${itemCount} items`}
+      >
+        <ShoppingBag className="w-4 h-4" />
+        <span className="hidden sm:inline">
+          {themeCode === 'foundry' ? t('navigation.orders') : t('storefront.cart')}
+        </span>
+        {itemCount > 0 && (
+          <span
+            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold text-white ${
+              themeCode === 'pulse' ? 'animate-bounce' : ''
+            }`}
+            style={{ backgroundColor: 'var(--theme-accent, #D97706)' }}
+          >
+            {itemCount}
+          </span>
+        )}
+      </Link>
+    </div>
+  );
+
   return (
     <header className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b transition shadow-sm ${
       themeCode === 'foundry' ? 'border-slate-300' :
@@ -90,20 +248,12 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
     }`}>
       {/* 1. Universal Top Announcement Bar with Theme Styling & Floating Marquee */}
       {isAnnouncementEnabled && (
-        <div className={`${getThemeStripClasses()} py-1.5 px-4 overflow-hidden select-none`}>
+        <div
+          className={`${getThemeStripClasses()} py-1.5 px-4 overflow-hidden select-none`}
+          style={{ borderRadius: 'var(--theme-announcement-radius, 0)' }}
+        >
           {isFloating ? (
-            <div className="relative w-full overflow-hidden whitespace-nowrap flex items-center">
-              <div className="inline-flex animate-marquee gap-10 items-center">
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-              </div>
-            </div>
+            <AnnouncementMarquee text={displayText} />
           ) : (
             <div className="max-w-7xl mx-auto flex items-center justify-center text-center truncate">
               <span>{displayText}</span>
@@ -112,166 +262,92 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         </div>
       )}
 
-      {/* Main Header Container */}
-      <div
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
-        style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
-      >
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
-          aria-label="Toggle navigation menu"
+      {/* Main Header Container: Distinct Layouts for Header Styles */}
+      {resolvedHeaderStyle === 'minimal-center' ? (
+        /* Minimal Centered Layout: Nav Left, Centered Brand Logo, Actions Right */
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
+          style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
         >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-
-        {/* Brand Logo & Highlighted Store Name */}
-        <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-2.5 sm:gap-3 group">
-          {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
-            <img
-              src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
-              alt={store.name}
-              style={{
-                width: `${logoSize}px`,
-                height: `${logoSize}px`,
-                maxHeight: `${logoSize}px`,
-                maxWidth: `${logoSize}px`,
-              }}
-              className="rounded-full object-contain p-0.5 bg-white border border-gray-200/80 shadow-xs group-hover:scale-105 transition-all shrink-0"
-            />
-          ) : (
-            <span
-              style={{
-                width: `${logoSize}px`,
-                height: `${logoSize}px`,
-                fontSize: `${Math.max(10, Math.round(logoSize * 0.4))}px`,
-                backgroundColor: 'var(--theme-primary, #111827)',
-              }}
-              className={`rounded-lg flex items-center justify-center font-black text-white shadow-xs shrink-0 group-hover:scale-105 transition-all ${
-                themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
-                themeCode === 'pulse' ? 'rounded-none transform -skew-x-6' :
-                themeCode === 'foundry' ? 'rounded-sm font-mono' :
-                themeCode === 'horizon' ? 'rounded-lg bg-blue-600' :
-                themeCode === 'canvas' ? 'rounded-lg bg-slate-900 text-white' : 'rounded-lg'
-              }`}
+          {/* Left: Mobile Menu (<sm) or Desktop Nav (>=sm) */}
+          <div className="flex items-center gap-4 flex-1">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              aria-label="Toggle navigation menu"
             >
-              {wordmark.monogram}
-            </span>
-          )}
-
-          <div className="flex flex-col text-left">
-            <span
-              style={{
-                fontSize: `${storeNameSize}px`,
-                lineHeight: '1.2',
-              }}
-              className={`font-bold tracking-tight transition-all ${
-                themeCode === 'atelier' ? 'font-serif tracking-wide text-stone-900 group-hover:text-amber-800' :
-                themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-slate-900 group-hover:text-pink-600' :
-                themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
-                themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
-                themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
-                themeCode === 'canvas' ? 'font-sans font-black uppercase text-slate-900 group-hover:text-amber-600' :
-                themeCode === 'horizon' ? 'font-sans font-bold text-slate-900 group-hover:text-blue-600' :
-                'font-bold text-gray-900 group-hover:text-blue-700'
-              }`}
-            >
-              {store.name}
-            </span>
-            <span className="text-[10px] text-gray-400 font-mono tracking-wider uppercase -mt-0.5 hidden xs:inline">
-              {themeCode === 'harvest' ? 'Pure & Artisanal' :
-               themeCode === 'atelier' ? 'Haute Maison' :
-               themeCode === 'pulse' ? 'Verified Drop' :
-               themeCode === 'foundry' ? 'Direct OEM Supply' :
-               themeCode === 'habitat' ? 'Sanctuary Living' :
-               themeCode === 'horizon' ? 'Enterprise & Heritage' :
-               themeCode === 'canvas' ? 'Cinematic Flagship' : 'Official Store'}
-            </span>
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            {renderNavLinks('hidden sm:flex')}
           </div>
-        </Link>
 
-        {/* Local Theme Inline Search Bar (Desktop) */}
-        {themeCode === 'local' && (
-          <div className="hidden md:flex flex-1 max-w-md mx-4">
+          {/* Center: Brand Logo & Highlighted Store Name */}
+          <div className="flex items-center justify-center shrink-0">
+            {renderBrandWordmark()}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center justify-end gap-2 sm:gap-3 flex-1">
+            {renderActions(true)}
+          </div>
+        </div>
+      ) : resolvedHeaderStyle === 'quick-search-bar' ? (
+        /* Quick Search Bar Layout: Brand Left, Inline Search in Center, Nav/Actions Right */
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 sm:gap-4 transition-all"
+          style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
+        >
+          {/* Left: Mobile Menu + Brand Logo */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            {renderBrandWordmark()}
+          </div>
+
+          {/* Middle: Prominent Inline Search Bar */}
+          <div className="hidden sm:flex flex-1 max-w-md mx-2 lg:mx-4">
             <Link
               href={getQueryPath(`/store/${slug}/search`)}
-              className="w-full flex items-center gap-2 bg-gray-100 border border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-500 transition"
+              className="w-full flex items-center gap-2 bg-gray-100 hover:bg-gray-200/80 border border-gray-300 rounded-full px-3.5 py-1.5 text-xs text-gray-500 transition shadow-2xs"
             >
-              <Search className="w-4 h-4 text-gray-400" />
-              <span>Search products, provisions, daily essentials...</span>
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="truncate">Search products, categories, daily essentials...</span>
             </Link>
           </div>
-        )}
 
-        {/* Desktop Navigation Links */}
-        <nav className={`hidden sm:flex items-center gap-6 text-sm font-medium ${
-          themeCode === 'atelier' ? 'uppercase text-xs tracking-widest text-stone-600' :
-          themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-slate-700' :
-          themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
-        }`}>
-          <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
-            Home
-          </Link>
-          <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
-            Products
-          </Link>
-          <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-gray-900 transition">
-            About Us
-          </Link>
-        </nav>
-
-        {/* Right Action Icons (Search, RFQ, Cart) */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={getQueryPath(`/store/${slug}/search`)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-            title="Search Products"
-            aria-label="Search Catalog"
-          >
-            <Search className="w-5 h-5" />
-          </Link>
-
-          {/* Foundry Specific Quick RFQ Button */}
-          {themeCode === 'foundry' && (
-            <a
-              href={`https://wa.me/919822012345?text=Hi%20${encodeURIComponent(store.name)}%2C%20please%20send%20catalog%20and%20quotation`}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-800 text-white font-mono text-xs font-semibold shadow-sm transition"
-            >
-              <span>Instant RFQ</span>
-            </a>
-          )}
-
-          <Link
-            href={getQueryPath(`/store/${slug}/cart`)}
-            className={`relative flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 ${
-              themeCode === 'atelier' ? 'rounded-none' :
-              themeCode === 'pulse' ? 'rounded-none skew-x-[-4deg]' :
-              themeCode === 'foundry' ? 'rounded-sm font-mono' :
-              themeCode === 'harvest' ? 'rounded-full' : 'rounded-lg'
-            }`}
-            style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
-            aria-label={`Shopping Cart with ${itemCount} items`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span className="hidden sm:inline">
-              {themeCode === 'foundry' ? 'Order' : 'Cart'}
-            </span>
-            {itemCount > 0 && (
-              <span
-                className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold text-white ${
-                  themeCode === 'pulse' ? 'animate-bounce' : ''
-                }`}
-                style={{ backgroundColor: 'var(--theme-accent, #D97706)' }}
-              >
-                {itemCount}
-              </span>
-            )}
-          </Link>
+          {/* Right: Desktop Nav + Action Icons */}
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {renderNavLinks('hidden lg:flex text-xs uppercase tracking-wider')}
+            {renderActions(false)}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Sticky Action Layout (Default): Brand Left, Desktop Nav Center, Actions Right */
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
+          style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
+        >
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            {renderBrandWordmark()}
+          </div>
+
+          {renderNavLinks('hidden sm:flex')}
+
+          {renderActions(true)}
+        </div>
+      )}
 
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
@@ -294,34 +370,43 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Home
+            {t('storefront.home')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/products`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Products
+            {t('storefront.products')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/about`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            About Us
+            {t('storefront.aboutUs')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/cart`)}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >
-            Shopping Cart ({itemCount})
+            {t('storefront.cart')} ({itemCount})
           </Link>
           {themeCode === 'foundry' && (
             <a
               href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20${encodeURIComponent(store.name)}`}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                if (store?.id) {
+                  logWhatsappEnquiry({
+                    storeId: store.id,
+                    customerName: 'WhatsApp Buyer',
+                    message: `B2B RFQ quotation enquiry for ${store.name}`,
+                  });
+                }
+              }}
               className="block text-sm font-bold text-sky-700 py-1 font-mono"
             >
               📞 Request B2B Quotation (WhatsApp)

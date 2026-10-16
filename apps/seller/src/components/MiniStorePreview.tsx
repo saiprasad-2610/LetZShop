@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react';
+import { useSellerI18n } from '@simply/i18n';
 import { getStorefrontUrl } from '../utils/config';
 
 interface MiniStorePreviewProps {
@@ -8,6 +9,7 @@ interface MiniStorePreviewProps {
   products?: any[];
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   activePage?: 'home' | 'products' | 'about';
+  themeName?: string;
   onPageChange?: (page: 'home' | 'products' | 'about') => void;
 }
 
@@ -15,9 +17,11 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   store,
   iframeRef,
   activePage = 'home',
+  themeName,
   onPageChange,
 }) => {
   const router = useRouter();
+  const { t } = useSellerI18n();
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [currentPage, setCurrentPage] = useState<'home' | 'products' | 'about'>(activePage || 'home');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -57,129 +61,152 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   };
 
   return (
-    <div className="w-full rounded-2xl border border-merchant-border overflow-hidden bg-merchant-surface shadow-xs transition-colors duration-150">
-      {/* Simulated Browser Header Bar */}
-      <div className="bg-merchant-surface-raised px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-merchant-border">
-        <div className="flex items-center space-x-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+    <div className="w-full h-full flex flex-col rounded-2xl border border-merchant-border overflow-hidden bg-merchant-surface shadow-xl transition-colors duration-150">
+      {/* 1. Universal Preview Toolbar (Fixed at top of preview panel) */}
+      <div className="bg-merchant-surface-raised px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-merchant-border shrink-0 select-none">
+        {/* Left: Window Controls & Live Indicator */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+          </div>
+          {themeName ? (
+            <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] font-bold text-merchant-text-muted truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{t('brandStudio.live')}{' '}{themeName}</span>
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{t('brandStudio.livePreview')}</span>
+            </span>
+          )}
         </div>
 
-        {/* 3 Page Tabs Switcher */}
-        <div className="flex items-center bg-merchant-surface p-1 rounded-xl border border-merchant-border text-xs shadow-2xs">
+        {/* Center: 3 Page Tabs Switcher (Home, Products, About Us) */}
+        <div className="flex items-center bg-merchant-surface p-0.5 rounded-xl border border-merchant-border text-xs shadow-2xs shrink-0">
           <button
             type="button"
             id="preview-nav-home"
             onClick={() => handlePageSwitch('home')}
-            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer text-xs ${
               currentPage === 'home'
                 ? 'bg-merchant-primary text-white font-bold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>🏠 Home</span>
+            <span>{t('brandStudio.home')}</span>
           </button>
           <button
             type="button"
             id="preview-nav-products"
             onClick={() => handlePageSwitch('products')}
-            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer text-xs ${
               currentPage === 'products'
                 ? 'bg-merchant-primary text-white font-bold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>🛍️ Products</span>
+            <span>{t('brandStudio.products')}</span>
           </button>
           <button
             type="button"
             id="preview-nav-about"
             onClick={() => handlePageSwitch('about')}
-            className={`px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition font-medium flex items-center gap-1.5 cursor-pointer text-xs ${
               currentPage === 'about'
                 ? 'bg-merchant-primary text-white font-bold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>📖 About Us</span>
+            <span>{t('brandStudio.aboutUs')}</span>
           </button>
         </div>
 
-        {/* Device Switcher & Reload */}
-        <div className="flex items-center gap-1.5">
+        {/* Right: Device Modes (Desktop, Tablet, Mobile) & Refresh */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             id="preview-device-desktop"
             onClick={() => setDeviceMode('desktop')}
-            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'desktop'
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Desktop View (100% width)"
-            aria-label="Desktop View"
+            title={t('brandStudio.desktopViewFullWidth')}
+            aria-label={t('brandStudio.desktopView')}
           >
             <Monitor className="w-3.5 h-3.5" />
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.desktop')}</span>
           </button>
           <button
             type="button"
             id="preview-device-tablet"
             onClick={() => setDeviceMode('tablet')}
-            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'tablet'
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Tablet View (768px)"
-            aria-label="Tablet View"
+            title={t('brandStudio.tabletView768px')}
+            aria-label={t('brandStudio.tabletView')}
           >
             <Tablet className="w-3.5 h-3.5" />
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.tablet')}</span>
           </button>
           <button
             type="button"
             id="preview-device-mobile"
             onClick={() => setDeviceMode('mobile')}
-            className={`p-1.5 rounded-lg text-xs transition cursor-pointer ${
+            className={`p-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'mobile'
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Mobile View (390px)"
-            aria-label="Mobile View"
+            title={t('brandStudio.mobileView390px')}
+            aria-label={t('brandStudio.mobileView')}
           >
             <Smartphone className="w-3.5 h-3.5" />
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.mobile')}</span>
           </button>
           <button
             type="button"
             id="preview-device-refresh"
             onClick={handleRefresh}
-            className="p-1.5 rounded-lg text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface transition cursor-pointer"
-            title="Refresh Preview"
-            aria-label="Refresh Preview"
+            className="p-1.5 rounded-lg text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface transition cursor-pointer ml-0.5"
+            title={t('brandStudio.refreshPreview')}
+            aria-label={t('brandStudio.refreshPreview')}
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Interactive Buyer Storefront Viewport */}
-      <div className="bg-merchant-bg p-2 sm:p-4 flex items-center justify-center min-h-[680px]">
+      {/* 2. Interactive Storefront Viewport (Begins immediately below toolbar) */}
+      <div
+        className={`flex-1 min-h-0 w-full overflow-hidden transition-colors ${
+          deviceMode === 'desktop'
+            ? 'bg-white p-0 flex flex-col'
+            : 'bg-slate-900/20 dark:bg-slate-950/40 p-2 sm:p-4 flex items-center justify-center'
+        }`}
+      >
         <div
-          className={`transition-all duration-300 w-full ${
-            deviceMode === 'mobile'
-              ? 'max-w-[390px] h-[720px] rounded-2xl overflow-hidden shadow-2xl border-4 border-merchant-border-strong bg-white'
+          className={`transition-all duration-300 flex flex-col ${
+            deviceMode === 'desktop'
+              ? 'w-full h-full bg-white'
               : deviceMode === 'tablet'
-              ? 'max-w-[768px] h-[720px] rounded-2xl overflow-hidden shadow-2xl border-4 border-merchant-border-strong bg-white'
-              : 'h-[720px] rounded-xl overflow-hidden shadow-sm bg-white'
+              ? 'w-[768px] max-w-full h-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700/80 dark:border-slate-800 bg-white'
+              : 'w-[390px] max-w-full h-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-800 dark:border-slate-900 bg-white'
           }`}
         >
           <iframe
             ref={iframeRef}
             key={`${pagePath}_${refreshKey}`}
             src={previewIframeUrl}
-            className="w-full h-full border-0 bg-white"
-            title="Storefront Interactive Buyer Preview"
+            className="w-full h-full flex-1 border-0 bg-white"
+            title={t('brandStudio.storefrontInteractiveBuyerPreview')}
           />
         </div>
       </div>

@@ -147,9 +147,23 @@ export class CartService {
             variant: {
               include: {
                 product: {
-                  include: { media: { orderBy: { sortOrder: 'asc' } } },
+                  include: {
+                    media: {
+                      include: { optionValue: true },
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
                 },
-                optionValues: { include: { optionValue: true } },
+                optionValues: {
+                  include: {
+                    optionValue: {
+                      include: {
+                        option: true,
+                      },
+                    },
+                  },
+                },
+                media: true,
               },
             },
           },

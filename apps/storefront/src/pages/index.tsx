@@ -26,15 +26,14 @@ import {
   Share2
 } from 'lucide-react';
 import { getSellerUrl } from '../utils/config';
+import { LandingLocaleProvider, useLandingI18n, LandingLanguageSelect } from '@simply/i18n';
 
 /**
  * Letz Shop Platform Landing Page (Root `/`)
  * Domain: letzshop.store
- * 
- * Next-Gen E-Commerce Operating System for independent merchants,
- * artisanal brands, boutique creators, and growing businesses.
  */
-export default function PlatformLandingPage() {
+function LandingPageInner() {
+  const { t } = useLandingI18n();
   const [sellerUrl, setSellerUrl] = useState(getSellerUrl());
 
   useEffect(() => {
@@ -59,62 +58,62 @@ export default function PlatformLandingPage() {
   const themes = [
     {
       id: 'horizon',
-      name: 'Horizon Widescreen',
-      tagline: 'Cinematic Widescreen Panorama',
-      description: 'Ultra-wide editorial layouts designed for high-fashion, apparel, and lifestyle brands with full-width photography.',
+      name: t('landing.themeHorizonName'),
+      tagline: t('landing.themeHorizonTagline'),
+      description: t('landing.themeHorizonDesc'),
       palette: ['#0f172a', '#3b82f6', '#f8fafc'],
-      badge: 'Popular for Fashion & Streetwear',
+      badge: t('landing.themeHorizonBadge'),
       features: ['Full-width 16:9 4K hero banners', 'Floating glass action header', 'Edge-to-edge product showcase']
     },
     {
       id: 'canvas',
-      name: 'Canvas Atelier',
-      tagline: 'Artisanal Heritage & Storytelling',
-      description: 'Warm, refined typography and tactile presentation tailored for gourmet tea, artisanal coffee, and crafted goods.',
+      name: t('landing.themeCanvasName'),
+      tagline: t('landing.themeCanvasTagline'),
+      description: t('landing.themeCanvasDesc'),
       palette: ['#451a03', '#d97706', '#fef3c7'],
-      badge: 'Crafted for Artisans & Specialty Foods',
+      badge: t('landing.themeCanvasBadge'),
       features: ['Luxury serif typography pairings', 'Craft storytelling hero cards', 'Subtle amber & gold accent touches']
     },
     {
       id: 'aura',
-      name: 'Aura Noir',
-      tagline: 'Ultra-Modern Dark Mode Luxury',
-      description: 'Sleek, atmospheric dark aesthetic created for designer accessories, premium tech, and luxury collector items.',
+      name: t('landing.themeAuraName'),
+      tagline: t('landing.themeAuraTagline'),
+      description: t('landing.themeAuraDesc'),
       palette: ['#000000', '#10b981', '#18181b'],
-      badge: 'Designed for Tech & Jewelry',
+      badge: t('landing.themeAuraBadge'),
       features: ['OLED deep-black background', 'Vibrant emerald glow indicators', 'Minimalist high-contrast card styling']
     },
     {
       id: 'modern',
-      name: 'Neo Clean',
-      tagline: 'Rapid Multi-Category Retail',
-      description: 'High-density, conversion-optimized grid built for fast grocery, health, beauty, and rapid daily essentials.',
+      name: t('landing.themeModernName'),
+      tagline: t('landing.themeModernTagline'),
+      description: t('landing.themeModernDesc'),
       palette: ['#1e1b4b', '#6366f1', '#e0e7ff'],
-      badge: 'Optimized for Fast Moving Goods',
+      badge: t('landing.themeModernBadge'),
       features: ['Instant add-to-bag with micro-animations', 'Sticky mobile navigation bar', 'Dynamic badge promotion filters']
     }
   ];
 
   const faqs = [
     {
-      question: 'How does my store link work on letzshop.store?',
-      answer: 'Every merchant instantly receives a dedicated subdomain at yourbrand.letzshop.store (e.g. sairamtea.letzshop.store) with high-speed global CDN delivery and automatic SSL encryption. You can also connect your own custom root domain (like yourbrand.com) anytime with zero downtime.'
+      question: t('landing.faqQ1'),
+      answer: t('landing.faqA1'),
     },
     {
-      question: 'Do I need any technical, coding, or graphic design skills?',
-      answer: 'Zero coding required! Letz Shop is fully visual. You can upload products, set pricing, adjust store colors, and change hero banners with our built-in Brand Studio in seconds. We automatically validate image resolutions to ensure your storefront looks ultra-crisp.'
+      question: t('landing.faqQ2'),
+      answer: t('landing.faqA2'),
     },
     {
-      question: 'What payment options do my customers get during checkout?',
-      answer: 'Letz Shop supports instant 1-tap checkout with Razorpay, UPI (Google Pay, PhonePe, Paytm, CRED), credit/debit cards, net banking, and Cash on Delivery (COD). Customers can also opt to place orders directly over WhatsApp with pre-filled cart details.'
+      question: t('landing.faqQ3'),
+      answer: t('landing.faqA3'),
     },
     {
-      question: 'How fast do I receive payments in my bank account?',
-      answer: 'Payouts are deposited directly into your linked bank account via standard settlement schedules. There are no surprise deduction fees or arbitrary account freezes.'
+      question: t('landing.faqQ4'),
+      answer: t('landing.faqA4'),
     },
     {
-      question: 'Can I sell unlimited products and track real-time inventory?',
-      answer: 'Yes! Letz Shop features an atomic inventory engine that automatically tracks stock across all variants, prevents overselling during high-traffic drops, and sends you instant low-stock notifications.'
+      question: t('landing.faqQ5'),
+      answer: t('landing.faqA5'),
     }
   ];
 
@@ -138,12 +137,12 @@ export default function PlatformLandingPage() {
             <Sparkles className="w-3 h-3 text-amber-300" />
             Letz Shop v2.0 Live
           </span>
-          <span>Claim your brand subdomain on <strong>letzshop.store</strong> today with zero setup fee!</span>
+          <span>{t('landing.announcement')}</span>
           <a
             href={`${sellerUrl}/login?mode=register`}
             className="underline underline-offset-2 font-bold hover:text-amber-200 transition ml-1"
           >
-            Start Free →
+            {t('landing.startFree')}
           </a>
         </div>
       </div>
@@ -173,34 +172,35 @@ export default function PlatformLandingPage() {
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-300">
-            <a href="#features" className="hover:text-white transition">Features</a>
-            <a href="#themes" className="hover:text-white transition">Themes</a>
-            <a href="#how-it-works" className="hover:text-white transition">How It Works</a>
-            <a href="#faq" className="hover:text-white transition">FAQ</a>
+            <a href="#features" className="hover:text-white transition">{t('landing.features')}</a>
+            <a href="#themes" className="hover:text-white transition">{t('landing.themes')}</a>
+            <a href="#how-it-works" className="hover:text-white transition">{t('landing.howItWorks')}</a>
+            <a href="#faq" className="hover:text-white transition">{t('landing.faq')}</a>
             <a
               href={`${sellerUrl}/store-preview`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-slate-400 hover:text-indigo-400 transition"
             >
-              <span>Live Preview</span>
+              <span>{t('landing.livePreview')}</span>
               <Eye className="w-3.5 h-3.5" />
             </a>
           </nav>
 
-          {/* Action CTAs */}
+          {/* Action CTAs & Language Switcher */}
           <div className="flex items-center gap-3">
+            <LandingLanguageSelect />
             <a
               href={`${sellerUrl}/login`}
               className="px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white transition rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800"
             >
-              Merchant Login
+              {t('landing.merchantLogin')}
             </a>
             <a
               href={`${sellerUrl}/login?mode=register`}
               className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span>Create Free Store</span>
+              <span>{t('landing.createFreeStore')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -228,15 +228,13 @@ export default function PlatformLandingPage() {
             {/* Headline */}
             <div className="space-y-4 max-w-4xl mx-auto">
               <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
-                Turn your brand into an{' '}
+                {t('landing.heroTitlePre')}{' '}
                 <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-                  online powerhouse.
+                  {t('landing.heroTitleGradient')}
                 </span>
               </h1>
               <p className="text-base sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
-                Launch your digital store in 60 seconds with <strong>Letz Shop</strong>. Ultra-HD themes,
-                1-tap checkout, instant UPI payments, and your dedicated link on{' '}
-                <span className="text-indigo-300 font-mono">yourbrand.letzshop.store</span>.
+                {t('landing.heroSubtitle')}
               </p>
             </div>
 
@@ -267,20 +265,20 @@ export default function PlatformLandingPage() {
                   className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Claim Free Store</span>
+                  <span>{t('landing.claimButton')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </form>
 
               <div className="pt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-slate-400">
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> No credit card needed
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.noCardNeeded')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> 60-second instant setup
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.instantSetup')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Free SSL & CDN included
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.freeSsl')}
                 </span>
               </div>
             </div>
@@ -464,23 +462,23 @@ export default function PlatformLandingPage() {
         <section className="py-10 border-y border-slate-800/80 bg-slate-900/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-4">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Powering bold independent brands across India & globally
+              {t('landing.categoryStripHeading')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-slate-300 font-medium">
               <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                🍵 Artisanal Teas & Roasters
+                {t('landing.catArtisanal')}
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                👗 Boutique Fashion & Streetwear
+                {t('landing.catFashion')}
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                🏺 Handcrafted Ceramics & Decor
+                {t('landing.catHandicrafts')}
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                💎 Designer Jewelry & Accessories
+                {t('landing.catJewelry')}
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                🧴 Clean Skincare & Wellness
+                {t('landing.catWellness')}
               </span>
             </div>
           </div>
@@ -490,13 +488,13 @@ export default function PlatformLandingPage() {
         <section id="features" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto space-y-16">
           <div className="text-center space-y-4 max-w-3xl mx-auto">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-              Everything Included
+              {t('landing.features')}
             </span>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              Engineered for merchants who want to sell without limits.
+              {t('landing.featuresHeading')}
             </h2>
             <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-              We replaced complicated setups and high marketplace fees with a lightning-fast, all-in-one store builder designed for instant sales.
+              {t('landing.featuresSubtitle')}
             </p>
           </div>
 
@@ -506,9 +504,9 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Palette className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Ultra-HD Storefront Themes</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature6Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                4K widescreen banners (1920 × 1080), adaptive color palettes, and editorial typography. Choose between Horizon, Canvas, Aura, or Neo in 1 click.
+                {t('landing.feature6Desc')}
               </p>
               <div className="text-[11px] font-semibold text-indigo-400 flex items-center gap-1 pt-1">
                 <span>Horizon • Canvas • Aura • Neo</span>
@@ -520,9 +518,9 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Zap className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Lightning 1-Tap Checkout</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature1Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Reduce cart drop-off by up to 42%. Auto-saved addresses, instant mobile OTP verification, and high-speed checkout flows that feel instant.
+                {t('landing.feature1Desc')}
               </p>
               <div className="text-[11px] font-semibold text-purple-400 flex items-center gap-1 pt-1">
                 <span>UPI QR • Cards • NetBanking • COD</span>
@@ -534,9 +532,9 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <MessageCircle className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Native WhatsApp Commerce</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature2Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Customers can place orders directly over WhatsApp with pre-filled cart summaries, or receive automated order tracking links straight to their chat.
+                {t('landing.feature2Desc')}
               </p>
               <div className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1 pt-1">
                 <span>Instant customer engagement</span>
@@ -548,12 +546,12 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Globe className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Branded Subdomains & SSL</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature3Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Launch instantly on <code className="text-blue-300">yourbrand.letzshop.store</code> with free SSL certificates and global edge caching. Custom domains supported.
+                {t('landing.feature3Desc')}
               </p>
               <div className="text-[11px] font-semibold text-blue-400 flex items-center gap-1 pt-1">
-                <span>Zero server config required</span>
+                <span>yourbrand.letzshop.store</span>
               </div>
             </div>
 
@@ -562,12 +560,12 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <BarChart3 className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Atomic Inventory Guard</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature4Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Never oversell during high-volume sales drops. Dynamic inventory reservation prevents double-booking while tracking stock in real time.
+                {t('landing.feature4Desc')}
               </p>
               <div className="text-[11px] font-semibold text-amber-400 flex items-center gap-1 pt-1">
-                <span>Automated low-stock alerts</span>
+                <span>Automated stock protection</span>
               </div>
             </div>
 
@@ -576,12 +574,12 @@ export default function PlatformLandingPage() {
               <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Fast Daily Bank Payouts</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.feature5Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                No middleman holding your revenue for weeks. Direct bank settlement, automated GST invoicing, and secure PIN-based merchant access.
+                {t('landing.feature5Desc')}
               </p>
               <div className="text-[11px] font-semibold text-rose-400 flex items-center gap-1 pt-1">
-                <span>Automated tax & invoice receipts</span>
+                <span>Direct settlement to bank</span>
               </div>
             </div>
           </div>
@@ -592,13 +590,13 @@ export default function PlatformLandingPage() {
           <div className="max-w-6xl mx-auto space-y-12">
             <div className="text-center space-y-3 max-w-2xl mx-auto">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                Visual Themes
+                {t('landing.themes')}
               </span>
               <h2 className="text-3xl sm:text-4xl font-black text-white">
-                World-class store designs. Zero design fees.
+                {t('landing.themesHeading')}
               </h2>
               <p className="text-xs sm:text-sm text-slate-400">
-                Every theme adapts dynamically to your brand colors, typography, and products in real-time.
+                {t('landing.themesSubtitle')}
               </p>
             </div>
 
@@ -650,7 +648,7 @@ export default function PlatformLandingPage() {
                         href={`${sellerUrl}/login?mode=register`}
                         className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-950 text-xs font-bold transition shadow-sm flex items-center gap-1.5 shrink-0"
                       >
-                        <span>Apply to Store</span>
+                        <span>{t('landing.applyToStore')}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </a>
                     </div>
@@ -675,10 +673,10 @@ export default function PlatformLandingPage() {
         <section id="how-it-works" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto space-y-16">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-              Effortless Launch
+              {t('landing.howItWorks')}
             </span>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              From zero to your first order in 3 simple steps.
+              {t('landing.howItWorksHeading')}
             </h2>
           </div>
 
@@ -688,9 +686,9 @@ export default function PlatformLandingPage() {
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-indigo-600/30">
                 1
               </div>
-              <h3 className="text-lg font-bold text-white">Reserve Your Store Link</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.step1Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Sign up with your mobile number and OTP in under 60 seconds. Choose your store slug on <span className="text-indigo-400 font-mono">letzshop.store</span>.
+                {t('landing.step1Desc')}
               </p>
             </div>
 
@@ -699,9 +697,9 @@ export default function PlatformLandingPage() {
               <div className="w-10 h-10 rounded-xl bg-purple-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-purple-600/30">
                 2
               </div>
-              <h3 className="text-lg font-bold text-white">Add Products & Themes</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.step2Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Upload your high-res banners and products with prices and inventory. Brand Studio validates resolution so your photos look razor-sharp.
+                {t('landing.step2Desc')}
               </p>
             </div>
 
@@ -710,9 +708,9 @@ export default function PlatformLandingPage() {
               <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-emerald-600/30">
                 3
               </div>
-              <h3 className="text-lg font-bold text-white">Share & Collect Payments</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing.step3Title')}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Put your link on Instagram, WhatsApp, or ads. Accept instant payments via UPI QR, credit cards, or COD with automated notifications.
+                {t('landing.step3Desc')}
               </p>
             </div>
           </div>
@@ -723,9 +721,9 @@ export default function PlatformLandingPage() {
           <div className="max-w-4xl mx-auto space-y-12">
             <div className="text-center space-y-3">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                Got Questions?
+                {t('landing.faq')}
               </span>
-              <h2 className="text-3xl sm:text-4xl font-black text-white">Frequently Asked Questions</h2>
+              <h2 className="text-3xl sm:text-4xl font-black text-white">{t('landing.faqHeading')}</h2>
             </div>
 
             <div className="space-y-3">
@@ -764,15 +762,15 @@ export default function PlatformLandingPage() {
           <div className="max-w-5xl mx-auto rounded-3xl p-8 sm:p-14 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 border border-indigo-500/40 shadow-2xl shadow-indigo-950/80 text-center space-y-6 relative">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-200 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Launch Your Store in 60 Seconds</span>
+              <span>{t('landing.heroBadge')}</span>
             </div>
 
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-2xl mx-auto">
-              Ready to take your business to the next level with Letz Shop?
+              {t('landing.ctaHeading')}
             </h2>
 
             <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto leading-relaxed">
-              Join hundreds of thriving independent brands selling every day on <strong className="text-white">letzshop.store</strong>.
+              {t('landing.ctaSubtitle')}
             </p>
 
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
@@ -780,7 +778,7 @@ export default function PlatformLandingPage() {
                 href={`${sellerUrl}/login?mode=register`}
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-slate-100 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>Create My Free Store</span>
+                <span>{t('landing.ctaButton')}</span>
                 <ArrowRight className="w-4 h-4 text-slate-950" />
               </a>
 
@@ -788,12 +786,12 @@ export default function PlatformLandingPage() {
                 href={`${sellerUrl}/login`}
                 className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-2"
               >
-                <span>Merchant Login</span>
+                <span>{t('landing.merchantLogin')}</span>
               </a>
             </div>
 
             <div className="text-[11px] text-slate-400 pt-2">
-              Free forever starter tier • No credit card required • Instant mobile OTP
+              {t('landing.noCardNeeded')} • {t('landing.instantSetup')}
             </div>
           </div>
         </section>
@@ -814,28 +812,28 @@ export default function PlatformLandingPage() {
               </span>
             </div>
             <p className="text-slate-500 text-[11px] leading-relaxed">
-              The high-performance e-commerce platform empowering independent creators, artisans, and modern merchants to sell directly to customers worldwide.
+              {t('landing.footerBuiltFor')}
             </p>
           </div>
 
           {/* Col 2: Platform Links */}
           <div className="space-y-2">
-            <p className="font-bold text-white uppercase tracking-wider text-[11px]">Platform</p>
+            <p className="font-bold text-white uppercase tracking-wider text-[11px]">{t('landing.features')}</p>
             <ul className="space-y-1.5 text-slate-400">
-              <li><a href="#features" className="hover:text-white transition">Features & Bento Grid</a></li>
-              <li><a href="#themes" className="hover:text-white transition">Ultra-HD Themes</a></li>
-              <li><a href="#how-it-works" className="hover:text-white transition">3-Step Launch Flow</a></li>
-              <li><a href={`${sellerUrl}/store-preview`} target="_blank" rel="noreferrer" className="hover:text-white transition">Live Store Demo</a></li>
+              <li><a href="#features" className="hover:text-white transition">{t('landing.features')}</a></li>
+              <li><a href="#themes" className="hover:text-white transition">{t('landing.themes')}</a></li>
+              <li><a href="#how-it-works" className="hover:text-white transition">{t('landing.howItWorks')}</a></li>
+              <li><a href={`${sellerUrl}/store-preview`} target="_blank" rel="noreferrer" className="hover:text-white transition">{t('landing.livePreview')}</a></li>
             </ul>
           </div>
 
           {/* Col 3: Merchant Portal */}
           <div className="space-y-2">
-            <p className="font-bold text-white uppercase tracking-wider text-[11px]">Merchants</p>
+            <p className="font-bold text-white uppercase tracking-wider text-[11px]">{t('landing.merchantLogin')}</p>
             <ul className="space-y-1.5 text-slate-400">
-              <li><a href={`${sellerUrl}/login?mode=register`} className="hover:text-white transition">Create New Store</a></li>
-              <li><a href={`${sellerUrl}/login`} className="hover:text-white transition">Merchant PIN Login</a></li>
-              <li><a href="#faq" className="hover:text-white transition">Frequently Asked Questions</a></li>
+              <li><a href={`${sellerUrl}/login?mode=register`} className="hover:text-white transition">{t('landing.createFreeStore')}</a></li>
+              <li><a href={`${sellerUrl}/login`} className="hover:text-white transition">{t('landing.merchantLogin')}</a></li>
+              <li><a href="#faq" className="hover:text-white transition">{t('landing.faq')}</a></li>
             </ul>
           </div>
 
@@ -847,21 +845,28 @@ export default function PlatformLandingPage() {
             </p>
             <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Bank-Grade Encryption Active</span>
+              <span>{t('landing.freeSsl')}</span>
             </div>
           </div>
         </div>
 
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
-          <p>© 2026 Letz Shop Inc. (letzshop.store). All rights reserved.</p>
+          <p>© 2026 Letz Shop Inc. (letzshop.store). {t('landing.allRightsReserved')}</p>
           <div className="flex items-center gap-4">
-            <a href="#features" className="hover:text-slate-300 transition">Terms of Service</a>
-            <a href="#features" className="hover:text-slate-300 transition">Privacy Policy</a>
-            <a href="#faq" className="hover:text-slate-300 transition">Merchant Guidelines</a>
+            <a href="#features" className="hover:text-slate-300 transition">{t('landing.terms')}</a>
+            <a href="#features" className="hover:text-slate-300 transition">{t('landing.privacy')}</a>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function PlatformLandingPage() {
+  return (
+    <LandingLocaleProvider>
+      <LandingPageInner />
+    </LandingLocaleProvider>
   );
 }

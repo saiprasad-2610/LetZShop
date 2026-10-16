@@ -10,6 +10,7 @@ import {
   HttpStatus,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
@@ -95,6 +96,12 @@ export class SubscriptionController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: { planId: string; durationDays?: number; paymentOrderId?: string; providerSignature?: string }
   ) {
+    const plan = await this.prisma.plan.findUnique({ where: { id: body.planId } });
+    if (!plan) throw new NotFoundException('Subscription plan not found.');
+    if (plan.code.toUpperCase().includes('GROWTH')) {
+      throw new BadRequestException('The Growth plan is coming soon and cannot be activated at this time.');
+    }
+
     if (process.env.NODE_ENV === 'production') {
       if (!body.paymentOrderId) {
         throw new ForbiddenException(
@@ -132,6 +139,12 @@ export class SubscriptionController {
       throw new ForbiddenException(
         'Development subscription activation is strictly disabled in production environments.'
       );
+    }
+
+    const plan = await this.prisma.plan.findUnique({ where: { id: body.planId } });
+    if (!plan) throw new NotFoundException('Subscription plan not found.');
+    if (plan.code.toUpperCase().includes('GROWTH')) {
+      throw new BadRequestException('The Growth plan is coming soon and cannot be activated at this time.');
     }
 
     return this.subscriptionService.devActivateSubscription(

@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { OrderDetailsDrawer } from '../components/OrderDetailsDrawer';
 import { TableSkeleton } from '../components/ui/Skeletons';
 import { formatPaise } from '@simply/ui';
+import { useSellerI18n } from '@simply/i18n';
 
 // Canonical Order Status badge styling
 const ORDER_STATUS_CONFIG: Record<
@@ -56,6 +57,7 @@ const PAYMENT_STATUS_CONFIG: Record<
 export default function OrdersPage() {
   const { api, token, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t, locale } = useSellerI18n();
 
   // Orders and Pagination state
   const [orders, setOrders] = useState<any[]>([]);
@@ -225,11 +227,12 @@ export default function OrdersPage() {
       bgClass: 'bg-slate-100 border border-slate-200',
       textClass: 'text-slate-800',
     };
+    const translatedLabel = t(`orderStatus.${status}`, {}, config.label);
     return (
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${config.bgClass} ${config.textClass}`}
       >
-        {config.label}
+        {translatedLabel}
       </span>
     );
   };
@@ -240,12 +243,13 @@ export default function OrdersPage() {
       bgClass: 'bg-slate-100 border border-slate-200',
       textClass: 'text-slate-700',
     };
+    const translatedLabel = t(`paymentStatus.${status}`, {}, config.label);
     return (
       <div className="flex items-center gap-1.5 flex-wrap">
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${config.bgClass} ${config.textClass}`}
         >
-          {config.label}
+          {translatedLabel}
         </span>
         {method && method !== 'MANUAL' && (
           <span className="text-[10px] font-semibold text-slate-500 uppercase px-1.5 py-0.5 bg-slate-100 rounded">
@@ -257,9 +261,9 @@ export default function OrdersPage() {
   };
 
   return (
-    <Layout title="Orders">
+    <Layout title={t('orders.title')}>
       <Head>
-        <title>Orders | Simply Seller</title>
+        <title>{t('orders.title')} | Simply Seller</title>
       </Head>
 
       <div className="space-y-5">
@@ -269,10 +273,10 @@ export default function OrdersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--merchant-text)] tracking-tight">
-              Orders
+              {t('orders.title')}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--merchant-text-muted)] mt-0.5">
-              Manage customer orders and fulfillment
+              {t('orders.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -282,7 +286,7 @@ export default function OrdersPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] active:bg-[var(--merchant-surface-raised)] transition shadow-2xs disabled:opacity-60"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[var(--merchant-primary)]' : ''}`} />
-              <span>Refresh</span>
+              <span>{t('common.refresh')}</span>
             </button>
           </div>
         </div>
@@ -292,12 +296,12 @@ export default function OrdersPage() {
         {/* ================================================== */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
           {[
-            { key: '', label: 'All Orders', count: summaryCounts.all },
-            { key: 'NEEDS_ACTION', label: 'Needs Action', count: summaryCounts.needsAction, highlight: summaryCounts.needsAction > 0 },
-            { key: 'READY', label: 'Ready to Ship', count: summaryCounts.ready },
-            { key: 'DISPATCHED', label: 'Dispatched', count: summaryCounts.dispatched },
-            { key: 'COMPLETED', label: 'Completed', count: summaryCounts.completed },
-            { key: 'CANCELLED', label: 'Cancelled', count: summaryCounts.cancelled },
+            { key: '', label: t('orders.allOrders'), count: summaryCounts.all },
+            { key: 'NEEDS_ACTION', label: t('orders.needsAction'), count: summaryCounts.needsAction, highlight: summaryCounts.needsAction > 0 },
+            { key: 'READY', label: t('orders.readyToShip'), count: summaryCounts.ready },
+            { key: 'DISPATCHED', label: t('orders.dispatched'), count: summaryCounts.dispatched },
+            { key: 'COMPLETED', label: t('orders.completed'), count: summaryCounts.completed },
+            { key: 'CANCELLED', label: t('orders.cancelled'), count: summaryCounts.cancelled },
           ].map((pill) => {
             const isSelected = statusFilter === pill.key;
             return (
@@ -343,7 +347,7 @@ export default function OrdersPage() {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search by order #, customer name, phone..."
+                placeholder={t('orders.searchPlaceholder')}
                 className="w-full pl-9 pr-8 py-2 text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20 focus:border-[var(--merchant-focus-ring)] transition"
               />
               {searchInput && (
@@ -367,15 +371,15 @@ export default function OrdersPage() {
                 }}
                 className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
-                <option value="">All Statuses</option>
-                <option value="NEEDS_ACTION">Needs Action (New/Accepted)</option>
-                <option value="NEW">New</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="ACCEPTED">Accepted</option>
-                <option value="READY">Ready to Ship</option>
-                <option value="DISPATCHED">Dispatched</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
+                <option value="">{t('orders.allStatuses')}</option>
+                <option value="NEEDS_ACTION">{t('orders.needsAction')}</option>
+                <option value="NEW">{t('orderStatus.NEW')}</option>
+                <option value="CONFIRMED">{t('orderStatus.CONFIRMED')}</option>
+                <option value="ACCEPTED">{t('orderStatus.ACCEPTED')}</option>
+                <option value="READY">{t('orderStatus.READY')}</option>
+                <option value="DISPATCHED">{t('orderStatus.DISPATCHED')}</option>
+                <option value="COMPLETED">{t('orderStatus.COMPLETED')}</option>
+                <option value="CANCELLED">{t('orderStatus.CANCELLED')}</option>
               </select>
 
               {/* Payment Status Select */}
@@ -387,13 +391,13 @@ export default function OrdersPage() {
                 }}
                 className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
-                <option value="">All Payments</option>
-                <option value="PAID">Paid</option>
-                <option value="PENDING">Pending</option>
-                <option value="AUTHORIZED">Authorized</option>
-                <option value="FAILED">Failed</option>
-                <option value="REFUNDED">Refunded</option>
-                <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
+                <option value="">{t('orders.allPayments')}</option>
+                <option value="PAID">{t('paymentStatus.PAID')}</option>
+                <option value="PENDING">{t('paymentStatus.PENDING')}</option>
+                <option value="AUTHORIZED">{t('paymentStatus.AUTHORIZED')}</option>
+                <option value="FAILED">{t('paymentStatus.FAILED')}</option>
+                <option value="REFUNDED">{t('paymentStatus.REFUNDED')}</option>
+                <option value="PARTIALLY_REFUNDED">{t('paymentStatus.PARTIALLY_REFUNDED')}</option>
               </select>
 
               {/* Date Range Select */}
@@ -405,10 +409,10 @@ export default function OrdersPage() {
                 }}
                 className="text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl px-2.5 py-2 font-medium hover:border-[var(--merchant-border-strong)] focus:outline-hidden focus:ring-2 focus:ring-[var(--merchant-focus-ring)]/20"
               >
-                <option value="ALL">All Time</option>
-                <option value="TODAY">Today</option>
-                <option value="7D">Past 7 Days</option>
-                <option value="30D">Past 30 Days</option>
+                <option value="ALL">{t('orders.allTime')}</option>
+                <option value="TODAY">{t('common.today')}</option>
+                <option value="7D">{t('common.past7Days')}</option>
+                <option value="30D">{t('common.past30Days')}</option>
               </select>
 
               {/* Clear Filters (Desktop) */}
@@ -418,7 +422,7 @@ export default function OrdersPage() {
                   className="px-2.5 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 rounded-xl transition flex items-center gap-1"
                 >
                   <X className="w-3.5 h-3.5" />
-                  <span>Clear</span>
+                  <span>{t('common.clear')}</span>
                 </button>
               )}
             </div>
@@ -434,7 +438,7 @@ export default function OrdersPage() {
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</span>
+                <span>{t('common.filters')} {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</span>
               </button>
 
               {activeFilterCount > 0 && (
@@ -442,7 +446,7 @@ export default function OrdersPage() {
                   onClick={handleClearFilters}
                   className="px-3 py-2 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-xl"
                 >
-                  Reset
+                  {t('common.reset')}
                 </button>
               )}
             </div>
@@ -456,7 +460,7 @@ export default function OrdersPage() {
               <div className="flex items-center justify-between pb-2 border-b border-[var(--merchant-border)]">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-[var(--merchant-primary)]" />
-                  <h3 className="font-bold text-[var(--merchant-text)] text-sm">Filter Orders</h3>
+                  <h3 className="font-bold text-[var(--merchant-text)] text-sm">{t('orders.filterOrders')}</h3>
                 </div>
                 <button
                   onClick={() => setMobileFilterOpen(false)}
@@ -469,56 +473,56 @@ export default function OrdersPage() {
               {/* Status Filter */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
-                  Order Status
+                  {t('orders.orderStatusLabel')}
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl p-2.5 font-medium"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="NEEDS_ACTION">Needs Action (New/Accepted)</option>
-                  <option value="NEW">New</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="ACCEPTED">Accepted</option>
-                  <option value="READY">Ready to Ship</option>
-                  <option value="DISPATCHED">Dispatched</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
+                  <option value="">{t('orders.allStatuses')}</option>
+                  <option value="NEEDS_ACTION">{t('orders.needsAction')}</option>
+                  <option value="NEW">{t('orderStatus.NEW')}</option>
+                  <option value="CONFIRMED">{t('orderStatus.CONFIRMED')}</option>
+                  <option value="ACCEPTED">{t('orderStatus.ACCEPTED')}</option>
+                  <option value="READY">{t('orderStatus.READY')}</option>
+                  <option value="DISPATCHED">{t('orderStatus.DISPATCHED')}</option>
+                  <option value="COMPLETED">{t('orderStatus.COMPLETED')}</option>
+                  <option value="CANCELLED">{t('orderStatus.CANCELLED')}</option>
                 </select>
               </div>
 
               {/* Payment Filter */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
-                  Payment Status
+                  {t('orders.paymentStatusLabel')}
                 </label>
                 <select
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value)}
                   className="w-full text-xs bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-xl p-2.5 font-medium"
                 >
-                  <option value="">All Payments</option>
-                  <option value="PAID">Paid</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="AUTHORIZED">Authorized</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="REFUNDED">Refunded</option>
-                  <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
+                  <option value="">{t('orders.allPayments')}</option>
+                  <option value="PAID">{t('paymentStatus.PAID')}</option>
+                  <option value="PENDING">{t('paymentStatus.PENDING')}</option>
+                  <option value="AUTHORIZED">{t('paymentStatus.AUTHORIZED')}</option>
+                  <option value="FAILED">{t('paymentStatus.FAILED')}</option>
+                  <option value="REFUNDED">{t('paymentStatus.REFUNDED')}</option>
+                  <option value="PARTIALLY_REFUNDED">{t('paymentStatus.PARTIALLY_REFUNDED')}</option>
                 </select>
               </div>
 
               {/* Date Range Filter */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--merchant-text)] mb-1">
-                  Date Range
+                  {t('orders.dateRangeLabel')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { key: 'ALL', label: 'All Time' },
-                    { key: 'TODAY', label: 'Today' },
-                    { key: '7D', label: '7 Days' },
-                    { key: '30D', label: '30 Days' },
+                    { key: 'ALL', label: t('orders.allTime') },
+                    { key: 'TODAY', label: t('common.today') },
+                    { key: '7D', label: t('common.days7') },
+                    { key: '30D', label: t('common.days30') },
                   ].map((d) => (
                     <button
                       key={d.key}
@@ -542,7 +546,7 @@ export default function OrdersPage() {
                   onClick={handleClearFilters}
                   className="flex-1 py-2 text-xs font-semibold text-[var(--merchant-text-muted)] bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] rounded-xl transition"
                 >
-                  Reset All
+                  {t('common.resetAll')}
                 </button>
                 <button
                   type="button"
@@ -552,7 +556,7 @@ export default function OrdersPage() {
                   }}
                   className="flex-1 py-2 text-xs font-bold text-white bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] rounded-xl shadow-xs transition"
                 >
-                  Apply Filters
+                  {t('orders.applyFilters')}
                 </button>
               </div>
             </div>
@@ -566,14 +570,14 @@ export default function OrdersPage() {
           <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-3 text-rose-600 text-xs">
             <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-[var(--merchant-text)]">Unable to load orders</p>
+              <p className="font-semibold text-[var(--merchant-text)]">{t('orders.unableToLoad')}</p>
               <p className="text-rose-500 mt-0.5">{error}</p>
             </div>
             <button
               onClick={() => fetchOrders()}
               className="px-3 py-1 bg-[var(--merchant-surface)] border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 rounded-lg font-semibold shrink-0"
             >
-              Retry
+              {t('common.retry')}
             </button>
           </div>
         )}
@@ -591,31 +595,31 @@ export default function OrdersPage() {
             </div>
             {activeFilterCount > 0 ? (
               <>
-                <h3 className="text-base font-bold text-[var(--merchant-text)]">No orders match these filters</h3>
+                <h3 className="text-base font-bold text-[var(--merchant-text)]">{t('orders.noOrdersMatch')}</h3>
                 <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-sm mx-auto">
-                  Try adjusting or clearing your search criteria, order status, or date range.
+                  {t('orders.noOrdersMatchSubtitle')}
                 </p>
                 <div className="mt-4">
                   <button
                     onClick={handleClearFilters}
                     className="px-4 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-semibold transition shadow-xs"
                   >
-                    Clear Filters
+                    {t('orders.clearFilters')}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <h3 className="text-base font-bold text-[var(--merchant-text)]">No orders yet</h3>
+                <h3 className="text-base font-bold text-[var(--merchant-text)]">{t('orders.noOrdersTitle')}</h3>
                 <p className="text-xs text-[var(--merchant-text-muted)] mt-1 max-w-sm mx-auto">
-                  Customer orders will appear here once your store starts receiving them.
+                  {t('orders.noOrdersSubtitle')}
                 </p>
                 <div className="mt-4">
                   <Link
                     href="/store-preview"
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-semibold transition shadow-xs"
                   >
-                    <span>Preview Store</span>
+                    <span>{t('orders.previewStore')}</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -632,14 +636,14 @@ export default function OrdersPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[var(--merchant-surface-muted)] border-b border-[var(--merchant-border)] text-[var(--merchant-text-muted)] font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="py-3 px-4">Order</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Items</th>
-                      <th className="py-3 px-4">Amount</th>
-                      <th className="py-3 px-4">Payment</th>
-                      <th className="py-3 px-4">Fulfillment / Status</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4 text-right">Action</th>
+                      <th className="py-3 px-4">{t('orders.orderColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.customerColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.itemsColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.amountColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.paymentColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.fulfillmentColumn')}</th>
+                      <th className="py-3 px-4">{t('orders.dateColumn')}</th>
+                      <th className="py-3 px-4 text-right">{t('orders.actionColumn')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--merchant-border)]">
@@ -651,13 +655,13 @@ export default function OrdersPage() {
                         o.items?.[0]?.productName ||
                         o.items?.[0]?.variantTitle ||
                         o.items?.[0]?.titleSnapshot ||
-                        'Order items';
+                        t('orders.items');
                       const customerDisplayName =
                         o.customerName ||
                         o.customer?.fullName ||
                         o.orderAddress?.fullName ||
                         (o.deliveryAddress as any)?.fullName ||
-                        'Guest Customer';
+                        t('orders.guestCustomer');
                       const customerDisplayPhone =
                         o.customerPhone ||
                         o.customer?.phone ||
@@ -689,7 +693,7 @@ export default function OrdersPage() {
                           {/* Items */}
                           <td className="py-3.5 px-4 max-w-xs truncate text-[var(--merchant-text-secondary)]">
                             <span className="font-semibold text-[var(--merchant-text)]">
-                              {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                              {itemsCount} {itemsCount === 1 ? t('common.item') : t('common.items')}
                             </span>
                             <span className="text-[var(--merchant-text-muted)] block text-[11px] truncate">
                               {summary}
@@ -727,7 +731,7 @@ export default function OrdersPage() {
                               className="px-3 py-1.5 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] rounded-lg font-semibold text-xs transition inline-flex items-center gap-1 group-hover:bg-[var(--merchant-primary-soft)] group-hover:text-[var(--merchant-primary)]"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              <span>View</span>
+                              <span>{t('orders.view')}</span>
                             </button>
                           </td>
                         </tr>
@@ -750,13 +754,13 @@ export default function OrdersPage() {
                   o.items?.[0]?.productName ||
                   o.items?.[0]?.variantTitle ||
                   o.items?.[0]?.titleSnapshot ||
-                  'Order items';
+                  t('orders.items');
                 const customerDisplayName =
                   o.customerName ||
                   o.customer?.fullName ||
                   o.orderAddress?.fullName ||
                   (o.deliveryAddress as any)?.fullName ||
-                  'Guest Customer';
+                  t('orders.guestCustomer');
                 const customerDisplayPhone =
                   o.customerPhone ||
                   o.customer?.phone ||
@@ -789,7 +793,7 @@ export default function OrdersPage() {
                           {customerDisplayName}
                         </span>
                         <span className="text-[11px] text-[var(--merchant-text-muted)] font-medium">
-                          {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                          {itemsCount} {itemsCount === 1 ? t('common.item') : t('common.items')}
                         </span>
                       </div>
                       {customerDisplayPhone !== '—' && (
@@ -827,7 +831,7 @@ export default function OrdersPage() {
                         className="px-3 py-1 bg-[var(--merchant-surface-muted)] hover:bg-[var(--merchant-surface-raised)] text-[var(--merchant-text)] rounded-lg font-semibold text-xs transition inline-flex items-center gap-1"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>View Order</span>
+                        <span>{t('orders.viewOrder')}</span>
                       </button>
                     </div>
                   </div>
@@ -841,15 +845,15 @@ export default function OrdersPage() {
             {totalPages > 1 && (
               <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
                 <p className="text-xs text-[var(--merchant-text-muted)] order-2 sm:order-1">
-                  Showing{' '}
+                  {t('orders.showing')}{' '}
                   <span className="font-semibold text-[var(--merchant-text)]">
                     {(page - 1) * pageSize + 1}
                   </span>{' '}
-                  to{' '}
+                  {t('orders.to')}{' '}
                   <span className="font-semibold text-[var(--merchant-text)]">
                     {Math.min(page * pageSize, totalCount)}
                   </span>{' '}
-                  of <span className="font-semibold text-[var(--merchant-text)]">{totalCount}</span> orders
+                  {t('orders.of')} <span className="font-semibold text-[var(--merchant-text)]">{totalCount}</span> {t('orders.ordersCountSuffix')}
                 </p>
 
                 <div className="flex items-center gap-2 order-1 sm:order-2">
@@ -859,11 +863,11 @@ export default function OrdersPage() {
                     className="px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
-                    <span>Previous</span>
+                    <span>{t('common.previous')}</span>
                   </button>
 
                   <span className="text-xs font-semibold text-[var(--merchant-text)] px-2 font-mono">
-                    Page {page} of {totalPages}
+                    {t('orders.page')} {page} {t('orders.of')} {totalPages}
                   </span>
 
                   <button
@@ -871,7 +875,7 @@ export default function OrdersPage() {
                     disabled={page >= totalPages}
                     className="px-3 py-1.5 text-xs font-semibold text-[var(--merchant-text)] bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-xl hover:bg-[var(--merchant-surface-muted)] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
                   >
-                    <span>Next</span>
+                    <span>{t('common.next')}</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

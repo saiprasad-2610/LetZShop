@@ -10,11 +10,14 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { useStorefrontI18n } from '@simply/i18n';
+import { getProductTranslation } from '../../../utils/productTranslation';
 
 export default function StoreSearchPage() {
   const router = useRouter();
   const { slug, q, category, preview, embedded } = router.query;
   const { api, setStoreId, addItem } = useCart();
+  const { locale, t } = useStorefrontI18n();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -98,7 +101,7 @@ export default function StoreSearchPage() {
       });
 
       setAddedId(product.id);
-      toast.success('Added to Cart!', `${product.name || product.title} added to your bag.`);
+      toast.success(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2200);
     } catch (err: any) {
       toast.error('Could Not Add Item', err?.message || 'Failed to add item to cart');
@@ -220,15 +223,17 @@ export default function StoreSearchPage() {
                 setSearchTerm('');
                 setSelectedCategory('');
               }}
+              data-theme-btn="true"
               className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold"
             >
               Reset Filters
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="store-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((p) => {
-              const title = p.name || p.title || 'Product';
+              const trans = getProductTranslation(p.translations, locale);
+              const title = trans?.name?.trim() || p.name || p.title || 'Product';
               const primaryVariant = p.variants?.[0];
               const pricePaise = p.basePricePaise ?? primaryVariant?.pricePaise ?? 0;
               const comparePaise = p.compareAtPricePaise ?? primaryVariant?.compareAtPricePaise;

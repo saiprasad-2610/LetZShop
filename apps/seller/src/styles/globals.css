@@ -161,13 +161,49 @@
 }
 
 html,
-body,
-#__next {
+body {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: clip;
+  position: relative;
   background-color: var(--merchant-bg);
   color: var(--merchant-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Size the actual navigation select independently of shared package utilities.
+   Phone header and drawer controls retain their existing compact dimensions. */
+@media (min-width: 768px) {
+  .merchant-navigation-controls select {
+    box-sizing: border-box;
+    width: 130px;
+    min-width: 130px;
+    max-width: 100%;
+    height: 44px;
+    padding: 8px 24px 8px 10px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .merchant-navigation-controls select {
+    width: 150px;
+    min-width: 150px;
+    height: 48px;
+    padding: 10px 28px 10px 12px;
+  }
 }
 
 /* Polished subtle transitions for theme switches (150-200ms) */
@@ -253,8 +289,36 @@ footer {
 
 [data-merchant-theme="dark"] .brand-studio-controls .bg-slate-50,
 [data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100\/90,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-100\/80,
+[data-merchant-theme="dark"] .brand-studio-controls .bg-slate-50\/60,
 .dark .brand-studio-controls .bg-slate-50,
-.dark .brand-studio-controls .bg-slate-100 {
+.dark .brand-studio-controls .bg-slate-100,
+.dark .brand-studio-controls .bg-slate-100\/90,
+.dark .brand-studio-controls .bg-slate-100\/80,
+.dark .brand-studio-controls .bg-slate-50\/60 {
   background-color: var(--merchant-surface-raised) !important;
+  border-color: var(--merchant-border) !important;
+}
+
+/* Explicit high-contrast theme preset callout styling for both light and dark themes */
+.theme-best-suited-box {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box,
+.dark .theme-best-suited-box {
+  background-color: #1a1c24 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box span,
+.dark .theme-best-suited-box span {
+  color: #60a5fa !important;
+}
+[data-merchant-theme="dark"] .theme-best-suited-box p,
+.dark .theme-best-suited-box p {
+  color: #e2e8f0 !important;
 }
 

@@ -7,10 +7,13 @@
     "build": "turbo run build",
     "dev": "node scripts/dev-merchant.mjs",
     "dev:merchant": "node scripts/dev-merchant.mjs",
+    "dev:admin": "pnpm --filter @simply/admin dev",
     "dev:status": "node scripts/dev-merchant.mjs --status",
     "dev:stop": "node scripts/dev-merchant.mjs --stop",
     "dev:all": "turbo run dev --concurrency 20",
-    "dev:check": "tsx scripts/dev-health-check.ts",
+    "admin:seed": "node scripts/seed-admin.mjs",
+    "test:admin": "node scripts/test-admin-moderation.mjs",
+    "dev:check": "pnpm --filter @simply/db exec tsx ../../scripts/dev-health-check.ts",
     "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "pnpm --filter @simply/api test",
     "test:e2e": "pnpm --filter @simply/api test:e2e",
@@ -20,7 +23,8 @@
     "db:seed": "pnpm --filter @simply/db seed",
     "db:studio": "pnpm --filter @simply/db studio",
     "demo:reset": "pnpm --filter @simply/db exec tsx ../../scripts/demo-reset.ts",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "test:admin:dashboard": "node scripts/test-admin-dashboard.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",

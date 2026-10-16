@@ -23,6 +23,112 @@ import * as crypto from 'crypto';
 import { MailService } from '../notifications/mail.service';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { buildPublicReviewUrl, buildPublicTrackingUrl, normalizeIndianPhone } from '@simply/api-contracts';
+import { PAYMENT_GATEWAY_MIN_AMOUNT_PAISE, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/config';
+
+export interface CouponDefinition {
+  code: string;
+  type: 'PERCENTAGE' | 'FLAT';
+  value: number; // percentage (e.g. 10) or flat paise
+  label: string;
+  minOrderPaise?: number;
+  maxDiscountPaise?: number;
+}
+
+export const BUILT_IN_COUPONS: Record<string, CouponDefinition> = {
+  WELCOME10: {
+    code: 'WELCOME10',
+    type: 'PERCENTAGE',
+    value: 10,
+    label: 'Welcome 10% Off',
+    maxDiscountPaise: 50000, // Max ₹500
+  },
+  SAVE50: {
+    code: 'SAVE50',
+    type: 'FLAT',
+    value: 5000, // ₹50 Flat
+    label: 'Flat ₹50 Off',
+    minOrderPaise: 49900, // Min ₹499
+  },
+  SUPER20: {
+    code: 'SUPER20',
+    type: 'PERCENTAGE',
+    value: 20,
+    label: 'Super Saver 20% Off',
+    minOrderPaise: 99900, // Min ₹999
+    maxDiscountPaise: 100000, // Max ₹1000
+  },
+  FREEDEL: {
+    code: 'FREEDEL',
+    type: 'FLAT',
+    value: 4000, // ₹40 delivery waiver
+    label: 'Free Delivery Credit',
+    minOrderPaise: 29900,
+  },
+};
+
+function resolveVariantMediaUrl(params: {
+  productMedia?: any[];
+  variant?: any;
+  selectedOptionValues?: Record<string, string>;
+}): string | null {
+  const { productMedia = [], variant, selectedOptionValues = {} } = params;
+
+  // 1. Variant specific media
+  if (variant?.id) {
+    if (Array.isArray(variant.media) && variant.media.length > 0) {
+      const v = variant.media[0];
+      return v.publicUrl || v.url || v.filePath || null;
+    }
+    const match = productMedia.find(
+      (m: any) => m && (m.variantId === variant.id || m.variant?.id === variant.id)
+    );
+    if (match) return match.publicUrl || match.url || match.filePath || null;
+  }
+
+  // 2. Selected colour option value
+  let colourValue: string | null = null;
+  let colourOptionValueId: string | null = null;
+  for (const [k, v] of Object.entries(selectedOptionValues)) {
+    if (k.toLowerCase() === 'colour' || k.toLowerCase() === 'color') {
+      colourValue = v;
+      break;
+    }
+  }
+  if (!colourValue && variant?.optionValues && Array.isArray(variant.optionValues)) {
+    for (const ov of variant.optionValues) {
+      const optName = ov.optionValue?.option?.name || ov.optionName;
+      const optVal = ov.optionValue?.value || ov.value;
+      const valId = ov.optionValueId || ov.optionValue?.id;
+      if (optName && (optName.toLowerCase() === 'colour' || optName.toLowerCase() === 'color')) {
+        colourValue = optVal;
+        colourOptionValueId = valId;
+        break;
+      }
+    }
+  }
+
+  if (colourOptionValueId || colourValue) {
+    const colMatch = productMedia.find((m: any) => {
+      if (!m) return false;
+      if (colourOptionValueId && m.optionValueId === colourOptionValueId) return true;
+      const mVal = m.optionValue?.value || m.optionValueName;
+      if (colourValue && mVal && mVal.toLowerCase() === colourValue.toLowerCase()) return true;
+      return false;
+    });
+    if (colMatch) return colMatch.publicUrl || colMatch.url || colMatch.filePath || null;
+  }
+
+  // 3. General product media
+  const general = productMedia.find((m: any) => m && !m.variantId && !m.optionValueId);
+  if (general) return general.publicUrl || general.url || general.filePath || null;
+
+  // 4. First product media
+  if (productMedia.length > 0 && productMedia[0]) {
+    return productMedia[0].publicUrl || productMedia[0].url || productMedia[0].filePath || null;
+  }
+
+  return null;
+}
 
 /**
  * Full Domain Order Lifecycle:
@@ -92,6 +198,49 @@ export class OrdersService {
   ) {}
 
   /**
+   * Server-Side Authoritative Coupon Validation
+   */
+  public validateCoupon(storeId: string, code: string, subtotalPaise: number) {
+    if (!code || typeof code !== 'string') {
+      return { valid: false, reason: 'Please enter a coupon code' };
+    }
+    const normalizedCode = code.trim().toUpperCase();
+    const couponDef = BUILT_IN_COUPONS[normalizedCode];
+    if (!couponDef) {
+      return { valid: false, reason: `Coupon "${normalizedCode}" is not valid or has expired` };
+    }
+    if (couponDef.minOrderPaise && subtotalPaise < couponDef.minOrderPaise) {
+      const minAmount = (couponDef.minOrderPaise / 100).toFixed(0);
+      return {
+        valid: false,
+        reason: `Minimum order value for this coupon is ₹${minAmount}`,
+      };
+    }
+    let discountPaise = 0;
+    if (couponDef.type === 'FLAT') {
+      discountPaise = Math.min(couponDef.value, subtotalPaise);
+    } else {
+      discountPaise = Math.round((subtotalPaise * couponDef.value) / 100);
+      if (couponDef.maxDiscountPaise && discountPaise > couponDef.maxDiscountPaise) {
+        discountPaise = couponDef.maxDiscountPaise;
+      }
+      discountPaise = Math.min(discountPaise, subtotalPaise);
+    }
+    return {
+      valid: true,
+      coupon: {
+        code: couponDef.code,
+        type: couponDef.type,
+        value: couponDef.value,
+        label: couponDef.label,
+        discountPaise,
+        minOrderPaise: couponDef.minOrderPaise,
+        maxDiscountPaise: couponDef.maxDiscountPaise,
+      },
+    };
+  }
+
+  /**
    * Guest-first checkout transaction:
    * 1. Enforces subscription gating on the store
    * 2. Reserves stock atomically
@@ -119,8 +268,24 @@ export class OrdersService {
           include: {
             variant: {
               include: {
-                product: true,
-                optionValues: { include: { optionValue: true } },
+                product: {
+                  include: {
+                    media: {
+                      include: { optionValue: true },
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
+                },
+                optionValues: {
+                  include: {
+                    optionValue: {
+                      include: {
+                        option: true,
+                      },
+                    },
+                  },
+                },
+                media: true,
               },
             },
           },
@@ -233,13 +398,32 @@ export class OrdersService {
         }
       }
 
-      let discountPaise = typeof dto.discountPaise === 'number' && dto.discountPaise > 0 
-        ? Math.min(dto.discountPaise, subtotalPaise) 
-        : 0;
+      // Server-Side Authoritative Coupon Validation & Recalculation
+      let discountPaise = 0;
+      if (dto.couponCode) {
+        const valRes = this.validateCoupon(store.id, dto.couponCode, subtotalPaise);
+        if (!valRes.valid) {
+          throw new BadRequestException(valRes.reason || 'Invalid coupon code');
+        }
+        discountPaise = valRes.coupon?.discountPaise || 0;
+      } else if (typeof dto.discountPaise === 'number' && dto.discountPaise > 0) {
+        discountPaise = Math.min(dto.discountPaise, subtotalPaise);
+      }
 
       const taxableAmount = Math.max(0, subtotalPaise - discountPaise);
       const taxPaise = Math.round(taxableAmount * 0.05); // 5% GST estimate in paise
       const totalPaise = Math.max(0, taxableAmount + shippingPaise + taxPaise);
+
+      // Enforce Razorpay Gateway Minimum Amount Constraint
+      const chosenPaymentMethod = (dto.paymentMethod || 'COD').toUpperCase();
+      if (chosenPaymentMethod === 'RAZORPAY' && totalPaise > 0 && totalPaise < PAYMENT_GATEWAY_MIN_AMOUNT_PAISE) {
+        throw new BadRequestException(
+          `Online payment is available for orders of ₹${PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES} or more. Please select Cash on Delivery.`
+        );
+      }
+
+      const isZeroAmount = totalPaise === 0;
+      const initialPaymentStatus = isZeroAmount ? PaymentStatus.PAID : PaymentStatus.PENDING;
 
       // Generate Order Number: ORD-YYYYMMDD-XXXX
       const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -263,7 +447,7 @@ export class OrdersService {
           trackingToken,
           reviewToken,
           status: OrderStatus.NEW,
-          paymentStatus: PaymentStatus.PENDING,
+          paymentStatus: initialPaymentStatus,
           shipmentStatus: ShipmentStatus.PENDING,
           fulfillmentMode: dto.fulfillmentMode === 'PICKUP' ? ('PICKUP' as any) : ('DELIVERY' as any),
           subtotalPaise,
@@ -274,7 +458,7 @@ export class OrdersService {
           currency: 'INR',
           notes: fullNotes,
           deliveryAddress: dto.deliveryAddress as any,
-          paymentMethod: (dto.paymentMethod || 'COD').toUpperCase(),
+          paymentMethod: isZeroAmount ? 'PROMOTIONAL_CREDIT' : chosenPaymentMethod,
           guestCheckout: true,
         },
       });
@@ -299,13 +483,33 @@ export class OrdersService {
 
       // Step F: Create OrderItem records with complete historical snapshots
       for (const item of cart.items) {
+        // Deterministic ProductOption ordering (e.g. Colour (0) then Size (1) -> "Black · M")
+        const sortedOptionValues = [...(item.variant.optionValues || [])].sort((a: any, b: any) => {
+          const sortA = a.optionValue?.option?.sortOrder ?? 0;
+          const sortB = b.optionValue?.option?.sortOrder ?? 0;
+          if (sortA !== sortB) return sortA - sortB;
+          const nameA = a.optionValue?.option?.name || '';
+          const nameB = b.optionValue?.option?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+
         const optionSnapshot: Record<string, string> = {};
-        for (const optVal of item.variant.optionValues) {
-          optionSnapshot['Option'] = optVal.optionValue.value;
+        for (const optVal of sortedOptionValues) {
+          const optName = optVal.optionValue?.option?.name || 'Option';
+          optionSnapshot[optName] = optVal.optionValue.value;
         }
 
         const variantTitle =
-          Object.values(optionSnapshot).join(' / ') || item.variant.sku;
+          sortedOptionValues
+            .map((ov: any) => ov.optionValue?.value)
+            .filter(Boolean)
+            .join(' · ') || item.variant.sku;
+
+        const snapshotImageUrl = resolveVariantMediaUrl({
+          productMedia: item.variant.product?.media || [],
+          variant: item.variant,
+          selectedOptionValues: optionSnapshot,
+        });
 
         await tx.orderItem.create({
           data: {
@@ -316,6 +520,7 @@ export class OrdersService {
             variantTitle,
             sku: item.variant.sku,
             selectedOptions: optionSnapshot,
+            imageUrl: snapshotImageUrl,
             quantity: item.quantity,
             unitPricePaise: item.unitPricePaise,
             taxPaise: Math.round(item.unitPricePaise * 0.05),
@@ -613,7 +818,13 @@ export class OrdersService {
       items: fullOrder.items.map((it: any) => ({
         productName: it.productName,
         variantTitle: it.variantTitle,
+        titleSnapshot: it.productName,
+        variantTitleSnapshot: it.variantTitle,
+        sku: it.sku,
+        imageUrl: it.imageUrl,
         quantity: it.quantity,
+        unitPricePaise: it.unitPricePaise,
+        totalPricePaise: it.totalPaise || it.quantity * it.unitPricePaise,
       })),
       trackingNumber: fullOrder.shipments?.[0]?.awbNumber || null,
       carrier: fullOrder.shipments?.[0]?.courierName || null,

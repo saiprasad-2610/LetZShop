@@ -15,14 +15,19 @@ import {
   ArrowRight,
   AlertCircle,
   Sparkles,
+  RefreshCw,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { parseRupeesToPaise } from '@simply/ui';
+import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, ACTIVE_LOCALES, type SupportedLocale } from '@simply/i18n';
+import { parseRupeesToPaise, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/ui';
+import { validateProductImageFile, formatBytes } from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
 
 interface OptionTypeDraft {
   id?: string;
   name: string;
+  type?: string;
   values: string[];
   inputValue: string;
 }
@@ -44,7 +49,11 @@ interface MediaItemDraft {
   mediaAssetId?: string;
   publicUrl: string;
   previewUrl?: string; // local blob URL
+  fileName?: string;
+  sizeBytes?: number;
   isUploading?: boolean;
+  optionValue?: string;
+  optionValueId?: string;
 }
 
 interface ProductEditorDrawerProps {
@@ -73,6 +82,8 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 }) => {
   const { api } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTargetIndex, setReplaceTargetIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -82,8 +93,11 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const [creatingCategory, setCreatingCategory] = useState(false);
 
   // Form State
+  const { t } = useSellerI18n();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [translations, setTranslations] = useState<Record<string, { name: string; description: string }>>({});
+  const [activeTranslationLocale, setActiveTranslationLocale] = useState<SupportedLocale>('mr-IN');
   const [categoryId, setCategoryId] = useState('');
   const [mode, setMode] = useState<
     'SELL_ONLINE' | 'ENQUIRY_ONLY' | 'SELL_AND_ENQUIRY'
@@ -110,6 +124,13 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     { name: 'Size', values: ['S', 'M', 'L'], inputValue: '' },
   ]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
+
+  // Find relevant visual / colour option (supports type='COLOUR' or name='Colour'/'Color')
+  const visualOption = options.find((o) => {
+    const typeStr = o.type?.toUpperCase();
+    const nameStr = o.name?.trim().toLowerCase();
+    return typeStr === 'COLOUR' || nameStr === 'colour' || nameStr === 'color';
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -154,6 +175,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   const resetForm = () => {
     setName('');
     setDescription('');
+    setTranslations({});
     setCategoryId('');
     setShowQuickAddCategory(false);
     setNewCatName('');
@@ -182,6 +204,20 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       const product = await api.catalog.getProduct(id);
       setName(product.name || product.title || '');
       setDescription(product.description || '');
+      if (Array.isArray(product.translations)) {
+        const transMap: Record<string, { name: string; description: string }> = {};
+        for (const tr of product.translations) {
+          if (tr.locale) {
+            transMap[tr.locale] = {
+              name: tr.name || '',
+              description: tr.description || '',
+            };
+          }
+        }
+        setTranslations(transMap);
+      } else {
+        setTranslations({});
+      }
       setCategoryId(product.categoryId || '');
       setMode(product.mode || 'SELL_ONLINE');
 
@@ -196,14 +232,38 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       setStock(String(initialStock));
       setSku(firstVar?.sku || '');
 
-      // Load media with canonical publicUrl
-      const loadedMedia: MediaItemDraft[] = (product.media || []).map((m: any) => ({
-        id: m.mediaAssetId || m.id,
-        mediaAssetId: m.mediaAssetId || m.id,
-        publicUrl: m.publicUrl,
-        previewUrl: m.publicUrl,
-        isUploading: false,
-      }));
+      // Load media with canonical publicUrl and deduplicate by mediaAssetId
+      const seenAssetIds = new Set<string>();
+      const loadedMedia: MediaItemDraft[] = [];
+      for (const m of product.media || []) {
+        const assetId = m.mediaAssetId || m.id;
+        if (!assetId || seenAssetIds.has(assetId)) continue;
+        seenAssetIds.add(assetId);
+
+        let optVal = m.optionValue?.value;
+        if (!optVal && m.variant?.optionValues) {
+          const colOv = m.variant.optionValues.find(
+            (vo: any) =>
+              vo.optionValue?.option?.name?.toLowerCase() === 'colour' ||
+              vo.optionValue?.option?.name?.toLowerCase() === 'color'
+          );
+          if (colOv?.optionValue?.value) {
+            optVal = colOv.optionValue.value;
+          }
+        }
+
+        loadedMedia.push({
+          id: assetId,
+          mediaAssetId: assetId,
+          publicUrl: m.publicUrl,
+          previewUrl: m.publicUrl,
+          fileName: m.mediaAsset?.fileName || m.fileName || m.altText || 'Product photo',
+          sizeBytes: m.mediaAsset?.sizeBytes || m.sizeBytes,
+          isUploading: false,
+          optionValue: optVal,
+          optionValueId: m.optionValueId,
+        });
+      }
       setMediaItems(loadedMedia);
 
       if (product.options && product.options.length > 0) {
@@ -211,6 +271,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         const mappedOptions: OptionTypeDraft[] = product.options.map((opt: any) => ({
           id: opt.id,
           name: opt.name,
+          type: opt.type,
           values: (opt.values || []).map((v: any) => (typeof v === 'string' ? v : v.value)),
           inputValue: '',
         }));
@@ -438,29 +499,38 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     if (!files || files.length === 0) return;
     setImageError(null);
 
-    if (mediaItems.length >= 3) {
-      setImageError('A maximum of 3 images is allowed per product.');
+    const availableSlots = 3 - mediaItems.length;
+    if (availableSlots <= 0) {
+      setImageError('A maximum of 3 images is allowed per product. Remove an image to upload a new one.');
       return;
     }
 
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    const fileArray = Array.from(files);
+    const toProcess = fileArray.slice(0, availableSlots);
+    if (fileArray.length > availableSlots) {
+      setImageError(`Only ${availableSlots} image slot${availableSlots > 1 ? 's were' : ' was'} available (limit: 3 images).`);
+    }
 
-    for (const file of Array.from(files)) {
-      if (mediaItems.length >= 3) {
-        setImageError('A maximum of 3 images is allowed per product.');
-        break;
+    for (const file of toProcess) {
+      // 1. Binary magic-byte and format validation
+      const validation = await validateProductImageFile(file);
+      if (!validation.isValid) {
+        setImageError(validation.error || 'Invalid image file.');
+        continue;
       }
 
-      if (!allowedMime.includes(file.type)) {
-        setImageError('Upload a supported image format (JPEG, PNG, WebP).');
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setImageError('Image file size exceeds 5MB limit.');
-        return;
+      const lowerName = file.name.toLowerCase();
+      let matchedColorValue: string | undefined = undefined;
+      const colourOption = options.find(
+        (o) => o.name.trim().toLowerCase() === 'colour' || o.name.trim().toLowerCase() === 'color'
+      );
+      if (colourOption) {
+        matchedColorValue = colourOption.values.find((val) =>
+          lowerName.includes(val.toLowerCase())
+        );
       }
 
-      // Step 1: Create immediate local blob URL
+      // 2. Step 1: Create immediate local blob URL for instant preview
       const blobUrl = URL.createObjectURL(file);
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -470,7 +540,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           id: tempId,
           publicUrl: blobUrl,
           previewUrl: blobUrl,
+          fileName: file.name,
+          sizeBytes: file.size,
           isUploading: true,
+          optionValue: matchedColorValue,
         },
       ]);
 
@@ -489,7 +562,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
         const res = await api.media.uploadMediaAsset({
           filename: file.name,
-          mimeType: file.type,
+          mimeType: validation.mimeType || file.type || 'image/jpeg',
           base64Data,
           altText: name || file.name,
         });
@@ -504,7 +577,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     mediaAssetId: res.id,
                     publicUrl: res.publicUrl,
                     previewUrl: blobUrl, // keep local blob for instant crispness
+                    fileName: file.name,
+                    sizeBytes: file.size,
                     isUploading: false,
+                    optionValue: item.optionValue || matchedColorValue,
                   }
                 : item
             )
@@ -518,6 +594,98 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       } finally {
         setUploadingImage(false);
       }
+    }
+  };
+
+  // Replace a specific existing photo slot
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // Reset input so same file can be chosen again
+    if (!file || replaceTargetIndex === null || replaceTargetIndex >= mediaItems.length) return;
+
+    setImageError(null);
+    const validation = await validateProductImageFile(file);
+    if (!validation.isValid) {
+      setImageError(validation.error || 'Invalid image file.');
+      return;
+    }
+
+    const targetIdx = replaceTargetIndex;
+    const oldItem = mediaItems[targetIdx];
+    const blobUrl = URL.createObjectURL(file);
+    const tempId = `temp-replace-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    setMediaItems((prev) => {
+      const updated = [...prev];
+      updated[targetIdx] = {
+        id: tempId,
+        publicUrl: blobUrl,
+        previewUrl: blobUrl,
+        fileName: file.name,
+        sizeBytes: file.size,
+        isUploading: true,
+      };
+      return updated;
+    });
+
+    setUploadingImage(true);
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const commaIdx = result.indexOf(',');
+          resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await api.media.uploadMediaAsset({
+        filename: file.name,
+        mimeType: validation.mimeType || file.type || 'image/jpeg',
+        base64Data,
+        altText: name || file.name,
+      });
+
+      if (res && res.id) {
+        setMediaItems((prev) => {
+          const updated = [...prev];
+          updated[targetIdx] = {
+            id: res.id,
+            mediaAssetId: res.id,
+            publicUrl: res.publicUrl,
+            previewUrl: blobUrl,
+            fileName: file.name,
+            sizeBytes: file.size,
+            isUploading: false,
+          };
+          return updated;
+        });
+
+        // If old item was tagged on variants, update them to the new mediaAssetId
+        if (oldItem.mediaAssetId) {
+          setVariants((prev) =>
+            prev.map((v) =>
+              v.mediaAssetId === oldItem.mediaAssetId
+                ? { ...v, mediaAssetId: res.id }
+                : v
+            )
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to replace media asset', err);
+      setImageError(err.message || 'Failed to replace image.');
+      // Restore previous item on error
+      setMediaItems((prev) => {
+        const updated = [...prev];
+        updated[targetIdx] = oldItem;
+        return updated;
+      });
+    } finally {
+      setUploadingImage(false);
+      setReplaceTargetIndex(null);
     }
   };
 
@@ -601,15 +769,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     if (mode === 'SELL_ONLINE' || mode === 'SELL_AND_ENQUIRY') {
       if (!hasVariants || variants.length === 0) {
         const numPrice = Number(basePriceRupees);
-        if (basePriceRupees === '' || isNaN(numPrice) || numPrice < 0) {
+        if (basePriceRupees === '' || isNaN(numPrice)) {
           errors.price = 'Enter a valid price.';
+        } else if (numPrice < 1) {
+          errors.price = 'The price of the product has to be higher than ₹1.';
         }
       } else {
         const invalidVar = variants.find(
-          (v) => v.isActive && (v.pricePaise === null || v.pricePaise === undefined || v.pricePaise < 0)
+          (v) => v.isActive && (v.pricePaise === null || v.pricePaise === undefined || v.pricePaise < 100)
         );
         if (invalidVar) {
-          errors.general = `Price is required for variant "${invalidVar.title}".`;
+          errors.general = `The price for variant "${invalidVar.title}" has to be higher than ₹1.`;
         }
       }
     }
@@ -673,6 +843,15 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         return;
       }
 
+      const media = mediaItems
+        .filter((m) => !m.isUploading && m.mediaAssetId)
+        .map((m, idx) => ({
+          mediaAssetId: m.mediaAssetId as string,
+          optionValue: m.optionValue || undefined,
+          optionValueId: m.optionValueId || undefined,
+          sortOrder: idx,
+        }));
+
       const payload: any = {
         name: trimmedName,
         description: description.trim() || undefined,
@@ -682,7 +861,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         compareAtPricePaise: comparePaise,
         stock: Number(stock) || 0,
         sku: sku.trim() || undefined,
-        ...(mediaAssetIds.length > 0 ? { mediaAssetIds } : {}),
+        ...(mediaAssetIds.length > 0 ? { mediaAssetIds, media } : { media: [] }),
       };
 
       if (hasVariants && options.some((o) => o.values.length > 0)) {
@@ -695,17 +874,32 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             values: o.values.map((v, vIdx) => ({ value: v.trim(), sortOrder: vIdx })),
           }));
 
-        payload.variants = variants.map((v, idx) => ({
-          id: v.id,
-          sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
-          pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
-          compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
-          stock: Number(v.inventoryQuantity) || 0,
-          initialStock: Number(v.inventoryQuantity) || 0,
-          optionValues: Object.values(v.optionValues),
-          mediaAssetId: v.mediaAssetId || undefined,
-          status: v.isActive ? 'ACTIVE' : 'INACTIVE',
-        }));
+        payload.variants = variants.map((v, idx) => {
+          let vMediaId = v.mediaAssetId;
+          if (!vMediaId) {
+            const vColour = Object.entries(v.optionValues).find(([k]) =>
+              k.toLowerCase() === 'colour' || k.toLowerCase() === 'color'
+            )?.[1];
+            if (vColour) {
+              const matchedMedia = mediaItems.find((m) => m.optionValue === vColour);
+              if (matchedMedia?.mediaAssetId) {
+                vMediaId = matchedMedia.mediaAssetId;
+              }
+            }
+          }
+
+          return {
+            id: v.id,
+            sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
+            pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
+            compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
+            stock: Number(v.inventoryQuantity) || 0,
+            initialStock: Number(v.inventoryQuantity) || 0,
+            optionValues: Object.values(v.optionValues),
+            mediaAssetId: vMediaId || undefined,
+            status: v.isActive ? 'ACTIVE' : 'INACTIVE',
+          };
+        });
       } else if (productId) {
         // If product was updated to simple without options, clear options explicitly
         payload.options = [];
@@ -720,6 +914,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             status: 'ACTIVE',
           },
         ];
+      }
+
+      const translationEntries = Object.entries(translations)
+        .filter(([_, t]) => Boolean((t.name && t.name.trim()) || (t.description && t.description.trim())))
+        .map(([loc, t]) => ({
+          locale: loc,
+          name: t.name?.trim() || undefined,
+          description: t.description?.trim() || undefined,
+        }));
+      if (translationEntries.length > 0) {
+        payload.translations = translationEntries;
       }
 
       if (productId) {
@@ -825,6 +1030,73 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 />
               </div>
 
+              {/* Optional Localized Content (Multi-lingual) */}
+              <div className="p-3.5 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-[var(--merchant-primary)]" />
+                    <span className="text-xs font-bold text-[var(--merchant-text)]">
+                      {t('products.optionalTranslations')}
+                    </span>
+                  </div>
+                  <select
+                    value={activeTranslationLocale}
+                    onChange={(e) => setActiveTranslationLocale(e.target.value as SupportedLocale)}
+                    className="text-xs bg-[var(--merchant-surface)] border border-[var(--merchant-border)] rounded-lg px-2 py-1 text-[var(--merchant-text)] font-medium focus:outline-none focus:border-[var(--merchant-primary)]"
+                  >
+                    {ACTIVE_LOCALES.filter((l) => l !== 'en-IN').map((loc) => {
+                      const info = LOCALE_REGISTRY[loc];
+                      const hasData = Boolean(
+                        translations[loc]?.name?.trim() || translations[loc]?.description?.trim()
+                      );
+                      return (
+                        <option key={loc} value={loc}>
+                          {info.nativeName} ({info.name}) {hasData ? '✓' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <p className="text-[11px] text-[var(--merchant-text-muted)]">
+                  Enter optional localized title and description for {LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}. Shoppers browsing in this language will see these translations, while English shoppers see your default content.
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={translations[activeTranslationLocale]?.name || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTranslations((prev) => ({
+                        ...prev,
+                        [activeTranslationLocale]: {
+                          ...prev[activeTranslationLocale],
+                          name: val,
+                          description: prev[activeTranslationLocale]?.description || '',
+                        },
+                      }));
+                    }}
+                    placeholder={`Product name in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
+                    className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
+                  />
+                  <textarea
+                    rows={2}
+                    value={translations[activeTranslationLocale]?.description || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTranslations((prev) => ({
+                        ...prev,
+                        [activeTranslationLocale]: {
+                          name: prev[activeTranslationLocale]?.name || '',
+                          description: val,
+                        },
+                      }));
+                    }}
+                    placeholder={`Description in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
+                    className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -880,17 +1152,45 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">Selling Mode</label>
+                  <label className="block text-xs font-bold text-[var(--merchant-text)] mb-1">
+                    {t('products.sellingMode', {}, 'Selling Mode')}
+                  </label>
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value as any)}
                     className="w-full px-3 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                   >
-                    <option value="SELL_ONLINE">Sell Online (Direct Checkout)</option>
-                    <option value="ENQUIRY_ONLY">Enquiry Only (Price on Request)</option>
-                    <option value="SELL_AND_ENQUIRY">Sell Online & Allow Enquiries</option>
+                    <option value="SELL_ONLINE">{t('products.sellOnline', {}, 'Sell Online (Direct Checkout)')}</option>
+                    <option value="ENQUIRY_ONLY">{t('products.enquiryOnly', {}, 'Enquiry Only (Price on Request)')}</option>
+                    <option value="SELL_AND_ENQUIRY">{t('products.sellAndEnquiry', {}, 'Sell Online & Allow Enquiries')}</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Allow WhatsApp Enquiries Setting */}
+              <div className="pt-2">
+                <label className="flex items-start sm:items-center gap-2.5 p-3 rounded-xl border border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)] cursor-pointer hover:border-[var(--merchant-primary)]/40 transition">
+                  <input
+                    type="checkbox"
+                    checked={mode === 'SELL_AND_ENQUIRY' || mode === 'ENQUIRY_ONLY'}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setMode(mode === 'ENQUIRY_ONLY' ? 'ENQUIRY_ONLY' : 'SELL_AND_ENQUIRY');
+                      } else {
+                        setMode('SELL_ONLINE');
+                      }
+                    }}
+                    className="mt-0.5 sm:mt-0 w-4 h-4 rounded border-gray-300 text-[var(--merchant-primary)] focus:ring-[var(--merchant-primary)] shrink-0"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-[var(--merchant-text)] block">
+                      {t('products.allowWhatsappEnquiry', {}, 'Allow WhatsApp Enquiries')}
+                    </span>
+                    <span className="text-[11px] text-[var(--merchant-text-muted)] block mt-0.5">
+                      {t('products.allowWhatsappEnquiryDesc', {}, 'Buyers can chat with your store on WhatsApp with product and variant details prefilled.')}
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
@@ -922,6 +1222,28 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               </div>
             </div>
 
+            {/* Hidden File Inputs for Primary Upload and Photo Replacement */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              data-testid="product-image-file-input"
+              onChange={(e) => {
+                processFiles(e.target.files);
+                e.target.value = '';
+              }}
+              className="hidden"
+            />
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept="image/*"
+              data-testid="product-image-replace-input"
+              onChange={handleReplaceFile}
+              className="hidden"
+            />
+
             {/* Dropzone - shown when < 3 images, hidden when 3 images reached */}
             {mediaItems.length < 3 ? (
               <div
@@ -938,14 +1260,6 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     : 'border-[var(--merchant-border)] hover:border-[var(--merchant-primary)] hover:bg-[var(--merchant-surface-muted)]'
                 }`}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => processFiles(e.target.files)}
-                  className="hidden"
-                />
                 <UploadCloud className="w-8 h-8 text-[var(--merchant-primary)] mx-auto mb-2" />
                 {uploadingImage ? (
                   <p className="text-xs sm:text-sm font-bold text-[var(--merchant-primary)] animate-pulse">
@@ -957,7 +1271,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   </p>
                 )}
                 <p className="text-[11px] text-[var(--merchant-text-muted)] mt-1">
-                  JPG, PNG, WebP supported up to 5MB each ({mediaItems.length} / 3 uploaded).
+                  JPG, PNG, WebP or AVIF supported up to 5MB each ({mediaItems.length} / 3 uploaded).
                 </p>
                 {imageError && (
                   <p className="text-xs text-rose-600 font-medium mt-2">{imageError}</p>
@@ -966,7 +1280,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             ) : (
               <div className="bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded-xl p-3 text-center">
                 <p className="text-xs font-medium text-[var(--merchant-text-secondary)]">
-                  Maximum of 3 images reached (3 / 3). Remove an image to upload a different one.
+                  Maximum of 3 images reached (3 / 3). Use Replace or Remove to update photos.
                 </p>
                 {imageError && (
                   <p className="text-xs text-rose-600 font-medium mt-1">{imageError}</p>
@@ -984,16 +1298,17 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                   {mediaItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="group relative rounded-xl border border-[var(--merchant-border)] overflow-hidden bg-[var(--merchant-surface-muted)] shadow-2xs space-y-1 p-1.5"
+                      className="group relative rounded-xl border border-[var(--merchant-border)] overflow-hidden bg-[var(--merchant-surface-muted)] shadow-2xs space-y-1.5 p-1.5"
                     >
                       <div className="aspect-square rounded-lg overflow-hidden bg-[var(--merchant-surface-raised)] relative">
                         <SafeImage
                           src={item.previewUrl || item.publicUrl}
-                          alt={`Product photo ${idx + 1}`}
+                          alt={item.fileName || `Product photo ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
                         {item.isUploading && (
-                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center">
+                          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-1 text-center">
+                            <RefreshCw className="w-4 h-4 text-white animate-spin mb-1" />
                             <span className="text-[10px] text-white font-bold animate-pulse">
                               Uploading...
                             </span>
@@ -1006,15 +1321,65 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                         )}
                       </div>
 
-                      {/* Photo Controls */}
-                      <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                      {/* Filename and Size */}
+                      <div className="px-1">
+                        <p
+                          className="text-[11px] font-medium text-[var(--merchant-text)] truncate"
+                          title={item.fileName || `Product photo ${idx + 1}`}
+                        >
+                          {item.fileName || `Photo ${idx + 1}`}
+                        </p>
+                        {item.sizeBytes ? (
+                          <p className="text-[10px] text-[var(--merchant-text-muted)]">
+                            {formatBytes(item.sizeBytes)}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {/* Colour / Option Association */}
+                      {hasVariants && visualOption && visualOption.values.length > 0 && (
+                        <div className="px-1 pt-0.5">
+                          <label className="text-[10px] font-semibold text-[var(--merchant-text-muted)] block mb-0.5">
+                            Colour / Option:
+                          </label>
+                          <select
+                            data-testid={`media-option-select-${idx}`}
+                            value={item.optionValue || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMediaItems((prev) =>
+                                prev.map((m, i) =>
+                                  i === idx
+                                    ? {
+                                        ...m,
+                                        optionValue: val || undefined,
+                                        optionValueId: undefined,
+                                      }
+                                    : m
+                                )
+                              );
+                            }}
+                            className="w-full text-[11px] px-1.5 py-1 border border-[var(--merchant-input-border)] rounded-md bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
+                          >
+                            <option value="">All / General</option>
+                            {visualOption.values.map((v) => (
+                              <option key={v} value={v}>
+                                {v}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Photo Controls: Reorder, Replace, Delete */}
+                      <div className="flex items-center justify-between text-[11px] pt-1 px-1 border-t border-[var(--merchant-border)]">
                         <div className="flex items-center gap-1">
                           {idx !== 0 && (
                             <button
                               type="button"
                               onClick={() => handleSetPrimaryImage(idx)}
                               title="Make Primary Image"
-                              className="p-1 hover:text-amber-500 transition"
+                              className="p-1 text-slate-400 hover:text-amber-500 transition"
                             >
                               <Star className="w-3.5 h-3.5" />
                             </button>
@@ -1024,7 +1389,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             onClick={() => handleMoveImage(idx, 'left')}
                             disabled={idx === 0}
                             title="Move Left"
-                            className="p-0.5 hover:text-blue-600 disabled:opacity-30"
+                            className="p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition"
                           >
                             <ArrowLeft className="w-3 h-3" />
                           </button>
@@ -1033,20 +1398,33 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                             onClick={() => handleMoveImage(idx, 'right')}
                             disabled={idx === mediaItems.length - 1}
                             title="Move Right"
-                            className="p-0.5 hover:text-blue-600 disabled:opacity-30"
+                            className="p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition"
                           >
                             <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          title="Delete photo"
-                          className="p-1 text-slate-400 hover:text-rose-600 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplaceTargetIndex(idx);
+                              replaceInputRef.current?.click();
+                            }}
+                            title="Replace this photo"
+                            className="p-1 text-slate-400 hover:text-[var(--merchant-primary)] transition"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            title="Remove photo"
+                            className="p-1 text-slate-400 hover:text-rose-600 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1084,6 +1462,12 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 </div>
                 {formErrors.price && (
                   <p className="text-xs text-rose-600 font-medium mt-1">{formErrors.price}</p>
+                )}
+                {parseFloat(basePriceRupees) > 0 && parseFloat(basePriceRupees) < PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 flex items-start gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>The price of the product has to be higher than ₹1.</span>
+                  </p>
                 )}
               </div>
 

@@ -1,12 +1,49 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, ProductStatus, VariantStatus, ProductMode } from '@prisma/client';
-import { CreateProductDto } from './dto/catalog.dto';
+import { CreateProductDto, ProductMediaItemDto } from './dto/catalog.dto';
 import { TenantContext } from '@simply/types';
 import { normalizeSlug } from '@simply/validation';
 
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private extractMediaInputs(dto: Partial<CreateProductDto>): Array<{
+    mediaAssetId: string;
+    optionValueId?: string;
+    optionValue?: string;
+    variantId?: string;
+    sortOrder?: number;
+  }> {
+    const result: Array<{
+      mediaAssetId: string;
+      optionValueId?: string;
+      optionValue?: string;
+      variantId?: string;
+      sortOrder?: number;
+    }> = [];
+
+    const seen = new Set<string>();
+
+    if (dto.media && Array.isArray(dto.media) && dto.media.length > 0) {
+      for (const m of dto.media) {
+        if (m.mediaAssetId && !seen.has(m.mediaAssetId)) {
+          seen.add(m.mediaAssetId);
+          result.push(m);
+        }
+      }
+    } else if (dto.mediaAssetIds && Array.isArray(dto.mediaAssetIds)) {
+      for (let i = 0; i < dto.mediaAssetIds.length; i++) {
+        const id = dto.mediaAssetIds[i];
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          result.push({ mediaAssetId: id, sortOrder: i });
+        }
+      }
+    }
+
+    return result;
+  }
 
   public async createProduct(
     tenant: TenantContext,
@@ -30,10 +67,11 @@ export class CatalogService {
     }
 
     // Enforce Product Media Limit: 1 to 3 images, at least 1 compulsory
-    if (!dto.mediaAssetIds || !Array.isArray(dto.mediaAssetIds) || dto.mediaAssetIds.length < 1) {
+    const mediaInputs = this.extractMediaInputs(dto);
+    if (mediaInputs.length < 1) {
       throw new BadRequestException('Every product needs at least one image.');
     }
-    if (dto.mediaAssetIds.length > 3) {
+    if (mediaInputs.length > 3) {
       throw new BadRequestException('A maximum of 3 images is allowed per product.');
     }
 
@@ -85,6 +123,7 @@ export class CatalogService {
 
       // 2. Create Options and Option Values if provided
       const optionValueMap = new Map<string, string>(); // valueString -> OptionValueId
+      const optionValueByIdMap = new Map<string, string>(); // optionValueId -> OptionValueId
 
       if (dto.options && dto.options.length > 0) {
         if (dto.options.length > 3) {
@@ -151,12 +190,20 @@ export class CatalogService {
                 sortOrder: j,
               },
             });
-            optionValueMap.set(valDto.value.trim(), optVal.id);
+            const valTrimmed = valDto.value.trim();
+            optionValueMap.set(valTrimmed, optVal.id);
+            optionValueMap.set(valTrimmed.toLowerCase(), optVal.id);
+            optionValueByIdMap.set(optVal.id, optVal.id);
+            if (valDto.id) {
+              optionValueByIdMap.set(valDto.id, optVal.id);
+            }
           }
         }
       }
 
       // 3. Create Variants & Initial Inventory
+      const variantMediaMap = new Map<string, string>(); // mediaAssetId -> variantId
+
       if (dto.variants && dto.variants.length > 0) {
         for (let i = 0; i < dto.variants.length; i++) {
           const varDto = dto.variants[i];
@@ -193,7 +240,10 @@ export class CatalogService {
           // Link variant to option values
           if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
             for (const valString of varDto.optionValues) {
-              const optValId = optionValueMap.get(valString.trim());
+              const optValId =
+                optionValueMap.get(valString.trim()) ||
+                optionValueMap.get(valString.trim().toLowerCase()) ||
+                optionValueByIdMap.get(valString.trim());
               if (optValId) {
                 await tx.productVariantOptionValue.create({
                   data: {
@@ -216,29 +266,8 @@ export class CatalogService {
             },
           });
 
-          // Link variant media asset if provided
           if (varDto.mediaAssetId) {
-            const asset = await tx.mediaAsset.findFirst({
-              where: { id: varDto.mediaAssetId, tenantId: tenant.tenantId },
-            });
-            if (asset) {
-              await tx.productMedia.create({
-                data: {
-                  tenantId: tenant.tenantId,
-                  storeId: tenant.storeId,
-                  productId: product.id,
-                  variantId: variant.id,
-                  mediaAssetId: asset.id,
-                  storageKey: asset.storageKey,
-                  publicUrl: asset.publicUrl,
-                  filePath: asset.storageKey,
-                  mimeType: asset.mimeType,
-                  sizeBytes: asset.sizeBytes,
-                  altText: asset.altText || `${product.name} - ${varDto.sku}`,
-                  sortOrder: 100 + i,
-                },
-              });
-            }
+            variantMediaMap.set(varDto.mediaAssetId, variant.id);
           }
         }
       } else {
@@ -287,31 +316,42 @@ export class CatalogService {
         });
       }
 
-      // 4. Attach Media Assets if provided
-      if (dto.mediaAssetIds && dto.mediaAssetIds.length > 0) {
-        for (let i = 0; i < dto.mediaAssetIds.length; i++) {
-          const assetId = dto.mediaAssetIds[i];
-          const asset = await tx.mediaAsset.findFirst({
-            where: { id: assetId, tenantId: tenant.tenantId },
-          });
-          if (asset) {
-            await tx.productMedia.create({
-              data: {
-                tenantId: tenant.tenantId,
-                storeId: tenant.storeId,
-                productId: product.id,
-                variantId: baseVariantId,
-                mediaAssetId: asset.id,
-                storageKey: asset.storageKey,
-                publicUrl: asset.publicUrl,
-                filePath: asset.storageKey,
-                mimeType: asset.mimeType,
-                sizeBytes: asset.sizeBytes,
-                altText: asset.altText || product.name,
-                sortOrder: i,
-              },
-            });
+      // 4. Attach Media Assets (Single source of truth: 1 ProductMedia per mediaAssetId)
+      for (let i = 0; i < mediaInputs.length; i++) {
+        const item = mediaInputs[i];
+        const asset = await tx.mediaAsset.findFirst({
+          where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
+        });
+        if (asset) {
+          let resolvedOptionValueId: string | null = null;
+          if (item.optionValueId && optionValueByIdMap.has(item.optionValueId)) {
+            resolvedOptionValueId = item.optionValueId;
+          } else if (item.optionValue) {
+            resolvedOptionValueId =
+              optionValueMap.get(item.optionValue.trim()) ||
+              optionValueMap.get(item.optionValue.trim().toLowerCase()) ||
+              null;
           }
+
+          const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+
+          await tx.productMedia.create({
+            data: {
+              tenantId: tenant.tenantId,
+              storeId: tenant.storeId,
+              productId: product.id,
+              variantId: resolvedVariantId,
+              optionValueId: resolvedOptionValueId,
+              mediaAssetId: asset.id,
+              storageKey: asset.storageKey,
+              publicUrl: asset.publicUrl,
+              filePath: asset.storageKey,
+              mimeType: asset.mimeType,
+              sizeBytes: asset.sizeBytes,
+              altText: asset.altText || product.name,
+              sortOrder: item.sortOrder !== undefined ? item.sortOrder : i,
+            },
+          });
         }
       }
 
@@ -327,6 +367,36 @@ export class CatalogService {
                 value: attr.value,
                 type: attr.type || 'TEXT',
                 sortOrder: attr.sortOrder !== undefined ? attr.sortOrder : i,
+              },
+            });
+          }
+        }
+      }
+
+      // 5.5 Optional Product Translations
+      if (dto.translations && Array.isArray(dto.translations)) {
+        for (const trans of dto.translations) {
+          if (trans.locale && (trans.name || trans.description)) {
+            await tx.productTranslation.upsert({
+              where: {
+                productId_locale: {
+                  productId: product.id,
+                  locale: trans.locale,
+                },
+              },
+              create: {
+                productId: product.id,
+                locale: trans.locale,
+                name: trans.name || product.name || '',
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+              update: {
+                ...(trans.name ? { name: trans.name } : {}),
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
               },
             });
           }
@@ -349,12 +419,34 @@ export class CatalogService {
       return tx.product.findUnique({
         where: { id: product.id },
         include: {
-          media: { orderBy: { sortOrder: 'asc' } },
+          media: {
+            include: {
+              mediaAsset: true,
+              optionValue: { include: { option: true } },
+              variant: true,
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+          options: {
+            include: {
+              values: {
+                include: { media: true },
+                orderBy: { sortOrder: 'asc' },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
           variants: {
             where: { deletedAt: null },
-            include: { inventory: true },
+            include: {
+              inventory: true,
+              optionValues: { include: { optionValue: { include: { option: true } } } },
+              media: true,
+            },
+            orderBy: { sortOrder: 'asc' },
           },
           category: true,
+          translations: true,
         },
       });
     });
@@ -404,6 +496,7 @@ export class CatalogService {
             where: { deletedAt: null },
             include: { inventory: true },
           },
+          translations: true,
         },
       }),
       this.prisma.product.count({ where }),
@@ -429,17 +522,35 @@ export class CatalogService {
       },
       include: {
         category: true,
-        media: { orderBy: { sortOrder: 'asc' } },
+        media: {
+          include: {
+            mediaAsset: true,
+            optionValue: { include: { option: true } },
+            variant: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         attributes: { orderBy: { sortOrder: 'asc' } },
         documents: { orderBy: { sortOrder: 'asc' } },
-        options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
+        options: {
+          include: {
+            values: {
+              include: { media: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         variants: {
           where: { deletedAt: null },
           include: {
             inventory: true,
             optionValues: { include: { optionValue: { include: { option: true } } } },
+            media: true,
           },
+          orderBy: { sortOrder: 'asc' },
         },
+        translations: true,
       },
     });
 
@@ -493,11 +604,13 @@ export class CatalogService {
   ) {
     const product = await this.getProductById(tenant, productId);
 
-    if (dto.mediaAssetIds !== undefined) {
-      if (!Array.isArray(dto.mediaAssetIds) || dto.mediaAssetIds.length < 1) {
+    const hasMediaUpdate = dto.media !== undefined || dto.mediaAssetIds !== undefined;
+    const mediaInputs = hasMediaUpdate ? this.extractMediaInputs(dto) : [];
+    if (hasMediaUpdate) {
+      if (mediaInputs.length < 1) {
         throw new BadRequestException('Every product needs at least one image.');
       }
-      if (dto.mediaAssetIds.length > 3) {
+      if (mediaInputs.length > 3) {
         throw new BadRequestException('A maximum of 3 images is allowed per product.');
       }
     }
@@ -526,6 +639,10 @@ export class CatalogService {
           enquiryCtaText: dto.enquiryCtaText ?? product.enquiryCtaText,
         },
       });
+
+      const optionValueMap = new Map<string, string>();
+      const optionValueByIdMap = new Map<string, string>();
+      const variantMediaMap = new Map<string, string>();
 
       // 2. Options and Variants update if provided
       if (dto.options !== undefined && dto.variants !== undefined) {
@@ -575,7 +692,6 @@ export class CatalogService {
 
         // Recreate options transactionally
         await tx.productOption.deleteMany({ where: { productId: product.id } });
-        const optionValueMap = new Map<string, string>();
 
         if (dto.options && dto.options.length > 0) {
           for (let i = 0; i < dto.options.length; i++) {
@@ -601,7 +717,13 @@ export class CatalogService {
                   sortOrder: j,
                 },
               });
-              optionValueMap.set(valDto.value.trim(), optVal.id);
+              const valTrimmed = valDto.value.trim();
+              optionValueMap.set(valTrimmed, optVal.id);
+              optionValueMap.set(valTrimmed.toLowerCase(), optVal.id);
+              optionValueByIdMap.set(optVal.id, optVal.id);
+              if (valDto.id) {
+                optionValueByIdMap.set(valDto.id, optVal.id);
+              }
             }
           }
         }
@@ -643,7 +765,10 @@ export class CatalogService {
               await tx.productVariantOptionValue.deleteMany({ where: { variantId: matched.id } });
               if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
                 for (const valString of varDto.optionValues) {
-                  const optValId = optionValueMap.get(valString.trim());
+                  const optValId =
+                    optionValueMap.get(valString.trim()) ||
+                    optionValueMap.get(valString.trim().toLowerCase()) ||
+                    optionValueByIdMap.get(valString.trim());
                   if (optValId) {
                     await tx.productVariantOptionValue.create({
                       data: { variantId: matched.id, optionValueId: optValId },
@@ -691,7 +816,10 @@ export class CatalogService {
 
               if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
                 for (const valString of varDto.optionValues) {
-                  const optValId = optionValueMap.get(valString.trim());
+                  const optValId =
+                    optionValueMap.get(valString.trim()) ||
+                    optionValueMap.get(valString.trim().toLowerCase()) ||
+                    optionValueByIdMap.get(valString.trim());
                   if (optValId) {
                     await tx.productVariantOptionValue.create({
                       data: { variantId: newVariant.id, optionValueId: optValId },
@@ -713,39 +841,8 @@ export class CatalogService {
 
             touchedVariantIds.add(variantId);
 
-            // Link variant media if provided
             if (varDto.mediaAssetId) {
-              const asset = await tx.mediaAsset.findFirst({
-                where: { id: varDto.mediaAssetId, tenantId: tenant.tenantId },
-              });
-              if (asset) {
-                const existingMedia = await tx.productMedia.findFirst({
-                  where: { productId: product.id, mediaAssetId: asset.id },
-                });
-                if (existingMedia) {
-                  await tx.productMedia.update({
-                    where: { id: existingMedia.id },
-                    data: { variantId },
-                  });
-                } else {
-                  await tx.productMedia.create({
-                    data: {
-                      tenantId: tenant.tenantId,
-                      storeId: tenant.storeId,
-                      productId: product.id,
-                      variantId,
-                      mediaAssetId: asset.id,
-                      storageKey: asset.storageKey,
-                      publicUrl: asset.publicUrl,
-                      filePath: asset.storageKey,
-                      mimeType: asset.mimeType,
-                      sizeBytes: asset.sizeBytes,
-                      altText: asset.altText || `${product.name} - ${varDto.sku}`,
-                      sortOrder: 100 + i,
-                    },
-                  });
-                }
-              }
+              variantMediaMap.set(varDto.mediaAssetId, variantId);
             }
           }
 
@@ -764,6 +861,20 @@ export class CatalogService {
           }
         }
       } else {
+        // Options were not touched, load existing options into maps for media resolution
+        const curOpts = await tx.productOption.findMany({
+          where: { productId: product.id },
+          include: { values: true },
+        });
+        for (const o of curOpts) {
+          for (const v of o.values) {
+            const vTrim = v.value.trim();
+            optionValueMap.set(vTrim, v.id);
+            optionValueMap.set(vTrim.toLowerCase(), v.id);
+            optionValueByIdMap.set(v.id, v.id);
+          }
+        }
+
         // Fallback: update variant price, stock or SKU if base fields are supplied
         if (
           dto.pricePaise !== undefined ||
@@ -805,29 +916,61 @@ export class CatalogService {
         }
       }
 
-      // 3. Media sync
-      if (dto.mediaAssetIds && Array.isArray(dto.mediaAssetIds)) {
+      // 3. Media sync (Single source of truth: 1 ProductMedia per mediaAssetId)
+      if (hasMediaUpdate) {
+        const allowedAssetIds = mediaInputs.map((m) => m.mediaAssetId);
+
         // Remove media associations no longer present in mediaAssetIds
         await tx.productMedia.deleteMany({
           where: {
             productId: product.id,
-            mediaAssetId: { notIn: dto.mediaAssetIds },
+            mediaAssetId: { notIn: allowedAssetIds },
           },
         });
 
-        for (let i = 0; i < dto.mediaAssetIds.length; i++) {
-          const assetId = dto.mediaAssetIds[i];
-          const existingMedia = await tx.productMedia.findFirst({
-            where: { productId: product.id, mediaAssetId: assetId },
+        for (let i = 0; i < mediaInputs.length; i++) {
+          const item = mediaInputs[i];
+          let resolvedOptionValueId: string | null = null;
+          if (item.optionValueId && optionValueByIdMap.has(item.optionValueId)) {
+            resolvedOptionValueId = item.optionValueId;
+          } else if (item.optionValue) {
+            resolvedOptionValueId =
+              optionValueMap.get(item.optionValue.trim()) ||
+              optionValueMap.get(item.optionValue.trim().toLowerCase()) ||
+              null;
+          }
+
+          const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+          const sortOrder = item.sortOrder !== undefined ? item.sortOrder : i;
+
+          const existingMedias = await tx.productMedia.findMany({
+            where: { productId: product.id, mediaAssetId: item.mediaAssetId },
+            orderBy: { sortOrder: 'asc' },
           });
-          if (existingMedia) {
+
+          if (existingMedias.length > 0) {
             await tx.productMedia.update({
-              where: { id: existingMedia.id },
-              data: { sortOrder: i },
+              where: { id: existingMedias[0].id },
+              data: {
+                optionValueId: resolvedOptionValueId,
+                variantId: resolvedVariantId,
+                sortOrder,
+              },
             });
+
+            // Clean up any duplicate rows for the same mediaAssetId
+            if (existingMedias.length > 1) {
+              await tx.productMedia.deleteMany({
+                where: {
+                  productId: product.id,
+                  mediaAssetId: item.mediaAssetId,
+                  id: { not: existingMedias[0].id },
+                },
+              });
+            }
           } else {
             const asset = await tx.mediaAsset.findFirst({
-              where: { id: assetId, tenantId: tenant.tenantId },
+              where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
             });
             if (asset) {
               await tx.productMedia.create({
@@ -835,6 +978,8 @@ export class CatalogService {
                   tenantId: tenant.tenantId,
                   storeId: tenant.storeId,
                   productId: product.id,
+                  variantId: resolvedVariantId,
+                  optionValueId: resolvedOptionValueId,
                   mediaAssetId: asset.id,
                   storageKey: asset.storageKey,
                   publicUrl: asset.publicUrl,
@@ -842,7 +987,7 @@ export class CatalogService {
                   mimeType: asset.mimeType,
                   sizeBytes: asset.sizeBytes,
                   altText: asset.altText || product.name,
-                  sortOrder: i,
+                  sortOrder,
                 },
               });
             }
@@ -871,6 +1016,36 @@ export class CatalogService {
         }
       }
 
+      // 4.5 Optional Product Translations
+      if (dto.translations && Array.isArray(dto.translations)) {
+        for (const trans of dto.translations) {
+          if (trans.locale && (trans.name || trans.description)) {
+            await tx.productTranslation.upsert({
+              where: {
+                productId_locale: {
+                  productId: product.id,
+                  locale: trans.locale,
+                },
+              },
+              create: {
+                productId: product.id,
+                locale: trans.locale,
+                name: trans.name || product.name || '',
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+              update: {
+                ...(trans.name ? { name: trans.name } : {}),
+                description: trans.description,
+                seoTitle: trans.seoTitle,
+                seoDescription: trans.seoDescription,
+              },
+            });
+          }
+        }
+      }
+
       // 5. Audit Log
       await tx.auditLog.create({
         data: {
@@ -887,13 +1062,34 @@ export class CatalogService {
       return tx.product.findUnique({
         where: { id: product.id },
         include: {
-          media: { orderBy: { sortOrder: 'asc' } },
-          options: { include: { values: { orderBy: { sortOrder: 'asc' } } } },
+          media: {
+            include: {
+              mediaAsset: true,
+              optionValue: { include: { option: true } },
+              variant: true,
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+          options: {
+            include: {
+              values: {
+                include: { media: true },
+                orderBy: { sortOrder: 'asc' },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
           variants: {
             where: { deletedAt: null },
-            include: { inventory: true, optionValues: { include: { optionValue: { include: { option: true } } } } },
+            include: {
+              inventory: true,
+              optionValues: { include: { optionValue: { include: { option: true } } } },
+              media: true,
+            },
+            orderBy: { sortOrder: 'asc' },
           },
           category: true,
+          translations: true,
         },
       });
     });

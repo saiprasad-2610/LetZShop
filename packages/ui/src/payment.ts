@@ -166,3 +166,10 @@ export function getPaymentDisplayDetails(order: any): PaymentDisplayDetails {
     transactionId,
   };
 }
+
+/**
+ * Centralized Payment Gateway Minimum Rule (Razorpay INR API Constraint)
+ * Razorpay orders must have amount >= 100 paise (₹1.00).
+ */
+export const PAYMENT_GATEWAY_MIN_AMOUNT_PAISE = 100;
+export const PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES = 1;

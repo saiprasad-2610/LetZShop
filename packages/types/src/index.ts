@@ -229,6 +229,7 @@ export interface AuthenticatedUser {
   storeId?: string | null;
   sessionId?: string;
   isPlatformAdmin?: boolean;
+  preferredLocale?: string;
 }
 
 export interface TenantContext {
@@ -274,8 +275,14 @@ export interface BuyerSafeTrackOrderDto {
   currency: string;
   items: Array<{
     productName: string;
-    variantTitle: string;
+    variantTitle?: string;
+    titleSnapshot?: string;
+    variantTitleSnapshot?: string;
+    sku?: string | null;
+    imageUrl?: string | null;
     quantity: number;
+    unitPricePaise?: number;
+    totalPricePaise?: number;
   }>;
   trackingNumber?: string | null;
   carrier?: string | null;
@@ -322,4 +329,16 @@ export interface CreatePaymentOrderInput {
   purpose?: PaymentPurpose;
   orderId?: string;
   subscriptionId?: string;
+}
+
+export interface ProductTranslation {
+  id: string;
+  productId: string;
+  locale: string;
+  name: string;
+  description?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }

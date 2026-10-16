@@ -106,12 +106,15 @@ export const ORDER_STATUS_MAP: Record<
 // Ensures merchants cannot configure unreadable storefront combinations
 // ==============================================================================
 
+export function normalizeHexColor(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(value.trim())) return null;
+  const clean = value.trim().slice(1);
+  return '#' + (clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean).toUpperCase();
+}
+
 export function parseHexColor(hex: string): { r: number; g: number; b: number } {
-  let clean = hex.replace(/^#/, '').trim();
-  if (clean.length === 3) {
-    clean = clean.split('').map((c) => c + c).join('');
-  }
-  if (clean.length !== 6) {
+  const clean = normalizeHexColor(hex)?.slice(1);
+  if (!clean) {
     return { r: 0, g: 0, b: 0 };
   }
   const num = parseInt(clean, 16);
@@ -125,7 +128,7 @@ export function parseHexColor(hex: string): { r: number; g: number; b: number } 
 export function getRelativeLuminance(r: number, g: number, b: number): number {
   const [rs, gs, bs] = [r, g, b].map((val) => {
     const s = val / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   });
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }

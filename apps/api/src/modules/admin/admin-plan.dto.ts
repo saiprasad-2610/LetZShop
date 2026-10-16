@@ -1,0 +1,30 @@
+import { PartialType } from '@nestjs/swagger';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+  Matches,
+} from 'class-validator';
+
+export class CreateAdminPlanDto {
+  @IsString() @Length(1, 120) name: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_]+$/)
+  @Length(1, 100)
+  code?: string;
+  @IsOptional() @IsString() @Length(0, 2000) description?: string;
+  @IsInt() @Min(0) @Max(2147483647) pricePaise: number;
+  @IsOptional() @IsIn(['MONTHLY', 'YEARLY']) billingCycle?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(2147483647) maxProducts?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(2147483647) maxStaff?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(2147483647) maxStorageMb?: number;
+  @IsOptional() @IsBoolean() customDomainAllowed?: boolean;
+  @IsOptional() @IsBoolean() isPublic?: boolean;
+}
+export class UpdateAdminPlanDto extends PartialType(CreateAdminPlanDto) {}

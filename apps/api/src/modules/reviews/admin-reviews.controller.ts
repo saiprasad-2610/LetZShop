@@ -22,6 +22,9 @@ import { ReviewsService } from './reviews.service';
 export class AdminReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @Get('filters')
+  getFilters() { return this.reviewsService.getAdminReviewFilters(); }
+
   @Get()
   @ApiOperation({ summary: 'List and search all reviews across merchants for moderation' })
   async getReviews(
@@ -30,14 +33,27 @@ export class AdminReviewsController {
     @Query('storeId') storeId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string
+    ,@Query('reportStatus') reportStatus?: string
+    ,@Query('productId') productId?: string
+    ,@Query('rating') rating?: string
+    ,@Query('from') from?: string
+    ,@Query('to') to?: string
+    ,@Query('sort') sort?: string
   ) {
     return this.reviewsService.getAdminReviews({
       status,
       search,
       storeId,
+      reportStatus, productId, rating, from, to, sort,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     });
+  }
+
+  @Patch('reports/:reportId')
+  updateReport(@CurrentUser() user: AuthenticatedUser, @Param('reportId') id: string,
+    @Body() body: { status: 'UNDER_REVIEW' | 'DISMISSED'; note?: string }) {
+    return this.reviewsService.updateReviewReport(id, user.userId, body.status, body.note);
   }
 
   @Patch(':id/moderate')
