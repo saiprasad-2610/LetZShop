@@ -50,7 +50,7 @@ const request = async (path, { token, method = 'GET', body } = {}) => {
   return { status: res.status, data: value.data ?? value };
 };
 async function overview(token) {
-  const response = await request('admin/overview?range=ALL', { token });
+  const response = await request('admin/overview?range=30d', { token });
   assert.equal(response.status, 200, JSON.stringify(response.data));
   return response.data;
 }
@@ -75,15 +75,6 @@ async function compare(token, stage) {
  (SELECT count(*)::int FROM product_reviews WHERE status='ACTIVE') AS "totalReviews"`;
   await page.reload({ waitUntil: 'domcontentloaded' });
   await ready();
-  const selected = page.waitForResponse((r) =>
-    r.url().includes('/api/platform/admin/overview?range=ALL'),
-  );
-  await page.getByLabel('Date range', { exact: true }).selectOption('ALL');
-  const selectedResponse = await (await selected).json();
-  const selectedData = selectedResponse.data ?? selectedResponse;
-  await page
-    .locator('time[datetime="' + selectedData.generatedAt + '"]')
-    .waitFor();
   const labels = {
     totalMerchants: 'Total Merchants',
     liveStores: 'Live Stores',
@@ -118,14 +109,15 @@ async function compare(token, stage) {
       ui: text,
     });
   }
+  const from = new Date(new Date(api.generatedAt).getTime() - 30 * 86400000);
   // Independently cross-check every chart array and actual recent IDs.
 
   const merchantRows =
-    await db.$queryRaw`SELECT to_char(created_at,'YYYY-MM-DD') AS date,count(DISTINCT t.id)::int AS count FROM tenants t WHERE deleted_at IS NULL AND EXISTS(SELECT 1 FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=t.id AND m.role='SELLER_OWNER' AND m.is_active AND u.role='SELLER_OWNER' AND u."isSuperAdmin"=false AND u.deleted_at IS NULL) GROUP BY 1 ORDER BY 1`;
+    await db.$queryRaw`SELECT to_char(created_at,'YYYY-MM-DD') AS date,count(DISTINCT t.id)::int AS count FROM tenants t WHERE deleted_at IS NULL AND t.created_at >= ${from} AND EXISTS(SELECT 1 FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=t.id AND m.role='SELLER_OWNER' AND m.is_active AND u.role='SELLER_OWNER' AND u."isSuperAdmin"=false AND u.deleted_at IS NULL) GROUP BY 1 ORDER BY 1`;
   const revenueRows =
-    await db.$queryRaw`SELECT to_char(CASE WHEN i.paid_at IS NULL THEN p.created_at ELSE i.paid_at END,'YYYY-MM-DD') AS date,sum(p.amount_paise)::double precision AS "amountPaise" FROM subscription_payments p JOIN subscription_invoices i ON i.id=p.invoice_id WHERE p.status IN('SUCCESS','PAID') GROUP BY 1 ORDER BY 1`;
+    await db.$queryRaw`SELECT to_char(CASE WHEN i.paid_at IS NULL THEN p.created_at ELSE i.paid_at END,'YYYY-MM-DD') AS date,sum(p.amount_paise)::double precision AS "amountPaise" FROM subscription_payments p JOIN subscription_invoices i ON i.id=p.invoice_id WHERE p.status IN('SUCCESS','PAID') AND COALESCE(i.paid_at,p.created_at) >= ${from} GROUP BY 1 ORDER BY 1`;
   const orderRows =
-    await db.$queryRaw`SELECT to_char(created_at,'YYYY-MM-DD') AS date,count(*)::int AS count,COALESCE(sum(CASE WHEN payment_status='PAID' THEN total_paise ELSE 0 END),0)::double precision AS "gmvPaise" FROM orders GROUP BY 1 ORDER BY 1`;
+    await db.$queryRaw`SELECT to_char(created_at,'YYYY-MM-DD') AS date,count(*)::int AS count,COALESCE(sum(CASE WHEN payment_status='PAID' THEN total_paise ELSE 0 END),0)::double precision AS "gmvPaise" FROM orders WHERE created_at >= ${from} GROUP BY 1 ORDER BY 1`;
   assert.deepEqual(api.charts.merchantGrowth, merchantRows);
   assert.deepEqual(api.charts.subscriptionRevenueTrends, revenueRows);
   assert.deepEqual(api.charts.orderTrends, orderRows);
@@ -146,76 +138,105 @@ async function compare(token, stage) {
     api.reviewModeration.resolvedReports,
     await db.reviewReport.count({ where: { status: 'RESOLVED' } }),
   );
-  for (const row of api.recentlyJoinedMerchants)
-    assert(await db.tenant.findUnique({ where: { id: row.id } }));
-  for (const row of api.recentOrders)
-    assert(await db.order.findUnique({ where: { id: row.id } }));
 
+ for(const row of api.recentlyJoinedMerchants){
+  const actual=await db.tenant.findUniqueOrThrow({where:{id:row.id},select:{id:true,name:true,createdAt:true,stores:{where:{deletedAt:null},take:1,orderBy:{createdAt:'asc'},select:{name:true,status:true}},subscriptions:{take:1,orderBy:{createdAt:'desc'},select:{plan:{select:{name:true}}}}}});
+  const{stores,subscriptions,...business}=actual;
+  assert.deepEqual(row,JSON.parse(JSON.stringify({...business,store:stores[0]??null,plan:subscriptions[0]?.plan.name??null})));
+ }
+ for(const row of api.recentOrders){
+  const actual=await db.order.findUniqueOrThrow({where:{id:row.id},select:{id:true,orderNumber:true,totalPaise:true,currency:true,paymentStatus:true,status:true,createdAt:true,store:{select:{name:true}}}});
+  assert.deepEqual(row,JSON.parse(JSON.stringify(actual)));
+ }
+ report.recentListsVerified=true;
   const reportRows =
-    await db.$queryRaw`WITH created AS (SELECT created_at::date AS day,count(*)::int AS count FROM review_reports GROUP BY 1), resolved AS (SELECT resolved_at::date AS day,count(*)::int AS count FROM review_reports WHERE status='RESOLVED' AND resolved_at IS NOT NULL GROUP BY 1) SELECT to_char(COALESCE(c.day,r.day),'YYYY-MM-DD') AS date,COALESCE(c.count,0)::int AS count,COALESCE(r.count,0)::int AS resolved FROM created c FULL JOIN resolved r ON r.day=c.day ORDER BY date`;
+    await db.$queryRaw`WITH created AS (SELECT created_at::date AS day,count(*)::int AS count FROM review_reports WHERE created_at >= ${from} GROUP BY 1), resolved AS (SELECT resolved_at::date AS day,count(*)::int AS count FROM review_reports WHERE status='RESOLVED' AND resolved_at >= ${from} GROUP BY 1) SELECT to_char(COALESCE(c.day,r.day),'YYYY-MM-DD') AS date,COALESCE(c.count,0)::int AS count,COALESCE(r.count,0)::int AS resolved FROM created c FULL JOIN resolved r ON r.day=c.day ORDER BY date`;
   assert.deepEqual(api.charts.reportTrends, reportRows);
-  const chartCases = [
+
+  for (const [tab, series] of [
     [
-      'Merchant growth',
+      'Merchants',
       api.charts.merchantGrowth.map((p) => ({ date: p.date, value: p.count })),
-      false,
     ],
     [
-      'Subscription revenue',
+      'Orders',
+      api.charts.orderTrends.map((p) => ({ date: p.date, value: p.count })),
+    ],
+    [
+      'Revenue',
       api.charts.subscriptionRevenueTrends.map((p) => ({
         date: p.date,
         value: p.amountPaise,
       })),
-      true,
     ],
-    [
-      'Orders created',
-      api.charts.orderTrends.map((p) => ({ date: p.date, value: p.count })),
-      false,
-    ],
-    [
-      'Review reports created',
-      api.charts.reportTrends.map((p) => ({ date: p.date, value: p.count })),
-      false,
-    ],
-    [
-      'Review reports resolved',
-      api.charts.reportTrends
-        .filter((p) => p.resolved > 0)
-        .map((p) => ({ date: p.date, value: p.resolved })),
-      false,
-    ],
-  ];
-  for (const [title, points, money] of chartCases) {
-    const panel = page
-      .getByRole('heading', { name: title, exact: true })
-      .locator('..');
-    if (!points.length) {
-      assert.equal(
-        await panel
-          .getByText('No activity in this date range.', { exact: true })
-          .count(),
-        1,
-      );
-      continue;
-    }
-    assert.deepEqual(
-      await panel.locator('time').allTextContents(),
-      points.map((p) => p.date),
+  ]) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    assert.equal(
+      await page
+        .getByRole('tab', { name: tab, exact: true })
+        .getAttribute('aria-selected'),
+      'true',
     );
-    const values = await panel
-      .getByRole('img')
-      .locator('span')
-      .allTextContents();
-    assert.deepEqual(
-      values.map((v) => {
-        const n = Number(v.replace(/[^0-9.-]/g, ''));
-        return money ? Math.round(n * 100) : n;
-      }),
-      points.map((p) => p.value),
+    const actual = await page
+      .locator('[data-activity-date]')
+      .evaluateAll((nodes) =>
+        nodes.map((n) => ({
+          date: n.dataset.activityDate,
+          value: Number(n.dataset.activityValue),
+        })),
+      );
+    assert.deepEqual(actual, series, tab + ' chart points');
+    if (!series.length)
+      await page
+        .getByText('No data for this period.', { exact: true })
+        .waitFor();
+    else {
+      await page.locator('[data-activity-date]').first().focus();
+      assert(
+        (await page.getByRole('tabpanel').innerText()).includes(
+          new Date(series[0].date + 'T00:00:00Z').toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: 'UTC',
+          }),
+        ),
+      );
+    }
+  }
+  await page.getByRole('tab', { name: 'Merchants', exact: true }).click();
+  const moderation = {
+    pendingOnlyReports: await db.reviewReport.count({
+      where: { status: 'PENDING' },
+    }),
+    underReviewReports: await db.reviewReport.count({
+      where: { status: 'UNDER_REVIEW' },
+    }),
+    resolvedThisMonth: await db.reviewReport.count({
+      where: {
+        status: 'RESOLVED',
+        resolvedAt: {
+          gte: new Date(
+            Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
+          ),
+        },
+      },
+    }),
+  };
+  for (const [key, value] of Object.entries(moderation)) {
+    assert.equal(api.reviewModeration[key], value);
+    assert.equal(
+      Number(
+        await page.locator('[data-review-metric="' + key + '"]').innerText(),
+      ),
+      value,
     );
   }
-
+  assert.equal(
+    api.attention.failedSubscriptionPayments,
+    await db.subscriptionPayment.count({ where: { status: 'FAILED' } }),
+  );
+  report.moderation = moderation;
+  report.failedSubscriptionPayments = api.attention.failedSubscriptionPayments;
   report.charts = {
     merchantGrowth: merchantRows.length,
     subscriptionRevenue: revenueRows.length,
@@ -269,7 +290,6 @@ try {
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await page.waitForURL('http://localhost:3002/');
   await ready();
-  await page.getByLabel('Date range', { exact: true }).selectOption('ALL');
   await ready();
   const before = await compare(token, 'before');
   const sellerPhone = phone();
@@ -357,11 +377,90 @@ try {
     (await request('admin/overview?range=invalid', { token })).status,
     400,
   );
+
+  for (const value of ['7d', '3m', '12m', '30d']) {
+    const changed = page.waitForResponse((r) =>
+      r.url().includes('/api/platform/admin/overview?range=' + value),
+    );
+    await page.getByLabel('Date range', { exact: true }).selectOption(value);
+    const response = await (await changed).json(),
+      current = response.data ?? response;
+    await page
+      .locator('time[datetime="' + current.generatedAt + '"]')
+      .waitFor();
+    assert.equal(current.range, value);
+    const rendered = await page
+      .locator('[data-activity-date]')
+      .evaluateAll((nodes) =>
+        nodes.map((n) => ({
+          date: n.dataset.activityDate,
+          value: Number(n.dataset.activityValue),
+        })),
+      );
+    assert.deepEqual(
+      rendered,
+      current.charts.merchantGrowth.map((p) => ({
+        date: p.date,
+        value: p.count,
+      })),
+    );
+  }
+  await page.getByRole('tab', { name: 'Merchants', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(
+    await page
+      .getByRole('tab', { name: 'Orders', exact: true })
+      .getAttribute('aria-selected'),
+    'true',
+  );
+  await page.getByRole('tab', { name: 'Merchants', exact: true }).click();
+  report.rangeAndKeyboardChecks = true;
+
   const empty = JSON.parse(
     fs.readFileSync(out + '/empty-postgres.json', 'utf8'),
   );
   for (const value of Object.values(empty.kpis)) assert.equal(value, 0);
   const pattern = '**/api/platform/admin/overview*';
+
+  const suspended = await request(
+    'admin/merchants/' + onboard.data.tenant.id + '/suspend',
+    {
+      token,
+      method: 'POST',
+      body: { reason: 'Dashboard attention verification ' + run },
+    },
+  );
+  assert.equal(suspended.status, 201);
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await ready();
+  const suspendedLink = page.getByRole('link', { name: /suspended store/i });
+  await suspendedLink.click();
+  await page.waitForURL('**/merchants?status=SUSPENDED');
+  await page.getByLabel('Store status', { exact: true }).waitFor();
+  assert.equal(
+    await page.getByLabel('Store status', { exact: true }).inputValue(),
+    'SUSPENDED',
+  );
+  await page
+    .getByRole('link', { name: 'Dashboard Proof ' + run, exact: true })
+    .waitFor();
+  assert.equal(
+    (
+      await request(
+        'admin/merchants/' + onboard.data.tenant.id + '/reactivate',
+        {
+          token,
+          method: 'POST',
+          body: { reason: 'Dashboard attention cleanup ' + run },
+        },
+      )
+    ).status,
+    201,
+  );
+  await page.goto('http://localhost:3002/', { waitUntil: 'domcontentloaded' });
+  await ready();
+  report.attentionNavigation = true;
+
   for (const theme of ['light', 'dark']) {
     if ((await page.locator('html').getAttribute('data-admin-theme')) !== theme)
       await page
@@ -372,16 +471,17 @@ try {
         .click();
     for (const { width, height } of [
       { width: 1440, height: 900 },
+      { width: 1280, height: 800 },
       { width: 768, height: 1024 },
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize({ width, height });
-      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(100);
       await ready();
       const state = await page.evaluate(() => ({
         width: document.documentElement.scrollWidth,
         theme: document.documentElement.dataset.adminTheme,
-        panels: [...document.querySelectorAll('.admin-panel')].map(
+        panels: [...document.querySelectorAll('main .bg-admin-surface')].map(
           (e) => getComputedStyle(e).backgroundColor,
         ),
       }));
@@ -391,6 +491,7 @@ try {
         assert(!state.panels.includes('rgb(255, 255, 255)'));
       await page.screenshot({
         path: out + '/dashboard-' + theme + '-' + width + '.png',
+        fullPage: true,
       });
       report.responsive.push({ theme, width, height, passed: true });
     }
@@ -431,14 +532,12 @@ try {
     await page.getByRole('button', { name: 'Refresh', exact: true }).click();
     await page.getByText('No merchants yet.', { exact: true }).waitFor();
     assert.equal(
-      await page.getByText('No orders yet.', { exact: true }).count(),
+      await page.getByText('No recent orders yet.', { exact: true }).count(),
       1,
     );
     assert.equal(
-      await page
-        .getByText('No activity in this date range.', { exact: true })
-        .count(),
-      5,
+      await page.getByText('No data for this period.', { exact: true }).count(),
+      1,
     );
     for (const locator of await page.locator('[data-kpi]').all())
       assert.equal(
@@ -456,6 +555,20 @@ try {
       emptyPostgresResultRendered: true,
     });
   }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page
+    .locator('[aria-labelledby=recent-merchants]')
+    .screenshot({ path: out + '/recent-merchants-desktop.png' });
+  await page
+    .locator('[aria-labelledby=recent-orders]')
+    .screenshot({ path: out + '/recent-orders-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .locator('[aria-labelledby=recent-merchants]')
+    .screenshot({ path: out + '/recent-merchants-mobile.png' });
+  await page
+    .locator('[aria-labelledby=recent-orders]')
+    .screenshot({ path: out + '/recent-orders-mobile.png' });
   assert.deepEqual(report.pageErrors, []);
   report.passed = true;
 } catch (error) {

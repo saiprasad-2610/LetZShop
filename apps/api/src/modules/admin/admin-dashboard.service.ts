@@ -49,6 +49,13 @@ export class AdminDashboardService {
           latestPendingReports,
           recentOrders,
           charts,
+          pendingOnlyReports,
+          underReviewReports,
+          resolvedThisMonth,
+          failedSubscriptionPayments,
+          merchantsThisMonth,
+          ordersThisMonth,
+          revenueThisMonth,
         ] = await Promise.all([
           tx.tenant.count({ where: merchantWhere }),
           // Same public-access predicates as SubscriptionVisibilityService:
@@ -90,7 +97,22 @@ export class AdminDashboardService {
             where: merchantWhere,
             take: 5,
             orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-            select: { id: true, name: true, createdAt: true },
+            select: {
+              id: true,
+              name: true,
+              createdAt: true,
+              stores: {
+                where: { deletedAt: null },
+                take: 1,
+                orderBy: { createdAt: 'asc' },
+                select: { name: true, status: true },
+              },
+              subscriptions: {
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+                select: { plan: { select: { name: true } } },
+              },
+            },
           }),
           tx.reviewReport.count({ where: pendingWhere }),
           tx.productReview.count({
@@ -126,11 +148,36 @@ export class AdminDashboardService {
               totalPaise: true,
               currency: true,
               paymentStatus: true,
+              status: true,
               createdAt: true,
               store: { select: { name: true } },
             },
           }),
           this.charts(tx, from),
+          tx.reviewReport.count({ where: { status: 'PENDING' } }),
+          tx.reviewReport.count({ where: { status: 'UNDER_REVIEW' } }),
+          tx.reviewReport.count({
+            where: { status: 'RESOLVED', resolvedAt: { gte: month } },
+          }),
+          tx.subscriptionPayment.count({ where: { status: 'FAILED' } }),
+          tx.tenant.count({
+            where: {
+              ...merchantWhere,
+              createdAt: { gte: month },
+            },
+          }),
+          tx.order.count({
+            where: {
+              createdAt: { gte: month },
+            },
+          }),
+          tx.subscriptionPayment.aggregate({
+            where: {
+              status: { in: ['SUCCESS', 'PAID'] },
+              createdAt: { gte: month },
+            },
+            _sum: { amountPaise: true },
+          }),
         ]);
         return {
           generatedAt: now.toISOString(),
@@ -148,16 +195,35 @@ export class AdminDashboardService {
             pendingReviewReports: pendingReports,
             subscriptionRevenuePaise: revenue._sum.amountPaise ?? 0,
           },
-          recentlyJoinedMerchants,
+          growth: {
+            merchantsThisMonth,
+            ordersThisMonth,
+            revenueThisMonthPaise: revenueThisMonth._sum.amountPaise ?? 0,
+          },
+          recentlyJoinedMerchants: recentlyJoinedMerchants.map(
+            ({ stores, subscriptions, ...m }) => ({
+              ...m,
+              store: stores[0] ?? null,
+              plan: subscriptions[0]?.plan.name ?? null,
+            }),
+          ),
           recentOrders,
           charts,
+          attention: { failedSubscriptionPayments },
           reviewModeration: {
+            pendingOnlyReports,
+            underReviewReports,
+            resolvedThisMonth,
             pendingReports,
             removedThisMonth,
             resolvedReports,
             latestPendingReports,
           },
           definitions: {
+            failedSubscriptionPayments:
+              'SubscriptionPayment rows currently FAILED; inspect the payment record before taking action.',
+            resolvedThisMonth:
+              'ReviewReport rows RESOLVED with resolvedAt in the current UTC month.',
             totalMerchants:
               'Non-deleted businesses (Tenant), each counted once, with an active owner membership linked to a non-deleted SELLER_OWNER who is not a platform admin. Extra stores do not add merchants.',
             liveStores:

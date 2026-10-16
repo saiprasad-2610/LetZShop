@@ -193,10 +193,17 @@ export interface AdminOverview {
     pendingReviewReports: number;
     subscriptionRevenuePaise: number;
   };
+  growth?: {
+    merchantsThisMonth: number;
+    ordersThisMonth: number;
+    revenueThisMonthPaise: number;
+  };
   recentlyJoinedMerchants: Array<{
     id: string;
     name: string;
     createdAt: string;
+    plan: string | null;
+    store: { name: string; status: string } | null;
   }>;
   recentOrders: Array<
     Pick<
@@ -206,10 +213,14 @@ export interface AdminOverview {
       | 'totalPaise'
       | 'currency'
       | 'paymentStatus'
+      | 'status'
       | 'createdAt'
     > & { store: { name: string } }
   >;
   reviewModeration: {
+    pendingOnlyReports: number;
+    underReviewReports: number;
+    resolvedThisMonth: number;
     pendingReports: number;
     removedThisMonth: number;
     resolvedReports: number;
@@ -226,6 +237,7 @@ export interface AdminOverview {
     >;
   };
   range: AdminRange;
+  attention: { failedSubscriptionPayments: number };
   charts: AdminCharts;
   definitions: Record<string, string>;
 }

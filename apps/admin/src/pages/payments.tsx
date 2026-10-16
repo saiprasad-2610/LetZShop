@@ -1,5 +1,6 @@
+import { useRouter } from 'next/router';
 import type { AdminPage, AdminPayment } from '@simply/api-contracts';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, Pagination, useAdminQuery } from '../components/AdminUI';
@@ -8,6 +9,17 @@ export default function Payments() {
   const [page, setPage] = useState(1),
     [search, setSearch] = useState(''),
     [status, setStatus] = useState('ALL');
+  const router = useRouter();
+  useEffect(() => {
+    const value = router.query.status;
+    if (
+      typeof value === 'string' &&
+      ['ALL', 'PAID', 'PENDING', 'FAILED'].includes(value)
+    ) {
+      setStatus(value);
+      setPage(1);
+    }
+  }, [router.query.status]);
   const { data, loading, error } = useAdminQuery<AdminPage<AdminPayment>>(
     'admin/payments',
     {

@@ -1024,7 +1024,10 @@ try {
     assert.equal(comparison.databaseAtUiCheck, current.kpis[comparison.metric]);
     comparison.apiAtUiCheck = current.kpis[comparison.metric];
     if (comparison.metric !== 'subscriptionRevenuePaise')
-      assert.equal(Number(text), current.kpis[comparison.metric]);
+      assert.equal(
+        Number(text.replaceAll(',', '')),
+        current.kpis[comparison.metric],
+      );
   }
   // Verify actual empty results and failed network states never render invented rows.
   for (const [path, label, text] of [

@@ -122,10 +122,17 @@ const isolated = new PrismaClient({ datasourceUrl: url.toString() });
       const now = new Date(),
         earlier = new Date(now.getTime() - 86400000),
         future = new Date(now.getTime() + 86400000);
+      const plan = await tx.plan.create({
+        data: {
+          name: 'Regression plan',
+          code: 'REGRESSION',
+          pricePaise: 10000,
+        },
+      });
       const old = await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          planId: crypto.randomUUID(),
+          planId: plan.id,
           status: 'ACTIVE',
           currentPeriodStart: earlier,
           currentPeriodEnd: future,
@@ -135,7 +142,7 @@ const isolated = new PrismaClient({ datasourceUrl: url.toString() });
       const newest = await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          planId: crypto.randomUUID(),
+          planId: plan.id,
           status: 'EXPIRED',
           currentPeriodStart: earlier,
           currentPeriodEnd: earlier,

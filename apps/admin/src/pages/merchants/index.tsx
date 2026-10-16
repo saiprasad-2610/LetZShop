@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import type {
@@ -15,6 +16,19 @@ export default function Merchants() {
     [subscriptionStatus, setSubscription] = useState('ALL'),
     [sort, setSort] = useState('newest'),
     [page, setPage] = useState(1);
+  const router = useRouter();
+  useEffect(() => {
+    const value = router.query.status;
+    if (
+      typeof value === 'string' &&
+      ['ALL', 'LIVE', 'TRIAL', 'SUSPENDED', 'SUBSCRIBED', 'EXPIRED'].includes(
+        value,
+      )
+    ) {
+      setStatus(value);
+      setPage(1);
+    }
+  }, [router.query.status]);
   const { data, loading, error, reload } = useAdminQuery<
     AdminPage<AdminMerchant>
   >('admin/merchants', {
