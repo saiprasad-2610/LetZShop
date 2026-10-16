@@ -1,6 +1,7 @@
 import { brandStudioEn } from './brand-studio';
 export const enIN = {
   brandStudio: brandStudioEn,
+  reviewReportStates: {"PENDING":"Reported — Pending Admin Review","UNDER_REVIEW":"Under Review","RESOLVED":"Resolved","DISMISSED":"Dismissed"},
   cartToast: { added: "Added to cart" },
   common: {
     save: 'Save',

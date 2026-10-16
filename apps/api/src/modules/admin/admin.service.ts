@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, TenantStatus, StoreStatus, UserRole } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
+import { planAvailability } from '../subscriptions/plan-policy';
 
 @Injectable()
 export class AdminService {
@@ -48,10 +49,22 @@ export class AdminService {
       totalGmvPaise,
     };
 
+    const [activeSubscriptions, subscriptionRevenue, recentlyJoinedMerchants, pendingReports, removedThisMonth, resolvedReports, latestPendingReports] = await Promise.all([
+      this.prisma.subscription.count({ where: { status: 'ACTIVE', currentPeriodEnd: { gt: new Date() } } }),
+      this.prisma.subscriptionPayment.aggregate({ where: { status: { in: ['SUCCESS', 'PAID'] } }, _sum: { amountPaise: true } }),
+      this.prisma.tenant.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, name: true, createdAt: true } }),
+      this.prisma.reviewReport.count({ where: { status: { in: ['PENDING', 'UNDER_REVIEW'] } } }),
+      this.prisma.auditLog.count({ where: { action: 'REVIEW_REMOVED', createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
+      this.prisma.reviewReport.count({ where: { status: 'RESOLVED' } }),
+      this.prisma.reviewReport.findMany({ where: { status: { in: ['PENDING', 'UNDER_REVIEW'] } }, take: 5, orderBy: { createdAt: 'desc' }, select: { id: true, reason: true, status: true, createdAt: true, review: { select: { id: true, reviewerName: true, rating: true, store: { select: { name: true } }, product: { select: { name: true } } } } } }),
+    ]);
+    Object.assign(kpis, { activeSubscriptions, subscriptionRevenuePaise: subscriptionRevenue._sum.amountPaise || 0, pendingReviewReports: pendingReports });
     return {
       kpis,
       metrics: kpis,
       recentOrders,
+      recentlyJoinedMerchants,
+      reviewModeration: { pendingReports, removedThisMonth, resolvedReports, latestPendingReports },
       systemHealth: {
         database: 'HEALTHY',
         storage: 'HEALTHY',
@@ -66,6 +79,8 @@ export class AdminService {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { slug: { contains: search, mode: 'insensitive' } },
+        { memberships: { some: { user: { OR: [{ fullName: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }, { phone: { contains: search } }] } } } },
+        { stores: { some: { OR: [{ name: { contains: search, mode: 'insensitive' } }, { slug: { contains: search, mode: 'insensitive' } }] } } },
       ];
     }
 
@@ -146,7 +161,7 @@ export class AdminService {
               include: { theme: true },
             },
             shippingProfiles: true,
-            _count: { select: { products: true, orders: true, customers: true, enquiries: true } },
+            _count: { select: { products: true, orders: true, customers: true, enquiries: true, productReviews: true } },
           },
         },
         subscriptions: {
@@ -175,93 +190,43 @@ export class AdminService {
 
     if (!tenant) throw new NotFoundException('Merchant not found.');
 
-    const rawInvoices: any[] = (tenant.invoices && tenant.invoices.length > 0)
-      ? (tenant.invoices as any[])
-      : tenant.subscriptions.flatMap((sub: any) => {
-          if (sub.invoices && sub.invoices.length > 0) return sub.invoices;
-          return [{
-            id: `INV-SUB-${sub.id.slice(0, 8)}`,
-            invoiceNumber: `INV-${new Date(sub.createdAt).getFullYear()}-${sub.id.slice(0, 6).toUpperCase()}`,
-            amountPaise: sub.plan?.pricePaise || 99900,
-            currency: 'INR',
-            status: sub.status === 'ACTIVE' ? 'PAID' : sub.status,
-            paidAt: sub.currentPeriodStart || sub.createdAt,
-            createdAt: sub.createdAt,
-            planName: sub.plan?.name || 'Growth Plan',
-            paymentMethod: 'RAZORPAY_UPI',
-            payments: [{
-              id: `PAY-${sub.id.slice(0, 8)}`,
-              paymentMethod: 'RAZORPAY',
-              amountPaise: sub.plan?.pricePaise || 99900,
-              status: 'SUCCESS',
-              createdAt: sub.createdAt,
-            }],
-          }];
-        });
-
-    return {
-      ...tenant,
-      paymentHistory: rawInvoices,
-    };
+    const reportedReviewCount = await this.prisma.reviewReport.count({ where: { review: { store: { tenantId } } } });
+    const invoices = tenant.invoices.map(invoice => ({ ...invoice, payments: invoice.payments.map(({ metadata, ...payment }) => payment) }));
+    return { ...tenant, reportedReviewCount, paymentHistory: invoices, invoices, subscriptions: tenant.subscriptions.map(sub => ({ ...sub, invoices: sub.invoices.map(invoice => ({ ...invoice, payments: invoice.payments.map(({ metadata, ...payment }) => payment) })) })) };
   }
 
   public async suspendMerchant(tenantId: string, actorId: string, reason: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new NotFoundException('Merchant not found.');
-
-    return this.prisma.$transaction(async (tx) => {
-      const updatedTenant = await tx.tenant.update({
-        where: { id: tenantId },
-        data: { status: TenantStatus.SUSPENDED },
-      });
-
-      await tx.store.updateMany({
-        where: { tenantId },
-        data: { status: StoreStatus.SUSPENDED },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          tenantId,
-          action: 'MERCHANT_SUSPENDED',
-          entityType: 'Tenant',
-          entityId: tenantId,
-          metadata: { reason, previousStatus: tenant.status },
-        },
-      });
-
-      return updatedTenant;
+    if(!reason?.trim()||reason.length>2000)throw new BadRequestException('An audit reason is required.');
+    return this.prisma.$transaction(async tx=>{
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
+      const tenant=await tx.tenant.findUnique({where:{id:tenantId},include:{stores:{where:{deletedAt:null},select:{id:true,status:true,isPubliclyAccessible:true}}}});
+      if(!tenant||tenant.deletedAt)throw new NotFoundException('Merchant not found.');
+      if(tenant.status==='SUSPENDED')throw new BadRequestException('Merchant is already suspended.');
+      const updated=await tx.tenant.update({where:{id:tenantId},data:{status:'SUSPENDED'}});
+      await tx.store.updateMany({where:{tenantId,deletedAt:null,status:{not:'ARCHIVED'}},data:{status:'SUSPENDED',isPubliclyAccessible:false}});
+      await tx.auditLog.create({data:{actorId,actorType:'ADMIN',tenantId,action:'MERCHANT_SUSPENDED',entityType:'Tenant',entityId:tenantId,metadata:{reason:reason.trim(),previousStatus:tenant.status,stores:tenant.stores}}});
+      return updated;
     });
   }
 
   public async reactivateMerchant(tenantId: string, actorId: string, reason: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new NotFoundException('Merchant not found.');
-
-    return this.prisma.$transaction(async (tx) => {
-      const updatedTenant = await tx.tenant.update({
-        where: { id: tenantId },
-        data: { status: TenantStatus.ACTIVE },
-      });
-
-      await tx.store.updateMany({
-        where: { tenantId },
-        data: { status: StoreStatus.LIVE },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          tenantId,
-          action: 'MERCHANT_REACTIVATED',
-          entityType: 'Tenant',
-          entityId: tenantId,
-          metadata: { reason, previousStatus: tenant.status },
-        },
-      });
-
-      return updatedTenant;
+    if(!reason?.trim()||reason.length>2000)throw new BadRequestException('An audit reason is required.');
+    return this.prisma.$transaction(async tx=>{
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
+      const tenant=await tx.tenant.findUnique({where:{id:tenantId},include:{stores:{where:{deletedAt:null}},subscriptions:{orderBy:{createdAt:'desc'},take:1}}});
+      if(!tenant||tenant.deletedAt)throw new NotFoundException('Merchant not found.');
+      if(tenant.status!=='SUSPENDED')throw new BadRequestException('Only suspended merchants can be reactivated.');
+      const suspension=await tx.auditLog.findFirst({where:{entityId:tenantId,action:'MERCHANT_SUSPENDED'},orderBy:{createdAt:'desc'}});
+      const previous=((suspension?.metadata as any)?.stores||[]) as Array<{id:string;status:string;isPubliclyAccessible:boolean}>;
+      const sub=tenant.subscriptions[0],paid=Boolean(sub&&sub.status==='ACTIVE'&&sub.currentPeriodEnd>new Date());
+      for(const store of tenant.stores){
+        if(store.status!=='SUSPENDED')continue;
+        const old=previous.find(s=>s.id===store.id),live=paid&&old?.status==='LIVE'&&old?.isPubliclyAccessible;
+        await tx.store.update({where:{id:store.id},data:{status:live?'LIVE':'PRIVATE_PREVIEW',isPubliclyAccessible:Boolean(live)}});
+      }
+      const updated=await tx.tenant.update({where:{id:tenantId},data:{status:'ACTIVE'}});
+      await tx.auditLog.create({data:{actorId,actorType:'ADMIN',tenantId,action:'MERCHANT_REACTIVATED',entityType:'Tenant',entityId:tenantId,metadata:{reason:reason.trim(),previousStatus:tenant.status,paidSubscription:paid}}});
+      return updated;
     });
   }
 
@@ -360,6 +325,7 @@ export class AdminService {
   public async getUsers(search?: string, role?: string) {
     const where: any = { deletedAt: null };
     if (role) {
+      if (!Object.values(UserRole).includes(role as UserRole)) throw new BadRequestException('Invalid user role.');
       where.role = role;
     }
     if (search) {
@@ -408,6 +374,7 @@ export class AdminService {
   }
 
   public async toggleUserStatus(userId: string, actorId: string) {
+    if (userId === actorId) throw new BadRequestException('You cannot deactivate your own admin account.');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found.');
 
@@ -481,10 +448,50 @@ export class AdminService {
       },
     });
 
+    const subscriptions = await this.prisma.subscription.findMany({ select: { planId: true, tenantId: true, status: true, currentPeriodEnd: true } });
     return plans.map((p) => ({
       ...p,
-      activeSubscribersCount: p._count.subscriptions,
+      ...planAvailability(p),
+      merchantCount: new Set(subscriptions.filter(s => s.planId === p.id).map(s => s.tenantId)).size,
+      activeSubscribersCount: new Set(subscriptions.filter(s => s.planId === p.id && s.status === 'ACTIVE' && s.currentPeriodEnd > new Date()).map(s => s.tenantId)).size,
     }));
+  }
+
+  public async getSubscriptionList(tenantId?: string) {
+    return this.prisma.subscription.findMany({ where: tenantId ? { tenantId } : {}, orderBy: { createdAt: 'desc' }, take: 200,
+      select: { id: true, status: true, currentPeriodEnd: true, createdAt: true, tenant: { select: { id: true, name: true } }, plan: { select: { id: true, name: true, pricePaise: true, code: true } } } });
+  }
+
+  public async getSubscriptionPayments(query: { status?: string; search?: string; page?: string }) {
+    const page = Math.max(1, Math.min(100000, parseInt(query.page || '1', 10) || 1));
+    const where: any = {};
+    if (query.status && query.status !== 'ALL') {
+      if (!['PAID', 'PENDING', 'FAILED'].includes(query.status)) throw new BadRequestException('Invalid payment status.');
+      where.status = query.status === 'PAID' ? { in: ['SUCCESS', 'PAID'] } : query.status;
+    }
+    if (query.search?.trim()) where.invoice = { tenant: { name: { contains: query.search.trim(), mode: 'insensitive' } } };
+    const [total, items] = await Promise.all([
+      this.prisma.subscriptionPayment.count({ where }),
+      this.prisma.subscriptionPayment.findMany({ where, skip: (page - 1) * 20, take: 20, orderBy: { createdAt: 'desc' }, select: {
+        id: true, amountPaise: true, status: true, paymentMethod: true, providerPaymentId: true, createdAt: true,
+        invoice: { select: { invoiceNumber: true, tenant: { select: { id: true, name: true } }, subscription: { select: { plan: { select: { name: true } } } } } },
+      } }),
+    ]);
+    return { items, total, page, totalPages: Math.ceil(total / 20) };
+  }
+
+  public async getAuditLogs(query: { search?: string; page?: string }) {
+    const page = Math.max(1, Math.min(100000, parseInt(query.page || '1', 10) || 1));
+    const where: any = query.search ? { OR: [{ action: { contains: query.search, mode: 'insensitive' } }, { entityId: { contains: query.search } }, { actorId: { contains: query.search } }] } : {};
+    const [total, rows] = await Promise.all([this.prisma.auditLog.count({ where }), this.prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 20, take: 20 })]);
+    const actors = await this.prisma.user.findMany({ where: { id: { in: rows.map(r => r.actorId).filter((id): id is string => Boolean(id)) } }, select: { id: true, fullName: true } });
+    // Only known administrative reason/status metadata is shown, never arbitrary gateway/auth payloads.
+    const items = rows.map(row => { const meta = row.metadata as any; return { id: row.id, actorId: row.actorId, actorName: actors.find(a => a.id === row.actorId)?.fullName || row.actorType, action: row.action, entityType: row.entityType, entityId: row.entityId, createdAt: row.createdAt, reason: typeof meta?.reason === 'string' ? meta.reason : null, previousStatus: meta?.previousStatus, status: meta?.status }; });
+    return { items, total, page, totalPages: Math.ceil(total / 20) };
+  }
+
+  public getSafeSettings() {
+    return { platformName: 'LetzShop', supportEmail: 'letzshop@aikyamaisystems.com', currency: 'INR', moderation: 'Merchant reports stay visible until an admin removes a review.', plansSource: 'Canonical backend plan records', growthPurchaseEnabled: false };
   }
 
   public async createPlan(data: {

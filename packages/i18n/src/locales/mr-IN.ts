@@ -3,6 +3,7 @@ import { TranslationDictionary } from './en-IN';
 
 export const mrIN: TranslationDictionary = {
   brandStudio: brandStudioMr,
+  reviewReportStates: {"PENDING":"तक्रार नोंदवली — प्रशासकाच्या तपासणीची प्रतीक्षा","UNDER_REVIEW":"तपासणी सुरू आहे","RESOLVED":"निकाली काढले","DISMISSED":"तक्रार फेटाळली"},
   cartToast: { added: "कार्टमध्ये जोडले" },
   common: {
     save: 'जतन करा',

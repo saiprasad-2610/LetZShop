@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, Matches, Length } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Matches, Length, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { INDIAN_PHONE_REGEX } from '@simply/validation';
 
@@ -87,11 +87,13 @@ export class PinLoginDto {
 export class AdminLoginDto {
   @ApiProperty({ example: 'admin@shopongo.com', description: 'Admin Email or Mobile Number' })
   @IsNotEmpty({ message: 'Email or mobile number is required' })
+  @MaxLength(254)
   @IsString()
   identifier: string;
 
-  @ApiProperty({ example: 'Admin@ShopOnGo2026!', description: 'Administrator Password or PIN' })
+  @ApiProperty({ description: 'Administrator password' })
   @IsNotEmpty({ message: 'Password or PIN is required' })
+  @MaxLength(256)
   @IsString()
   secret: string;
 }

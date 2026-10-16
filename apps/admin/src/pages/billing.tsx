@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { SubscriptionList } from '../components/SubscriptionList';
 import { 
   CreditCard, 
   Check, 
@@ -40,7 +42,7 @@ const initialFormData: PlanFormData = {
   name: '',
   code: '',
   description: '',
-  priceRupees: 999,
+  priceRupees: 0,
   billingCycle: 'MONTHLY',
   maxProducts: 100,
   maxStaff: 5,
@@ -51,6 +53,7 @@ const initialFormData: PlanFormData = {
 
 export default function AdminBillingPage() {
   const { api } = useAdminAuth();
+  const router = useRouter();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -182,7 +185,7 @@ export default function AdminBillingPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>SaaS Plans & Pricing | ShopOnGo Platform Admin</title>
+        <title>SaaS Plans & Pricing | LetzShop Admin</title>
       </Head>
 
       <div className="space-y-6 font-sans">
@@ -272,7 +275,7 @@ export default function AdminBillingPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-black text-lg text-slate-900">{p.name}</h3>
-                          {!p.isPublic && (
+                          {!p.isPublic && p.availability !== 'CONTACT' && (
                             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase">
                               Archived
                             </span>
@@ -285,7 +288,7 @@ export default function AdminBillingPage() {
 
                       <div className="text-right">
                         <span className="text-2xl font-black font-mono text-slate-900">
-                          {formatPaise(p.pricePaise)}
+                          {p.availability === 'CONTACT' ? 'Contact Aikyam' : formatPaise(p.pricePaise)}
                         </span>
                         <span className="text-[11px] text-slate-400 block font-medium">
                           /{p.billingCycle.toLowerCase()}
@@ -294,7 +297,7 @@ export default function AdminBillingPage() {
                     </div>
 
                     <p className="text-xs text-slate-500 leading-relaxed min-h-[36px]">
-                      {p.description || 'Standard multi-tenant ecommerce merchant tier.'}
+                      <span className="block font-semibold text-emerald-700 mb-2">{p.availability === 'COMING_SOON' ? 'Coming Soon' : p.availability === 'CONTACT' ? 'Contact Aikyam' : p.purchasable ? 'Purchasable' : 'Hidden'} · {p.merchantCount || 0} merchant(s)</span>{p.description || 'Standard multi-tenant ecommerce merchant tier.'}
                     </p>
 
                     {/* Feature Caps List */}
@@ -442,7 +445,7 @@ export default function AdminBillingPage() {
                       type="number"
                       step="1"
                       min="0"
-                      placeholder="e.g. 2499"
+                      placeholder="Price in rupees"
                       value={formData.priceRupees}
                       onChange={(e) => setFormData({ ...formData, priceRupees: Number(e.target.value) })}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
@@ -566,6 +569,7 @@ export default function AdminBillingPage() {
             </div>
           </div>
         )}
+        <SubscriptionList tenantId={typeof router.query.tenantId === "string" ? router.query.tenantId : undefined}/>
       </div>
     </AdminLayout>
   );

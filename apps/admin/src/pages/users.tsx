@@ -70,7 +70,7 @@ export default function AdminUsersPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>Users & Governance | ShopOnGo Platform Admin</title>
+        <title>Users & Governance | LetzShop Admin</title>
       </Head>
 
       <div className="space-y-6 font-sans">

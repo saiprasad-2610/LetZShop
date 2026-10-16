@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { 
   Store, 
   Search, 
@@ -33,10 +34,11 @@ import { getStorefrontUrl } from '../../utils/config';
 
 export default function AdminMerchantsPage() {
   const { api } = useAdminAuth();
+  const router = useRouter();
   const [merchants, setMerchants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -125,8 +127,12 @@ export default function AdminMerchantsPage() {
   };
 
   const filteredMerchants = merchants.filter((m) => {
-    if (statusFilter === 'ACTIVE') return m.status === 'ACTIVE';
-    if (statusFilter === 'SUSPENDED') return m.status === 'SUSPENDED';
+    const sub=m.subscription, valid=sub?.status==='ACTIVE'&&new Date(sub.currentPeriodEnd)>new Date();
+    if(statusFilter==='LIVE')return m.store?.status==='LIVE';
+    if(statusFilter==='TRIAL')return m.store?.status==='PRIVATE_PREVIEW'||sub?.status==='TRIALING';
+    if(statusFilter==='SUSPENDED')return m.status==='SUSPENDED'||m.store?.status==='SUSPENDED';
+    if(statusFilter==='SUBSCRIBED')return valid;
+    if(statusFilter==='EXPIRED')return Boolean(sub&&(['EXPIRED','PAST_DUE'].includes(sub.status)||new Date(sub.currentPeriodEnd)<=new Date()));
     return true;
   });
 
@@ -136,7 +142,7 @@ export default function AdminMerchantsPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>Merchants & Tenants Governance | ShopOnGo Platform Admin</title>
+        <title>Merchants & Tenants Governance | LetzShop Admin</title>
       </Head>
 
       <div className="space-y-6 font-sans">
@@ -162,8 +168,8 @@ export default function AdminMerchantsPage() {
         {/* Filter and Search Bar */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Status filter buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            {(['ALL', 'ACTIVE', 'SUSPENDED'] as const).map((status) => (
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {(['ALL', 'LIVE', 'TRIAL', 'SUSPENDED', 'SUBSCRIBED', 'EXPIRED'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => {
@@ -176,7 +182,7 @@ export default function AdminMerchantsPage() {
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
               >
-                {status === 'ALL' ? 'All Merchants' : status === 'ACTIVE' ? 'Active' : 'Suspended'}
+                {{ALL:'All',LIVE:'Live',TRIAL:'Trial / Preview',SUSPENDED:'Suspended',SUBSCRIBED:'Active subscription',EXPIRED:'Expired'}[status]}
               </button>
             ))}
           </div>
@@ -216,7 +222,7 @@ export default function AdminMerchantsPage() {
         ) : (
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[900px] text-left text-xs">
                 <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="py-3 px-5">Merchant / Business</th>
@@ -239,7 +245,7 @@ export default function AdminMerchantsPage() {
                       <tr 
                         key={m.id} 
                         className="hover:bg-slate-50/70 transition cursor-pointer group"
-                        onClick={() => handleOpenDetails(m.id)}
+                        onClick={() => void router.push("/merchants/" + m.id)}
                       >
                         {/* Name */}
                         <td className="py-3.5 px-5">
@@ -281,7 +287,7 @@ export default function AdminMerchantsPage() {
                         <td className="py-3.5 px-4 font-mono text-slate-700">
                           <div className="flex items-center gap-1.5">
                             <Phone className="w-3 h-3 text-slate-400" />
-                            <span>{m.owner?.phone || m.owner?.email || '—'}</span>
+                            <span>{m.owner?.fullName || '—'}<br/>{m.owner?.phone || '—'}<br/>{m.owner?.email || '—'}</span>
                           </div>
                         </td>
 
@@ -289,7 +295,7 @@ export default function AdminMerchantsPage() {
                         <td className="py-3.5 px-4 font-semibold">
                           <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
                             <CreditCard className="w-3 h-3" />
-                            <span>{sub?.plan?.name || 'Growth Plan'}</span>
+                            <span>{sub?.plan?.name || 'No plan'} · {sub?.status || '—'}</span>
                           </span>
                         </td>
 
@@ -301,7 +307,7 @@ export default function AdminMerchantsPage() {
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
-                              <ShieldCheck className="w-3 h-3" /> Active
+                              <ShieldCheck className="w-3 h-3" /> {store?.status || m.status}
                             </span>
                           )}
                         </td>
@@ -479,10 +485,10 @@ export default function AdminMerchantsPage() {
                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Plan</span>
                           <div className="font-black text-slate-900 text-sm flex items-center gap-1.5">
                             <CreditCard className="w-4 h-4 text-indigo-600" />
-                            <span>{activeSub?.plan?.name || 'Growth Plan'}</span>
+                            <span>{activeSub?.plan?.name || 'No plan'}</span>
                           </div>
                           <span className="text-[11px] font-mono text-slate-500 block">
-                            {formatPaise(activeSub?.plan?.pricePaise || 99900)}/mo
+                            {formatPaise(activeSub?.plan?.pricePaise ?? 0)}/mo
                           </span>
                         </div>
 
@@ -669,7 +675,7 @@ export default function AdminMerchantsPage() {
                             <div className="flex items-center justify-between">
                               <div>
                                 <h3 className="text-sm font-black text-slate-900">
-                                  {plan?.name || 'Growth Plan'} Tier
+                                  {plan?.name || 'No plan'} Tier
                                 </h3>
                                 <span className="text-[10px] font-mono text-slate-500">
                                   CODE: {plan?.code || 'GROWTH_MONTHLY'}
@@ -678,7 +684,7 @@ export default function AdminMerchantsPage() {
 
                               <div className="text-right">
                                 <span className="text-xl font-black font-mono text-slate-900">
-                                  {formatPaise(plan?.pricePaise || 99900)}
+                                  {formatPaise(plan?.pricePaise ?? 0)}
                                 </span>
                                 <span className="text-xs text-slate-400 block">/{plan?.billingCycle?.toLowerCase() || 'month'}</span>
                               </div>
@@ -777,7 +783,7 @@ export default function AdminMerchantsPage() {
                                           {dateFormatted}
                                         </td>
                                         <td className="py-3 px-4 font-semibold text-slate-800">
-                                          {inv.planName || 'Growth Plan'}
+                                          {inv.planName || 'No plan'}
                                         </td>
                                         <td className="py-3 px-4 text-slate-600">
                                           <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-mono">
@@ -790,7 +796,7 @@ export default function AdminMerchantsPage() {
                                           </span>
                                         </td>
                                         <td className="py-3 px-4 text-right font-bold font-mono text-slate-900">
-                                          {formatPaise(inv.amountPaise || 99900)}
+                                          {formatPaise(inv.amountPaise ?? 0)}
                                         </td>
                                       </tr>
                                     );

@@ -25,11 +25,11 @@ export async function runSeed() {
   // 2. Subscription Plans
   const starterPlan = await prisma.plan.upsert({
     where: { code: 'STARTER_MONTHLY' },
-    update: {},
+    update: { name: 'Launch', pricePaise: 99900 },
     create: {
       id: SEED_IDS.starterPlan,
       code: 'STARTER_MONTHLY',
-      name: 'Starter Plan',
+      name: 'Launch',
       description: 'Ideal for early-stage sellers stepping into ecommerce',
       pricePaise: 99900, // ₹999/month
       billingCycle: 'MONTHLY',
@@ -43,13 +43,13 @@ export async function runSeed() {
 
   const growthPlan = await prisma.plan.upsert({
     where: { code: 'GROWTH_MONTHLY' },
-    update: {},
+    update: { name: 'Growth', pricePaise: 299900 },
     create: {
       id: SEED_IDS.growthPlan,
       code: 'GROWTH_MONTHLY',
-      name: 'Growth Plan',
+      name: 'Growth',
       description: 'Perfect for growing businesses needing custom domains and higher limits',
-      pricePaise: 249900, // ₹2,499/month
+      pricePaise: 299900, // ₹2,999/month (Coming Soon)
       billingCycle: 'MONTHLY',
       maxProducts: 500,
       maxStaff: 10,
@@ -59,6 +59,8 @@ export async function runSeed() {
     },
   });
   console.log('✓ Subscription plans seeded');
+
+  await prisma.plan.upsert({ where: { code: 'CUSTOM' }, update: {}, create: { code: 'CUSTOM', name: 'Custom', description: 'Contact Aikyam for a custom plan.', pricePaise: 0, isPublic: false } });
 
   // 3. Foundational Themes (6 Specialized Archetypes)
   const foundationalThemes = [

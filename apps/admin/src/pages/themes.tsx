@@ -10,7 +10,7 @@ export default function AdminThemesPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>Themes & Design Engine | ShopOnGo Platform Admin</title>
+        <title>Themes & Design Engine | LetzShop Admin</title>
       </Head>
 
       <div className="space-y-6 font-sans">

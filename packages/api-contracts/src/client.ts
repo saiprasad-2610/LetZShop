@@ -11,6 +11,51 @@ export class SimplyApiClient {
   private refreshToken: string | null = null;
   private isRefreshing = false;
   private onTokenRefreshed?: (accessToken: string, refreshToken: string) => void;
+  private onAuthFailure?: () => void;
+  private onSessionExpired?: () => void;
+  private refreshPromise: Promise<boolean> | null = null;
+
+  public setOnAuthFailure(callback?: () => void) {
+    this.onAuthFailure = callback;
+  }
+
+  public setOnSessionExpired(callback?: () => void) {
+    this.onSessionExpired = callback;
+  }
+
+  public async refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshToken) {
+      this.onSessionExpired?.();
+      return false;
+    }
+    if (this.refreshPromise) return this.refreshPromise;
+
+    this.refreshPromise = (async () => {
+      try {
+        const refreshRes = await this.auth.refreshSession(this.refreshToken!);
+        if (!this.refreshToken) {
+          return false;
+        }
+        if (refreshRes?.accessToken) {
+          this.setToken(refreshRes.accessToken);
+          if (refreshRes.refreshToken) {
+            this.setRefreshToken(refreshRes.refreshToken);
+          }
+          this.onTokenRefreshed?.(refreshRes.accessToken, refreshRes.refreshToken || this.refreshToken);
+          return true;
+        }
+        this.onSessionExpired?.();
+        return false;
+      } catch {
+        this.onSessionExpired?.();
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
 
   constructor(baseUrl?: string) {
     let resolvedUrl = baseUrl;
@@ -125,24 +170,23 @@ export class SimplyApiClient {
 
     // Auto-refresh token if 401 Unauthorized occurs on a protected route and refreshToken is present
     if (res.status === 401 && !_isRetry && this.refreshToken && !path.startsWith('auth/')) {
-      try {
-        const refreshRes = await this.auth.refreshSession(this.refreshToken);
-        if (refreshRes?.accessToken) {
-          this.setToken(refreshRes.accessToken);
-          if (refreshRes.refreshToken) {
-            this.setRefreshToken(refreshRes.refreshToken);
-          }
-          this.onTokenRefreshed?.(refreshRes.accessToken, refreshRes.refreshToken || this.refreshToken);
-          return this.request<T>(path, { ...options, _isRetry: true });
-        }
-      } catch {
-        // Refresh failed, proceed to handle original 401 error
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        return this.request<T>(path, { ...options, _isRetry: true });
       }
     }
 
     const json = await res.json().catch(() => ({}));
 
     if (!res.ok || json.success === false) {
+      if (res.status === 401) {
+        if (!path.startsWith('auth/')) {
+          this.onSessionExpired?.();
+        }
+        this.onAuthFailure?.();
+      } else if (res.status === 403) {
+        this.onAuthFailure?.();
+      }
       let defaultCode = 'API_ERROR';
       if (res.status === 404) defaultCode = 'NOT_FOUND';
       else if (res.status === 401) defaultCode = 'UNAUTHORIZED';

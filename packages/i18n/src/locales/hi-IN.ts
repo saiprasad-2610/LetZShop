@@ -3,6 +3,7 @@ import { TranslationDictionary } from './en-IN';
 
 export const hiIN: TranslationDictionary = {
   brandStudio: brandStudioHi,
+  reviewReportStates: {"PENDING":"रिपोर्ट दर्ज — व्यवस्थापक की समीक्षा बाकी है","UNDER_REVIEW":"समीक्षा जारी है","RESOLVED":"समाधान किया गया","DISMISSED":"रिपोर्ट खारिज"},
   cartToast: { added: "कार्ट में जोड़ा गया" },
   common: {
     save: 'सुरक्षित करें',

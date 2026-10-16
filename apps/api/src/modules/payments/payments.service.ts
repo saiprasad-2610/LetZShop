@@ -191,6 +191,10 @@ export class PaymentsService {
       throw new BadRequestException('The Growth plan is coming soon and cannot be purchased or activated at this time.');
     }
 
+    if (!plan.isPublic || plan.code.toUpperCase().includes('CUSTOM') || plan.pricePaise <= 0) {
+      throw new BadRequestException('This plan is not available for self-service purchase. Contact Aikyam.');
+    }
+
     // Check if tenant already has an active subscription for this plan (Requirement 12: already-active subscription)
     if (!allowActiveRenewal) {
       const now = new Date();

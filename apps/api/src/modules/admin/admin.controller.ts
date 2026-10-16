@@ -23,6 +23,25 @@ import { AuthenticatedUser, UserRole } from '@simply/types';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('session')
+  getSession(@CurrentUser() user: AuthenticatedUser) {
+    return { user };
+  }
+
+  @Get('subscriptions')
+  getSubscriptions(@Query('tenantId') tenantId?: string) { return this.adminService.getSubscriptionList(tenantId); }
+
+  @Get('payments')
+  getPayments(@Query('status') status?: string, @Query('search') search?: string, @Query('page') page?: string) {
+    return this.adminService.getSubscriptionPayments({ status, search, page });
+  }
+
+  @Get('audit-logs')
+  getAuditLogs(@Query('search') search?: string, @Query('page') page?: string) { return this.adminService.getAuditLogs({ search, page }); }
+
+  @Get('settings')
+  getSettings() { return this.adminService.getSafeSettings(); }
+
   @Get('overview')
   @ApiOperation({ summary: 'Platform-wide operational overview & metrics' })
   async getOverview() {

@@ -33,6 +33,7 @@ interface SellerReview {
   body: string;
   verifiedPurchase: boolean;
   status: 'ACTIVE' | 'REMOVED' | 'SENT_FOR_REVIEW';
+  report?: { id: string; status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED'; reason: string; merchantNote?: string | null; createdAt: string } | null;
   moderationReason?: string | null;
   createdAt: string;
   product: {
@@ -660,7 +661,7 @@ export default function SellerReviewsPage() {
             /* Review Feed List */
             <div className="divide-y divide-merchant-border">
               {reviews.map((rev) => (
-                <div key={rev.id} className="p-4 sm:p-5 space-y-3 hover:bg-merchant-surface/50 transition">
+                <div key={rev.id} data-review-id={rev.id} className="p-4 sm:p-5 space-y-3 hover:bg-merchant-surface/50 transition">
                   {/* Top Bar: Stars, Title, Status & Date */}
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -690,14 +691,14 @@ export default function SellerReviewsPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
-                          rev.status === 'SENT_FOR_REVIEW'
+                          ['PENDING', 'UNDER_REVIEW'].includes(rev.report?.status || '')
                             ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
                             : rev.status === 'REMOVED'
                             ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                         }`}
                       >
-                        {rev.status === 'SENT_FOR_REVIEW'
+                        {['PENDING', 'UNDER_REVIEW'].includes(rev.report?.status || '')
                           ? t('reviews.sentForReviewBadge')
                           : rev.status === 'REMOVED'
                           ? t('reviews.takenDownBadge')
@@ -714,14 +715,14 @@ export default function SellerReviewsPage() {
                   </div>
 
                   {/* Sent for review notice if applicable */}
-                  {rev.status === 'SENT_FOR_REVIEW' && (
+                  {['PENDING', 'UNDER_REVIEW'].includes(rev.report?.status || '') && (
                     <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
                       <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                       <div>
                         <strong>{t('reviews.sentForReviewBadge')}:</strong> {t('reviews.sentForReviewNotice')}
-                        {rev.moderationReason && (
+                        {rev.report?.reason && (
                           <span className="block mt-0.5 text-amber-700 dark:text-amber-300">
-                            {t('reviews.moderationReasonPrefix')} {rev.moderationReason}
+                            {t('reviews.moderationReasonPrefix')} {rev.report?.reason}
                           </span>
                         )}
                       </div>
@@ -735,6 +736,8 @@ export default function SellerReviewsPage() {
                       {rev.moderationReason || t('reviews.takenDownDefault')}
                     </div>
                   )}
+
+                  {rev.report && <p className="text-xs font-semibold text-merchant-text-secondary" data-report-status={rev.report.status}>{t('reviewReportStates.' + rev.report.status)}</p>}
 
                   {/* Body Text */}
                   <p className="text-xs text-merchant-text-secondary leading-relaxed whitespace-pre-line">
@@ -787,7 +790,7 @@ export default function SellerReviewsPage() {
                       </Link>
 
                       {/* Report Review Action / Status indicator */}
-                      {rev.status === 'ACTIVE' && (
+                      {rev.status === 'ACTIVE' && !['PENDING', 'UNDER_REVIEW'].includes(rev.report?.status || '') && (
                         <button
                           type="button"
                           onClick={() => setReportingReview(rev)}
@@ -799,7 +802,7 @@ export default function SellerReviewsPage() {
                         </button>
                       )}
 
-                      {rev.status === 'SENT_FOR_REVIEW' && (
+                      {['PENDING', 'UNDER_REVIEW'].includes(rev.report?.status || '') && (
                         <span
                           className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-medium"
                           title={t('reviews.sentForReviewNotice')}

@@ -7,7 +7,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <AdminAuthProvider>
       <Head>
-        <title>ShopOnGo • Platform SuperAdmin</title>
+        <title>LetzShop Admin</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Component {...pageProps} />

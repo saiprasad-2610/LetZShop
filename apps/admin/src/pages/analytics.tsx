@@ -54,7 +54,7 @@ export default function AdminAnalyticsPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>SaaS Analytics & Financials | ShopOnGo Platform Admin</title>
+        <title>SaaS Analytics & Financials | LetzShop Admin</title>
       </Head>
 
       <div className="space-y-8 font-sans">
