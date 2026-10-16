@@ -267,12 +267,15 @@ function checkPortReady(port, pathname = '/') {
   });
 }
 
-async function waitForServicesReady(timeoutMs = 120000) {
+async function waitForServicesReady(
+  services = { api: true, seller: true, platform: true, admin: false },
+  timeoutMs = 120000
+) {
   const start = Date.now();
-  let apiReady = false;
-  let sellerReady = false;
-  let platformReady = false;
-  let adminReady = false;
+  let apiReady = !services.api;
+  let sellerReady = !services.seller;
+  let platformReady = !services.platform;
+  let adminReady = !services.admin;
 
   while (Date.now() - start < timeoutMs) {
     if (!apiReady) apiReady = await checkPortReady(4000, '/health');
@@ -470,58 +473,109 @@ async function main() {
   // 3. Clean stale Simply processes from previous runs
   cleanStaleProcesses();
 
-  // 4. Preflight required ports (cleans stale Simply processes, halts on unknown external)
-  const portsOk = await checkPortPreflight(CANONICAL_PORTS);
+  // 4. Determine Active Development Profile
+  const isAdminOnly = process.argv.includes('--admin') || process.argv.includes('admin');
+  const isAll = process.argv.includes('--all') || process.argv.includes('all');
+
+  const runApi = true;
+  const runSeller = !isAdminOnly || isAll;
+  const runStorefront = !isAdminOnly || isAll;
+  const runAdmin = isAdminOnly || isAll;
+
+  const activePorts = [];
+  if (runApi) activePorts.push(4000);
+  if (runSeller) activePorts.push(3001);
+  if (runStorefront) activePorts.push(3000);
+  if (runAdmin) activePorts.push(3002);
+
+  const profileName = isAdminOnly ? 'ADMIN' : isAll ? 'ALL SERVICES' : 'MERCHANT';
+
+  // Preflight active ports (cleans stale Simply processes, halts on unknown external)
+  const portsOk = await checkPortPreflight(activePorts);
   if (!portsOk) {
     process.exit(1);
   }
 
-  // 5. Direct Child Process Spawning (shell: false on Windows to avoid cmd.exe / batch Ctrl+C traps)
+  // 5. Direct Child Process Spawning with Conservative Memory Limits
+  // (shell: false on Windows to avoid cmd.exe / batch Ctrl+C traps)
   const nodeBinary = process.execPath;
   const nestBin = path.resolve(rootDir, 'apps/api/node_modules/@nestjs/cli/bin/nest.js');
   const nextSellerBin = path.resolve(rootDir, 'apps/seller/node_modules/next/dist/bin/next');
   const nextStorefrontBin = path.resolve(rootDir, 'apps/storefront/node_modules/next/dist/bin/next');
   const nextAdminBin = path.resolve(rootDir, 'apps/admin/node_modules/next/dist/bin/next');
 
-  const children = {
-    api: spawn(nodeBinary, [nestBin, 'start', '--watch'], {
+  const children = {};
+
+  // Launch API first
+  if (runApi) {
+    children.api = spawn(nodeBinary, [nestBin, 'start', '--watch'], {
       cwd: path.resolve(rootDir, 'apps/api'),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=4096', FORCE_COLOR: '1' }
-    }),
-    seller: spawn(nodeBinary, [nextSellerBin, 'dev', '-p', '3001'], {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=1536',
+        FORCE_COLOR: '1',
+      },
+    });
+  }
+
+  // Stagger Next.js frontend builds slightly to avoid simultaneous CPU/memory spikes on startup
+  await new Promise((r) => setTimeout(r, 1500));
+
+  if (runSeller) {
+    children.seller = spawn(nodeBinary, [nextSellerBin, 'dev', '-p', '3001'], {
       cwd: path.resolve(rootDir, 'apps/seller'),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '1' }
-    }),
-    platform: spawn(nodeBinary, [nextStorefrontBin, 'dev', '-p', '3000'], {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        FORCE_COLOR: '1',
+      },
+    });
+  }
+
+  if (runStorefront) {
+    children.platform = spawn(nodeBinary, [nextStorefrontBin, 'dev', '-p', '3000'], {
       cwd: path.resolve(rootDir, 'apps/storefront'),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '1' }
-    }),
-    admin: spawn(nodeBinary, [nextAdminBin, 'dev', '-p', '3002'], {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        FORCE_COLOR: '1',
+      },
+    });
+  }
+
+  if (runAdmin) {
+    children.admin = spawn(nodeBinary, [nextAdminBin, 'dev', '-p', '3002'], {
       cwd: path.resolve(rootDir, 'apps/admin'),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '1' }
-    })
-  };
+      env: {
+        ...process.env,
+        NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        FORCE_COLOR: '1',
+      },
+    });
+  }
 
   const trackedListeningPids = new Set();
 
   function savePidFile() {
+    const services = {};
+    if (runApi) services.api = { rootPid: children.api?.pid, port: 4000, listeningPid: getPortPid(4000) };
+    if (runSeller) services.seller = { rootPid: children.seller?.pid, port: 3001, listeningPid: getPortPid(3001) };
+    if (runStorefront) services.platform = { rootPid: children.platform?.pid, port: 3000, listeningPid: getPortPid(3000) };
+    if (runAdmin) services.admin = { rootPid: children.admin?.pid, port: 3002, listeningPid: getPortPid(3002) };
+
     const data = {
       launcherPid: process.pid,
+      profile: profileName,
       startedAt: new Date().toISOString(),
-      services: {
-        api: { rootPid: children.api?.pid, port: 4000, listeningPid: getPortPid(4000) },
-        seller: { rootPid: children.seller?.pid, port: 3001, listeningPid: getPortPid(3001) },
-        platform: { rootPid: children.platform?.pid, port: 3000, listeningPid: getPortPid(3000) },
-        admin: { rootPid: children.admin?.pid, port: 3002, listeningPid: getPortPid(3002) }
-      }
+      services,
     };
     try {
       fs.writeFileSync(PID_FILE, JSON.stringify(data, null, 2), 'utf8');
@@ -553,8 +607,8 @@ async function main() {
       killProcessTree(pid);
     }
 
-    // Also collect any listening PIDs on canonical ports
-    for (const port of CANONICAL_PORTS) {
+    // Also collect any listening PIDs on active ports
+    for (const port of activePorts) {
       const p = getPortPid(port);
       if (p && isSimplyProcess(p)) {
         killProcessTree(p);
@@ -563,11 +617,11 @@ async function main() {
 
     const allTracked = new Set([
       ...Object.values(children).map((c) => c?.pid).filter(Boolean),
-      ...trackedListeningPids
+      ...trackedListeningPids,
     ]);
 
-    // Verify all ports released
-    const released = await verifyPortsReleased(CANONICAL_PORTS, 4000, allTracked);
+    // Verify active ports released
+    const released = await verifyPortsReleased(activePorts, 4000, allTracked);
 
     // Remove runtime PID file
     try {
@@ -575,12 +629,12 @@ async function main() {
     } catch {}
 
     if (reason === 'SIGINT' || reason === 'SIGTERM' || reason === 'SIGBREAK') {
-      console.log('✓ API stopped');
-      console.log('✓ Merchant Portal stopped');
-      console.log('✓ Storefront stopped');
-      console.log('✓ Admin Portal stopped');
+      if (runApi) console.log('✓ API stopped');
+      if (runSeller) console.log('✓ Merchant Portal stopped');
+      if (runStorefront) console.log('✓ Storefront stopped');
+      if (runAdmin) console.log('✓ Admin Portal stopped');
       if (released) {
-        console.log('✓ Ports released');
+        console.log('✓ Ports released (' + activePorts.join(', ') + ')');
       } else {
         console.log('⚠ Ports released with delay');
       }
@@ -623,27 +677,35 @@ async function main() {
     if (bannerPrinted) return;
     bannerPrinted = true;
 
-    for (const port of CANONICAL_PORTS) {
+    for (const port of activePorts) {
       const p = getPortPid(port);
       if (p) trackedListeningPids.add(p);
     }
     savePidFile();
 
     console.log('\n==================================================');
-    console.log('SIMPLY / LETZSHOP DEVELOPMENT');
+    console.log(`SIMPLY / LETZSHOP DEVELOPMENT (${profileName} PROFILE)`);
     console.log('==================================================\n');
-    console.log('API');
-    console.log('http://localhost:4000');
-    console.log('✓ Healthy\n');
-    console.log('Merchant Portal');
-    console.log('http://localhost:3001');
-    console.log('✓ Healthy\n');
-    console.log('Storefront');
-    console.log('http://localhost:3000');
-    console.log('✓ Healthy\n');
-    console.log('Admin Portal');
-    console.log('http://localhost:3002');
-    console.log('✓ Healthy\n');
+    if (runApi) {
+      console.log('API');
+      console.log('http://localhost:4000');
+      console.log('✓ Healthy\n');
+    }
+    if (runSeller) {
+      console.log('Merchant Portal');
+      console.log('http://localhost:3001');
+      console.log('✓ Healthy\n');
+    }
+    if (runStorefront) {
+      console.log('Storefront');
+      console.log('http://localhost:3000');
+      console.log('✓ Healthy\n');
+    }
+    if (runAdmin) {
+      console.log('Admin Portal');
+      console.log('http://localhost:3002');
+      console.log('✓ Healthy\n');
+    }
     console.log('Press Ctrl+C once to stop all services.');
     console.log('==================================================\n');
   };
@@ -683,8 +745,11 @@ async function main() {
     });
   }
 
-  // 8. Wait for all services to become healthy before declaring success
-  const allReady = await waitForServicesReady(120000);
+  // 8. Wait for active services to become healthy before declaring success
+  const allReady = await waitForServicesReady(
+    { api: runApi, seller: runSeller, platform: runStorefront, admin: runAdmin },
+    120000
+  );
   if (allReady && !bannerPrinted && !shuttingDown) {
     printSummary();
   } else if (!allReady && !shuttingDown) {

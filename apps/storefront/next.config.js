@@ -16,17 +16,6 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.cache = false;
-    }
-    return config;
-  },
-  swcMinify: false,
-  experimental: {
-    cpus: 1,
-    workerThreads: false,
-  },
 };
 
 module.exports = nextConfig;
