@@ -14,5 +14,6 @@
     "^@simply/storage$": "<rootDir>/../../packages/storage/src",
     "^@simply/db$": "<rootDir>/../../packages/db/src"
   },
+  "setupFiles": ["<rootDir>/test/setup-test-db.js"],
   "testTimeout": 30000
 }
