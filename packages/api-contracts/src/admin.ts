@@ -179,6 +179,7 @@ export interface AdminCharts {
   reportTrends: Array<{ date: string; count: number; resolved: number }>;
 }
 export interface AdminOverview {
+  generatedAt: string;
   kpis: {
     totalMerchants: number;
     liveStores: number;
@@ -197,7 +198,17 @@ export interface AdminOverview {
     name: string;
     createdAt: string;
   }>;
-  recentOrders: AdminOrder[];
+  recentOrders: Array<
+    Pick<
+      AdminOrder,
+      | 'id'
+      | 'orderNumber'
+      | 'totalPaise'
+      | 'currency'
+      | 'paymentStatus'
+      | 'createdAt'
+    > & { store: { name: string } }
+  >;
   reviewModeration: {
     pendingReports: number;
     removedThisMonth: number;

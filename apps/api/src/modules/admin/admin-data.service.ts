@@ -1,3 +1,4 @@
+import { AdminDashboardService } from './admin-dashboard.service';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient, UserRole, StoreStatus } from '@prisma/client';
 import { getBrandConfig } from '@simply/config';
@@ -48,7 +49,7 @@ export function adminRange(range = '30d') {
     '12m': 365,
   };
   if (range === 'ALL') return null;
-  if (!days[range])
+  if (!Object.prototype.hasOwnProperty.call(days, range))
     throw new BadRequestException('Choose 7d, 30d, 3m, 6m, 12m or ALL.');
   return new Date(Date.now() - days[range] * 86400000);
 }
@@ -69,169 +70,14 @@ const orderSelect = {
 
 @Injectable()
 export class AdminDataService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly dashboard: AdminDashboardService,
+  ) {}
   async overview(range = '30d') {
-    const from = adminRange(range),
-      now = new Date(),
-      month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const [
-      totalMerchants,
-      liveStores,
-      privateStores,
-      suspendedStores,
-      activeSubscriptions,
-      totalProducts,
-      totalOrders,
-      totalCustomers,
-      totalReviews,
-      subscriptionRevenue,
-      recentlyJoinedMerchants,
-      pendingReports,
-      removedThisMonth,
-      resolvedReports,
-      latestPendingReports,
-      recentOrders,
-    ] = await Promise.all([
-      this.db.tenant.count({
-        where: {
-          deletedAt: null,
-          memberships: {
-            some: {
-              role: 'SELLER_OWNER',
-              isActive: true,
-              user: { deletedAt: null },
-            },
-          },
-        },
-      }),
-      this.liveStoreCount(now),
-      this.db.store.count({
-        where: {
-          deletedAt: null,
-          status: { in: ['DRAFT', 'PRIVATE_PREVIEW'] },
-        },
-      }),
-      this.db.store.count({ where: { deletedAt: null, status: 'SUSPENDED' } }),
-      this.db.subscription.count({
-        where: {
-          status: 'ACTIVE',
-          currentPeriodEnd: { gt: now },
-          tenant: { deletedAt: null },
-        },
-      }),
-      this.db.product.count({ where: { deletedAt: null } }),
-      this.db.order.count(),
-      this.db.customer.count(),
-      this.db.productReview.count({ where: { status: 'ACTIVE' } }),
-      this.db.subscriptionPayment.aggregate({
-        where: { status: { in: ['SUCCESS', 'PAID'] } },
-        _sum: { amountPaise: true },
-      }),
-      this.db.tenant.findMany({
-        where: {
-          deletedAt: null,
-          memberships: {
-            some: {
-              role: 'SELLER_OWNER',
-              isActive: true,
-              user: { deletedAt: null },
-            },
-          },
-        },
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, name: true, createdAt: true },
-      }),
-      this.db.reviewReport.count({
-        where: { status: { in: ['PENDING', 'UNDER_REVIEW'] } },
-      }),
-      this.db.auditLog.count({
-        where: { action: 'REVIEW_REMOVED', createdAt: { gte: month } },
-      }),
-      this.db.reviewReport.count({ where: { status: 'RESOLVED' } }),
-      this.db.reviewReport.findMany({
-        where: { status: { in: ['PENDING', 'UNDER_REVIEW'] } },
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          reason: true,
-          status: true,
-          createdAt: true,
-          review: {
-            select: {
-              id: true,
-              rating: true,
-              reviewerName: true,
-              store: { select: { name: true } },
-              product: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.db.order.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: orderSelect,
-      }),
-    ]);
-    const kpis = {
-      totalMerchants,
-      liveStores,
-      privateStores,
-      suspendedStores,
-      activeSubscriptions,
-      totalProducts,
-      totalOrders,
-      totalCustomers,
-      totalReviews,
-      pendingReviewReports: pendingReports,
-      subscriptionRevenuePaise: subscriptionRevenue._sum.amountPaise || 0,
-    };
-    return {
-      kpis,
-      recentlyJoinedMerchants,
-      recentOrders,
-      reviewModeration: {
-        pendingReports,
-        removedThisMonth,
-        resolvedReports,
-        latestPendingReports,
-      },
-      range,
-      charts: await this.charts(from),
-      definitions: {
-        totalMerchants:
-          'Non-deleted merchant businesses with an active owner membership.',
-        liveStores:
-          'LIVE, public stores in an active tenant whose latest subscription is ACTIVE and unexpired.',
-        privateStores:
-          'Non-deleted stores with DRAFT or PRIVATE_PREVIEW status.',
-        suspendedStores: 'Non-deleted stores with SUSPENDED status.',
-        activeSubscriptions:
-          'ACTIVE subscription rows with unexpired validity and a non-deleted tenant.',
-        totalProducts:
-          'Non-deleted products across all stores and product statuses.',
-        totalOrders:
-          'All persisted customer orders, including cancelled orders.',
-        totalCustomers:
-          'Customer records across stores; the same person in two stores counts twice.',
-        pendingReviewReports:
-          'Review reports with PENDING or UNDER_REVIEW status.',
-        subscriptionRevenuePaise:
-          'Sum of successful platform SubscriptionPayment records, in paise; excludes customer orders.',
-        totalReviews: 'ACTIVE product reviews; removed reviews are excluded.',
-        range:
-          'Counts are current platform totals; charts use the selected date range.',
-      },
-    };
+    return this.dashboard.read(adminRange(range), range);
   }
-  async liveStoreCount(now: Date) {
-    const [row] = await this.db.$queryRaw<
-      Array<{ count: number }>
-    >`SELECT count(*)::int AS count FROM stores s JOIN tenants t ON t.id=s.tenant_id JOIN LATERAL (SELECT status,current_period_end FROM subscriptions sub WHERE sub.tenant_id=t.id ORDER BY sub.created_at DESC LIMIT 1) latest ON true WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL AND t.status='ACTIVE' AND s.status='LIVE' AND s.is_publicly_accessible=true AND latest.status='ACTIVE' AND latest.current_period_end > ${now}`;
-    return row.count;
-  }
+
   async charts(from: Date | null) {
     const cutoff = from || new Date('1970-01-01T00:00:00Z');
     // Aggregate inside PostgreSQL; only actual observed dates are returned.

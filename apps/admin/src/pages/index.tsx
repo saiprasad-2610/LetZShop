@@ -35,12 +35,29 @@ export default function Dashboard() {
       </Head>
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            {data && (
+              <p className="mt-1 text-xs text-admin-muted">
+                Last updated{' '}
+                <time dateTime={data.generatedAt}>
+                  {new Date(data.generatedAt).toLocaleString('en-IN', {
+                    timeZone: 'UTC',
+                  })}{' '}
+                  UTC
+                </time>
+              </p>
+            )}
+          </div>
           <button className="admin-secondary" onClick={reload}>
             Refresh
           </button>
         </div>
-        <Feedback loading={loading} error={error} onRetry={reload} />
+        <Feedback
+          loading={loading}
+          error={error ? 'Unable to load dashboard data. ' + error : ''}
+          onRetry={reload}
+        />
         {data && (
           <>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -122,7 +139,11 @@ export default function Dashboard() {
                   >
                     {m.name}
                   </Link>
-                  <time>{new Date(m.createdAt).toLocaleDateString()}</time>
+                  <time>
+                    {new Date(m.createdAt).toLocaleDateString('en-IN', {
+                      timeZone: 'UTC',
+                    })}
+                  </time>
                 </div>
               ))}
               {!data.recentlyJoinedMerchants.length && (
