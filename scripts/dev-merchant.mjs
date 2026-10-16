@@ -17,7 +17,7 @@ if (fs.existsSync(rootEnvPath) && typeof process.loadEnvFile === 'function') {
 }
 const PID_FILE = path.resolve(rootDir, '.simply-dev-processes.json');
 
-const CANONICAL_PORTS = [4000, 3001, 3000];
+const CANONICAL_PORTS = [4000, 3001, 3000, 3002];
 
 // --- Process Inspection Utilities ---
 
@@ -110,9 +110,11 @@ export function isSimplyProcess(pid, cmdLine = null) {
     line.includes('apps/api') ||
     line.includes('apps/seller') ||
     line.includes('apps/storefront') ||
+    line.includes('apps/admin') ||
     line.includes('apps\\api') ||
     line.includes('apps\\seller') ||
     line.includes('apps\\storefront') ||
+    line.includes('apps\\admin') ||
     line.includes('dev-merchant') ||
     line.includes('dist/main') ||
     line.includes('dist\\main')
@@ -270,13 +272,15 @@ async function waitForServicesReady(timeoutMs = 120000) {
   let apiReady = false;
   let sellerReady = false;
   let platformReady = false;
+  let adminReady = false;
 
   while (Date.now() - start < timeoutMs) {
     if (!apiReady) apiReady = await checkPortReady(4000, '/health');
     if (!sellerReady) sellerReady = await checkPortReady(3001, '/');
     if (!platformReady) platformReady = await checkPortReady(3000, '/');
+    if (!adminReady) adminReady = await checkPortReady(3002, '/login');
 
-    if (apiReady && sellerReady && platformReady) {
+    if (apiReady && sellerReady && platformReady && adminReady) {
       return true;
     }
     await new Promise((r) => setTimeout(r, 600));
@@ -305,19 +309,22 @@ async function handleStatus() {
 
   console.log(`Launcher:   ${isLauncherAlive ? `Active (PID ${launcherPid})` : 'Offline'}\n`);
 
-  const [apiOk, sellerOk, platformOk] = await Promise.all([
+  const [apiOk, sellerOk, platformOk, adminOk] = await Promise.all([
     checkPortReady(4000, '/health'),
     checkPortReady(3001, '/'),
-    checkPortReady(3000, '/')
+    checkPortReady(3000, '/'),
+    checkPortReady(3002, '/login')
   ]);
 
   const apiPid = getPortPid(4000);
   const sellerPid = getPortPid(3001);
   const platformPid = getPortPid(3000);
+  const adminPid = getPortPid(3002);
 
   console.log(`API         (Port 4000, PID ${apiPid || 'None'}): ${apiOk ? '✓ Healthy' : '✗ Offline'}`);
   console.log(`Seller      (Port 3001, PID ${sellerPid || 'None'}): ${sellerOk ? '✓ Healthy' : '✗ Offline'}`);
   console.log(`Storefront  (Port 3000, PID ${platformPid || 'None'}): ${platformOk ? '✓ Healthy' : '✗ Offline'}`);
+  console.log(`Admin       (Port 3002, PID ${adminPid || 'None'}): ${adminOk ? '✓ Healthy' : '✗ Offline'}`);
   console.log('==================================================\n');
   process.exit(0);
 }
@@ -342,8 +349,9 @@ async function handleStop() {
   console.log('✓ API stopped');
   console.log('✓ Merchant Portal stopped');
   console.log('✓ Storefront stopped');
+  console.log('✓ Admin Portal stopped');
   if (free) {
-    console.log('✓ Ports released (4000, 3001, 3000)');
+    console.log('✓ Ports released (4000, 3001, 3000, 3002)');
   } else {
     console.log('⚠ Ports released with delay');
   }
@@ -359,7 +367,7 @@ function isNoise(line) {
   const raw = stripAnsi(line).trim();
   if (!raw) return true;
 
-  if (raw === '@simply/seller:dev:' || raw === '@simply/storefront:dev:' || raw === '@simply/api:dev:') {
+  if (raw === '@simply/seller:dev:' || raw === '@simply/storefront:dev:' || raw === '@simply/api:dev:' || raw === '@simply/admin:dev:') {
     return true;
   }
 
@@ -473,6 +481,7 @@ async function main() {
   const nestBin = path.resolve(rootDir, 'apps/api/node_modules/@nestjs/cli/bin/nest.js');
   const nextSellerBin = path.resolve(rootDir, 'apps/seller/node_modules/next/dist/bin/next');
   const nextStorefrontBin = path.resolve(rootDir, 'apps/storefront/node_modules/next/dist/bin/next');
+  const nextAdminBin = path.resolve(rootDir, 'apps/admin/node_modules/next/dist/bin/next');
 
   const children = {
     api: spawn(nodeBinary, [nestBin, 'start', '--watch'], {
@@ -492,6 +501,12 @@ async function main() {
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, FORCE_COLOR: '1' }
+    }),
+    admin: spawn(nodeBinary, [nextAdminBin, 'dev', '-p', '3002'], {
+      cwd: path.resolve(rootDir, 'apps/admin'),
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '1' }
     })
   };
 
@@ -504,7 +519,8 @@ async function main() {
       services: {
         api: { rootPid: children.api?.pid, port: 4000, listeningPid: getPortPid(4000) },
         seller: { rootPid: children.seller?.pid, port: 3001, listeningPid: getPortPid(3001) },
-        platform: { rootPid: children.platform?.pid, port: 3000, listeningPid: getPortPid(3000) }
+        platform: { rootPid: children.platform?.pid, port: 3000, listeningPid: getPortPid(3000) },
+        admin: { rootPid: children.admin?.pid, port: 3002, listeningPid: getPortPid(3002) }
       }
     };
     try {
@@ -562,6 +578,7 @@ async function main() {
       console.log('✓ API stopped');
       console.log('✓ Merchant Portal stopped');
       console.log('✓ Storefront stopped');
+      console.log('✓ Admin Portal stopped');
       if (released) {
         console.log('✓ Ports released');
       } else {
@@ -623,6 +640,9 @@ async function main() {
     console.log('✓ Healthy\n');
     console.log('Storefront');
     console.log('http://localhost:3000');
+    console.log('✓ Healthy\n');
+    console.log('Admin Portal');
+    console.log('http://localhost:3002');
     console.log('✓ Healthy\n');
     console.log('Press Ctrl+C once to stop all services.');
     console.log('==================================================\n');
