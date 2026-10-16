@@ -87,7 +87,7 @@ export const FOUNDATIONAL_THEMES: Record<string, ThemeConfig> = {
       border: '#E2E8F0',
     },
     typography: {
-      heading: 'Cabinet Grotesk',
+      heading: 'Space Grotesk',
       body: 'Inter',
     },
     headerStyle: 'sticky-action',

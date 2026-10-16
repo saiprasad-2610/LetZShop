@@ -141,7 +141,7 @@ export default function StoreHomePage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
-      toast.success('Added to Cart', `${product.name || product.title} was added to your bag.`);
+      toast.success(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2000);
     } catch (err: any) {
       console.error('Quick add failed', err);
@@ -285,10 +285,10 @@ export default function StoreHomePage() {
 
         {/* --- ATELIER: Luxury Editorial Split-Hero --- */}
         {themeCode === 'atelier' && (
-          <section className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
+          <section data-theme-hero="true" className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               <div className="lg:col-span-7 space-y-5 text-left flex flex-col justify-center">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40 bg-stone-900/40">
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40 bg-stone-900/40">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span className="font-bold">{store.name}</span>
                   <span className="text-amber-500/60">•</span>
@@ -316,7 +316,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-4">
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-amber-400 text-stone-950 font-semibold text-xs tracking-widest uppercase hover:bg-amber-300 transition shadow-lg flex items-center gap-2"
@@ -325,7 +325,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border border-stone-600 text-stone-200 text-xs font-semibold tracking-widest uppercase hover:border-amber-400 hover:text-amber-300 transition"
@@ -363,10 +363,10 @@ export default function StoreHomePage() {
 
         {/* --- PULSE: High Voltage Drop Hero --- */}
         {themeCode === 'pulse' && (
-          <section className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
+          <section data-theme-hero="true" className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'space-y-6 text-center'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white font-black text-xs uppercase tracking-widest border-2 border-pink-500 shadow-lg">
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white font-black text-xs uppercase tracking-widest border-2 border-pink-500 shadow-lg">
                   <Zap className="w-4 h-4 fill-pink-500 text-pink-500" />
                   <span className="text-pink-400">{store.name}</span>
                   <span>•</span>
@@ -384,14 +384,14 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-sm uppercase tracking-wider transition shadow-lg transform hover:-translate-y-0.5"
                   >
                     {heroCtaText || 'SHOP THE DROP NOW'}
                   </a>
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider border border-white/20 transition"
@@ -438,10 +438,10 @@ export default function StoreHomePage() {
 
         {/* --- HARVEST: Warm Organic Showcase Hero --- */}
         {themeCode === 'harvest' && (
-          <section className="relative overflow-hidden border-b border-amber-200 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8">
+          <section data-theme-hero="true" className="relative overflow-hidden border-b border-amber-200 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-5'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-5' : 'space-y-5'}>
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
+                <span data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
                   <span>🌿 Pure & Handcrafted by</span>
                   <strong className="text-emerald-800 font-extrabold">{store.name}</strong>
                 </span>
@@ -457,7 +457,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-6 py-3 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
@@ -465,7 +465,7 @@ export default function StoreHomePage() {
                     <span>{heroCtaText || 'Order Fresh Batch'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3 rounded-full bg-white border border-stone-300 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-sm flex items-center gap-2"
@@ -513,13 +513,13 @@ export default function StoreHomePage() {
 
         {/* --- FOUNDRY: Technical B2B Industrial Hero --- */}
         {themeCode === 'foundry' && (
-          <section className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
+          <section data-theme-hero="true" className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
             {/* Background Grid Pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 pointer-events-none" />
 
             <div className="max-w-6xl mx-auto space-y-6 relative">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                <div className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
                   <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
                   <span>{store.name.toUpperCase()} // {heroBadge || 'OEM B2B SUPPLY DIVISION'}</span>
                 </div>
@@ -559,7 +559,7 @@ export default function StoreHomePage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4 pt-4">
-                <a
+                <a data-theme-tone="primary"
                   data-theme-btn="true"
                   href={heroCtaLink}
                   className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-sm transition shadow flex items-center gap-2"
@@ -567,7 +567,7 @@ export default function StoreHomePage() {
                   <FileText className="w-4 h-4" />
                   <span>{heroCtaText || 'Browse Technical Catalog'}</span>
                 </a>
-                <Link
+                <Link data-theme-tone="secondary"
                   data-theme-btn="true"
                   href={heroSecondaryCtaLink}
                   className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider border border-slate-600 rounded-sm transition flex items-center gap-2"
@@ -582,10 +582,10 @@ export default function StoreHomePage() {
 
         {/* --- HABITAT: Spacious Lifestyle & Interior Sanctuary Hero --- */}
         {themeCode === 'habitat' && (
-          <section className="relative overflow-hidden bg-stone-100 text-stone-900 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-stone-200">
+          <section data-theme-hero="true" className="relative overflow-hidden bg-stone-100 text-stone-900 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-stone-200">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-6'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <span className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
+                <span data-theme-accent="true" className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
                   THE {store.name.toUpperCase()} STUDIO • {heroBadge || 'BESPOKE LIVING SPACES'}
                 </span>
 
@@ -603,14 +603,14 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-3`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-stone-900 text-stone-50 font-serif text-xs uppercase tracking-widest hover:bg-stone-800 transition"
                   >
                     {heroCtaText || 'View Living Pieces'}
                   </a>
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-3.5 border border-stone-400 text-stone-800 font-serif text-xs uppercase tracking-widest hover:bg-white transition"
@@ -638,10 +638,10 @@ export default function StoreHomePage() {
 
         {/* --- LOCAL: High Density Instant Commerce Hero --- */}
         {themeCode === 'local' && (
-          <section className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
+          <section data-theme-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
                   <Truck className="w-3.5 h-3.5 text-green-400" />
                   <strong className="text-white font-bold">{store.name}</strong>
                   <span>•</span>
@@ -656,14 +656,14 @@ export default function StoreHomePage() {
                     'Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.'}
                 </p>
                 <div className="pt-2 flex items-center gap-3">
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-lg shadow-sm hover:bg-blue-50 transition"
                   >
                     {heroCtaText || 'Order Online'}
                   </a>
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-4 py-2.5 border border-blue-400 text-white font-medium text-xs rounded-lg hover:bg-blue-800 transition"
@@ -713,13 +713,13 @@ export default function StoreHomePage() {
 
         {/* --- AURA: Luminous Glow & Clean Beauty Hero --- */}
         {themeCode === 'aura' && (
-          <section className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-pink-50/50 to-amber-50/30">
+          <section data-theme-hero="true" className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-pink-50/50 to-amber-50/30">
             {/* Soft Ambient Radial Blur */}
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl pointer-events-none" />
             
             <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-900 border border-rose-300/80 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-900 border border-rose-300/80 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
                   <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                   <strong className="font-bold text-rose-950">{store.name}</strong>
                   <span className="text-rose-400">•</span>
@@ -747,7 +747,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs tracking-wider uppercase rounded-full transition shadow-lg flex items-center gap-2"
@@ -756,7 +756,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-rose-300 text-rose-900 font-semibold text-xs tracking-wider uppercase rounded-full hover:bg-rose-100/60 transition"
@@ -803,13 +803,13 @@ export default function StoreHomePage() {
 
         {/* --- NOIR: Avant-Garde Dark Studio & Monolith Hero --- */}
         {themeCode === 'noir' && (
-          <section className="relative overflow-hidden bg-zinc-950 text-zinc-100 pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-zinc-800">
+          <section data-theme-hero="true" className="relative overflow-hidden bg-zinc-950 text-zinc-100 pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-zinc-800">
             {/* High-tech Matrix Grid */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
             <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-4xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
+                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                   <span>{store.name.toUpperCase()} // {heroBadge || 'LIMITED MONOLITH RUN'}</span>
                 </div>
@@ -830,7 +830,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-4 bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs uppercase tracking-wider transition shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center gap-2"
@@ -839,7 +839,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4 text-black" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-4 border border-zinc-700 hover:border-emerald-400 text-zinc-300 hover:text-white font-mono text-xs uppercase tracking-wider transition"
@@ -886,10 +886,10 @@ export default function StoreHomePage() {
 
         {/* --- VISTA: Earth & Craft Heritage Showcase Hero --- */}
         {themeCode === 'vista' && (
-          <section className="relative overflow-hidden bg-[#FDFBF7] text-[#431407] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-orange-200/80">
+          <section data-theme-hero="true" className="relative overflow-hidden bg-[#FDFBF7] text-[#431407] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-orange-200/80">
             <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-serif font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-serif font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
                   <Award className="w-3.5 h-3.5 text-amber-700" />
                   <strong>{store.name}</strong>
                   <span className="text-amber-400">•</span>
@@ -917,7 +917,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-md flex items-center gap-2"
@@ -926,7 +926,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#9A3412]/40 text-[#9A3412] hover:bg-orange-50 font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition"
@@ -973,10 +973,10 @@ export default function StoreHomePage() {
 
         {/* --- FEAST: Food-First Visual Commerce Hero --- */}
         {themeCode === 'feast' && (
-          <section className="relative overflow-hidden bg-[#FFFBEB] text-[#451A03] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-amber-200">
+          <section data-theme-hero="true" className="relative overflow-hidden bg-[#FFFBEB] text-[#451A03] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-amber-200">
             <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
                   <span>🍫 Fresh Batch Crafted Daily •</span>
                   <strong>{store.name}</strong>
                 </div>
@@ -992,7 +992,7 @@ export default function StoreHomePage() {
                 </p>
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#78350F] hover:bg-[#5E290C] text-white font-bold text-xs uppercase tracking-wider rounded-full transition shadow-md flex items-center gap-2"
@@ -1001,7 +1001,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#78350F]/40 text-[#78350F] hover:bg-amber-100/50 font-bold text-xs uppercase tracking-wider rounded-full transition"
@@ -1029,7 +1029,7 @@ export default function StoreHomePage() {
 
         {/* --- HORIZON: Enterprise Heritage & Innovation Panorama Hero --- */}
         {themeCode === 'horizon' && (
-          <section className="relative overflow-hidden min-h-[620px] lg:min-h-[680px] flex items-center border-b border-slate-200">
+          <section data-theme-hero="true" className="relative overflow-hidden min-h-[620px] lg:min-h-[680px] flex items-center border-b border-slate-200">
             {/* Full-Bleed Panoramic Background Image */}
             <div className="absolute inset-0 z-0">
               <SafeImage
@@ -1048,7 +1048,7 @@ export default function StoreHomePage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10 w-full">
               <div className="max-w-2xl space-y-6">
                 {/* Legacy Shield Trust Badge */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
                   <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>{heroBadge || 'Built from 65 years of legacy'}</span>
                 </div>
@@ -1103,7 +1103,7 @@ export default function StoreHomePage() {
 
                 {/* Dual Action Buttons */}
                 <div className="flex flex-wrap items-center gap-4 pt-3">
-                  <a
+                  <a data-theme-tone="primary"
                     data-theme-btn="true"
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2 group cursor-pointer"
@@ -1112,7 +1112,7 @@ export default function StoreHomePage() {
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </a>
 
-                  <Link
+                  <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 bg-white/90 hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition flex items-center gap-2"
@@ -1128,7 +1128,7 @@ export default function StoreHomePage() {
 
         {/* --- CANVAS: Full-Front Cinematic Showcase Hero --- */}
         {themeCode === 'canvas' && (
-          <section className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
+          <section data-theme-hero="true" className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
             {/* Full-Bleed Panoramic Background Image */}
             <div className="absolute inset-0 z-0">
               <SafeImage
@@ -1146,7 +1146,7 @@ export default function StoreHomePage() {
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full space-y-6">
               {/* Floating Monolith Pill */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
+              <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>{store.name.toUpperCase()} // {heroBadge || 'CINEMATIC PANORAMA 2026'}</span>
               </div>
@@ -1172,7 +1172,7 @@ export default function StoreHomePage() {
 
               {/* Dual Action Buttons */}
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                <a
+                <a data-theme-tone="primary"
                   data-theme-btn="true"
                   href={heroCtaLink}
                   className="px-9 py-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-widest rounded-full transition shadow-xl shadow-amber-500/20 flex items-center gap-2 group cursor-pointer"
@@ -1181,7 +1181,7 @@ export default function StoreHomePage() {
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </a>
 
-                <Link
+                <Link data-theme-tone="secondary"
                   data-theme-btn="true"
                   href={heroSecondaryCtaLink}
                   className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs uppercase tracking-widest rounded-full backdrop-blur-md border border-white/25 transition shadow-lg"

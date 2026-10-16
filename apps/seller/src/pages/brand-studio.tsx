@@ -51,13 +51,19 @@ import {
   Tag,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
+import { ThemeColorField } from '../components/ThemeColorField';
 import { MiniStorePreview } from '../components/MiniStorePreview';
 import { useAuth } from '../context/AuthContext';
 import {
   FOUNDATIONAL_THEMES,
+  STOREFRONT_FONT_FAMILIES,
+  resolveStorefrontFont,
+  TRUST_BADGE_ICONS,
+  resolveTrustBadgeIcon,
+  TrustBadgeIconId,
+  normalizeHexColor,
   QuickDesigner,
   getContrastRatio,
-  isContrastAccessible,
   getSuggestedTextColor,
   getWordmark,
 } from '@simply/ui';
@@ -87,6 +93,9 @@ export default function BrandStudioPage() {
   // Global Theme & Styling State
   const [selectedThemeId, setSelectedThemeId] = useState('atelier');
   const [primaryColor, setPrimaryColor] = useState('#1C1917');
+  const [invalidColors, setInvalidColors] = useState<Record<string, boolean>>({});
+  const hasInvalidColors = Object.values(invalidColors).some(Boolean);
+  const setColorValidity = (field: string, valid: boolean) => setInvalidColors((current) => current[field] === !valid ? current : { ...current, [field]: !valid });
   const [accentColor, setAccentColor] = useState('#D4AF37');
   const [backgroundColor, setBackgroundColor] = useState('#FAFAF9');
   const [typographyPreset, setTypographyPreset] = useState('Playfair Display');
@@ -209,10 +218,13 @@ export default function BrandStudioPage() {
   const [socialTwitter, setSocialTwitter] = useState('');
   const [socialLinkedin, setSocialLinkedin] = useState('');
   const [showTrustBadges, setShowTrustBadges] = useState(true);
+  const [trustBadge1Icon, setTrustBadge1Icon] = useState<TrustBadgeIconId>('payment');
   const [trustBadge1Title, setTrustBadge1Title] = useState('Secure Indian Payments');
   const [trustBadge1Subtitle, setTrustBadge1Subtitle] = useState('UPI, Netbanking & Cards via Razorpay');
+  const [trustBadge2Icon, setTrustBadge2Icon] = useState<TrustBadgeIconId>('truck');
   const [trustBadge2Title, setTrustBadge2Title] = useState('Reliable Pan-India Delivery');
   const [trustBadge2Subtitle, setTrustBadge2Subtitle] = useState('Doorstep tracking via premier couriers');
+  const [trustBadge3Icon, setTrustBadge3Icon] = useState<TrustBadgeIconId>('shield');
   const [trustBadge3Title, setTrustBadge3Title] = useState('Verified Authentic Goods');
   const [trustBadge3Subtitle, setTrustBadge3Subtitle] = useState('Direct from certified merchant business');
   const [footerCopyright, setFooterCopyright] = useState('');
@@ -264,8 +276,8 @@ export default function BrandStudioPage() {
       if (storeRes?.branding) {
         if (storeRes.branding.logoUrl) setLogoUrl(storeRes.branding.logoUrl);
         if (storeRes.branding.bannerUrl) setHeroBannerUrl(storeRes.branding.bannerUrl);
-        if (storeRes.branding.primaryColor) setPrimaryColor(storeRes.branding.primaryColor);
-        if (storeRes.branding.accentColor) setAccentColor(storeRes.branding.accentColor);
+        if (normalizeHexColor(storeRes.branding.primaryColor)) setPrimaryColor(normalizeHexColor(storeRes.branding.primaryColor)!);
+        if (normalizeHexColor(storeRes.branding.accentColor)) setAccentColor(normalizeHexColor(storeRes.branding.accentColor)!);
         if (storeRes.branding.logoSize) setLogoSize(Number(storeRes.branding.logoSize));
         if (storeRes.branding.storeNameSize) setStoreNameSize(Number(storeRes.branding.storeNameSize));
       }
@@ -279,10 +291,10 @@ export default function BrandStudioPage() {
         if (cfg.logoSize) setLogoSize(Number(cfg.logoSize));
         if (cfg.storeNameSize) setStoreNameSize(Number(cfg.storeNameSize));
 
-        if (cfg.palette?.primary) setPrimaryColor(cfg.palette.primary);
-        if (cfg.palette?.accent) setAccentColor(cfg.palette.accent);
-        if (cfg.palette?.background) setBackgroundColor(cfg.palette.background);
-        if (cfg.typography?.preset) setTypographyPreset(cfg.typography.preset);
+        if (normalizeHexColor(cfg.palette?.primary)) setPrimaryColor(normalizeHexColor(cfg.palette.primary)!);
+        if (normalizeHexColor(cfg.palette?.accent)) setAccentColor(normalizeHexColor(cfg.palette.accent)!);
+        if (normalizeHexColor(cfg.palette?.background)) setBackgroundColor(normalizeHexColor(cfg.palette.background)!);
+        if (cfg.typography?.preset) setTypographyPreset(resolveStorefrontFont(cfg.typography.preset));
 
         if (cfg.announcement) {
           setAnnouncementText(cfg.announcement.text ?? 'Complimentary pan-India insured shipping on all orders');
@@ -362,10 +374,13 @@ export default function BrandStudioPage() {
             if (f.socialLinks.linkedin) setSocialLinkedin(f.socialLinks.linkedin);
           }
           if (f.showTrustBadges !== undefined) setShowTrustBadges(f.showTrustBadges);
+          setTrustBadge1Icon(resolveTrustBadgeIcon(f.trustBadge1Icon, 'payment'));
           if (f.trustBadge1Title) setTrustBadge1Title(f.trustBadge1Title);
           if (f.trustBadge1Subtitle) setTrustBadge1Subtitle(f.trustBadge1Subtitle);
+          setTrustBadge2Icon(resolveTrustBadgeIcon(f.trustBadge2Icon, 'truck'));
           if (f.trustBadge2Title) setTrustBadge2Title(f.trustBadge2Title);
           if (f.trustBadge2Subtitle) setTrustBadge2Subtitle(f.trustBadge2Subtitle);
+          setTrustBadge3Icon(resolveTrustBadgeIcon(f.trustBadge3Icon, 'shield'));
           if (f.trustBadge3Title) setTrustBadge3Title(f.trustBadge3Title);
           if (f.trustBadge3Subtitle) setTrustBadge3Subtitle(f.trustBadge3Subtitle);
           if (f.copyrightText) setFooterCopyright(f.copyrightText.replace(/\.?\s*DPDPA\s*2023\s*Compliant\.?/gi, '').trim());
@@ -421,10 +436,13 @@ export default function BrandStudioPage() {
                 linkedin: socialLinkedin,
               },
               showTrustBadges,
+              trustBadge1Icon,
               trustBadge1Title,
               trustBadge1Subtitle,
+              trustBadge2Icon,
               trustBadge2Title,
               trustBadge2Subtitle,
+              trustBadge3Icon,
               trustBadge3Title,
               trustBadge3Subtitle,
               copyrightText: (footerCopyright || `© ${new Date().getFullYear()} ${store?.name || 'Our Store'}. All rights reserved.`).replace(/\.?\s*DPDPA\s*2023\s*Compliant\.?/gi, '').trim(),
@@ -544,10 +562,13 @@ export default function BrandStudioPage() {
     socialTwitter,
     socialLinkedin,
     showTrustBadges,
+    trustBadge1Icon,
     trustBadge1Title,
     trustBadge1Subtitle,
+    trustBadge2Icon,
     trustBadge2Title,
     trustBadge2Subtitle,
+    trustBadge3Icon,
     trustBadge3Title,
     trustBadge3Subtitle,
     footerCopyright,
@@ -597,23 +618,23 @@ export default function BrandStudioPage() {
     };
   }> => {
     if (!file.type.startsWith('image/')) {
-      throw new Error('Please select a valid image file (PNG, JPG, or WebP).');
+      throw new Error(t('brandStudio.pleaseSelectAValidImageFilePngJpg'));
     }
 
     const maxSizeBytes = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSizeBytes) {
-      throw new Error('Image size exceeds 15MB limit. Please choose an image under 15MB.');
+      throw new Error(t('brandStudio.imageSizeExceeds15mbLimitPleaseChooseAn'));
     }
 
-    onProgress?.('Step 1/3: Checking image resolution & default specifications...');
+    onProgress?.(t('brandStudio.step13CheckingImageResolutionDefaultSpecifications'));
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Failed to read image file.'));
+      reader.onerror = () => reject(new Error(t('brandStudio.failedToReadImageFile')));
       reader.onload = (e) => {
         const rawDataUrl = e.target?.result as string;
         const img = new Image();
-        img.onerror = () => reject(new Error('Failed to load image file.'));
+        img.onerror = () => reject(new Error(t('brandStudio.failedToLoadImageFile')));
         img.onload = async () => {
           const origWidth = img.naturalWidth || img.width;
           const origHeight = img.naturalHeight || img.height;
@@ -653,7 +674,7 @@ export default function BrandStudioPage() {
           }
 
           onProgress?.(
-            `Step 2/3: Conforming image from ${origWidth}×${origHeight}px to Ultra-HD clarity layout (${targetW}×${targetH}px)...`
+            t('brandStudio.imageConforming', { from: `${origWidth}×${origHeight}`, to: `${targetW}×${targetH}` })
           );
 
           // Center-cover crop algorithm: scales and centers the image into the exact target dimensions
@@ -688,14 +709,14 @@ export default function BrandStudioPage() {
           const base64Payload = commaIdx !== -1 ? finalDataUrl.slice(commaIdx + 1) : finalDataUrl;
           const approxKb = Math.round((base64Payload.length * 3) / 4 / 1024);
 
-          onProgress?.(`Step 3/3: Uploading Ultra-HD verified image (${targetW} × ${targetH} px)...`);
+          onProgress?.(t('brandStudio.imageUploading', { width: targetW, height: targetH }));
 
           let status: 'valid' | 'warning' = 'valid';
-          let message = `Ultra-HD resolution verified: ${targetW} × ${targetH} px (${approxKb} KB). Sharp, crystal-clear quality across all desktop, retina, and mobile displays.`;
+          let message = t('brandStudio.imageVerified', { width: targetW, height: targetH, size: approxKb });
 
           if (origWidth < minRecommendedWidth) {
             status = 'warning';
-            message = `⚠️ Low Resolution Alert: Original image is only ${origWidth} × ${origHeight} px. Full-screen banners stretch across the page and will appear blurry. Recommended: 1920 × 1080 px or higher for crystal-clear clarity.`;
+            message = t('brandStudio.imageLowResolution', { width: origWidth, height: origHeight });
           }
 
           let uploadedUrl = finalDataUrl;
@@ -735,13 +756,13 @@ export default function BrandStudioPage() {
   const handleLogoUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadingLogo(true);
-    setUploadStepMessage('Checking logo size & conforming to 400 × 400 px...');
+    setUploadStepMessage(t('brandStudio.checkingLogoSizeConformingTo400400Px'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'logo', (msg) => setUploadStepMessage(msg));
       setLogoUrl(url);
       setLogoMeta(meta);
     } catch (err: any) {
-      alert(err.message || 'Failed to upload logo');
+      alert(err.message || t('brandStudio.failedToUploadLogo'));
     } finally {
       setUploadingLogo(false);
       setUploadStepMessage('');
@@ -751,13 +772,13 @@ export default function BrandStudioPage() {
   const handleBannerUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadingHomeBanner(true);
-    setUploadStepMessage('Checking image resolution & conforming to default layout (1200 × 800 px)...');
+    setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout1200'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'hero', (msg) => setUploadStepMessage(msg));
       setHeroBannerUrl(url);
       setHomeBannerMeta(meta);
     } catch (err: any) {
-      alert(err.message || 'Failed to upload banner');
+      alert(err.message || t('brandStudio.failedToUploadBanner'));
     } finally {
       setUploadingHomeBanner(false);
       setUploadStepMessage('');
@@ -767,13 +788,13 @@ export default function BrandStudioPage() {
   const handleHomeBannerUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadingHomeBanner(true);
-    setUploadStepMessage('Checking image resolution & conforming to default layout (1200 × 800 px)...');
+    setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout1200'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'hero', (msg) => setUploadStepMessage(msg));
       setHeroBannerUrl(url);
       setHomeBannerMeta(meta);
     } catch (err: any) {
-      alert(err.message || 'Failed to upload hero showcase image');
+      alert(err.message || t('brandStudio.failedToUploadHeroShowcaseImage'));
     } finally {
       setUploadingHomeBanner(false);
       setUploadStepMessage('');
@@ -783,18 +804,23 @@ export default function BrandStudioPage() {
   const handleAboutBannerUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadingAboutBanner(true);
-    setUploadStepMessage('Checking image resolution & conforming to default layout (800 × 600 px)...');
+    setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout800'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'about', (msg) => setUploadStepMessage(msg));
       setAboutBannerUrl(url);
       setAboutBannerMeta(meta);
     } catch (err: any) {
-      alert(err.message || 'Failed to upload about story image');
+      alert(err.message || t('brandStudio.failedToUploadAboutStoryImage'));
     } finally {
       setUploadingAboutBanner(false);
       setUploadStepMessage('');
     }
   };
+
+  const imageStatusMessage = (meta: { status: string; width: number; height: number; origWidth: number; origHeight: number; sizeKb: number }) => t(
+    meta.status === 'warning' ? 'brandStudio.imageLowResolution' : 'brandStudio.imageVerified',
+    { width: meta.status === 'warning' ? meta.origWidth : meta.width, height: meta.status === 'warning' ? meta.origHeight : meta.height, size: meta.sizeKb },
+  );
 
   // Contrast Safety Checks
   const contrastRatio = getContrastRatio(backgroundColor, primaryColor);
@@ -802,10 +828,11 @@ export default function BrandStudioPage() {
 
   const fixContrastAutomatically = () => {
     const suggested = getSuggestedTextColor(backgroundColor);
-    setPrimaryColor(suggested === '#0F172A' ? '#0F172A' : '#FFFFFF');
+    setPrimaryColor(getContrastRatio(backgroundColor, suggested) >= 4.5 ? suggested : '#000000');
   };
 
   const handleSaveThemeConfig = async () => {
+    if (hasInvalidColors) return;
     setSaving(true);
     setSaveSuccess(false);
     try {
@@ -848,10 +875,13 @@ export default function BrandStudioPage() {
               linkedin: socialLinkedin,
             },
             showTrustBadges,
+            trustBadge1Icon,
             trustBadge1Title,
             trustBadge1Subtitle,
+            trustBadge2Icon,
             trustBadge2Title,
             trustBadge2Subtitle,
+            trustBadge3Icon,
             trustBadge3Title,
             trustBadge3Subtitle,
             copyrightText: footerCopyright ? footerCopyright.replace(/\.?\s*DPDPA\s*2023\s*Compliant\.?/gi, '').trim() : undefined,
@@ -929,7 +959,7 @@ export default function BrandStudioPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (err: any) {
-      alert(err.message || 'Failed to save theme configuration');
+      alert(t('brandStudio.failedToSaveThemeConfiguration'));
     } finally {
       setSaving(false);
     }
@@ -958,13 +988,9 @@ export default function BrandStudioPage() {
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-              Storefront Theme & Business Presets
-            </label>
+            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">{t('brandStudio.storefrontThemeBusinessPresets')}</label>
           </div>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Choose the foundational design archetype tailored for your business. Selecting a theme automatically sets up the optimal typography, palette, card shapes, and layout hierarchy.
-          </p>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t('brandStudio.chooseTheFoundationalDesignArchetypeTailoredForYour')}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -998,9 +1024,7 @@ export default function BrandStudioPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{th.name}</span>
                       {isNew && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white shadow-2xs">
-                          New
-                        </span>
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white shadow-2xs">{t('brandStudio.new')}</span>
                       )}
                     </div>
                     {isSelected ? (
@@ -1015,17 +1039,15 @@ export default function BrandStudioPage() {
                   </div>
 
                   <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight font-medium">
-                    {th.tagline}
+                    {t(`brandStudio.presets.${th.code}.tagline`)}
                   </p>
                 </div>
 
                 {/* Best Suited For Business Callout (High Contrast in both Dark & Light Themes) */}
                 <div className="theme-best-suited-box rounded-lg p-2.5 border space-y-1 shadow-2xs">
-                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 block uppercase tracking-wider">
-                    Best Suited For:
-                  </span>
+                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 block uppercase tracking-wider">{t('brandStudio.bestSuitedFor')}</span>
                   <p className="text-[11px] font-medium leading-snug">
-                    {th.bestFor}
+                    {t(`brandStudio.presets.${th.code}.bestFor`)}
                   </p>
                 </div>
 
@@ -1034,21 +1056,20 @@ export default function BrandStudioPage() {
                     <span
                       className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
                       style={{ backgroundColor: th.palette.background }}
-                      title="Background"
+                      title={t('brandStudio.background')}
                     />
                     <span
                       className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
                       style={{ backgroundColor: th.palette.primary }}
-                      title="Primary"
+                      title={t('brandStudio.primary')}
                     />
                     <span
                       className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs"
                       style={{ backgroundColor: th.palette.accent }}
-                      title="Accent"
+                      title={t('brandStudio.accent')}
                     />
                   </div>
-                  <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Ratio {th.imageRatio}
+                  <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t('brandStudio.ratio')}{' '}{th.imageRatio}
                   </span>
                 </div>
               </button>
@@ -1063,23 +1084,20 @@ export default function BrandStudioPage() {
           <div>
             <div className="flex items-center gap-2">
               <Megaphone className="w-4 h-4 text-amber-500" />
-              <label className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider block">
-                Storefront Offer Marquee & Top Announcement Bar
-              </label>
+              <label className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider block">{t('brandStudio.storefrontOfferMarqueeTopAnnouncementBar')}</label>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-              Display promotions, festive discounts, delivery guarantees, or flash announcements at the top of every storefront page.
-            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{t('brandStudio.displayPromotionsFestiveDiscountsDeliveryGuaranteesOrFlash')}</p>
           </div>
 
           {/* Toggle Switch */}
           <div className="flex items-center gap-2.5 shrink-0">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              {announcementEnabled ? 'Active' : 'Disabled'}
+              {announcementEnabled ? t('brandStudio.active') : t('brandStudio.disabled')}
             </span>
             <button
               type="button"
               role="switch"
+              aria-label={t('brandStudio.topAnnouncementBar')}
               aria-checked={announcementEnabled}
               onClick={() => setAnnouncementEnabled(!announcementEnabled)}
               className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
@@ -1099,34 +1117,27 @@ export default function BrandStudioPage() {
           <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-slate-800">
             {/* Offer Text Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-                Promotional Offer Message
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{t('brandStudio.promotionalOfferMessage')}</label>
               <input
                 type="text"
                 value={announcementText}
                 onChange={(e) => setAnnouncementText(e.target.value)}
-                placeholder="e.g. ⚡ Festive Offer: 20% OFF on all orders! Use code: SAVE20 • Free pan-India shipping above ₹499"
+                placeholder={t('brandStudio.eGFestiveOffer20OffOnAll')}
                 className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Visible at the top header across Home, Products, and About pages. Updates live on the right.
-              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{t('brandStudio.visibleAtTheTopHeaderAcrossHomeProducts')}</p>
             </div>
 
             {/* Continuous Scrolling Marquee Animation Toggle */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
               <div>
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                  Continuous Scrolling Marquee Animation
-                </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Smoothly auto-scrolls the offer text horizontally like a dynamic ticker across the top.
-                </span>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{t('brandStudio.continuousScrollingMarqueeAnimation')}</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('brandStudio.smoothlyAutoScrollsTheOfferTextHorizontallyLike')}</span>
               </div>
               <button
                 type="button"
                 role="switch"
+                aria-label={t('brandStudio.continuousScrollingMarqueeAnimation')}
                 aria-checked={announcementFloating}
                 onClick={() => setAnnouncementFloating(!announcementFloating)}
                 className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
@@ -1143,15 +1154,13 @@ export default function BrandStudioPage() {
 
             {/* Quick Offer Presets */}
             <div>
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                Quick Offer Templates (Click to apply):
-              </span>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">{t('brandStudio.quickOfferTemplatesClickToApply')}</span>
               <div className="flex flex-wrap gap-2">
                 {[
-                  '⚡ Special Offer: Flat 20% OFF on all items! Use code: SAVE20',
-                  '🚚 Free Express Shipping on all orders above ₹499',
-                  '🎉 New Season Drop Online Now • 100% Authentic & Certified',
-                  '🌿 Pure & Handcrafted Daily • Fresh Dispatch Within 24 Hours',
+                  t('brandStudio.specialOfferFlat20OffOnAllItems'),
+                  t('brandStudio.freeExpressShippingOnAllOrdersAbove499'),
+                  t('brandStudio.newSeasonDropOnlineNow100AuthenticCertified'),
+                  t('brandStudio.pureHandcraftedDailyFreshDispatchWithin24Hours'),
                 ].map((preset, idx) => (
                   <button
                     key={idx}
@@ -1175,61 +1184,51 @@ export default function BrandStudioPage() {
       {/* Layout Styling & Component Shapes */}
       <div className="bg-white dark:bg-slate-900/60 p-4 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <div>
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-            Layout Styling & Component Shapes
-          </label>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-            Customize header arrangement, card edge curvatures & elevation shadows, and button border-radius across your digital storefront. Changes take effect on all pages in real time.
-          </p>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.layoutStylingComponentShapes')}</label>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{t('brandStudio.customizeHeaderArrangementCardEdgeCurvaturesElevationShadows')}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Header Style</label>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
-              Top bar navigation layout on desktop and mobile.
-            </p>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">{t('brandStudio.headerStyle')}</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">{t('brandStudio.topBarNavigationLayoutOnDesktopAndMobile')}</p>
             <select
               value={headerStyle}
               onChange={(e) => setHeaderStyle(e.target.value)}
               className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
             >
-              <option value="sticky-action">Sticky Action Bar (Standard)</option>
-              <option value="minimal-center">Centered Brand Logo (Boutique)</option>
-              <option value="quick-search-bar">Quick Search Bar (Retail & FMCG)</option>
+              <option value="sticky-action">{t('brandStudio.stickyActionBarStandard')}</option>
+              <option value="minimal-center">{t('brandStudio.centeredBrandLogoBoutique')}</option>
+              <option value="quick-search-bar">{t('brandStudio.quickSearchBarRetailFmcg')}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Card Style</label>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
-              Product and category card borders, corner curves & shadows.
-            </p>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">{t('brandStudio.cardStyle')}</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">{t('brandStudio.productAndCategoryCardBordersCornerCurvesShadows')}</p>
             <select
               value={cardStyle}
               onChange={(e) => setCardStyle(e.target.value)}
               className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
             >
-              <option value="elevated-modern">Elevated Modern (16px curve, soft shadow)</option>
-              <option value="rounded-soft">Curved Friendly (24px bubble curve)</option>
-              <option value="framed-luxury">Framed Luxury (6px refined frame)</option>
-              <option value="minimal-bleed">Crisp Minimal (0px square flush edge)</option>
+              <option value="elevated-modern">{t('brandStudio.elevatedModern16pxCurveSoftShadow')}</option>
+              <option value="rounded-soft">{t('brandStudio.curvedFriendly24pxBubbleCurve')}</option>
+              <option value="framed-luxury">{t('brandStudio.framedLuxury6pxRefinedFrame')}</option>
+              <option value="minimal-bleed">{t('brandStudio.crispMinimal0pxSquareFlushEdge')}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Button Shape</label>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">
-              Corner radius for purchase, quote & CTA buttons.
-            </p>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">{t('brandStudio.buttonShape')}</label>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">{t('brandStudio.cornerRadiusForPurchaseQuoteCtaButtons')}</p>
             <select
               value={buttonStyle}
               onChange={(e) => setButtonStyle(e.target.value)}
               className="w-full px-2.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium"
             >
-              <option value="rounded-heavy">Smooth Rounded (12px comfortable radius)</option>
-              <option value="sharp-pill">Full Pill (9999px capsule curve)</option>
-              <option value="square-solid">Crisp Square (2px precision industrial edges)</option>
+              <option value="rounded-heavy">{t('brandStudio.smoothRounded12pxComfortableRadius')}</option>
+              <option value="sharp-pill">{t('brandStudio.fullPill9999pxCapsuleCurve')}</option>
+              <option value="square-solid">{t('brandStudio.crispSquare2pxPrecisionIndustrialEdges')}</option>
             </select>
           </div>
         </div>
@@ -1241,13 +1240,11 @@ export default function BrandStudioPage() {
     <div className="space-y-6">
       {/* Logo & Banner Upload */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Store Brand Assets (Logo & Banner)
-            </label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.storeBrandAssetsLogoBanner')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Logo Upload Box */}
               <div>
-                <span className="text-xs font-semibold text-slate-700 block mb-1">Brand Logo</span>
+                <span className="text-xs font-semibold text-slate-700 block mb-1">{t('brandStudio.brandLogo')}</span>
                 <input
                   ref={logoInputRef}
                   type="file"
@@ -1260,7 +1257,7 @@ export default function BrandStudioPage() {
                   className="border border-dashed border-slate-300 rounded-xl p-3 text-center cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition flex items-center gap-3"
                 >
                   {logoUrl ? (
-                    <img src={logoUrl} alt="Logo" className="h-10 w-10 object-contain rounded" />
+                    <img src={logoUrl} alt={t('brandStudio.logo')} className="h-10 w-10 object-contain rounded" />
                   ) : (
                     <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center text-slate-400">
                       <Building className="w-5 h-5" />
@@ -1268,18 +1265,16 @@ export default function BrandStudioPage() {
                   )}
                   <div className="text-left text-xs min-w-0">
                     <span className="font-semibold text-slate-800 block truncate">
-                      {logoUrl ? 'Change Logo' : 'Upload Logo'}
+                      {logoUrl ? t('brandStudio.changeLogo') : t('brandStudio.uploadLogo')}
                     </span>
-                    <span className="text-[10px] text-slate-400">PNG or SVG with transparency</span>
+                    <span className="text-[10px] text-slate-400">{t('brandStudio.pngOrSvgWithTransparency')}</span>
                   </div>
                 </div>
               </div>
 
               {/* Banner Upload Box */}
               <div>
-                <span className="text-xs font-semibold text-slate-700 block mb-1">
-                  Hero Showcase Banner
-                </span>
+                <span className="text-xs font-semibold text-slate-700 block mb-1">{t('brandStudio.heroShowcaseBanner')}</span>
                 <input
                   ref={bannerInputRef}
                   type="file"
@@ -1294,7 +1289,7 @@ export default function BrandStudioPage() {
                   {heroBannerUrl ? (
                     <img
                       src={heroBannerUrl}
-                      alt="Banner"
+                      alt={t('brandStudio.banner')}
                       className="h-10 w-16 object-cover rounded"
                     />
                   ) : (
@@ -1304,9 +1299,9 @@ export default function BrandStudioPage() {
                   )}
                   <div className="text-left text-xs min-w-0">
                     <span className="font-semibold text-slate-800 block truncate">
-                      {heroBannerUrl ? 'Change Banner' : 'Upload Banner'}
+                      {heroBannerUrl ? t('brandStudio.changeBanner') : t('brandStudio.uploadBanner')}
                     </span>
-                    <span className="text-[10px] text-slate-400">Ultra-HD: 1920 × 1080 px (16:9)</span>
+                    <span className="text-[10px] text-slate-400">{t('brandStudio.ultraHd19201080Px169')}</span>
                   </div>
                 </div>
               </div>
@@ -1316,11 +1311,10 @@ export default function BrandStudioPage() {
             <div className="pt-4 border-t border-slate-100 dark:border-merchant-border space-y-4 dark:[color-scheme:dark]">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-merchant-text block">Header Brand Sizing</span>
-                  <span className="text-[11px] text-slate-400 dark:text-merchant-text-muted">Scale your logo and store name independently for the header</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-merchant-text block">{t('brandStudio.headerBrandSizing')}</span>
+                  <span className="text-[11px] text-slate-400 dark:text-merchant-text-muted">{t('brandStudio.scaleYourLogoAndStoreNameIndependentlyFor')}</span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-500 dark:text-merchant-text-muted bg-slate-100 dark:bg-merchant-surface-raised px-2.5 py-1 rounded-md">
-                  Logo: <span className="font-bold text-blue-600">{logoSize}px</span> • Name: <span className="font-bold text-blue-600">{storeNameSize}px</span>
+                <div className="text-[11px] font-mono text-slate-500 dark:text-merchant-text-muted bg-slate-100 dark:bg-merchant-surface-raised px-2.5 py-1 rounded-md">{t('brandStudio.logo2')}{' '}<span className="font-bold text-blue-600">{logoSize}px</span>{t('brandStudio.name')}{' '}<span className="font-bold text-blue-600">{storeNameSize}px</span>
                 </div>
               </div>
 
@@ -1330,7 +1324,7 @@ export default function BrandStudioPage() {
                   {logoUrl ? (
                     <img
                       src={logoUrl}
-                      alt="Brand Logo"
+                      alt={t('brandStudio.brandLogo')}
                       style={{
                         width: `${logoSize}px`,
                         height: `${logoSize}px`,
@@ -1363,27 +1357,23 @@ export default function BrandStudioPage() {
                     >
                       {store?.name || 'SaiRam Tea Company'}
                     </span>
-                    <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-mono uppercase tracking-wider block">
-                      Live Header Preview
-                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-mono uppercase tracking-wider block">{t('brandStudio.liveHeaderPreview')}</span>
                   </div>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 shrink-0">
-                  Responsive
-                </span>
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 shrink-0">{t('brandStudio.responsive')}</span>
               </div>
 
               {/* 1. Logo Size Control */}
               <div className="space-y-2 bg-slate-50/50 dark:bg-merchant-surface-raised text-merchant-text p-3 rounded-xl border border-slate-200/60 dark:border-merchant-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">Logo Dimension (Size)</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">{t('brandStudio.logoDimensionSize')}</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setLogoSize((prev) => Math.max(24, prev - 4))}
                       disabled={logoSize <= 24}
                       className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      title="Decrease logo size"
+                      title={t('brandStudio.decreaseLogoSize')}
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
@@ -1395,7 +1385,7 @@ export default function BrandStudioPage() {
                       onClick={() => setLogoSize((prev) => Math.min(80, prev + 4))}
                       disabled={logoSize >= 80}
                       className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      title="Increase logo size"
+                      title={t('brandStudio.increaseLogoSize')}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -1411,13 +1401,13 @@ export default function BrandStudioPage() {
                   className="w-full accent-blue-600 cursor-pointer"
                 />
                 <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
-                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">Presets:</span>
+                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">{t('brandStudio.presets')}</span>
                   {[
-                    { label: 'Compact', size: 32 },
-                    { label: 'Default', size: 40 },
-                    { label: 'Medium', size: 48 },
-                    { label: 'Large', size: 56 },
-                    { label: 'Heroic', size: 68 },
+                    { label: t('brandStudio.compact'), size: 32 },
+                    { label: t('brandStudio.default'), size: 40 },
+                    { label: t('brandStudio.medium'), size: 48 },
+                    { label: t('brandStudio.large'), size: 56 },
+                    { label: t('brandStudio.heroic'), size: 68 },
                   ].map((p) => (
                     <button
                       key={p.size}
@@ -1438,14 +1428,14 @@ export default function BrandStudioPage() {
               {/* 2. Store Name Font Size Control */}
               <div className="space-y-2 bg-slate-50/50 dark:bg-merchant-surface-raised text-merchant-text p-3 rounded-xl border border-slate-200/60 dark:border-merchant-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">Store Name Text Size</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-merchant-text">{t('brandStudio.storeNameTextSize')}</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setStoreNameSize((prev) => Math.max(14, prev - 1))}
                       disabled={storeNameSize <= 14}
                       className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      title="Decrease store name size"
+                      title={t('brandStudio.decreaseStoreNameSize')}
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
@@ -1457,7 +1447,7 @@ export default function BrandStudioPage() {
                       onClick={() => setStoreNameSize((prev) => Math.min(36, prev + 1))}
                       disabled={storeNameSize >= 36}
                       className="w-6 h-6 rounded-md bg-white dark:bg-merchant-input-bg border border-slate-300 dark:border-merchant-border flex items-center justify-center text-slate-600 dark:text-merchant-text hover:bg-slate-100 dark:hover:bg-merchant-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      title="Increase store name size"
+                      title={t('brandStudio.increaseStoreNameSize')}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -1473,13 +1463,13 @@ export default function BrandStudioPage() {
                   className="w-full accent-blue-600 cursor-pointer"
                 />
                 <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
-                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">Presets:</span>
+                  <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-medium mr-1">{t('brandStudio.presets')}</span>
                   {[
-                    { label: 'Small', size: 15 },
-                    { label: 'Default', size: 18 },
-                    { label: 'Prominent', size: 22 },
-                    { label: 'Bold', size: 26 },
-                    { label: 'Header', size: 30 },
+                    { label: t('brandStudio.small'), size: 15 },
+                    { label: t('brandStudio.default'), size: 18 },
+                    { label: t('brandStudio.prominent'), size: 22 },
+                    { label: t('brandStudio.bold'), size: 26 },
+                    { label: t('brandStudio.header'), size: 30 },
                   ].map((p) => (
                     <button
                       key={p.size}
@@ -1506,115 +1496,56 @@ export default function BrandStudioPage() {
       {/* Color Palette & Contrast Validation */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Color Palette & Contrast Safety
-              </label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.colorPaletteContrastSafety')}</label>
               {!isAccessible && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  <AlertTriangle className="w-3 h-3 text-amber-600" /> Low Contrast
-                </span>
+                  <AlertTriangle className="w-3 h-3 text-amber-600" />{t('brandStudio.lowContrast')}</span>
               )}
             </div>
 
             {!isAccessible && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center justify-between gap-2">
                 <span>
-                  Primary color has low contrast against the background ({contrastRatio.toFixed(1)}:1 vs 4.5:1 required).
+                  {t('brandStudio.contrastWarning', { ratio: contrastRatio.toFixed(1) })}
                 </span>
                 <button
                   type="button"
                   onClick={fixContrastAutomatically}
                   className="px-2.5 py-1 bg-amber-600 text-white font-bold rounded-lg text-[10px] shrink-0"
-                >
-                  Auto-Fix
-                </button>
+                >{t('brandStudio.autoFix')}</button>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <span className="text-xs font-semibold text-slate-700 block mb-1">
-                  Primary Brand Color
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5"
-                  />
-                  <input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="text-xs font-mono uppercase px-2 py-1.5 border border-slate-300 rounded-lg w-24"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <span className="text-xs font-semibold text-slate-700 block mb-1">
-                  Accent Color
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={accentColor}
-                    onChange={(e) => setAccentColor(e.target.value)}
-                    className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5"
-                  />
-                  <input
-                    type="text"
-                    value={accentColor}
-                    onChange={(e) => setAccentColor(e.target.value)}
-                    className="text-xs font-mono uppercase px-2 py-1.5 border border-slate-300 rounded-lg w-24"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <span className="text-xs font-semibold text-slate-700 block mb-1">
-                  Canvas Background
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={backgroundColor}
-                    onChange={(e) => setBackgroundColor(e.target.value)}
-                    className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5"
-                  />
-                  <input
-                    type="text"
-                    value={backgroundColor}
-                    onChange={(e) => setBackgroundColor(e.target.value)}
-                    className="text-xs font-mono uppercase px-2 py-1.5 border border-slate-300 rounded-lg w-24"
-                  />
-                </div>
-              </div>
+              <ThemeColorField label={t('brandStudio.primaryBrandColor')} value={primaryColor} onChange={setPrimaryColor} onValidityChange={(valid) => setColorValidity('primary', valid)} />
+              <ThemeColorField label={t('brandStudio.accentColor')} value={accentColor} onChange={setAccentColor} onValidityChange={(valid) => setColorValidity('accent', valid)} />
+              <ThemeColorField label={t('brandStudio.canvasBackground')} value={backgroundColor} onChange={setBackgroundColor} onValidityChange={(valid) => setColorValidity('background', valid)} />
             </div>
           </div>
 
           {/* Typography Preset Selection */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Curated Typography Pairing
-            </label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.curatedTypographyPairing')}</label>
+            <p className="text-xs text-slate-500 leading-relaxed">{t('brandStudio.typographyHelp')}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {[
-                { id: 'Playfair Display', name: 'Playfair Display', desc: 'Editorial Serif & Luxury' },
-                { id: 'Plus Jakarta Sans', name: 'Plus Jakarta Sans', desc: 'Modern High-Tech Sans' },
-                { id: 'Inter', name: 'Inter Minimal', desc: 'Clean, Ultra-Legible' },
-                { id: 'Space Grotesk', name: 'Space Grotesk', desc: 'Industrial Technical' },
-                { id: 'DM Serif Display', name: 'DM Serif Display', desc: 'Vogue & High-Fashion' },
-                { id: 'Cinzel', name: 'Cinzel Heritage', desc: 'Regal Royal Craft' },
-                { id: 'Outfit', name: 'Outfit Contemporary', desc: 'Friendly Lifestyle' },
-                { id: 'Montserrat', name: 'Montserrat Bold', desc: 'Impactful Streetwear' },
-                { id: 'Noto Sans Devanagari', name: 'Noto Sans Devanagari', desc: 'Devanagari — Marathi & Hindi' },
-                { id: 'Noto Serif Devanagari', name: 'Noto Serif Devanagari', desc: 'Devanagari — Traditional Script' },
+                { id: 'Playfair Display', name: 'Playfair Display', desc: t('brandStudio.editorialSerifLuxury') },
+                { id: 'Plus Jakarta Sans', name: 'Plus Jakarta Sans', desc: t('brandStudio.modernHighTechSans') },
+                { id: 'Inter', name: t('brandStudio.interMinimal'), desc: t('brandStudio.cleanUltraLegible') },
+                { id: 'Space Grotesk', name: 'Space Grotesk', desc: t('brandStudio.industrialTechnical') },
+                { id: 'DM Serif Display', name: 'DM Serif Display', desc: t('brandStudio.vogueHighFashion') },
+                { id: 'Cinzel', name: t('brandStudio.cinzelHeritage'), desc: t('brandStudio.regalRoyalCraft') },
+                { id: 'Outfit', name: t('brandStudio.outfitContemporary'), desc: t('brandStudio.friendlyLifestyle') },
+                { id: 'Montserrat', name: t('brandStudio.montserratBold'), desc: t('brandStudio.impactfulStreetwear') },
+                { id: 'Noto Sans Devanagari', name: 'Noto Sans Devanagari', desc: t('brandStudio.devanagariMarathiHindi') },
+                { id: 'Noto Serif Devanagari', name: 'Noto Serif Devanagari', desc: t('brandStudio.devanagariTraditionalScript') },
               ].map((ty) => (
                 <button
                   key={ty.id}
                   type="button"
+                  title={t('brandStudio.fontPair', { heading: ty.id, body: STOREFRONT_FONT_FAMILIES[ty.id].body.split("'")[1] })}
+                  data-font-preset={ty.id}
+                  aria-pressed={typographyPreset === ty.id}
                   onClick={() => setTypographyPreset(ty.id)}
                   className={`text-left p-3 rounded-xl border text-xs transition ${
                     typographyPreset === ty.id
@@ -1637,16 +1568,13 @@ export default function BrandStudioPage() {
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-xs font-bold text-slate-900 block">
-                  Top Announcement Bar
-                </label>
-                <p className="text-[11px] text-slate-500">
-                  Prominent promotional strip displayed at the very top of your storefront.
-                </p>
+                <label className="text-xs font-bold text-slate-900 block">{t('brandStudio.topAnnouncementBar')}</label>
+                <p className="text-[11px] text-slate-500">{t('brandStudio.prominentPromotionalStripDisplayedAtTheVeryTop')}</p>
               </div>
               <input
                 type="checkbox"
                 checked={announcementEnabled}
+                aria-label={t('brandStudio.topAnnouncementBar')}
                 onChange={(e) => setAnnouncementEnabled(e.target.checked)}
                 className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
@@ -1654,14 +1582,12 @@ export default function BrandStudioPage() {
             {announcementEnabled && (
               <div className="space-y-3 pt-1">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                    Announcement Message
-                  </label>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">{t('brandStudio.announcementMessage')}</label>
                   <input
                     type="text"
                     value={announcementText}
                     onChange={(e) => setAnnouncementText(e.target.value)}
-                    placeholder="e.g. Complimentary pan-India insured shipping on all orders"
+                    placeholder={t('brandStudio.eGComplimentaryPanIndiaInsuredShippingOn')}
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -1673,12 +1599,8 @@ export default function BrandStudioPage() {
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-slate-800 block">
-                        Floating / Scrolling Marquee Animation
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Make the announcement text continuously float across the screen
-                      </span>
+                      <span className="text-xs font-bold text-slate-800 block">{t('brandStudio.floatingScrollingMarqueeAnimation')}</span>
+                      <span className="text-[11px] text-slate-500">{t('brandStudio.makeTheAnnouncementTextContinuouslyFloatAcrossThe')}</span>
                     </div>
                   </div>
 
@@ -1689,6 +1611,7 @@ export default function BrandStudioPage() {
                       announcementFloating ? 'bg-blue-600' : 'bg-slate-300'
                     }`}
                     role="switch"
+                    aria-label={t('brandStudio.floatingScrollingMarqueeAnimation')}
                     aria-checked={announcementFloating}
                   >
                     <span
@@ -1701,18 +1624,14 @@ export default function BrandStudioPage() {
 
                 {/* Announcement Bar Shape */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Announcement Bar Shape
-                  </label>
-                  <p className="text-[10px] text-slate-400 mb-2 leading-tight">
-                    Controls the bottom-edge shape of the top announcement strip on your storefront.
-                  </p>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{t('brandStudio.announcementBarShape')}</label>
+                  <p className="text-[10px] text-slate-400 mb-2 leading-tight">{t('brandStudio.controlsTheBottomEdgeShapeOfTheTop')}</p>
                   <div className="grid grid-cols-4 gap-1.5">
                     {[
-                      { value: 'square', label: 'Square' },
-                      { value: 'soft', label: 'Soft' },
-                      { value: 'rounded', label: 'Rounded' },
-                      { value: 'pill', label: 'Pill' },
+                      { value: 'square', label: t('brandStudio.square') },
+                      { value: 'soft', label: t('brandStudio.soft') },
+                      { value: 'rounded', label: t('brandStudio.rounded') },
+                      { value: 'pill', label: t('brandStudio.pill') },
                     ].map((opt) => (
                       <button
                         key={opt.value}
@@ -1736,76 +1655,62 @@ export default function BrandStudioPage() {
           {/* Hero Showcase Texts */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Hero Showcase Section
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                The primary banner greeting visitors when they land on your homepage.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.heroShowcaseSection')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.thePrimaryBannerGreetingVisitorsWhenTheyLand')}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Eyebrow Badge Tag
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.eyebrowBadgeTag')}</label>
               <input
                 type="text"
                 value={homeHeroBadge}
                 onChange={(e) => setHomeHeroBadge(e.target.value)}
-                placeholder="e.g. ARTISANAL ATELIER • HALLMARKED & CERTIFIED"
+                placeholder={t('brandStudio.eGArtisanalAtelierHallmarkedCertified')}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Hero Main Headline
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.heroMainHeadline')}</label>
               <input
                 type="text"
                 value={homeHeroTitle}
                 onChange={(e) => setHomeHeroTitle(e.target.value)}
-                placeholder="e.g. Timeless Elegance & Handcrafted Luxury"
+                placeholder={t('brandStudio.eGTimelessEleganceHandcraftedLuxury')}
                 className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Hero Subtitle Description
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.heroSubtitleDescription')}</label>
               <textarea
                 rows={3}
                 value={homeHeroSubtitle}
                 onChange={(e) => setHomeHeroSubtitle(e.target.value)}
-                placeholder="Describe your boutique's offering in 2-3 engaging sentences..."
+                placeholder={t('brandStudio.describeYourBoutiqueSOfferingIn23')}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Primary Action Button Text
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.primaryActionButtonText')}</label>
                 <input
                   type="text"
                   value={homeCtaText}
                   onChange={(e) => setHomeCtaText(e.target.value)}
-                  placeholder="e.g. Explore Collection"
+                  placeholder={t('brandStudio.eGExploreCollection')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Secondary Button Text
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.secondaryButtonText')}</label>
                 <input
                   type="text"
                   value={homeSecondaryCtaText}
                   onChange={(e) => setHomeSecondaryCtaText(e.target.value)}
-                  placeholder="e.g. Our Heritage"
+                  placeholder={t('brandStudio.eGOurHeritage')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
@@ -1818,21 +1723,19 @@ export default function BrandStudioPage() {
               <div>
                 <label className="text-xs font-bold text-slate-900 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-blue-600" />
-                  <span>Homepage Hero Showcase Image</span>
+                  <span>{t('brandStudio.homepageHeroShowcaseImage')}</span>
                 </label>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  High-definition photography or product showcase featured prominently on your homepage hero.
-                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t('brandStudio.highDefinitionPhotographyOrProductShowcaseFeaturedProminently')}</p>
               </div>
               {heroBannerUrl && (
                 <button
                   type="button"
                   onClick={() => setHeroBannerUrl('')}
                   className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition cursor-pointer"
-                  title="Remove image"
+                  title={t('brandStudio.removeImage')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove Image</span>
+                  <span>{t('brandStudio.removeImage2')}</span>
                 </button>
               )}
             </div>
@@ -1844,24 +1747,22 @@ export default function BrandStudioPage() {
                   <>
                     <img
                       src={heroBannerUrl}
-                      alt="Hero Banner Preview"
+                      alt={t('brandStudio.heroBannerPreview')}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[9px] font-mono font-bold text-amber-300">
-                      Default 1200 × 800 px
-                    </div>
+                    <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[9px] font-mono font-bold text-amber-300">{t('brandStudio.default1200800Px')}</div>
                   </>
                 ) : (
                   <div className="text-center p-3 text-slate-400 space-y-1">
                     <ImageIcon className="w-8 h-8 mx-auto text-slate-300" />
-                    <span className="text-[10px] font-medium block">No Hero Image Set</span>
-                    <span className="text-[9px] font-mono text-slate-400 block">Default: 1200 × 800 px</span>
+                    <span className="text-[10px] font-medium block">{t('brandStudio.noHeroImageSet')}</span>
+                    <span className="text-[9px] font-mono text-slate-400 block">{t('brandStudio.default1200800Px2')}</span>
                   </div>
                 )}
                 {uploadingHomeBanner && (
                   <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center text-white text-[11px] font-semibold p-2 text-center z-10">
                     <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mb-1.5" />
-                    <span>{uploadStepMessage || 'Checking size & conforming to default layout...'}</span>
+                    <span>{uploadStepMessage || t('brandStudio.checkingSizeConformingToDefaultLayout')}</span>
                   </div>
                 )}
               </div>
@@ -1881,19 +1782,17 @@ export default function BrandStudioPage() {
                   className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <UploadCloud className="w-4 h-4 text-amber-400" />
-                  <span>{heroBannerUrl ? 'Upload / Replace Image' : 'Upload Hero Image'}</span>
+                  <span>{heroBannerUrl ? t('brandStudio.uploadReplaceImage') : t('brandStudio.uploadHeroImage')}</span>
                 </button>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                    Or Enter Direct Image URL
-                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">{t('brandStudio.orEnterDirectImageUrl')}</label>
                   <div className="relative">
                     <input
                       type="url"
                       value={heroBannerUrl}
                       onChange={(e) => setHeroBannerUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/... or CDN link"
+                      placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
                       className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
@@ -1907,11 +1806,10 @@ export default function BrandStudioPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Ultra-HD Standard: <strong>1920 × 1080 px</strong> (16:9 Widescreen Panorama)</span>
+                  <span>{t('brandStudio.ultraHdStandard')}{' '}<strong>1920 × 1080 px</strong>{t('brandStudio.size169WidescreenPanorama')}</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  <Check className="w-3 h-3 text-emerald-600" /> Ultra-HD Quality Active
-                </span>
+                  <Check className="w-3 h-3 text-emerald-600" />{t('brandStudio.ultraHdQualityActive')}</span>
               </div>
               
               {homeBannerMeta ? (
@@ -1926,7 +1824,7 @@ export default function BrandStudioPage() {
                     ) : (
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                     )}
-                    <span>{homeBannerMeta.status === 'valid' ? 'Ultra-HD Clarity Verified' : 'Resolution Warning'}</span>
+                    <span>{homeBannerMeta.status === 'valid' ? t('brandStudio.ultraHdClarityVerified') : t('brandStudio.resolutionWarning')}</span>
                     <span className={`ml-auto text-[10px] font-mono px-2 py-0.5 rounded-full border ${
                       homeBannerMeta.status === 'valid'
                         ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
@@ -1936,38 +1834,32 @@ export default function BrandStudioPage() {
                     </span>
                   </div>
                   <p className={`text-[11px] leading-relaxed ${homeBannerMeta.status === 'valid' ? 'text-emerald-700' : 'text-amber-800'}`}>
-                    {homeBannerMeta.message}
+                    {imageStatusMessage(homeBannerMeta)}
                   </p>
                   <div className={`flex items-center gap-3 pt-1 text-[10px] border-t font-mono ${
                     homeBannerMeta.status === 'valid' ? 'border-emerald-200/80 text-emerald-800' : 'border-amber-200 text-amber-800'
                   }`}>
-                    <span>Uploaded: {homeBannerMeta.origWidth} × {homeBannerMeta.origHeight} px</span>
+                    <span>{t('brandStudio.uploaded')}{' '}{homeBannerMeta.origWidth} × {homeBannerMeta.origHeight} px</span>
                     <span>→</span>
-                    <span className="font-bold">Display Output: {homeBannerMeta.width} × {homeBannerMeta.height} px</span>
+                    <span className="font-bold">{t('brandStudio.displayOutput')}{' '}{homeBannerMeta.width} × {homeBannerMeta.height} px</span>
                   </div>
                 </div>
               ) : heroBannerUrl ? (
                 <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1 text-xs">
                   <div className="flex items-center gap-2 font-bold text-blue-800">
                     <Sliders className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>Widescreen Panorama Active</span>
-                    <span className="ml-auto text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded-full border border-blue-300">
-                      1920 × 1080 px Widescreen
-                    </span>
+                    <span>{t('brandStudio.widescreenPanoramaActive')}</span>
+                    <span className="ml-auto text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded-full border border-blue-300">{t('brandStudio.size19201080PxWidescreen')}</span>
                   </div>
-                  <p className="text-[11px] text-blue-700">
-                    The storefront hero displays this image with edge-to-edge Ultra-HD coverage and crystal-clear clarity across all desktop and mobile displays.
-                  </p>
+                  <p className="text-[11px] text-blue-700">{t('brandStudio.theStorefrontHeroDisplaysThisImageWithEdge')}</p>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs space-y-1">
                   <div className="flex items-center gap-2 font-semibold">
                     <Sliders className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                    <span>Optimal Clarity Spec: 1920 × 1080 px or 2560 × 1440 px (16:9)</span>
+                    <span>{t('brandStudio.optimalClaritySpec19201080PxOr2560')}</span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    To prevent blurriness and pixelation on large desktop screens, upload an image with at least 1920 × 1080 px resolution. Images are conformed without losing sharpness. Max 15 MB.
-                  </p>
+                  <p className="text-[11px] text-slate-500">{t('brandStudio.toPreventBlurrinessAndPixelationOnLargeDesktop')}</p>
                 </div>
               )}
             </div>
@@ -1976,12 +1868,8 @@ export default function BrandStudioPage() {
           {/* Section Visibility & Reordering */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Homepage Section Flow & Order
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Enable, disable, and rearrange the sections visible on your homepage.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.homepageSectionFlowOrder')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.enableDisableAndRearrangeTheSectionsVisibleOn')}</p>
             </div>
             <div className="space-y-2">
               {sections.map((sec, idx) => (
@@ -2001,7 +1889,7 @@ export default function BrandStudioPage() {
                         sec.enabled ? 'text-slate-900' : 'text-slate-400 line-through'
                       }`}
                     >
-                      {sec.name}
+                      {t(`brandStudio.sections.${sec.id}`, undefined, sec.name)}
                     </span>
                   </div>
 
@@ -2034,49 +1922,39 @@ export default function BrandStudioPage() {
     <div className="space-y-6">
       <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Products Catalog Header
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Customize the banner and headlines displayed at the top of your catalog page (/products).
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.productsCatalogHeader')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.customizeTheBannerAndHeadlinesDisplayedAtThe')}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Eyebrow Badge Tag
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.eyebrowBadgeTag')}</label>
               <input
                 type="text"
                 value={productsBadgeText}
                 onChange={(e) => setProductsBadgeText(e.target.value)}
-                placeholder="e.g. Direct from Merchant"
+                placeholder={t('brandStudio.eGDirectFromMerchant')}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Catalog Page Title
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.catalogPageTitle')}</label>
               <input
                 type="text"
                 value={productsPageTitle}
                 onChange={(e) => setProductsPageTitle(e.target.value)}
-                placeholder="e.g. Our Collection"
+                placeholder={t('brandStudio.eGOurCollection')}
                 className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Catalog Subtitle / Description
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.catalogSubtitleDescription')}</label>
               <textarea
                 rows={2}
                 value={productsPageSubtitle}
                 onChange={(e) => setProductsPageSubtitle(e.target.value)}
-                placeholder="e.g. Explore our complete selection of handcrafted offerings..."
+                placeholder={t('brandStudio.eGExploreOurCompleteSelectionOfHandcrafted')}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
               />
             </div>
@@ -2085,11 +1963,9 @@ export default function BrandStudioPage() {
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-xs text-emerald-900 space-y-2">
             <div className="flex items-center gap-2 font-bold">
               <ShoppingBag className="w-4 h-4 text-emerald-600" />
-              <span>Dynamic Store Inventory Integration</span>
+              <span>{t('brandStudio.dynamicStoreInventoryIntegration')}</span>
             </div>
-            <p className="leading-relaxed text-emerald-800">
-              The Products Catalog page automatically synchronizes with your store inventory: category filtering pills, real-time keyword search, sorting (featured, price low/high, newest), and Quick-Add cart buttons work right out of the box.
-            </p>
+            <p className="leading-relaxed text-emerald-800">{t('brandStudio.theProductsCatalogPageAutomaticallySynchronizesWithYour')}</p>
           </div>
     </div>
   );
@@ -2099,36 +1975,28 @@ export default function BrandStudioPage() {
       {/* Header Banner */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                About Us Page Header
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                The top headline and brand tagline welcoming visitors to your store story.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.aboutUsPageHeader')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.theTopHeadlineAndBrandTaglineWelcomingVisitors')}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Page Title
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.pageTitle')}</label>
               <input
                 type="text"
                 value={aboutPageTitle}
                 onChange={(e) => setAboutPageTitle(e.target.value)}
-                placeholder={`About ${store?.name || 'Our Boutique'}`}
+                placeholder={t('brandStudio.aboutPlaceholder', { store: store?.name || '' })}
                 className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tagline & Subtitle
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.taglineSubtitle')}</label>
               <input
                 type="text"
                 value={aboutTagline}
                 onChange={(e) => setAboutTagline(e.target.value)}
-                placeholder="e.g. Rooted in authentic tradition, crafted for everyday distinction."
+                placeholder={t('brandStudio.eGRootedInAuthenticTraditionCraftedFor')}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
               />
             </div>
@@ -2137,18 +2005,12 @@ export default function BrandStudioPage() {
           {/* Heritage Story Narrative */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Store Origin & Heritage Story
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Tell your customers how your brand started and what sets your quality apart.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.storeOriginHeritageStory')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.tellYourCustomersHowYourBrandStartedAnd')}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Origin Paragraph 1
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.originParagraph1')}</label>
               <textarea
                 rows={3}
                 value={aboutStoryP1}
@@ -2158,9 +2020,7 @@ export default function BrandStudioPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Craftsmanship & Expansion Paragraph 2
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.craftsmanshipExpansionParagraph2')}</label>
               <textarea
                 rows={3}
                 value={aboutStoryP2}
@@ -2176,21 +2036,19 @@ export default function BrandStudioPage() {
               <div>
                 <label className="text-xs font-bold text-slate-900 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-emerald-600" />
-                  <span>About Us Feature / Story Image</span>
+                  <span>{t('brandStudio.aboutUsFeatureStoryImage')}</span>
                 </label>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Visual photo displayed alongside your brand heritage and origins story.
-                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t('brandStudio.visualPhotoDisplayedAlongsideYourBrandHeritageAnd')}</p>
               </div>
               {aboutBannerUrl && (
                 <button
                   type="button"
                   onClick={() => setAboutBannerUrl('')}
                   className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition cursor-pointer"
-                  title="Remove image"
+                  title={t('brandStudio.removeImage')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove Image</span>
+                  <span>{t('brandStudio.removeImage2')}</span>
                 </button>
               )}
             </div>
@@ -2202,24 +2060,22 @@ export default function BrandStudioPage() {
                   <>
                     <img
                       src={aboutBannerUrl}
-                      alt="About Story Preview"
+                      alt={t('brandStudio.aboutStoryPreview')}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[9px] font-mono font-bold text-emerald-300">
-                      Default 800 × 600 px
-                    </div>
+                    <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[9px] font-mono font-bold text-emerald-300">{t('brandStudio.default800600Px')}</div>
                   </>
                 ) : (
                   <div className="text-center p-3 text-slate-400 space-y-1">
                     <ImageIcon className="w-8 h-8 mx-auto text-slate-300" />
-                    <span className="text-[10px] font-medium block">No Story Image Set</span>
-                    <span className="text-[9px] font-mono text-slate-400 block">Default: 800 × 600 px</span>
+                    <span className="text-[10px] font-medium block">{t('brandStudio.noStoryImageSet')}</span>
+                    <span className="text-[9px] font-mono text-slate-400 block">{t('brandStudio.default800600Px2')}</span>
                   </div>
                 )}
                 {uploadingAboutBanner && (
                   <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center text-white text-[11px] font-semibold p-2 text-center z-10">
                     <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-1.5" />
-                    <span>{uploadStepMessage || 'Checking size & conforming to default layout...'}</span>
+                    <span>{uploadStepMessage || t('brandStudio.checkingSizeConformingToDefaultLayout')}</span>
                   </div>
                 )}
               </div>
@@ -2239,19 +2095,17 @@ export default function BrandStudioPage() {
                   className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <UploadCloud className="w-4 h-4 text-emerald-400" />
-                  <span>{aboutBannerUrl ? 'Upload / Replace Story Image' : 'Upload Story Image'}</span>
+                  <span>{aboutBannerUrl ? t('brandStudio.uploadReplaceStoryImage') : t('brandStudio.uploadStoryImage')}</span>
                 </button>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                    Or Enter Direct Image URL
-                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">{t('brandStudio.orEnterDirectImageUrl')}</label>
                   <div className="relative">
                     <input
                       type="url"
                       value={aboutBannerUrl}
                       onChange={(e) => setAboutBannerUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/... or CDN link"
+                      placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
                       className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
@@ -2265,53 +2119,46 @@ export default function BrandStudioPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Default Layout Size: <strong>800 × 600 px</strong> (4:3 Story Frame)</span>
+                  <span>{t('brandStudio.defaultLayoutSize')}{' '}<strong>800 × 600 px</strong>{t('brandStudio.size43StoryFrame')}</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  <Check className="w-3 h-3 text-emerald-600" /> Auto-Fit Default Layout Enabled
-                </span>
+                  <Check className="w-3 h-3 text-emerald-600" />{t('brandStudio.autoFitDefaultLayoutEnabled')}</span>
               </div>
               
               {aboutBannerMeta ? (
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5 text-xs">
                   <div className="flex items-center gap-2 font-bold text-emerald-800">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Default Layout Size Checked & Verified</span>
+                    <span>{t('brandStudio.defaultLayoutSizeCheckedVerified')}</span>
                     <span className="ml-auto text-[10px] font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
                       {aboutBannerMeta.width} × {aboutBannerMeta.height} px ({aboutBannerMeta.sizeKb} KB)
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-700 leading-relaxed">
-                    {aboutBannerMeta.message}
+                    {imageStatusMessage(aboutBannerMeta)}
                   </p>
                   <div className="flex items-center gap-3 pt-1 text-[10px] text-emerald-800 border-t border-emerald-200/80 font-mono">
-                    <span>Original: {aboutBannerMeta.origWidth} × {aboutBannerMeta.origHeight} px</span>
+                    <span>{t('brandStudio.original')}{' '}{aboutBannerMeta.origWidth} × {aboutBannerMeta.origHeight} px</span>
                     <span>→</span>
-                    <span className="font-bold">Default Layout Output: 800 × 600 px</span>
+                    <span className="font-bold">{t('brandStudio.defaultLayoutOutput800600Px')}</span>
                   </div>
                 </div>
               ) : aboutBannerUrl ? (
                 <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-900 space-y-1 text-xs">
                   <div className="flex items-center gap-2 font-bold text-emerald-800">
                     <Sliders className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Default Layout Container Active</span>
-                    <span className="ml-auto text-[10px] font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                      800 × 600 px Story Frame
-                    </span>
+                    <span>{t('brandStudio.defaultLayoutContainerActive')}</span>
+                    <span className="ml-auto text-[10px] font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">{t('brandStudio.size800600PxStoryFrame')}</span>
                   </div>
-                  <p className="text-[11px] text-emerald-700">
-                    The About Us page encloses this image in the standard 4:3 default frame with responsive edge-to-edge coverage.
-                  </p>
+                  <p className="text-[11px] text-emerald-700">{t('brandStudio.theAboutUsPageEnclosesThisImageIn')}</p>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs space-y-1">
                   <div className="flex items-center gap-2 font-semibold">
                     <Sliders className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                    <span>Pre-Upload Dimension Check: Default Layout 800 × 600 px</span>
+                    <span>{t('brandStudio.preUploadDimensionCheckDefaultLayout800600')}</span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    When an image is uploaded, its dimensions are checked and automatically conformed to the default 800 × 600 px story layout size. Max 15 MB (PNG, JPG, WebP).
-                  </p>
+                  <p className="text-[11px] text-slate-500">{t('brandStudio.whenAnImageIsUploadedItsDimensionsAre')}</p>
                 </div>
               )}
             </div>
@@ -2319,19 +2166,17 @@ export default function BrandStudioPage() {
 
           {/* Mission & Vision */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Mission & Vision Statements
-            </label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.missionVisionStatements')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">Mission Title</label>
+                <label className="block text-xs font-semibold text-slate-700">{t('brandStudio.missionTitle')}</label>
                 <input
                   type="text"
                   value={aboutMissionTitle}
                   onChange={(e) => setAboutMissionTitle(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
-                <label className="block text-[11px] text-slate-500">Mission Description</label>
+                <label className="block text-[11px] text-slate-500">{t('brandStudio.missionDescription')}</label>
                 <textarea
                   rows={2}
                   value={aboutMissionText}
@@ -2341,14 +2186,14 @@ export default function BrandStudioPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">Vision Title</label>
+                <label className="block text-xs font-semibold text-slate-700">{t('brandStudio.visionTitle')}</label>
                 <input
                   type="text"
                   value={aboutVisionTitle}
                   onChange={(e) => setAboutVisionTitle(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
-                <label className="block text-[11px] text-slate-500">Vision Description</label>
+                <label className="block text-[11px] text-slate-500">{t('brandStudio.visionDescription')}</label>
                 <textarea
                   rows={2}
                   value={aboutVisionText}
@@ -2362,20 +2207,14 @@ export default function BrandStudioPage() {
           {/* 3 Core Trust Pillars */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                3 Core Trust / Value Pillars
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                The 3 foundational reasons why buyers choose and trust your store.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.size3CoreTrustValuePillars')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.the3FoundationalReasonsWhyBuyersChooseAnd')}</p>
             </div>
 
             <div className="space-y-3">
               {/* Pillar 1 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
-                  Pillar 1
-                </span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar1')}</span>
                 <input
                   type="text"
                   value={pillar1Title}
@@ -2392,9 +2231,7 @@ export default function BrandStudioPage() {
 
               {/* Pillar 2 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
-                  Pillar 2
-                </span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar2')}</span>
                 <input
                   type="text"
                   value={pillar2Title}
@@ -2411,9 +2248,7 @@ export default function BrandStudioPage() {
 
               {/* Pillar 3 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
-                  Pillar 3
-                </span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar3')}</span>
                 <input
                   type="text"
                   value={pillar3Title}
@@ -2432,14 +2267,10 @@ export default function BrandStudioPage() {
 
           {/* Physical Address & Contact Support */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Physical Location & Customer Support
-            </label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.physicalLocationCustomerSupport')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Store / Workshop Address
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.storeWorkshopAddress')}</label>
                 <input
                   type="text"
                   value={physicalStoreAddress}
@@ -2449,9 +2280,7 @@ export default function BrandStudioPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Operating Hours
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.operatingHours')}</label>
                 <input
                   type="text"
                   value={physicalStoreTimings}
@@ -2461,9 +2290,7 @@ export default function BrandStudioPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Phone / WhatsApp Support
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.phoneWhatsappSupport')}</label>
                 <input
                   type="text"
                   value={aboutPhone}
@@ -2473,9 +2300,7 @@ export default function BrandStudioPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Customer Support Email
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.customerSupportEmail')}</label>
                 <input
                   type="email"
                   value={aboutEmail}
@@ -2495,13 +2320,9 @@ export default function BrandStudioPage() {
             <div>
               <div className="flex items-center gap-2">
                 <Share2 className="w-4 h-4 text-pink-600" />
-                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
-                  Social Media Accounts & Links
-                </label>
+                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block">{t('brandStudio.socialMediaAccountsLinks')}</label>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Add your social media profile URLs or handles. Interactive branded buttons will appear prominently in your storefront footer!
-              </p>
+              <p className="text-xs text-slate-500 mt-1">{t('brandStudio.addYourSocialMediaProfileUrlsOrHandles')}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -2515,7 +2336,7 @@ export default function BrandStudioPage() {
                   type="text"
                   value={socialInstagram}
                   onChange={(e) => setSocialInstagram(e.target.value)}
-                  placeholder="https://instagram.com/yourbrand or @yourbrand"
+                  placeholder={t('brandStudio.httpsInstagramComYourbrandOrYourbrand')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition"
                 />
               </div>
@@ -2524,13 +2345,13 @@ export default function BrandStudioPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <MessageCircle className="w-4 h-4 text-emerald-500" />
-                  <span>WhatsApp Business</span>
+                  <span>{t('brandStudio.whatsappBusiness')}</span>
                 </label>
                 <input
                   type="text"
                   value={socialWhatsapp}
                   onChange={(e) => setSocialWhatsapp(e.target.value)}
-                  placeholder="+91 98765 43210 or wa.me/..."
+                  placeholder={t('brandStudio.size919876543210OrWaMe')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-mono"
                 />
               </div>
@@ -2539,7 +2360,7 @@ export default function BrandStudioPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Facebook className="w-4 h-4 text-blue-600" />
-                  <span>Facebook Page</span>
+                  <span>{t('brandStudio.facebookPage')}</span>
                 </label>
                 <input
                   type="text"
@@ -2554,7 +2375,7 @@ export default function BrandStudioPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Youtube className="w-4 h-4 text-rose-600" />
-                  <span>YouTube Channel</span>
+                  <span>{t('brandStudio.youtubeChannel')}</span>
                 </label>
                 <input
                   type="text"
@@ -2575,7 +2396,7 @@ export default function BrandStudioPage() {
                   type="text"
                   value={socialTwitter}
                   onChange={(e) => setSocialTwitter(e.target.value)}
-                  placeholder="https://x.com/yourhandle or @yourhandle"
+                  placeholder={t('brandStudio.httpsXComYourhandleOrYourhandle')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
                 />
               </div>
@@ -2584,7 +2405,7 @@ export default function BrandStudioPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Linkedin className="w-4 h-4 text-blue-700" />
-                  <span>LinkedIn Company Page</span>
+                  <span>{t('brandStudio.linkedinCompanyPage')}</span>
                 </label>
                 <input
                   type="text"
@@ -2600,18 +2421,14 @@ export default function BrandStudioPage() {
           {/* Footer Brand Bio & Tagline */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Footer Brand Description
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Brief summary displayed beneath your store monogram in the footer.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.footerBrandDescription')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.briefSummaryDisplayedBeneathYourStoreMonogramIn')}</p>
             </div>
             <textarea
               rows={3}
               value={footerDescription}
               onChange={(e) => setFooterDescription(e.target.value)}
-              placeholder="Official digital storefront. Order genuine products online directly with transparent pricing and doorstep delivery."
+              placeholder={t('brandStudio.officialDigitalStorefrontOrderGenuineProductsOnlineDirectly')}
               className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
             />
           </div>
@@ -2620,12 +2437,8 @@ export default function BrandStudioPage() {
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-xs font-bold text-slate-900 block">
-                  Footer Trust Badges Strip
-                </label>
-                <p className="text-[11px] text-slate-500">
-                  Three reassurance badges displayed above the footer columns.
-                </p>
+                <label className="text-xs font-bold text-slate-900 block">{t('brandStudio.footerTrustBadgesStrip')}</label>
+                <p className="text-[11px] text-slate-500">{t('brandStudio.threeReassuranceBadgesDisplayedAboveTheFooterColumns')}</p>
               </div>
               <input
                 type="checkbox"
@@ -2641,21 +2454,26 @@ export default function BrandStudioPage() {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Trust Badge 1</span>
+                    <span>{t('brandStudio.trustBadge1')}</span>
                   </div>
+                  <label className="block text-xs text-slate-700">{t('brandStudio.badgeIcon', { number: 1 })}
+                    <select aria-label={t('brandStudio.badgeIcon', { number: 1 })} value={trustBadge1Icon} onChange={(event) => setTrustBadge1Icon(resolveTrustBadgeIcon(event.target.value, 'payment'))} className="mt-1 w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+                      {TRUST_BADGE_ICONS.map((icon) => <option key={icon.id} value={icon.id}>{t(`brandStudio.icons.${icon.id}`)}</option>)}
+                    </select>
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={trustBadge1Title}
                       onChange={(e) => setTrustBadge1Title(e.target.value)}
-                      placeholder="Title (e.g. Secure Indian Payments)"
+                      placeholder={t('brandStudio.titleEGSecureIndianPayments')}
                       className="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                     />
                     <input
                       type="text"
                       value={trustBadge1Subtitle}
                       onChange={(e) => setTrustBadge1Subtitle(e.target.value)}
-                      placeholder="Subtitle (e.g. UPI, Netbanking & Cards via Razorpay)"
+                      placeholder={t('brandStudio.subtitleEGUpiNetbankingCardsViaRazorpay')}
                       className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                     />
                   </div>
@@ -2665,21 +2483,26 @@ export default function BrandStudioPage() {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Trust Badge 2</span>
+                    <span>{t('brandStudio.trustBadge2')}</span>
                   </div>
+                  <label className="block text-xs text-slate-700">{t('brandStudio.badgeIcon', { number: 2 })}
+                    <select aria-label={t('brandStudio.badgeIcon', { number: 2 })} value={trustBadge2Icon} onChange={(event) => setTrustBadge2Icon(resolveTrustBadgeIcon(event.target.value, 'truck'))} className="mt-1 w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+                      {TRUST_BADGE_ICONS.map((icon) => <option key={icon.id} value={icon.id}>{t(`brandStudio.icons.${icon.id}`)}</option>)}
+                    </select>
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={trustBadge2Title}
                       onChange={(e) => setTrustBadge2Title(e.target.value)}
-                      placeholder="Title (e.g. Reliable Pan-India Delivery)"
+                      placeholder={t('brandStudio.titleEGReliablePanIndiaDelivery')}
                       className="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                     />
                     <input
                       type="text"
                       value={trustBadge2Subtitle}
                       onChange={(e) => setTrustBadge2Subtitle(e.target.value)}
-                      placeholder="Subtitle (e.g. Doorstep tracking via premier couriers)"
+                      placeholder={t('brandStudio.subtitleEGDoorstepTrackingViaPremierCouriers')}
                       className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                     />
                   </div>
@@ -2689,21 +2512,26 @@ export default function BrandStudioPage() {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                     <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Trust Badge 3</span>
+                    <span>{t('brandStudio.trustBadge3')}</span>
                   </div>
+                  <label className="block text-xs text-slate-700">{t('brandStudio.badgeIcon', { number: 3 })}
+                    <select aria-label={t('brandStudio.badgeIcon', { number: 3 })} value={trustBadge3Icon} onChange={(event) => setTrustBadge3Icon(resolveTrustBadgeIcon(event.target.value, 'shield'))} className="mt-1 w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+                      {TRUST_BADGE_ICONS.map((icon) => <option key={icon.id} value={icon.id}>{t(`brandStudio.icons.${icon.id}`)}</option>)}
+                    </select>
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={trustBadge3Title}
                       onChange={(e) => setTrustBadge3Title(e.target.value)}
-                      placeholder="Title (e.g. Verified Authentic Goods)"
+                      placeholder={t('brandStudio.titleEGVerifiedAuthenticGoods')}
                       className="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                     />
                     <input
                       type="text"
                       value={trustBadge3Subtitle}
                       onChange={(e) => setTrustBadge3Subtitle(e.target.value)}
-                      placeholder="Subtitle (e.g. Direct from certified merchant business)"
+                      placeholder={t('brandStudio.subtitleEGDirectFromCertifiedMerchantBusiness')}
                       className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                     />
                   </div>
@@ -2715,18 +2543,14 @@ export default function BrandStudioPage() {
           {/* Copyright Text */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Bottom Copyright Notice
-              </label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Custom statement for the very bottom of every page. Leave blank to use platform default.
-              </p>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.bottomCopyrightNotice')}</label>
+              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.customStatementForTheVeryBottomOfEvery')}</p>
             </div>
             <input
               type="text"
               value={footerCopyright}
               onChange={(e) => setFooterCopyright(e.target.value)}
-              placeholder={`© ${new Date().getFullYear()} ${store?.name || 'Our Store'}. All rights reserved.`}
+              placeholder={t('brandStudio.copyrightPlaceholder', { year: new Date().getFullYear(), store: store?.name || '' })}
               className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
             />
           </div>
@@ -2818,7 +2642,7 @@ export default function BrandStudioPage() {
   return (
     <Layout title={t('themes.title')}>
       <Head>
-        <title>{t('themes.title')} | {store?.name || 'Seller Dashboard'}</title>
+        <title>{t('themes.title')} | {store?.name || t('brandStudio.sellerDashboard')}</title>
       </Head>
 
       <div className="space-y-6 w-full max-w-full overflow-x-clip">
@@ -2850,7 +2674,7 @@ export default function BrandStudioPage() {
 
             <button
               onClick={handleSaveThemeConfig}
-              disabled={saving}
+              disabled={saving || hasInvalidColors}
               style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
               className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
             >
@@ -2971,9 +2795,7 @@ export default function BrandStudioPage() {
                   <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <Monitor className="w-4 h-4" />
                   </span>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                    DESKTOP RECOMMENDED
-                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">{t('brandStudio.desktopRecommended')}</span>
                 </div>
               </div>
 
@@ -3005,7 +2827,7 @@ export default function BrandStudioPage() {
                   }}
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span>Contact LetzShop Support Team</span>
+                  <span>{t('brandStudio.contactLetzshopSupportTeam')}</span>
                 </a>
               </div>
             </div>
@@ -3019,9 +2841,7 @@ export default function BrandStudioPage() {
                   className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin mx-auto mb-3"
                   style={{ borderColor: 'var(--merchant-primary)', borderTopColor: 'transparent' }}
                 />
-                <p className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>
-                  Loading customizer settings...
-                </p>
+                <p className="text-xs" style={{ color: 'var(--merchant-text-muted)' }}>{t('brandStudio.loadingCustomizerSettings')}</p>
               </div>
             ) : (
               <>
@@ -3046,7 +2866,7 @@ export default function BrandStudioPage() {
                     <button
                       type="button"
                       onClick={handleSaveThemeConfig}
-                      disabled={saving}
+                      disabled={saving || hasInvalidColors}
                       style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
                       className="flex-1 py-3 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:opacity-90"
                     >

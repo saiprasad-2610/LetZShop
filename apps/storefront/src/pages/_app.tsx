@@ -27,16 +27,16 @@ function StorefrontAppLocaleWrapper({ children }: { children: React.ReactNode })
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <ToastProvider>
-      <CartProvider>
-        <StorefrontAppLocaleWrapper>
+    <CartProvider>
+      <StorefrontAppLocaleWrapper>
+        <ToastProvider>
           <Head>
             <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
             <link rel="manifest" href="/manifest.json" />
           </Head>
           <Component {...pageProps} />
-        </StorefrontAppLocaleWrapper>
-      </CartProvider>
-    </ToastProvider>
+        </ToastProvider>
+      </StorefrontAppLocaleWrapper>
+    </CartProvider>
   );
 }

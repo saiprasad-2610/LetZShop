@@ -1,6 +1,9 @@
+import { brandStudioMr } from './brand-studio';
 import { TranslationDictionary } from './en-IN';
 
 export const mrIN: TranslationDictionary = {
+  brandStudio: brandStudioMr,
+  cartToast: { added: "कार्टमध्ये जोडले" },
   common: {
     save: 'जतन करा',
     saved: 'जतन केले',

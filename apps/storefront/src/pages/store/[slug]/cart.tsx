@@ -278,7 +278,7 @@ export default function StoreCartPage() {
               </p>
             </div>
             <div className="pt-2">
-              <Link
+              <Link data-theme-tone="primary"
                 href={getLink(`/store/${slug}`)}
                 data-theme-btn="true"
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90 hover:-translate-y-0.5"
@@ -472,7 +472,7 @@ export default function StoreCartPage() {
                         maxLength={20}
                         autoFocus
                       />
-                      <button
+                      <button data-theme-tone="primary"
                         onClick={handleApplyCoupon}
                         disabled={applyingCoupon || !couponInput.trim()}
                         data-theme-btn="true"
@@ -635,7 +635,7 @@ export default function StoreCartPage() {
 
                 {/* Checkout CTA */}
                 <div className="space-y-3">
-                  <Link
+                  <Link data-theme-tone="primary"
                     href={getLink(`/store/${slug}/checkout`)}
                     data-theme-btn="true"
                     className="w-full py-4 rounded-xl text-sm font-bold text-white shadow-lg transition hover:opacity-90 hover:-translate-y-0.5 flex items-center justify-center gap-2"

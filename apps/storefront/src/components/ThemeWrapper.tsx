@@ -1,6 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
-import { FOUNDATIONAL_THEMES, ThemeConfig } from '@simply/ui';
+import { FOUNDATIONAL_THEMES, ThemeConfig, normalizeHexColor, getContrastRatio, STOREFRONT_FONT_FAMILIES, resolveStorefrontFont } from '@simply/ui';
 
 interface ThemeWrapperProps {
   themeConfig?: any;
@@ -8,48 +8,7 @@ interface ThemeWrapperProps {
   children: React.ReactNode;
 }
 
-const FONT_FAMILIES: Record<string, { heading: string; body: string }> = {
-  'Playfair Display': {
-    heading: "'Playfair Display', Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Plus Jakarta Sans': {
-    heading: "'Plus Jakarta Sans', system-ui, sans-serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Inter': {
-    heading: "'Inter', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Space Grotesk': {
-    heading: "'Space Grotesk', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'DM Serif Display': {
-    heading: "'DM Serif Display', Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Cinzel': {
-    heading: "'Cinzel', Garamond, Georgia, serif",
-    body: "'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-  'Outfit': {
-    heading: "'Outfit', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Montserrat': {
-    heading: "'Montserrat', system-ui, sans-serif",
-    body: "'Inter', system-ui, sans-serif",
-  },
-  'Noto Sans Devanagari': {
-    heading: "'Noto Sans Devanagari', system-ui, sans-serif",
-    body: "'Noto Sans Devanagari', system-ui, sans-serif",
-  },
-  'Noto Serif Devanagari': {
-    heading: "'Noto Serif Devanagari', Georgia, serif",
-    body: "'Noto Serif Devanagari', 'Plus Jakarta Sans', system-ui, sans-serif",
-  },
-};
+const FONT_FAMILIES = STOREFRONT_FONT_FAMILIES;
 
 export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   themeConfig,
@@ -59,12 +18,14 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   const themeCode = themeConfig?.themeId || 'atelier';
   const themeArchetype: ThemeConfig = FOUNDATIONAL_THEMES[themeCode] || FOUNDATIONAL_THEMES.atelier;
 
-  const primary = themeConfig?.palette?.primary || branding?.primaryColor || themeArchetype.palette.primary;
-  const accent = themeConfig?.palette?.accent || branding?.accentColor || themeArchetype.palette.accent;
-  const background = themeConfig?.palette?.background || themeArchetype.palette.background;
+  const primary = normalizeHexColor(themeConfig?.palette?.primary) || normalizeHexColor(branding?.primaryColor) || themeArchetype.palette.primary;
+  const accent = normalizeHexColor(themeConfig?.palette?.accent) || normalizeHexColor(branding?.accentColor) || themeArchetype.palette.accent;
+  const background = normalizeHexColor(themeConfig?.palette?.background) || themeArchetype.palette.background;
+  const onPrimary = getContrastRatio(primary, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
+  const onAccent = getContrastRatio(accent, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
 
   // Resolve typography: vendor selected preset > vendor custom heading/body > theme default
-  const selectedPreset = themeConfig?.typography?.preset || themeConfig?.typography?.fontHeading || '';
+  const selectedPreset = resolveStorefrontFont(themeConfig?.typography?.preset || themeConfig?.typography?.fontHeading || '');
   const presetFont = FONT_FAMILIES[selectedPreset];
 
   const fontHeadingMap: Record<string, string> = {
@@ -145,6 +106,8 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
     '--theme-primary': primary,
     '--theme-accent': accent,
     '--theme-background': background,
+    '--theme-on-primary': onPrimary,
+    '--theme-on-accent': onAccent,
     '--theme-font-heading': headingFont,
     '--theme-font-body': bodyFont,
     // Sync Tailwind font-serif / font-sans utilities with selected theme font
@@ -169,6 +132,10 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
         />
       </Head>
       <div
+        data-custom-primary={primary.toUpperCase() !== themeArchetype.palette.primary.toUpperCase() || undefined}
+        data-custom-accent={accent.toUpperCase() !== themeArchetype.palette.accent.toUpperCase() || undefined}
+        data-custom-background={background.toUpperCase() !== themeArchetype.palette.background.toUpperCase() || undefined}
+        data-custom-typography={Boolean(presetFont) || undefined}
         style={{
           ...styleVariables,
           backgroundColor: 'var(--theme-background)',

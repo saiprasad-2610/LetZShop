@@ -17,6 +17,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
+import { useStorefrontI18n } from '@simply/i18n';
 import { useToast } from '../../../components/ui/Toast';
 import { ThemeWrapper } from '../../../components/ThemeWrapper';
 import { StoreHeader } from '../../../components/StoreHeader';
@@ -30,6 +31,7 @@ export default function StoreProductsPage() {
   const { slug, preview, category: categoryQuery } = router.query;
   const { setStoreId, api, addItem } = useCart();
   const toast = useToast();
+  const { t } = useStorefrontI18n();
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
@@ -133,7 +135,7 @@ export default function StoreProductsPage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
-      toast.success('Added to Cart', `${product.name || product.title} was added to your bag.`);
+      toast.success(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2000);
     } catch (err: any) {
       console.error('Quick add failed', err);

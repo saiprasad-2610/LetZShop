@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { useStorefrontI18n } from '@simply/i18n';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -77,7 +78,8 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
 }) => {
   const [exiting, setExiting] = useState(false);
   const [progress, setProgress] = useState(100);
-  const duration = t.duration || 4000;
+  const duration = t.duration ?? (t.type === 'success' ? 1800 : 4000);
+  const { t: translate } = useStorefrontI18n();
   const styles = STYLE_MAP[t.type];
   const Icon = ICON_MAP[t.type];
 
@@ -90,7 +92,7 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
       if (remaining <= 0) {
         clearInterval(interval);
         setExiting(true);
-        setTimeout(() => onDismiss(t.id), 300);
+        setTimeout(() => onDismiss(t.id), 150);
       }
     }, 50);
     return () => clearInterval(interval);
@@ -98,15 +100,17 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-300 ${
+      role={t.type === 'error' ? 'alert' : 'status'}
+      data-toast-type={t.type}
+      className={`relative w-full overflow-hidden rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-150 ${
         exiting ? 'opacity-0 translate-x-8 scale-95' : 'opacity-100 translate-x-0 scale-100'
       } ${styles.bg} ${styles.border}`}
-      style={{ minWidth: 320, maxWidth: 420 }}
+      style={{ maxWidth: 340 }}
     >
-      <div className="flex items-start gap-3 p-4">
+      <div className="flex items-start gap-2 p-3">
         <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${styles.icon}`} />
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${styles.title}`}>{t.title}</p>
+          <p className={`text-xs font-semibold ${styles.title}`}>{t.title}</p>
           {t.message && (
             <p className={`text-xs mt-0.5 leading-relaxed ${styles.msg}`}>{t.message}</p>
           )}
@@ -116,7 +120,8 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
             setExiting(true);
             setTimeout(() => onDismiss(t.id), 300);
           }}
-          className="p-1 rounded-lg hover:bg-black/5 transition flex-shrink-0"
+          aria-label={translate('common.close')}
+          className="p-1 rounded-lg hover:bg-black/5 transition flex-shrink-0 pointer-events-auto"
         >
           <X className="w-3.5 h-3.5 text-gray-400" />
         </button>
@@ -160,11 +165,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       {/* Toast Container */}
       <div
-        className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none"
-        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+        data-toast-container
+        className="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 10rem)', width: 'min(340px, calc(100vw - 2rem))', maxHeight: 'calc(100dvh - 12rem)' }}
       >
         {toasts.map((t) => (
-          <div key={t.id} className="pointer-events-auto animate-slideIn">
+          <div key={t.id} className="w-full pointer-events-none animate-fadeIn">
             <ToastItem toast={t} onDismiss={dismiss} />
           </div>
         ))}

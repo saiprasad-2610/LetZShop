@@ -30,6 +30,38 @@ body {
   font-family: var(--theme-font-body);
 }
 
+/* Explicit merchant choices win over a theme's decorative defaults. */
+[data-custom-primary] [data-theme-hero] :is(h1, h2, h1 *, h2 *, p),
+[data-custom-background] [data-theme-hero] :is(h1, h2, h1 *, h2 *, p) {
+  color: var(--theme-primary) !important;
+}
+[data-custom-background] [data-theme-hero] {
+  background-color: var(--theme-background) !important;
+  background-image: none !important;
+}
+[data-custom-primary] :is([data-theme-tone="primary"], .store-product-grid button) {
+  background-color: var(--theme-primary) !important;
+  color: var(--theme-on-primary) !important;
+}
+[data-custom-primary] [data-theme-tone="secondary"] {
+  color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+[data-custom-accent] [data-theme-accent] {
+  background-color: var(--theme-accent) !important;
+  color: var(--theme-on-accent) !important;
+  border-color: var(--theme-accent) !important;
+}
+[data-custom-accent] [data-theme-accent] * {
+  color: var(--theme-on-accent) !important;
+}
+[data-custom-typography] :is(h1, h2, h3, h4, h5, h6, .store-product-grid a[class*="line-clamp"]) {
+  font-family: var(--theme-font-heading) !important;
+}
+[data-custom-typography] :is(p, [data-theme-btn="true"], .store-product-grid button) {
+  font-family: var(--theme-font-body) !important;
+}
+
 /* Dynamic Component Shapes & Styles */
 .store-btn,
 button.store-btn,
@@ -223,14 +255,41 @@ a.store-btn,
   }
 }
 
-.animate-marquee {
-  display: inline-flex;
+.announcement-marquee {
+  width: 100%;
+  overflow: hidden;
+}
+
+.announcement-marquee-track {
+  display: flex;
+  width: max-content;
   white-space: nowrap;
   animation: marqueeScroll 25s linear infinite;
   will-change: transform;
 }
 
-.animate-marquee:hover {
-  animation-play-state: paused;
+.announcement-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 100vw;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.announcement-marquee-copy {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2.5rem;
+  padding-inline-end: 2.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee-track { animation: none; width: 100%; white-space: normal; }
+  .announcement-marquee-group { min-width: 0; width: 100%; text-align: center; }
+  .announcement-marquee-group + .announcement-marquee-group,
+  .announcement-marquee-copy + .announcement-marquee-copy,
+  .announcement-marquee-copy > span + span { display: none; }
+  .announcement-marquee-copy { padding: 0; flex-shrink: 1; }
 }
 

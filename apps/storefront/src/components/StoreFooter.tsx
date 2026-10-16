@@ -1,9 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { 
-  ShieldCheck, 
-  Truck, 
-  CreditCard, 
   Heart, 
   MapPin, 
   Phone, 
@@ -16,7 +13,8 @@ import {
   MessageCircle,
   ExternalLink
 } from 'lucide-react';
-import { getWordmark } from '@simply/ui';
+import { getWordmark, resolveTrustBadgeIcon } from '@simply/ui';
+import { TrustBadgeIcon } from './TrustBadgeIcon';
 
 interface StoreFooterProps {
   store: any;
@@ -108,7 +106,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pb-12 border-b border-gray-800 text-sm">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gray-800 text-emerald-400 shrink-0">
-                <CreditCard className="w-5 h-5" />
+                <TrustBadgeIcon id={resolveTrustBadgeIcon(footerConfig.trustBadge1Icon, 'payment')} />
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge1Title}</p>
@@ -118,7 +116,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
 
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gray-800 text-amber-400 shrink-0">
-                <Truck className="w-5 h-5" />
+                <TrustBadgeIcon id={resolveTrustBadgeIcon(footerConfig.trustBadge2Icon, 'truck')} />
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge2Title}</p>
@@ -128,7 +126,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
 
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gray-800 text-indigo-400 shrink-0">
-                <ShieldCheck className="w-5 h-5" />
+                <TrustBadgeIcon id={resolveTrustBadgeIcon(footerConfig.trustBadge3Icon, 'shield')} />
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge3Title}</p>

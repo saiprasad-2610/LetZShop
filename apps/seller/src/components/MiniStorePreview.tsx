@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react';
+import { useSellerI18n } from '@simply/i18n';
 import { getStorefrontUrl } from '../utils/config';
 
 interface MiniStorePreviewProps {
@@ -20,6 +21,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
   onPageChange,
 }) => {
   const router = useRouter();
+  const { t } = useSellerI18n();
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [currentPage, setCurrentPage] = useState<'home' | 'products' | 'about'>(activePage || 'home');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -72,12 +74,12 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
           {themeName ? (
             <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] font-bold text-merchant-text-muted truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live • {themeName}</span>
+              <span>{t('brandStudio.live')}{' '}{themeName}</span>
             </span>
           ) : (
             <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live Preview</span>
+              <span>{t('brandStudio.livePreview')}</span>
             </span>
           )}
         </div>
@@ -94,7 +96,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>🏠 Home</span>
+            <span>{t('brandStudio.home')}</span>
           </button>
           <button
             type="button"
@@ -106,7 +108,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>🛍️ Products</span>
+            <span>{t('brandStudio.products')}</span>
           </button>
           <button
             type="button"
@@ -118,7 +120,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface-muted'
             }`}
           >
-            <span>📖 About Us</span>
+            <span>{t('brandStudio.aboutUs')}</span>
           </button>
         </div>
 
@@ -133,11 +135,11 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Desktop View (Full Width)"
-            aria-label="Desktop View"
+            title={t('brandStudio.desktopViewFullWidth')}
+            aria-label={t('brandStudio.desktopView')}
           >
             <Monitor className="w-3.5 h-3.5" />
-            <span className="hidden 2xl:inline text-[11px]">Desktop</span>
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.desktop')}</span>
           </button>
           <button
             type="button"
@@ -148,11 +150,11 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Tablet View (768px)"
-            aria-label="Tablet View"
+            title={t('brandStudio.tabletView768px')}
+            aria-label={t('brandStudio.tabletView')}
           >
             <Tablet className="w-3.5 h-3.5" />
-            <span className="hidden 2xl:inline text-[11px]">Tablet</span>
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.tablet')}</span>
           </button>
           <button
             type="button"
@@ -163,19 +165,19 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
                 ? 'bg-merchant-primary text-white font-semibold shadow-xs'
                 : 'text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface'
             }`}
-            title="Mobile View (390px)"
-            aria-label="Mobile View"
+            title={t('brandStudio.mobileView390px')}
+            aria-label={t('brandStudio.mobileView')}
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span className="hidden 2xl:inline text-[11px]">Mobile</span>
+            <span className="hidden 2xl:inline text-[11px]">{t('brandStudio.mobile')}</span>
           </button>
           <button
             type="button"
             id="preview-device-refresh"
             onClick={handleRefresh}
             className="p-1.5 rounded-lg text-merchant-text-muted hover:text-merchant-text hover:bg-merchant-surface transition cursor-pointer ml-0.5"
-            title="Refresh Preview"
-            aria-label="Refresh Preview"
+            title={t('brandStudio.refreshPreview')}
+            aria-label={t('brandStudio.refreshPreview')}
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -204,7 +206,7 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
             key={`${pagePath}_${refreshKey}`}
             src={previewIframeUrl}
             className="w-full h-full flex-1 border-0 bg-white"
-            title="Storefront Interactive Buyer Preview"
+            title={t('brandStudio.storefrontInteractiveBuyerPreview')}
           />
         </div>
       </div>

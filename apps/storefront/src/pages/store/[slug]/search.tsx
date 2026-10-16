@@ -17,7 +17,7 @@ export default function StoreSearchPage() {
   const router = useRouter();
   const { slug, q, category, preview, embedded } = router.query;
   const { api, setStoreId, addItem } = useCart();
-  const { locale } = useStorefrontI18n();
+  const { locale, t } = useStorefrontI18n();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ export default function StoreSearchPage() {
       });
 
       setAddedId(product.id);
-      toast.success('Added to Cart!', `${product.name || product.title} added to your bag.`);
+      toast.success(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2200);
     } catch (err: any) {
       toast.error('Could Not Add Item', err?.message || 'Failed to add item to cart');

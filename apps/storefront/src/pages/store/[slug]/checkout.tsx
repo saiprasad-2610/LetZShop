@@ -1119,7 +1119,7 @@ export default function StoreCheckoutPage() {
                 </div>
 
                 {/* Submit Order Button */}
-                <button
+                <button data-theme-tone="primary"
                   type="submit"
                   disabled={submitting || items.length === 0}
                   data-theme-btn="true"

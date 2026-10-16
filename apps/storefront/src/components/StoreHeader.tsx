@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext';
 import { getWordmark } from '@simply/ui';
 import { useStorefrontI18n, StorefrontLanguageSelect } from '@simply/i18n';
 import { logWhatsappEnquiry } from '../utils/enquiry';
+import { AnnouncementMarquee } from './AnnouncementMarquee';
 
 interface StoreHeaderProps {
   store: any;
@@ -210,7 +211,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         </a>
       )}
 
-      <Link
+      <Link data-theme-tone="primary"
         href={getQueryPath(`/store/${slug}/cart`)}
         data-theme-btn="true"
         className="relative flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 store-btn"
@@ -252,18 +253,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           style={{ borderRadius: 'var(--theme-announcement-radius, 0)' }}
         >
           {isFloating ? (
-            <div className="relative w-full overflow-hidden whitespace-nowrap flex items-center">
-              <div className="inline-flex animate-marquee gap-10 items-center">
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-                <span>{displayText}</span>
-                <span className="opacity-60">•</span>
-              </div>
-            </div>
+            <AnnouncementMarquee text={displayText} />
           ) : (
             <div className="max-w-7xl mx-auto flex items-center justify-center text-center truncate">
               <span>{displayText}</span>

@@ -399,7 +399,7 @@ export default function ProductDetailPage() {
         sku: variant.sku || '',
       });
       setCartSuccess(true);
-      toast.success('Added to Cart', `${quantity} × ${product.title || 'Product'} added to your bag.`);
+      toast.success(t('cartToast.added'));
       setTimeout(() => setCartSuccess(false), 2500);
     } catch (err: any) {
       toast.error('Could Not Add Item', err.message || 'Failed to add item to cart');
@@ -880,7 +880,7 @@ export default function ProductDetailPage() {
                       {cartSuccess ? t('storefront.addedToCart') : addingToCart ? t('storefront.adding') : t('storefront.addToCart')}
                     </button>
 
-                    <button
+                    <button data-theme-tone="primary"
                       type="button"
                       disabled={isOutOfStock}
                       onClick={handleBuyNow}
@@ -1128,7 +1128,7 @@ export default function ProductDetailPage() {
               >
                 {cartSuccess ? '✓' : addingToCart ? '...' : <ShoppingBag className="w-4 h-4" />}
               </button>
-              <button
+              <button data-theme-tone="primary"
                 type="button"
                 disabled={isOutOfStock}
                 onClick={handleBuyNow}

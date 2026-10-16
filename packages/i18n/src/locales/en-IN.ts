@@ -1,4 +1,7 @@
+import { brandStudioEn } from './brand-studio';
 export const enIN = {
+  brandStudio: brandStudioEn,
+  cartToast: { added: "Added to cart" },
   common: {
     save: 'Save',
     saved: 'Saved',
