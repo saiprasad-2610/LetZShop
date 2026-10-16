@@ -1,3 +1,4 @@
+import { CreateAdminPlanDto, UpdateAdminPlanDto } from './admin-plan.dto';
 import {
   Controller,
   Get,
@@ -29,33 +30,54 @@ export class AdminController {
   }
 
   @Get('subscriptions')
-  getSubscriptions(@Query('tenantId') tenantId?: string) { return this.adminService.getSubscriptionList(tenantId); }
+  getSubscriptions(@Query() query: import('./admin-data.service').AdminQuery) {
+    return this.adminService.getSubscriptionList(query);
+  }
+
+  @Get('themes')
+  getThemes() {
+    return this.adminService.getThemes();
+  }
 
   @Get('payments')
-  getPayments(@Query('status') status?: string, @Query('search') search?: string, @Query('page') page?: string) {
+  getPayments(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+  ) {
     return this.adminService.getSubscriptionPayments({ status, search, page });
   }
 
   @Get('audit-logs')
-  getAuditLogs(@Query('search') search?: string, @Query('page') page?: string) { return this.adminService.getAuditLogs({ search, page }); }
+  getAuditLogs(@Query('search') search?: string, @Query('page') page?: string) {
+    return this.adminService.getAuditLogs({ search, page });
+  }
 
   @Get('settings')
-  getSettings() { return this.adminService.getSafeSettings(); }
+  getSettings() {
+    return this.adminService.getSafeSettings();
+  }
 
   @Get('overview')
   @ApiOperation({ summary: 'Platform-wide operational overview & metrics' })
-  async getOverview() {
-    return this.adminService.getOverview();
+  async getOverview(@Query('range') range?: string) {
+    return this.adminService.getOverview(range);
   }
 
   @Get('merchants')
-  @ApiOperation({ summary: 'List all platform merchants with store & subscription status' })
-  async getMerchants(@Query('search') search?: string) {
-    return this.adminService.getMerchants(search);
+  @ApiOperation({
+    summary: 'List all platform merchants with store & subscription status',
+  })
+  async getMerchants(
+    @Query() query: import('./admin-data.service').AdminQuery,
+  ) {
+    return this.adminService.getMerchants(query);
   }
 
   @Get('merchants/:id')
-  @ApiOperation({ summary: 'Get full merchant detail, stores, and subscriptions' })
+  @ApiOperation({
+    summary: 'Get full merchant detail, stores, and subscriptions',
+  })
   async getMerchantById(@Param('id') id: string) {
     return this.adminService.getMerchantById(id);
   }
@@ -65,9 +87,13 @@ export class AdminController {
   async suspendMerchant(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body('reason') reason: string
+    @Body('reason') reason: string,
   ) {
-    return this.adminService.suspendMerchant(id, user.userId, reason || 'Administrative suspension');
+    return this.adminService.suspendMerchant(
+      id,
+      user.userId,
+      reason || 'Administrative suspension',
+    );
   }
 
   @Post('merchants/:id/reactivate')
@@ -75,19 +101,30 @@ export class AdminController {
   async reactivateMerchant(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body('reason') reason: string
+    @Body('reason') reason: string,
   ) {
-    return this.adminService.reactivateMerchant(id, user.userId, reason || 'Administrative reactivation');
+    return this.adminService.reactivateMerchant(
+      id,
+      user.userId,
+      reason || 'Administrative reactivation',
+    );
   }
 
   @Get('commerce')
-  @ApiOperation({ summary: 'Cross-platform operational monitoring for orders, payments, refunds' })
-  async getCommerceMonitoring() {
-    return this.adminService.getCommerceMonitoring();
+  @ApiOperation({
+    summary:
+      'Cross-platform operational monitoring for orders, payments, refunds',
+  })
+  async getCommerceMonitoring(
+    @Query() query: import('./admin-data.service').AdminQuery,
+  ) {
+    return this.adminService.getCommerceMonitoring(query);
   }
 
   @Get('operations')
-  @ApiOperation({ summary: 'Operational health, failed outbox events, and audit trail' })
+  @ApiOperation({
+    summary: 'Operational health, failed outbox events, and audit trail',
+  })
   async getOperationsSummary() {
     return this.adminService.getOperationsSummary();
   }
@@ -96,46 +133,51 @@ export class AdminController {
   @ApiOperation({ summary: 'Retry a failed outbox event with audit trail' })
   async retryOutboxEvent(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.adminService.retryOutboxEvent(id, user.userId);
   }
 
   @Post('operations/reconcile-payment/:id')
-  @ApiOperation({ summary: 'Reconcile payment order against gateway with audit trail' })
+  @ApiOperation({
+    summary: 'Reconcile payment order against gateway with audit trail',
+  })
   async reconcilePaymentOrder(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.adminService.reconcilePaymentOrder(id, user.userId);
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'List all platform users across merchants, staff, and customers' })
-  async getUsers(
-    @Query('search') search?: string,
-    @Query('role') role?: string
-  ) {
-    return this.adminService.getUsers(search, role);
+  @ApiOperation({
+    summary: 'List all platform users across merchants, staff, and customers',
+  })
+  async getUsers(@Query() query: import('./admin-data.service').AdminQuery) {
+    return this.adminService.getUsers(query);
   }
 
   @Post('users/:id/toggle-status')
   @ApiOperation({ summary: 'Activate or deactivate a user account' })
   async toggleUserStatus(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.adminService.toggleUserStatus(id, user.userId);
   }
 
   @Get('analytics')
-  @ApiOperation({ summary: 'Platform SaaS analytics, revenue metrics, and top stores' })
-  async getAnalytics() {
-    return this.adminService.getAnalytics();
+  @ApiOperation({
+    summary: 'Platform SaaS analytics, revenue metrics, and top stores',
+  })
+  async getAnalytics(@Query('range') range?: string) {
+    return this.adminService.getAnalytics(range);
   }
 
   @Get('plans')
-  @ApiOperation({ summary: 'List all SaaS subscription tiers with subscriber counts' })
+  @ApiOperation({
+    summary: 'List all SaaS subscription tiers with subscriber counts',
+  })
   async getPlans() {
     return this.adminService.getPlans();
   }
@@ -144,7 +186,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Create a new SaaS subscription tier' })
   async createPlan(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: any
+    @Body() body: CreateAdminPlanDto,
   ) {
     return this.adminService.createPlan(body, user.userId);
   }
@@ -154,7 +196,7 @@ export class AdminController {
   async updatePlan(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body() body: any
+    @Body() body: UpdateAdminPlanDto,
   ) {
     return this.adminService.updatePlan(id, body, user.userId);
   }
@@ -163,7 +205,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Delete or archive a SaaS subscription tier' })
   async deletePlan(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.adminService.deletePlan(id, user.userId);
   }

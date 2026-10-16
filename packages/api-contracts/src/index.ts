@@ -101,3 +101,4 @@ export enum ErrorCode {
 
 export * from './client';
 export * from './notifications';
+export * from './admin';

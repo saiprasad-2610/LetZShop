@@ -1,3 +1,14 @@
+import type {
+  AdminOverview,
+  AdminPage,
+  AdminMerchant,
+  AdminMerchantDetail,
+  AdminPlan,
+  AdminUser,
+  AdminOrder,
+  AdminOperations,
+  AdminAnalytics,
+} from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
 // Consumed by apps/seller, apps/storefront, and apps/admin
@@ -451,26 +462,83 @@ export class SimplyApiClient {
 
   // --- Admin ---
   public admin = {
-    getOverview: () => this.request('admin/overview'),
-    getMerchants: (search?: string) => this.request('admin/merchants', { params: { search } }),
-    getMerchant: (id: string) => this.request(`admin/merchants/${id}`),
+    getOverview: (range?: string) =>
+      this.request<AdminOverview>('admin/overview', { params: { range } }),
+    getMerchants: (
+      params?:
+        | string
+        | {
+            search?: string;
+            status?: string;
+            planId?: string;
+            subscriptionStatus?: string;
+            sort?: string;
+            page?: number;
+            pageSize?: number;
+          },
+    ) => {
+      const q = typeof params === 'string' ? { search: params } : params || {};
+      return this.request<AdminPage<AdminMerchant>>('admin/merchants', {
+        params: q,
+      });
+    },
+    getMerchant: (id: string) => this.request<AdminMerchantDetail>(`admin/merchants/${id}`),
     suspendMerchant: (id: string, reason: string) =>
-      this.request(`admin/merchants/${id}/suspend`, { method: 'POST', body: { reason } }),
+      this.request(`admin/merchants/${id}/suspend`, {
+        method: 'POST',
+        body: { reason },
+      }),
     reactivateMerchant: (id: string, reason: string) =>
-      this.request(`admin/merchants/${id}/reactivate`, { method: 'POST', body: { reason } }),
-    getCommerce: () => this.request('admin/commerce'),
-    getOperations: () => this.request('admin/operations'),
-    retryOutbox: (id: string) => this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
+      this.request(`admin/merchants/${id}/reactivate`, {
+        method: 'POST',
+        body: { reason },
+      }),
+    getCommerce: () => this.request<AdminPage<AdminOrder>>('admin/commerce'),
+    getOperations: () => this.request<AdminOperations>('admin/operations'),
+    retryOutbox: (id: string) =>
+      this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
     reconcilePayment: (paymentOrderId: string) =>
-      this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, { method: 'POST' }),
-    getUsers: (search?: string, role?: string) => this.request('admin/users', { params: { search, role } }),
+      this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, {
+        method: 'POST',
+      }),
+    getUsers: (search?: string, role?: string) =>
+      this.request<AdminPage<AdminUser>>('admin/users', {
+        params: { search, role },
+      }),
     toggleUserStatus: (userId: string) =>
       this.request(`admin/users/${userId}/toggle-status`, { method: 'POST' }),
-    getAnalytics: () => this.request('admin/analytics'),
-    getPlans: () => this.request('admin/plans'),
-    createPlan: (data: any) => this.request('admin/plans', { method: 'POST', body: data }),
-    updatePlan: (id: string, data: any) => this.request(`admin/plans/${id}`, { method: 'PUT', body: data }),
-    deletePlan: (id: string) => this.request(`admin/plans/${id}`, { method: 'DELETE' }),
+    getAnalytics: () => this.request<AdminAnalytics>('admin/analytics'),
+    getPlans: () => this.request<AdminPlan[]>('admin/plans'),
+    createPlan: (data: {
+      name: string;
+      code?: string;
+      description?: string;
+      pricePaise: number;
+      billingCycle?: string;
+      maxProducts?: number;
+      maxStaff?: number;
+      maxStorageMb?: number;
+      customDomainAllowed?: boolean;
+      isPublic?: boolean;
+    }) => this.request('admin/plans', { method: 'POST', body: data }),
+    updatePlan: (
+      id: string,
+      data: Partial<
+        Omit<
+          AdminPlan,
+          | 'id'
+          | 'availability'
+          | 'purchasable'
+          | 'merchantCount'
+          | 'activeSubscribersCount'
+        >
+      >,
+    ) => this.request(`admin/plans/${id}`, { method: 'PUT', body: data }),
+    deletePlan: (id: string) =>
+      this.request<{ success: boolean; archived: boolean; message: string }>(
+        `admin/plans/${id}`,
+        { method: 'DELETE' },
+      ),
   };
 
   // --- Buyer Payments (Merchant Razorpay Checkout) ---

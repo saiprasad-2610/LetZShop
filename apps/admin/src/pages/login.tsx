@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
+import { errorMessage } from '../components/AdminUI';
 import { ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { AdminThemeToggle } from '../context/AdminThemeContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
 export default function Login() {
   const { login } = useAdminAuth();
@@ -14,11 +16,14 @@ export default function Login() {
       <Head>
         <title>LetzShop Admin — Login</title>
       </Head>
-      <main className="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-12">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-xl">
-          <ShieldCheck className="h-10 w-10 text-emerald-700 mb-4" />
+      <main className="min-h-screen flex items-center justify-center bg-admin-bg px-4 py-12">
+        <div className="w-full max-w-sm rounded-2xl bg-admin-surface p-7 shadow-xl">
+          <div className="flex justify-end mb-3">
+            <AdminThemeToggle />
+          </div>
+          <ShieldCheck className="h-10 w-10 text-admin-accent mb-4" />
           <h1 className="text-2xl font-bold">LetzShop Admin</h1>
-          <p className="mt-2 mb-6 text-sm text-slate-500">
+          <p className="mt-2 mb-6 text-sm text-admin-muted">
             Sign in to manage the platform.
           </p>
           <form
@@ -29,8 +34,8 @@ export default function Login() {
               setError('');
               try {
                 await login(identifier.trim(), password);
-              } catch (err: any) {
-                setError(err.message);
+              } catch (err: unknown) {
+                setError(errorMessage(err));
               } finally {
                 setBusy(false);
               }
@@ -39,7 +44,7 @@ export default function Login() {
             {error && (
               <p
                 role="alert"
-                className="rounded-lg bg-red-50 text-red-700 p-3 text-sm"
+                className="rounded-lg bg-admin-danger-soft text-admin-danger p-3 text-sm"
               >
                 {error}
               </p>

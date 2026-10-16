@@ -1,9 +1,17 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
-export function useAdminQuery(path: string, params: Record<string, any> = {}) {
+export function errorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : 'Request failed. Please retry.';
+}
+export function useAdminQuery<T>(
+  path: string,
+  params: Record<string, string | number | boolean | undefined> = {},
+) {
   const { api } = useAdminAuth(),
-    [data, setData] = useState<any>(null),
+    [data, setData] = useState<T | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [version, setVersion] = useState(0);
@@ -15,14 +23,18 @@ export function useAdminQuery(path: string, params: Record<string, any> = {}) {
     }
     let active = true;
     setLoading(true);
+    setData(null);
     setError('');
     api
-      .request(path, { params: JSON.parse(key) })
+      .request<T>(path, { params: JSON.parse(key) })
       .then((value) => {
         if (active) setData(value);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) {
+          setData(null);
+          setError(errorMessage(err));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -31,21 +43,43 @@ export function useAdminQuery(path: string, params: Record<string, any> = {}) {
       active = false;
     };
   }, [path, key, version]);
+  useEffect(() => {
+    const refresh = () => setVersion((v) => v + 1);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
   return { data, loading, error, reload: () => setVersion((v) => v + 1) };
 }
 export const Feedback = ({
   error,
   loading,
+  onRetry,
 }: {
   error?: string;
   loading?: boolean;
+  onRetry?: () => void;
 }) =>
   error ? (
-    <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-      {error}
+    <p
+      role="alert"
+      className="rounded-lg bg-admin-danger-soft p-3 text-sm text-admin-danger"
+    >
+      {error}{' '}
+      <button
+        className="ml-3 underline"
+        onClick={onRetry || (() => window.location.reload())}
+      >
+        Retry
+      </button>
     </p>
   ) : loading ? (
-    <p role="status" className="py-3 text-sm text-slate-500">
+    <p role="status" className="py-3 text-sm text-admin-muted">
       Loading…
     </p>
   ) : null;
@@ -105,14 +139,14 @@ export function ActionModal({
     return () => previous?.focus();
   }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-admin-overlay p-4">
       <div
         ref={ref}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="max-h-[90dvh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-white p-5"
+        className="max-h-[90dvh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-admin-surface p-5"
         onKeyDown={(e) => {
           if (e.key === 'Escape' && !busy) onClose();
           if (e.key === 'Tab') {

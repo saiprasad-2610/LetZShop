@@ -1,3 +1,4 @@
+import type { AdminPage, AdminPayment } from '@simply/api-contracts';
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { AdminLayout } from '../components/AdminLayout';
@@ -7,11 +8,14 @@ export default function Payments() {
   const [page, setPage] = useState(1),
     [search, setSearch] = useState(''),
     [status, setStatus] = useState('ALL');
-  const { data, loading, error } = useAdminQuery('admin/payments', {
-    page,
-    search,
-    status,
-  });
+  const { data, loading, error } = useAdminQuery<AdminPage<AdminPayment>>(
+    'admin/payments',
+    {
+      page,
+      search,
+      status,
+    },
+  );
   return (
     <AdminLayout>
       <Head>
@@ -59,28 +63,38 @@ export default function Payments() {
                   'Gateway',
                   'Payment ID',
                   'Status',
-                  'Date',
+                  'Created',
+                  'Completed',
                 ].map((s) => (
                   <th key={s}>{s}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {data?.items?.map((p: any) => (
+              {data?.items?.map((p) => (
                 <tr key={p.id}>
                   <td>{p.invoice.tenant.name}</td>
                   <td>{p.invoice.subscription.plan.name}</td>
-                  <td>{formatPaise(p.amountPaise)}</td>
+                  <td>
+                    {formatPaise(p.amountPaise)} {p.invoice.currency}
+                  </td>
                   <td>{p.paymentMethod}</td>
-                  <td className="break-all">{p.providerPaymentId || p.id}</td>
+                  <td className="break-all">
+                    {p.providerPaymentId || 'Not provided'}
+                  </td>
                   <td>{p.status}</td>
                   <td>{new Date(p.createdAt).toLocaleString()}</td>
+                  <td>
+                    {p.invoice.paidAt
+                      ? new Date(p.invoice.paidAt).toLocaleString()
+                      : 'Not completed'}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!loading && !data?.items?.length && (
-            <p className="py-5 text-sm text-slate-500">
+          {!error && !loading && data && !data.items.length && (
+            <p className="py-5 text-sm text-admin-muted">
               No subscription payments match.
             </p>
           )}

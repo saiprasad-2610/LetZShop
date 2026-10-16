@@ -1,8 +1,14 @@
+import type {
+  AdminPage,
+  AdminReview,
+  AdminReviewFilters,
+} from '@simply/api-contracts';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { AdminLayout } from '../components/AdminLayout';
 import {
+  errorMessage,
   ActionModal,
   Feedback,
   Pagination,
@@ -32,9 +38,10 @@ export default function Reviews() {
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
     [sort, setSort] = useState('newest');
-  const [dialog, setDialog] = useState<{ review: any; action: string } | null>(
-      null,
-    ),
+  const [dialog, setDialog] = useState<{
+      review: AdminReview;
+      action: 'VIEW' | 'REMOVE' | 'RESTORE' | 'DISMISS' | 'START';
+    } | null>(null),
     [reason, setReason] = useState(''),
     [note, setNote] = useState(''),
     [busy, setBusy] = useState(false),
@@ -42,7 +49,9 @@ export default function Reviews() {
   useEffect(() => {
     if (typeof router.query.search === 'string') setSearch(router.query.search);
   }, [router.query.search]);
-  const { data, loading, error, reload } = useAdminQuery('admin/reviews', {
+  const { data, loading, error, reload } = useAdminQuery<
+      AdminPage<AdminReview>
+    >('admin/reviews', {
       page,
       limit: 20,
       search,
@@ -55,12 +64,15 @@ export default function Reviews() {
       to,
       sort,
     }),
-    filters = useAdminQuery('admin/reviews/filters');
+    filters = useAdminQuery<AdminReviewFilters>('admin/reviews/filters');
   useEffect(
     () => setPage(1),
     [search, status, reportStatus, storeId, productId, rating, from, to, sort],
   );
-  const open = (review: any, action: string) => {
+  const open = (
+    review: AdminReview,
+    action: 'VIEW' | 'REMOVE' | 'RESTORE' | 'DISMISS' | 'START',
+  ) => {
     setDialog({ review, action });
     setReason('');
     setNote('');
@@ -76,7 +88,7 @@ export default function Reviews() {
     setActionError('');
     try {
       const r = dialog.review,
-        report = r.reports?.find((p: any) =>
+        report = r.reports?.find((p) =>
           ['PENDING', 'UNDER_REVIEW'].includes(p.status),
         );
       if (dialog.action === 'REMOVE' || dialog.action === 'RESTORE') {
@@ -106,8 +118,8 @@ export default function Reviews() {
       }
       setDialog(null);
       reload();
-    } catch (e: any) {
-      setActionError(e.message);
+    } catch (e: unknown) {
+      setActionError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -125,7 +137,7 @@ export default function Reviews() {
             Refresh
           </button>
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-admin-muted">
           Report status and review visibility are tracked separately. Reported
           reviews stay visible until removed.
         </p>
@@ -202,7 +214,7 @@ export default function Reviews() {
               }}
             >
               <option value="">All stores</option>
-              {filters.data?.stores?.map((s: any) => (
+              {filters.data?.stores?.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -219,8 +231,8 @@ export default function Reviews() {
             >
               <option value="">All products</option>
               {filters.data?.products
-                ?.filter((p: any) => !storeId || p.storeId === storeId)
-                .map((p: any) => (
+                ?.filter((p) => !storeId || p.storeId === storeId)
+                .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
@@ -261,16 +273,16 @@ export default function Reviews() {
           </label>
         </section>
         <Feedback loading={loading} error={error || filters.error} />
-        <p className="text-sm text-slate-500">
-          {data?.total || 0} matching reviews
+        <p className="text-sm text-admin-muted">
+          {data ? data.total + ' matching reviews' : ''}
         </p>
         {!loading && data?.items?.length === 0 && (
-          <div className="admin-panel text-slate-500">
+          <div className="admin-panel text-admin-muted">
             No reviews match these filters.
           </div>
         )}
-        {data?.items?.map((rev: any) => {
-          const active = rev.reports?.find((p: any) =>
+        {data?.items?.map((rev) => {
+          const active = rev.reports?.find((p) =>
               ['PENDING', 'UNDER_REVIEW'].includes(p.status),
             ),
             latest = rev.reports?.[0];
@@ -283,17 +295,17 @@ export default function Reviews() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <h2 className="font-semibold">{rev.product.name}</h2>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-admin-muted">
                     {rev.store.name} · {rev.reviewerName} · {rev.rating}/5{' '}
                     {rev.verifiedPurchase ? '· Verified Purchase' : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded bg-slate-100 px-2 py-1">
+                  <span className="rounded bg-admin-raised px-2 py-1">
                     Review: {rev.status}
                   </span>
                   {latest && (
-                    <span className="rounded bg-amber-50 px-2 py-1">
+                    <span className="rounded bg-admin-warning-soft px-2 py-1">
                       Report: {latest.status.replaceAll('_', ' ')}
                     </span>
                   )}
@@ -308,12 +320,12 @@ export default function Reviews() {
                 )}
                 {rev.body}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-admin-muted">
                 Order {rev.order.orderNumber} · Review{' '}
                 {new Date(rev.createdAt).toLocaleString()}
               </p>
               {latest && (
-                <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                <div className="rounded-lg bg-admin-bg p-3 text-sm">
                   <p>
                     <strong>Report reason:</strong> {latest.reason}
                   </p>
@@ -322,7 +334,7 @@ export default function Reviews() {
                       <strong>Merchant note:</strong> {latest.merchantNote}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-admin-muted">
                     Reported {new Date(latest.createdAt).toLocaleString()}
                   </p>
                 </div>
@@ -405,7 +417,7 @@ export default function Reviews() {
           onChange={setPage}
         />
       </div>
-      {dialog && (
+      {dialog && r && (
         <ActionModal
           title={
             {
@@ -440,7 +452,7 @@ export default function Reviews() {
                 <p>Review visibility: {r.status}</p>
                 <h3 className="font-semibold">Moderation history</h3>
                 {r.moderationReason && <p>{r.moderationReason}</p>}
-                {r.reports?.map((p: any) => (
+                {r.reports?.map((p) => (
                   <div className="border-t pt-2" key={p.id}>
                     <p>
                       {p.status} · {new Date(p.createdAt).toLocaleString()}
@@ -487,7 +499,7 @@ export default function Reviews() {
               />
             </label>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-admin-muted">
             {dialog.action === 'REMOVE'
               ? 'Removal hides the review and excludes it from storefront ratings. The report will be resolved.'
               : dialog.action === 'DISMISS'

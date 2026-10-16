@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Menu, X, LogOut } from 'lucide-react';
+import { AdminThemeToggle } from '../context/AdminThemeContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
 const nav = [
   ['Dashboard', '/'],
@@ -20,9 +21,10 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
     router = useRouter(),
     [open, setOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 bg-slate-900 px-4 text-white">
+    <div className="min-h-screen bg-admin-bg">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 bg-admin-header px-4 text-white">
         <div className="flex items-center gap-3">
+          <AdminThemeToggle />
           <button
             className="md:hidden p-2"
             aria-label="Toggle admin navigation"
@@ -33,7 +35,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
           </button>
           <Link
             href="/"
-            className="font-bold tracking-wide text-sm sm:text-base"
+            className="font-bold tracking-wide text-sm sm:text-base text-white"
           >
             LETZSHOP ADMIN
           </Link>
@@ -44,7 +46,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
           </span>
           <button
             onClick={() => void logout()}
-            className="flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs"
+            className="flex items-center gap-2 rounded-lg bg-admin-primary text-admin-on-primary px-3 py-2 text-xs"
             aria-label="Logout"
           >
             <LogOut className="w-4 h-4" />
@@ -55,7 +57,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
       <div className="flex min-w-0">
         <aside
           aria-label="Admin navigation"
-          className={`${open ? 'block' : 'hidden'} fixed inset-y-16 left-0 z-30 w-56 overflow-y-auto border-r bg-white p-4 md:sticky md:top-16 md:block md:h-[calc(100dvh-4rem)] md:shrink-0`}
+          className={`${open ? 'block' : 'hidden'} fixed inset-y-16 left-0 z-30 w-56 overflow-y-auto border-r bg-admin-surface p-4 md:sticky md:top-16 md:block md:h-[calc(100dvh-4rem)] md:shrink-0`}
         >
           <nav className="space-y-1">
             {nav.map(([label, href]) => (
@@ -63,13 +65,13 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className={`block rounded-lg px-3 py-2.5 text-sm font-medium ${(href === '/' ? router.pathname === '/' : router.pathname.startsWith(href)) ? 'bg-emerald-50 text-emerald-800' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`block rounded-lg px-3 py-2.5 text-sm font-medium ${(href === '/' ? router.pathname === '/' : router.pathname.startsWith(href)) ? 'bg-admin-soft text-admin-accent' : 'text-admin-secondary hover:bg-admin-raised'}`}
               >
                 {label}
               </Link>
             ))}
           </nav>
-          <details className="mt-6 text-xs text-slate-500">
+          <details className="mt-6 text-xs text-admin-muted">
             <summary className="cursor-pointer px-3">Existing tools</summary>
             {[
               ['Commerce', '/commerce'],

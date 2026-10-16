@@ -14,11 +14,13 @@ export class ReviewModerationService {
     const [stores, products] = await Promise.all([
       this.prisma.store.findMany({
         where: { productReviews: { some: {} } },
+        take: 500,
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       }),
       this.prisma.product.findMany({
         where: { reviews: { some: {} } },
+        take: 500,
         select: { id: true, name: true, storeId: true },
         orderBy: { name: 'asc' },
       }),
@@ -136,7 +138,7 @@ export class ReviewModerationService {
               createdAt: true,
             },
           },
-          reports: { orderBy: { createdAt: 'desc' } },
+          reports: { take: 50, orderBy: { createdAt: 'desc' } },
         },
       }),
     ]);
@@ -146,6 +148,7 @@ export class ReviewModerationService {
       total,
       page,
       limit,
+      pageSize: limit,
       totalPages: Math.ceil(total / limit),
     };
   }
