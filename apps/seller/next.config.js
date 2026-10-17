@@ -5,6 +5,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config, { dev }) => {
+    if (dev && config.cache && typeof config.cache === 'object') {
+      config.cache.compression = false;
+    }
+    return config;
+  },
   async rewrites() {
     return [
       {
