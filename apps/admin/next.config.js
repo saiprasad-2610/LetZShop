@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   compress: false,
   transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config'],
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   async rewrites() {
     return [
       {

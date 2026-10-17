@@ -45,12 +45,13 @@ export function adminRange(range = '30d') {
     '7d': 7,
     '30d': 30,
     '3m': 90,
+    '90d': 90,
     '6m': 180,
     '12m': 365,
   };
   if (range === 'ALL') return null;
   if (!Object.prototype.hasOwnProperty.call(days, range))
-    throw new BadRequestException('Choose 7d, 30d, 3m, 6m, 12m or ALL.');
+    throw new BadRequestException('Choose 7d, 30d, 90d, 3m, 6m, 12m or ALL.');
   return new Date(Date.now() - days[range] * 86400000);
 }
 const orderSelect = {
@@ -74,8 +75,51 @@ export class AdminDataService {
     private readonly db: PrismaClient,
     private readonly dashboard: AdminDashboardService,
   ) {}
-  async overview(range = '30d') {
-    return this.dashboard.read(adminRange(range), range);
+  async overview(range = '30d', fromStr?: string, toStr?: string) {
+    let from: Date | null = null;
+    let to: Date | null = null;
+    if (range === 'custom') {
+      if ((fromStr && !toStr) || (!fromStr && toStr)) {
+        throw new BadRequestException(
+          'Both "from" and "to" query parameters are required for custom date range.',
+        );
+      }
+      if (fromStr && toStr) {
+        from = new Date(fromStr);
+        to = new Date(toStr);
+        if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+          throw new BadRequestException(
+            'Invalid date format for custom range. Use YYYY-MM-DD.',
+          );
+        }
+        if (from > to) {
+          throw new BadRequestException(
+            'From date must be on or before To date.',
+          );
+        }
+        // Set to end of day in UTC
+        to = new Date(
+          Date.UTC(
+            to.getUTCFullYear(),
+            to.getUTCMonth(),
+            to.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+          ),
+        );
+      } else {
+        from = adminRange('30d');
+      }
+    } else {
+      from = adminRange(range);
+    }
+    return this.dashboard.read(from, range, to);
+  }
+
+  async attentionSummary() {
+    return this.dashboard.getAttentionSummary();
   }
 
   async charts(from: Date | null) {

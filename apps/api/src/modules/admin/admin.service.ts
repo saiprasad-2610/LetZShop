@@ -25,8 +25,12 @@ export class AdminService {
     private readonly data: AdminDataService,
   ) {}
 
-  public getOverview(range?: string) {
-    return this.data.overview(range);
+  public getOverview(range?: string, from?: string, to?: string) {
+    return this.data.overview(range, from, to);
+  }
+
+  public getAttentionSummary() {
+    return this.data.attentionSummary();
   }
 
   public getMerchants(query: string | AdminQuery = {}) {

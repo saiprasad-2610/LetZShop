@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, Pagination, useAdminQuery } from '../components/AdminUI';
+import { useAdminAttention } from '../context/AdminAttentionContext';
 import { formatPaise } from '@simply/ui';
 export default function Payments() {
   const [page, setPage] = useState(1),
     [search, setSearch] = useState(''),
     [status, setStatus] = useState('ALL');
   const router = useRouter();
+  const { refreshAttention } = useAdminAttention();
   useEffect(() => {
     const value = router.query.status;
     if (
@@ -20,21 +22,31 @@ export default function Payments() {
       setPage(1);
     }
   }, [router.query.status]);
-  const { data, loading, error } = useAdminQuery<AdminPage<AdminPayment>>(
-    'admin/payments',
-    {
-      page,
-      search,
-      status,
-    },
-  );
+  const { data, loading, error, reload } = useAdminQuery<
+    AdminPage<AdminPayment>
+  >('admin/payments', {
+    page,
+    search,
+    status,
+  });
   return (
     <AdminLayout>
       <Head>
         <title>Payments — LetzShop Admin</title>
       </Head>
       <div className="space-y-5">
-        <h1 className="text-2xl font-bold">Subscription Payments</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Subscription Payments</h1>
+          <button
+            className="admin-secondary"
+            onClick={() => {
+              reload();
+              void refreshAttention();
+            }}
+          >
+            Refresh
+          </button>
+        </div>
         <div className="admin-panel flex flex-wrap gap-3">
           <label className="text-xs font-medium flex-1 min-w-40">
             Merchant search

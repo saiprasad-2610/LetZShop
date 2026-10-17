@@ -1,4 +1,12 @@
-export type AdminRange = '7d' | '30d' | '3m' | '6m' | '12m' | 'ALL';
+export type AdminRange =
+  | '7d'
+  | '30d'
+  | '90d'
+  | 'custom'
+  | '3m'
+  | '6m'
+  | '12m'
+  | 'ALL';
 export interface AdminPage<T> {
   items: T[];
   total: number;
@@ -238,8 +246,17 @@ export interface AdminOverview {
   };
   range: AdminRange;
   attention: { failedSubscriptionPayments: number };
+  attentionSummary: AdminAttentionSummary;
   charts: AdminCharts;
   definitions: Record<string, string>;
+}
+export interface AdminAttentionSummary {
+  total: number;
+  reviewReports: number;
+  pendingReviewReports: number;
+  underReviewReports: number;
+  suspendedStores: number;
+  failedPayments: number;
 }
 export interface AdminAnalytics {
   range: AdminRange;

@@ -11,11 +11,13 @@ import {
   useAdminQuery,
 } from '../../components/AdminUI';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { useAdminAttention } from '../../context/AdminAttentionContext';
 import { getStorefrontUrl } from '../../utils/config';
 import { formatPaise } from '@simply/ui';
 export default function MerchantDetail() {
   const router = useRouter(),
     { api } = useAdminAuth(),
+    { refreshAttention } = useAdminAttention(),
     {
       data: m,
       loading,
@@ -207,6 +209,7 @@ export default function MerchantDetail() {
               else await api.admin.reactivateMerchant(m.id, reason);
               setAction('');
               reload();
+              void refreshAttention();
             } catch (e: unknown) {
               setActionError(errorMessage(e));
             } finally {

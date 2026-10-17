@@ -4,20 +4,30 @@ import { useRouter } from 'next/router';
 import { Menu, X, LogOut } from 'lucide-react';
 import { AdminThemeToggle } from '../context/AdminThemeContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
-const nav = [
-  ['Dashboard', '/'],
-  ['Merchants', '/merchants'],
-  ['Reviews & Reports', '/reviews'],
-  ['Subscriptions', '/billing'],
-  ['Payments', '/payments'],
-  ['Users', '/users'],
-  ['Settings', '/settings'],
-  ['Audit Logs', '/audit-logs'],
+import { useAdminAttention } from '../context/AdminAttentionContext';
+
+interface NavItem {
+  label: string;
+  href: string;
+  badgeKey?: 'suspendedStores' | 'reviewReports' | 'failedPayments';
+}
+
+const nav: NavItem[] = [
+  { label: 'Dashboard', href: '/' },
+  { label: 'Merchants', href: '/merchants', badgeKey: 'suspendedStores' },
+  { label: 'Reviews & Reports', href: '/reviews', badgeKey: 'reviewReports' },
+  { label: 'Subscriptions', href: '/billing' },
+  { label: 'Payments', href: '/payments', badgeKey: 'failedPayments' },
+  { label: 'Users', href: '/users' },
+  { label: 'Settings', href: '/settings' },
+  { label: 'Audit Logs', href: '/audit-logs' },
 ];
+
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, logout } = useAdminAuth(),
+    { attention } = useAdminAttention(),
     router = useRouter(),
     [open, setOpen] = useState(false);
   return (
@@ -60,16 +70,35 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
           className={`${open ? 'block' : 'hidden'} fixed inset-y-16 left-0 z-30 w-56 overflow-y-auto border-r bg-admin-surface p-4 md:sticky md:top-16 md:block md:h-[calc(100dvh-4rem)] md:shrink-0`}
         >
           <nav className="space-y-1">
-            {nav.map(([label, href]) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className={`block rounded-lg px-3 py-2.5 text-sm font-medium ${(href === '/' ? router.pathname === '/' : router.pathname.startsWith(href)) ? 'bg-admin-soft text-admin-accent' : 'text-admin-secondary hover:bg-admin-raised'}`}
-              >
-                {label}
-              </Link>
-            ))}
+            {nav.map(({ label, href, badgeKey }) => {
+              const count = badgeKey && attention ? attention[badgeKey] : 0;
+              const isActive =
+                href === '/'
+                  ? router.pathname === '/'
+                  : router.pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-admin-soft text-admin-accent'
+                      : 'text-admin-secondary hover:bg-admin-raised hover:text-admin-text'
+                  }`}
+                >
+                  <span>{label}</span>
+                  {count > 0 && (
+                    <span
+                      data-badge-for={label}
+                      className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-bold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 tabular-nums ml-2"
+                    >
+                      {count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </nav>
           <details className="mt-6 text-xs text-admin-muted">
             <summary className="cursor-pointer px-3">Existing tools</summary>

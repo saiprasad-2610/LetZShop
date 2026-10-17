@@ -5,8 +5,8 @@
   "description": "Production-grade multi-tenant SaaS ecommerce platform for Indian businesses",
   "scripts": {
     "build": "turbo run build",
-    "dev": "node scripts/dev-merchant.mjs",
-    "dev:merchant": "node scripts/dev-merchant.mjs",
+    "dev": "node scripts/dev-merchant.mjs --all",
+    "dev:merchant": "node scripts/dev-merchant.mjs --merchant",
     "dev:admin": "node scripts/dev-merchant.mjs --admin",
     "dev:status": "node scripts/dev-merchant.mjs --status",
     "dev:stop": "node scripts/dev-merchant.mjs --stop",

@@ -60,8 +60,24 @@ export class AdminController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Platform-wide operational overview & metrics' })
-  async getOverview(@Query('range') range?: string) {
-    return this.adminService.getOverview(range);
+  async getOverview(
+    @Query('range') range?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.adminService.getOverview(range, from, to);
+  }
+
+  @Get('attention-summary')
+  @ApiOperation({ summary: 'Platform actionable attention counts and badges' })
+  async getAttentionSummary() {
+    return this.adminService.getAttentionSummary();
+  }
+
+  @Get('orders')
+  @ApiOperation({ summary: 'List platform orders with pagination' })
+  async getOrders(@Query() query: import('./admin-data.service').AdminQuery) {
+    return this.adminService.getCommerceMonitoring(query);
   }
 
   @Get('merchants')

@@ -15,6 +15,7 @@ import {
   useAdminQuery,
 } from '../components/AdminUI';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useAdminAttention } from '../context/AdminAttentionContext';
 import { getStorefrontUrl } from '../utils/config';
 const reasons = [
   'Abusive / offensive',
@@ -27,6 +28,7 @@ const reasons = [
 ];
 export default function Reviews() {
   const { api } = useAdminAuth(),
+    { refreshAttention } = useAdminAttention(),
     router = useRouter();
   const [page, setPage] = useState(1),
     [search, setSearch] = useState(''),
@@ -118,6 +120,7 @@ export default function Reviews() {
       }
       setDialog(null);
       reload();
+      void refreshAttention();
     } catch (e: unknown) {
       setActionError(errorMessage(e));
     } finally {
@@ -133,7 +136,13 @@ export default function Reviews() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Reviews & Reports</h1>
-          <button className="admin-secondary" onClick={reload}>
+          <button
+            className="admin-secondary"
+            onClick={() => {
+              reload();
+              void refreshAttention();
+            }}
+          >
             Refresh
           </button>
         </div>

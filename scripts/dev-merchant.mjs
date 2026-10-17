@@ -475,12 +475,13 @@ async function main() {
 
   // 4. Determine Active Development Profile
   const isAdminOnly = process.argv.includes('--admin') || process.argv.includes('admin');
-  const isAll = process.argv.includes('--all') || process.argv.includes('all');
+  const isMerchantOnly = process.argv.includes('--merchant') || process.argv.includes('merchant');
+  const isAll = process.argv.includes('--all') || process.argv.includes('all') || (!isAdminOnly && !isMerchantOnly);
 
   const runApi = true;
-  const runSeller = !isAdminOnly || isAll;
-  const runStorefront = !isAdminOnly || isAll;
-  const runAdmin = isAdminOnly || isAll;
+  const runSeller = !isAdminOnly;
+  const runStorefront = !isAdminOnly;
+  const runAdmin = !isMerchantOnly;
 
   const activePorts = [];
   if (runApi) activePorts.push(4000);
@@ -488,7 +489,7 @@ async function main() {
   if (runStorefront) activePorts.push(3000);
   if (runAdmin) activePorts.push(3002);
 
-  const profileName = isAdminOnly ? 'ADMIN' : isAll ? 'ALL SERVICES' : 'MERCHANT';
+  const profileName = isAdminOnly ? 'ADMIN' : isMerchantOnly ? 'MERCHANT' : 'ALL SERVICES';
 
   // Preflight active ports (cleans stale Simply processes, halts on unknown external)
   const portsOk = await checkPortPreflight(activePorts);
