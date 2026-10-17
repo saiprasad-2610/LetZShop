@@ -7,6 +7,7 @@ import { errorMessage } from '../AdminUI';
 interface ReactivateMerchantModalProps {
   merchantId: string;
   merchantName: string;
+  storeId?: string;
   recipientEmail?: string | null;
   recipientPhone?: string | null;
   onClose: () => void;
@@ -16,6 +17,7 @@ interface ReactivateMerchantModalProps {
 export function ReactivateMerchantModal({
   merchantId,
   merchantName,
+  storeId,
   recipientEmail,
   recipientPhone,
   onClose,
@@ -46,6 +48,7 @@ export function ReactivateMerchantModal({
         merchantMessage: merchantMessage.trim() || undefined,
         notifyEmail,
         notifyWhatsApp,
+        storeId,
       });
 
       if (res?.whatsAppUrl && notifyWhatsApp) {

@@ -38,6 +38,16 @@ export default async function handler(
     );
     if ([401, 403].includes(response.status))
       res.setHeader('Set-Cookie', sessionCookie('', 0));
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      const disposition = response.headers.get('content-disposition');
+      if (disposition) res.setHeader('Content-Disposition', disposition);
+      const arrayBuffer = await response.arrayBuffer();
+      return res.status(response.status).send(Buffer.from(arrayBuffer));
+    }
+
     return res.status(response.status).json(await response.json());
   } catch {
     return res

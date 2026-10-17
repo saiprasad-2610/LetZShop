@@ -8,6 +8,7 @@ import {
   Star, 
   CheckCircle, 
   ShieldCheck, 
+  ShieldAlert,
   Sparkles,
   Lock,
   ExternalLink,
@@ -37,7 +38,7 @@ import { getProductTranslation } from '../../../utils/productTranslation';
 
 export default function StoreHomePage() {
   const router = useRouter();
-  const { slug, preview } = router.query;
+  const { slug, preview, previewSecret } = router.query;
   const { setStoreId, api, addItem } = useCart();
   const { locale, t, initStoreLocales } = useStorefrontI18n();
   const toast = useToast();
@@ -57,8 +58,11 @@ export default function StoreHomePage() {
         sessionStorage.setItem('simply_merchant_preview', 'true');
       } catch {}
     }
-    loadStorefront(String(slug), preview ? String(preview) : undefined);
-  }, [slug, preview]);
+    const effectiveSecret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined);
+    loadStorefront(String(slug), effectiveSecret);
+  }, [slug, preview, previewSecret]);
 
   useEffect(() => {
     if (router.query.embedded === 'true') {
@@ -168,12 +172,22 @@ export default function StoreHomePage() {
     let description = errorMsg || 'This digital store is currently unavailable. Please check back shortly.';
     let icon = <Lock className="w-6 h-6" />;
 
-    if (errorCode === 'STORE_PRIVATE') {
+    if (errorCode === 'STORE_SUSPENDED' || errorCode === 'TENANT_SUSPENDED') {
+      title = 'This service has been suspended.';
+      description = 'This store has been administratively suspended. If you believe this is in error, please contact LetzShop platform support.';
+      icon = <ShieldAlert className="w-6 h-6 text-red-600" />;
+    } else if (errorCode === 'STORE_PRIVATE' || errorCode === 'STORE_NOT_LIVE') {
       title = 'Private Merchant Storefront';
-      description = 'This store is currently in private setup mode. It is accessible only by the merchant owner via authenticated session.';
+      description = 'This store is currently in private setup mode. It is accessible only by the merchant owner or platform admin via preview link.';
+      icon = <Lock className="w-6 h-6 text-amber-600" />;
+    } else if (errorCode === 'STORE_SUBSCRIPTION_EXPIRED') {
+      title = 'Store Subscription Expired';
+      description = 'This store subscription validity period has ended. Public access is temporarily paused until renewal.';
+      icon = <Clock className="w-6 h-6 text-blue-600" />;
     } else if (errorCode === 'SUBSCRIPTION_REQUIRED' || errorCode === 'STORE_SUBSCRIPTION_REQUIRED') {
-      title = 'Storefront Inactive';
-      description = 'This storefront is temporarily inactive pending merchant subscription renewal.';
+      title = 'Subscription Required';
+      description = 'An active paid subscription is required to make this storefront public.';
+      icon = <Lock className="w-6 h-6 text-gray-600" />;
     } else if (errorCode === 'STORE_NOT_FOUND') {
       title = 'Store Not Found';
       description = `No merchant storefront exists with the slug '${slug}'. Please check the URL and try again.`;

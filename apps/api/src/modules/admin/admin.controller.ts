@@ -9,6 +9,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -96,6 +97,16 @@ export class AdminController {
   })
   async getMerchantById(@Param('id') id: string) {
     return this.adminService.getMerchantById(id);
+  }
+
+  @Get('invoices/:id/pdf')
+  @ApiOperation({ summary: 'Download subscription invoice as official PDF' })
+  async getInvoicePdf(@Param('id') id: string, @Res() res: any) {
+    const pdf = await this.adminService.generateInvoicePdf(id);
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', `inline; filename="invoice-${id}.pdf"`);
+    res.header('Cache-Control', 'no-store');
+    return res.send(pdf);
   }
 
   @Post('merchants/:id/suspend')

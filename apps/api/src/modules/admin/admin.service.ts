@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { generateInvoicePdfBuffer } from './invoice-pdf.util';
 import {
   Prisma,
   PrismaClient,
@@ -73,6 +75,12 @@ export class AdminService {
             name: true,
             slug: true,
             status: true,
+            isPubliclyAccessible: true,
+            previewSecret: true,
+            fulfillmentMode: true,
+            supportPhone: true,
+            supportEmail: true,
+            whatsappNumber: true,
             createdAt: true,
             _count: {
               select: {
@@ -85,7 +93,7 @@ export class AdminService {
           },
         },
         subscriptions: {
-          take: 20,
+          take: 50,
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
@@ -94,12 +102,12 @@ export class AdminService {
             currentPeriodEnd: true,
             createdAt: true,
             plan: {
-              select: { id: true, name: true, code: true, pricePaise: true },
+              select: { id: true, name: true, code: true, pricePaise: true, billingCycle: true },
             },
           },
         },
         invoices: {
-          take: 20,
+          take: 50,
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
@@ -109,6 +117,22 @@ export class AdminService {
             status: true,
             createdAt: true,
             paidAt: true,
+            subscription: {
+              select: {
+                currentPeriodStart: true,
+                currentPeriodEnd: true,
+                plan: { select: { name: true, code: true } },
+              },
+            },
+            payments: {
+              select: {
+                id: true,
+                paymentMethod: true,
+                providerPaymentId: true,
+                status: true,
+                createdAt: true,
+              },
+            },
           },
         },
       },
@@ -118,6 +142,29 @@ export class AdminService {
       Array<{ count: number }>
     >`SELECT count(DISTINCT r.review_id)::int AS count FROM review_reports r JOIN product_reviews v ON v.id=r.review_id JOIN stores s ON s.id=v.store_id WHERE s.tenant_id=${tenantId}`;
     
+    // Fetch recent 5 orders for merchant
+    const recentOrders = await this.prisma.order.findMany({
+      where: { store: { tenantId } },
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        totalPaise: true,
+        currency: true,
+        createdAt: true,
+        customer: { select: { fullName: true, phone: true } },
+        store: { select: { name: true, slug: true } },
+      },
+    });
+
+    // Fetch review statistics
+    const [reviewStats] = await this.prisma.$queryRaw<
+      Array<{ activeCount: number; avgRating: number | null }>
+    >`SELECT count(*)::int AS "activeCount", avg(rating)::float AS "avgRating" FROM product_reviews r JOIN stores s ON s.id=r.store_id WHERE s.tenant_id=${tenantId} AND r.status='ACTIVE'`;
+
     // Fetch communication and moderation audit history
     const commLogs = await this.prisma.auditLog.findMany({
       where: {
@@ -164,13 +211,118 @@ export class AdminService {
       };
     });
 
+    const suspensionHistory = commLogs
+      .filter((l) => ['MERCHANT_SUSPENDED', 'MERCHANT_REACTIVATED'].includes(l.action))
+      .map((l) => {
+        const meta = (l.metadata as any) || {};
+        return {
+          id: l.id,
+          date: l.createdAt.toISOString(),
+          action: l.action === 'MERCHANT_SUSPENDED' ? 'SUSPENDED' : 'REACTIVATED',
+          target: l.entityType === 'Store' ? 'Store' : 'Merchant Account',
+          reason: meta.reason || meta.internalNote || 'Administrative action',
+          adminName: (l.actorId && actorMap.get(l.actorId)) || 'Admin',
+        };
+      });
+
     const { invoices, ...merchant } = tenant;
     return {
       ...merchant,
       paymentHistory: invoices,
-      reportedReviewCount: reports.count,
+      reportedReviewCount: reports?.count || 0,
       communicationHistory,
+      suspensionHistory,
+      recentOrders,
+      reviewStats: {
+        activeCount: reviewStats?.activeCount || 0,
+        avgRating: reviewStats?.avgRating ? Number(reviewStats.avgRating.toFixed(1)) : null,
+      },
     };
+  }
+
+  public async generateInvoicePdf(
+    invoiceId: string,
+    merchantTenantId?: string,
+  ): Promise<Buffer> {
+    const invoice = await this.prisma.subscriptionInvoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        tenant: {
+          include: {
+            memberships: {
+              where: { role: 'SELLER_OWNER', isActive: true },
+              include: { user: true },
+            },
+            stores: { where: { deletedAt: null }, take: 1 },
+          },
+        },
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID "${invoiceId}" not found.`);
+    }
+
+    if (merchantTenantId && invoice.tenantId !== merchantTenantId) {
+      throw new ForbiddenException('Access denied to requested invoice.');
+    }
+
+    const owner = invoice.tenant.memberships[0]?.user;
+    const store = invoice.tenant.stores[0];
+    const payment = invoice.payments[0];
+
+    const formatDate = (d: Date | string | null | undefined) => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    };
+
+    const formatDateTime = (d: Date | string | null | undefined) => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const amountInRupees = (invoice.amountPaise / 100).toFixed(2);
+    const startStr = formatDate(invoice.subscription?.currentPeriodStart);
+    const endStr = formatDate(invoice.subscription?.currentPeriodEnd);
+
+    return generateInvoicePdfBuffer({
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      tenantName: invoice.tenant.name,
+      tenantSlug: store?.slug || invoice.tenant.slug,
+      ownerName: owner?.fullName || 'Merchant Seller',
+      ownerPhone: owner?.phone || store?.supportPhone || store?.whatsappNumber || 'Not provided',
+      ownerEmail: owner?.email || store?.supportEmail || 'Not provided',
+      invoiceDate: formatDate(invoice.createdAt),
+      billingPeriod: `${startStr} – ${endStr}`,
+      billingPeriodShort: `${startStr} – ${endStr}`,
+      currency: invoice.currency || 'INR',
+      paymentMethod: payment?.paymentMethod || 'RAZORPAY',
+      paymentReference: payment?.providerPaymentId || 'N/A',
+      paidAtDate: formatDateTime(invoice.paidAt || payment?.createdAt),
+      paymentStatus: payment?.status || invoice.status,
+      planName: invoice.subscription?.plan?.name || 'Launch',
+      formattedAmount: `INR ${amountInRupees}`,
+    });
   }
 
   public async getCommunicationHistory(tenantId: string) {
@@ -422,6 +574,7 @@ export class AdminService {
           merchantMessage?: string;
           notifyEmail?: boolean;
           notifyWhatsApp?: boolean;
+          storeId?: string;
         }
       | string,
   ) {
@@ -432,6 +585,7 @@ export class AdminService {
     const merchantMessage = typeof dto === 'object' ? dto?.merchantMessage : undefined;
     const notifyEmail = typeof dto === 'object' ? Boolean(dto?.notifyEmail) : false;
     const notifyWhatsApp = typeof dto === 'object' ? Boolean(dto?.notifyWhatsApp) : false;
+    const targetStoreId = typeof dto === 'object' ? dto?.storeId : undefined;
 
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
@@ -448,12 +602,20 @@ export class AdminService {
       });
       if (!tenant || tenant.deletedAt)
         throw new NotFoundException('Merchant not found.');
-      if (tenant.status !== 'SUSPENDED')
+
+      const hasSuspendedStore = tenant.stores.some((s) => s.status === 'SUSPENDED');
+      if (tenant.status !== 'SUSPENDED' && !hasSuspendedStore)
         throw new BadRequestException(
-          'Only suspended merchants can be reactivated.',
+          'Neither the merchant nor any store is currently suspended.',
         );
+
       const suspension = await tx.auditLog.findFirst({
-        where: { entityId: tenantId, action: 'MERCHANT_SUSPENDED' },
+        where: {
+          OR: [
+            { entityId: targetStoreId || tenantId, action: 'MERCHANT_SUSPENDED' },
+            { entityId: tenantId, action: 'MERCHANT_SUSPENDED' },
+          ],
+        },
         orderBy: { createdAt: 'desc' },
       });
       const previous = ((suspension?.metadata as any)?.stores || []) as Array<{
@@ -465,10 +627,15 @@ export class AdminService {
         paid = Boolean(
           sub && sub.status === 'ACTIVE' && sub.currentPeriodEnd > new Date(),
         );
-      for (const store of tenant.stores) {
-        if (store.status !== 'SUSPENDED') continue;
-        const old = previous.find((s) => s.id === store.id),
-          live = paid && old?.status === 'LIVE' && old?.isPubliclyAccessible;
+
+      if (targetStoreId) {
+        const store = tenant.stores.find((s) => s.id === targetStoreId);
+        if (!store) throw new NotFoundException('Store not found.');
+        if (store.status !== 'SUSPENDED') {
+          throw new BadRequestException('This store is not suspended.');
+        }
+        const old = previous.find((s) => s.id === store.id);
+        const live = paid && (old ? old.status === 'LIVE' && old.isPubliclyAccessible : true);
         await tx.store.update({
           where: { id: store.id },
           data: {
@@ -476,11 +643,36 @@ export class AdminService {
             isPubliclyAccessible: Boolean(live),
           },
         });
+      } else {
+        for (const store of tenant.stores) {
+          if (store.status !== 'SUSPENDED') continue;
+          const old = previous.find((s) => s.id === store.id);
+          const live = paid && (old ? old.status === 'LIVE' && old.isPubliclyAccessible : true);
+          await tx.store.update({
+            where: { id: store.id },
+            data: {
+              status: live ? 'LIVE' : 'PRIVATE_PREVIEW',
+              isPubliclyAccessible: Boolean(live),
+            },
+          });
+        }
       }
-      const updated = await tx.tenant.update({
-        where: { id: tenantId },
-        data: { status: 'ACTIVE' },
-      });
+
+      let updated = tenant;
+      if (tenant.status === 'SUSPENDED') {
+        updated = await tx.tenant.update({
+          where: { id: tenantId },
+          data: { status: 'ACTIVE' },
+          include: {
+            stores: { where: { deletedAt: null } },
+            subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 },
+            memberships: {
+              where: { role: 'SELLER_OWNER', isActive: true },
+              include: { user: true },
+            },
+          },
+        });
+      }
       const owner = tenant.memberships[0]?.user;
       return { tenant: updated, owner, paid };
     });
@@ -527,9 +719,10 @@ export class AdminService {
         actorId,
         actorType: 'ADMIN',
         tenantId,
+        storeId: targetStoreId || null,
         action: 'MERCHANT_REACTIVATED',
-        entityType: 'Tenant',
-        entityId: tenantId,
+        entityType: targetStoreId ? 'Store' : 'Tenant',
+        entityId: targetStoreId || tenantId,
         metadata: {
           reason: reasonText.trim(),
           merchantMessage: finalNoticeText,

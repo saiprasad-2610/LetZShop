@@ -25,6 +25,12 @@ export interface AdminStore {
   name: string;
   slug: string;
   status: string;
+  isPubliclyAccessible?: boolean;
+  previewSecret?: string;
+  fulfillmentMode?: string;
+  supportPhone?: string | null;
+  supportEmail?: string | null;
+  whatsappNumber?: string | null;
   createdAt?: string;
   _count?: {
     orders: number;
@@ -62,7 +68,7 @@ export interface AdminSubscription {
   currentPeriodStart: string;
   currentPeriodEnd: string;
   createdAt: string;
-  plan: Pick<AdminPlan, 'id' | 'name' | 'code' | 'pricePaise'>;
+  plan: Pick<AdminPlan, 'id' | 'name' | 'code' | 'pricePaise'> & { billingCycle?: string };
   tenant: { id: string; name: string };
   invoices?: Array<{ status: string; paidAt: string | null }>;
 }
@@ -81,9 +87,22 @@ export interface AdminInvoice {
   id: string;
   invoiceNumber: string;
   amountPaise: number;
+  currency?: string;
   status: string;
   createdAt: string;
   paidAt: string | null;
+  subscription?: {
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    plan: { name: string; code: string };
+  };
+  payments?: Array<{
+    id: string;
+    paymentMethod: string;
+    providerPaymentId: string | null;
+    status: string;
+    createdAt: string;
+  }>;
 }
 export interface AdminMerchantDetail {
   id: string;
@@ -91,12 +110,36 @@ export interface AdminMerchantDetail {
   slug: string;
   status: string;
   createdAt: string;
+  updatedAt?: string;
   memberships: Array<{ id: string; role: string; user: AdminOwner }>;
   stores: Array<AdminStore & { _count: NonNullable<AdminStore['_count']> }>;
   subscriptions: Array<Omit<AdminSubscription, 'tenant'>>;
   paymentHistory: AdminInvoice[];
   reportedReviewCount: number;
   communicationHistory?: AdminCommunicationLog[];
+  suspensionHistory?: Array<{
+    id: string;
+    date: string;
+    action: string;
+    target: string;
+    reason: string;
+    adminName: string;
+  }>;
+  recentOrders?: Array<{
+    id: string;
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    totalPaise: number;
+    currency: string;
+    createdAt: string;
+    customer?: { fullName: string; phone?: string | null } | null;
+    store: { name: string; slug: string };
+  }>;
+  reviewStats?: {
+    activeCount: number;
+    avgRating: number | null;
+  };
 }
 export interface AdminCommunicationLog {
   id: string;

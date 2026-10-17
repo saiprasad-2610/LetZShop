@@ -10,6 +10,7 @@ interface SuspendMerchantModalProps {
   recipientEmail?: string | null;
   recipientPhone?: string | null;
   stores?: Array<{ id: string; name: string }>;
+  initialStoreId?: string;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -17,9 +18,9 @@ interface SuspendMerchantModalProps {
 const REASONS = [
   'Policy violation',
   'Payment issue',
-  'Fraud / suspicious activity',
+  'Compliance',
+  'Suspicious activity',
   'Merchant request',
-  'Compliance issue',
   'Other',
 ];
 
@@ -29,6 +30,7 @@ export function SuspendMerchantModal({
   recipientEmail,
   recipientPhone,
   stores = [],
+  initialStoreId,
   onClose,
   onSuccess,
 }: SuspendMerchantModalProps) {
@@ -39,7 +41,7 @@ export function SuspendMerchantModal({
   const [internalNote, setInternalNote] = useState('');
   const [customInfo, setCustomInfo] = useState('');
   const [merchantMessage, setMerchantMessage] = useState('');
-  const [targetStoreId, setTargetStoreId] = useState<string>(''); // empty means entire merchant account / all stores
+  const [targetStoreId, setTargetStoreId] = useState<string>(initialStoreId || ''); // empty means entire merchant account / all stores
 
   const hasEmail = Boolean(recipientEmail?.trim());
   const hasPhone = Boolean(recipientPhone?.trim());

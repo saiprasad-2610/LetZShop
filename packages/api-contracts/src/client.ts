@@ -510,6 +510,7 @@ export class SimplyApiClient {
             merchantMessage?: string;
             notifyEmail?: boolean;
             notifyWhatsApp?: boolean;
+            storeId?: string;
           },
     ) =>
       this.request(`admin/merchants/${id}/reactivate`, {
