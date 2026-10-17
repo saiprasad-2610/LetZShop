@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config'],
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   webpack: (config, { dev }) => {
     if (dev && config.cache && typeof config.cache === 'object') {
       config.cache.compression = false;

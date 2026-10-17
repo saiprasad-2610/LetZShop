@@ -66,6 +66,15 @@ export class WhatsAppService {
   }
 
   /**
+   * Generates a pre-filled WhatsApp deep link for Admin -> Merchant communication.
+   */
+  public generateAdminMerchantWhatsAppMessage(phone: string, text: string): { url: string; text: string; phone: string } {
+    const clean = this.cleanPhone(phone);
+    const url = buildWhatsAppDeepLink(clean, text);
+    return { url, text, phone: clean };
+  }
+
+  /**
    * Generates a pre-filled WhatsApp link for Buyer -> Vendor when order is placed.
    */
   public generateBuyerToVendorOrderMessage(ctx: WhatsAppOrderContext): { url: string; text: string } {

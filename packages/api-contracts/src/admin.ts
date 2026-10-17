@@ -96,6 +96,16 @@ export interface AdminMerchantDetail {
   subscriptions: Array<Omit<AdminSubscription, 'tenant'>>;
   paymentHistory: AdminInvoice[];
   reportedReviewCount: number;
+  communicationHistory?: AdminCommunicationLog[];
+}
+export interface AdminCommunicationLog {
+  id: string;
+  date: string;
+  channel: string;
+  subject: string;
+  message?: string | null;
+  status: string;
+  adminName: string;
 }
 export interface AdminOrder {
   id: string;

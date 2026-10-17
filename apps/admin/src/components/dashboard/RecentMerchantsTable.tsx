@@ -67,7 +67,7 @@ export function RecentMerchantsTable({
       </div>
 
       {/* Table Body (Internally Scrollable) */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto admin-scrollbar">
         {!items || !items.length ? (
           <div className="flex h-full items-center justify-center p-6 text-center text-sm text-admin-muted">
             <p>{loading ? 'Loading merchants…' : 'No merchants yet.'}</p>

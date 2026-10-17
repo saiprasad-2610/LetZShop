@@ -8,6 +8,7 @@ import type {
   AdminOrder,
   AdminOperations,
   AdminAnalytics,
+  AdminCommunicationLog,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -483,16 +484,73 @@ export class SimplyApiClient {
       });
     },
     getMerchant: (id: string) => this.request<AdminMerchantDetail>(`admin/merchants/${id}`),
-    suspendMerchant: (id: string, reason: string) =>
+    suspendMerchant: (
+      id: string,
+      data:
+        | string
+        | {
+            reason: string;
+            internalNote?: string;
+            merchantMessage?: string;
+            notifyEmail?: boolean;
+            notifyWhatsApp?: boolean;
+            storeId?: string;
+          },
+    ) =>
       this.request(`admin/merchants/${id}/suspend`, {
         method: 'POST',
-        body: { reason },
+        body: typeof data === 'string' ? { reason: data } : data,
       }),
-    reactivateMerchant: (id: string, reason: string) =>
+    reactivateMerchant: (
+      id: string,
+      data?:
+        | string
+        | {
+            reason?: string;
+            merchantMessage?: string;
+            notifyEmail?: boolean;
+            notifyWhatsApp?: boolean;
+          },
+    ) =>
       this.request(`admin/merchants/${id}/reactivate`, {
         method: 'POST',
-        body: { reason },
+        body: typeof data === 'string' ? { reason: data } : (data || {}),
       }),
+    archiveMerchant: (
+      id: string,
+      data?: {
+        reason?: string;
+        internalNote?: string;
+        merchantMessage?: string;
+        notifyEmail?: boolean;
+        notifyWhatsApp?: boolean;
+      },
+    ) =>
+      this.request(`admin/merchants/${id}/archive`, {
+        method: 'POST',
+        body: data || {},
+      }),
+    sendMessageToMerchant: (
+      id: string,
+      data: {
+        channels: Array<'EMAIL' | 'WHATSAPP'>;
+        subject: string;
+        message: string;
+      },
+    ) =>
+      this.request<{
+        success: boolean;
+        emailSent: boolean;
+        whatsAppUrl: string | null;
+        status: string;
+      }>(`admin/merchants/${id}/message`, {
+        method: 'POST',
+        body: data,
+      }),
+    getMerchantCommunicationHistory: (id: string) =>
+      this.request<AdminCommunicationLog[]>(
+        `admin/merchants/${id}/communication-history`,
+      ),
     getCommerce: () => this.request<AdminPage<AdminOrder>>('admin/commerce'),
     getOperations: () => this.request<AdminOperations>('admin/operations'),
     retryOutbox: (id: string) =>

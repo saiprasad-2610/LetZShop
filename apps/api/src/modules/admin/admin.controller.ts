@@ -103,13 +103,9 @@ export class AdminController {
   async suspendMerchant(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body('reason') reason: string,
+    @Body() body: any,
   ) {
-    return this.adminService.suspendMerchant(
-      id,
-      user.userId,
-      reason || 'Administrative suspension',
-    );
+    return this.adminService.suspendMerchant(id, user.userId, body);
   }
 
   @Post('merchants/:id/reactivate')
@@ -117,13 +113,35 @@ export class AdminController {
   async reactivateMerchant(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body('reason') reason: string,
+    @Body() body: any,
   ) {
-    return this.adminService.reactivateMerchant(
-      id,
-      user.userId,
-      reason || 'Administrative reactivation',
-    );
+    return this.adminService.reactivateMerchant(id, user.userId, body);
+  }
+
+  @Post('merchants/:id/archive')
+  @ApiOperation({ summary: 'Archive merchant with data preservation and audit logging' })
+  async archiveMerchant(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    return this.adminService.archiveMerchant(id, user.userId, body);
+  }
+
+  @Post('merchants/:id/message')
+  @ApiOperation({ summary: 'Send email or prepare WhatsApp message to merchant' })
+  async sendMessageToMerchant(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { channels: Array<'EMAIL' | 'WHATSAPP'>; subject: string; message: string },
+  ) {
+    return this.adminService.sendMessageToMerchant(id, user.userId, body);
+  }
+
+  @Get('merchants/:id/communication-history')
+  @ApiOperation({ summary: 'Retrieve communication audit history for a merchant' })
+  async getCommunicationHistory(@Param('id') id: string) {
+    return this.adminService.getCommunicationHistory(id);
   }
 
   @Get('commerce')

@@ -44,8 +44,8 @@ export function StatusBadge({ status, category = 'auto', className = '' }: Statu
     colorClasses = 'bg-blue-950/60 text-blue-300 border-blue-800/60';
     dotColor = 'bg-blue-400';
   }
-  // Gray = refunded, inactive
-  else if (['REFUNDED', 'INACTIVE'].includes(raw)) {
+  // Gray = refunded, inactive, archived
+  else if (['REFUNDED', 'INACTIVE', 'ARCHIVED'].includes(raw)) {
     colorClasses = 'bg-slate-800/90 text-slate-400 border-slate-700';
     dotColor = 'bg-slate-500';
   }

@@ -14,6 +14,9 @@ import {
 import { PaymentsService } from '../payments/payments.service';
 import { planAvailability } from '../subscriptions/plan-policy';
 
+import { MailService } from '../notifications/mail.service';
+import { WhatsAppService } from '../notifications/whatsapp.service';
+
 @Injectable()
 export class AdminService {
   public getThemes() {
@@ -23,6 +26,8 @@ export class AdminService {
     private readonly prisma: PrismaClient,
     private readonly paymentsService: PaymentsService,
     private readonly data: AdminDataService,
+    private readonly mailService: MailService,
+    private readonly whatsAppService: WhatsAppService,
   ) {}
 
   public getOverview(range?: string, from?: string, to?: string) {
@@ -112,77 +117,333 @@ export class AdminService {
     const [reports] = await this.prisma.$queryRaw<
       Array<{ count: number }>
     >`SELECT count(DISTINCT r.review_id)::int AS count FROM review_reports r JOIN product_reviews v ON v.id=r.review_id JOIN stores s ON s.id=v.store_id WHERE s.tenant_id=${tenantId}`;
+    
+    // Fetch communication and moderation audit history
+    const commLogs = await this.prisma.auditLog.findMany({
+      where: {
+        tenantId,
+        action: {
+          in: [
+            'MERCHANT_MESSAGE_SENT',
+            'MERCHANT_SUSPENDED',
+            'MERCHANT_REACTIVATED',
+            'MERCHANT_ARCHIVED',
+          ],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const actorIds = [...new Set(commLogs.map((l) => l.actorId).filter(Boolean))] as string[];
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, fullName: true, email: true },
+        })
+      : [];
+    const actorMap = new Map(actors.map((a) => [a.id, a.fullName || a.email || 'Admin']));
+
+    const communicationHistory = commLogs.map((l) => {
+      const meta = (l.metadata as any) || {};
+      let channel = meta.channel || 'SYSTEM';
+      if (meta.notifications) {
+        const parts: string[] = [];
+        if (meta.notifications.email && meta.notifications.email !== 'Not requested') parts.push('Email');
+        if (meta.notifications.whatsapp && meta.notifications.whatsapp !== 'Not requested') parts.push('WhatsApp');
+        if (parts.length) channel = parts.join(', ');
+      }
+      return {
+        id: l.id,
+        date: l.createdAt.toISOString(),
+        channel,
+        subject: meta.subject || l.action.replace(/_/g, ' '),
+        message: meta.message || meta.merchantMessage || meta.reason || null,
+        status: meta.status || (meta.notifications?.email === 'Sent' ? 'Sent' : meta.notifications?.whatsapp ? 'Opened in WhatsApp' : 'Completed'),
+        adminName: (l.actorId && actorMap.get(l.actorId)) || 'Admin',
+      };
+    });
+
     const { invoices, ...merchant } = tenant;
     return {
       ...merchant,
       paymentHistory: invoices,
       reportedReviewCount: reports.count,
+      communicationHistory,
+    };
+  }
+
+  public async getCommunicationHistory(tenantId: string) {
+    const detail = await this.getMerchantById(tenantId);
+    return detail.communicationHistory || [];
+  }
+
+  public async sendMessageToMerchant(
+    tenantId: string,
+    actorId: string,
+    dto: {
+      channels: Array<'EMAIL' | 'WHATSAPP'>;
+      subject: string;
+      message: string;
+    },
+  ) {
+    if (!dto.subject?.trim()) throw new BadRequestException('Subject is required.');
+    if (!dto.message?.trim()) throw new BadRequestException('Message is required.');
+    if (!dto.channels?.length) throw new BadRequestException('Select at least one delivery channel (Email or WhatsApp).');
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId, deletedAt: null },
+      include: {
+        memberships: {
+          where: { role: 'SELLER_OWNER', isActive: true },
+          include: { user: true },
+        },
+      },
+    });
+    if (!tenant) throw new NotFoundException('Merchant not found.');
+    const owner = tenant.memberships[0]?.user;
+    if (!owner) throw new BadRequestException('Merchant owner contact information not found.');
+
+    let emailSent = false;
+    let emailStatus = 'Not requested';
+    let whatsAppUrl: string | null = null;
+    let whatsAppStatus = 'Not requested';
+
+    if (dto.channels.includes('EMAIL')) {
+      if (!owner.email) {
+        throw new BadRequestException('No email address available for this merchant owner.');
+      }
+      try {
+        emailSent = await this.mailService.sendAdminMerchantEmail(
+          owner.email,
+          dto.subject.trim(),
+          dto.message.trim(),
+          tenant.name,
+        );
+        emailStatus = emailSent ? 'Sent' : 'Failed to deliver';
+      } catch (err: any) {
+        emailStatus = `Failed: ${err.message || 'SMTP error'}`;
+      }
+    }
+
+    if (dto.channels.includes('WHATSAPP')) {
+      if (!owner.phone) {
+        throw new BadRequestException('No phone number available for this merchant owner.');
+      }
+      const fullText = `*${dto.subject.trim()}*\n\n${dto.message.trim()}`;
+      const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(owner.phone, fullText);
+      whatsAppUrl = wa.url;
+      whatsAppStatus = 'Opened in WhatsApp';
+    }
+
+    const primaryStatus = dto.channels.includes('EMAIL')
+      ? emailStatus
+      : whatsAppStatus;
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        tenantId,
+        action: 'MERCHANT_MESSAGE_SENT',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadata: {
+          channel: dto.channels.join(', '),
+          subject: dto.subject.trim(),
+          message: dto.message.trim(),
+          recipientEmail: owner.email,
+          recipientPhone: owner.phone,
+          status: primaryStatus,
+          emailStatus,
+          whatsAppStatus,
+          whatsAppUrl,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      emailSent,
+      whatsAppUrl,
+      status: primaryStatus,
     };
   }
 
   public async suspendMerchant(
     tenantId: string,
     actorId: string,
-    reason: string,
+    dto:
+      | {
+          reason: string;
+          internalNote?: string;
+          merchantMessage?: string;
+          notifyEmail?: boolean;
+          notifyWhatsApp?: boolean;
+          storeId?: string;
+        }
+      | string,
   ) {
-    if (!reason?.trim() || reason.length > 2000)
+    const reasonText = typeof dto === 'string' ? dto : dto.reason || 'Administrative suspension';
+    const internalNote = typeof dto === 'object' ? dto.internalNote : undefined;
+    const merchantMessage = typeof dto === 'object' ? dto.merchantMessage : undefined;
+    const notifyEmail = typeof dto === 'object' ? Boolean(dto.notifyEmail) : false;
+    const notifyWhatsApp = typeof dto === 'object' ? Boolean(dto.notifyWhatsApp) : false;
+    const targetStoreId = typeof dto === 'object' ? dto.storeId : undefined;
+
+    if (!reasonText?.trim() || reasonText.length > 2000)
       throw new BadRequestException('An audit reason is required.');
-    return this.prisma.$transaction(async (tx) => {
+
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
       const tenant = await tx.tenant.findUnique({
         where: { id: tenantId },
         include: {
           stores: {
             where: { deletedAt: null },
-            select: { id: true, status: true, isPubliclyAccessible: true },
+            select: { id: true, name: true, status: true, isPubliclyAccessible: true },
+          },
+          memberships: {
+            where: { role: 'SELLER_OWNER', isActive: true },
+            include: { user: true },
           },
         },
       });
       if (!tenant || tenant.deletedAt)
         throw new NotFoundException('Merchant not found.');
-      if (tenant.status === 'SUSPENDED')
+      if (tenant.status === 'SUSPENDED' && !targetStoreId)
         throw new BadRequestException('Merchant is already suspended.');
-      const updated = await tx.tenant.update({
-        where: { id: tenantId },
-        data: { status: 'SUSPENDED' },
-      });
-      await tx.store.updateMany({
-        where: { tenantId, deletedAt: null, status: { not: 'ARCHIVED' } },
-        data: { status: 'SUSPENDED', isPubliclyAccessible: false },
-      });
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          actorType: 'ADMIN',
-          tenantId,
-          action: 'MERCHANT_SUSPENDED',
-          entityType: 'Tenant',
-          entityId: tenantId,
-          metadata: {
-            reason: reason.trim(),
-            previousStatus: tenant.status,
-            stores: tenant.stores,
+
+      let updatedTenant = tenant;
+      if (!targetStoreId) {
+        updatedTenant = await tx.tenant.update({
+          where: { id: tenantId },
+          data: { status: 'SUSPENDED' },
+          include: {
+            stores: { where: { deletedAt: null }, select: { id: true, name: true, status: true, isPubliclyAccessible: true } },
+            memberships: { where: { role: 'SELLER_OWNER', isActive: true }, include: { user: true } },
           },
-        },
-      });
-      return updated;
+        });
+        await tx.store.updateMany({
+          where: { tenantId, deletedAt: null, status: { not: 'ARCHIVED' } },
+          data: { status: 'SUSPENDED', isPubliclyAccessible: false },
+        });
+      } else {
+        await tx.store.update({
+          where: { id: targetStoreId },
+          data: { status: 'SUSPENDED', isPubliclyAccessible: false },
+        });
+      }
+
+      const owner = tenant.memberships[0]?.user;
+      return { tenant: updatedTenant, owner };
     });
+
+    // Handle notifications outside transaction so failure doesn't rollback suspension
+    let emailSent = false;
+    let emailStatus = 'Not requested';
+    let whatsAppUrl: string | null = null;
+    let whatsAppStatus = 'Not requested';
+
+    const defaultMsg =
+      `Hello ${result.tenant.name},\n\n` +
+      `Your LetzShop store access has temporarily been suspended.\n\n` +
+      `Reason:\n${reasonText}\n\n` +
+      (merchantMessage ? `Additional Information:\n${merchantMessage}\n\n` : '') +
+      `Please contact the LetzShop team if you require assistance.\n\n` +
+      `— LetzShop Support`;
+
+    const finalNoticeText = merchantMessage?.trim() || defaultMsg;
+
+    if (notifyEmail && result.owner?.email) {
+      try {
+        emailSent = await this.mailService.sendAdminMerchantEmail(
+          result.owner.email,
+          `Store Suspension Notice — ${result.tenant.name}`,
+          finalNoticeText,
+          result.tenant.name,
+        );
+        emailStatus = emailSent ? 'Sent' : 'Failed to deliver';
+      } catch (err: any) {
+        emailStatus = `Failed: ${err.message || 'SMTP error'}`;
+      }
+    }
+
+    if (notifyWhatsApp && result.owner?.phone) {
+      const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(
+        result.owner.phone,
+        `*Store Suspension Notice — ${result.tenant.name}*\n\n${finalNoticeText}`,
+      );
+      whatsAppUrl = wa.url;
+      whatsAppStatus = 'Opened in WhatsApp';
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        tenantId,
+        storeId: targetStoreId || null,
+        action: 'MERCHANT_SUSPENDED',
+        entityType: targetStoreId ? 'Store' : 'Tenant',
+        entityId: targetStoreId || tenantId,
+        metadata: {
+          reason: reasonText.trim(),
+          internalNote: internalNote?.trim() || null,
+          merchantMessage: finalNoticeText,
+          previousStatus: result.tenant.status,
+          stores: result.tenant.stores,
+          subject: 'Store Suspension Notification',
+          status: 'Suspended',
+          notifications: {
+            email: emailStatus,
+            whatsapp: whatsAppStatus,
+          },
+          whatsAppUrl,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      merchant: result.tenant,
+      emailSent,
+      whatsAppUrl,
+      status: 'Suspended',
+    };
   }
 
   public async reactivateMerchant(
     tenantId: string,
     actorId: string,
-    reason: string,
+    dto?:
+      | {
+          reason?: string;
+          merchantMessage?: string;
+          notifyEmail?: boolean;
+          notifyWhatsApp?: boolean;
+        }
+      | string,
   ) {
-    if (!reason?.trim() || reason.length > 2000)
-      throw new BadRequestException('An audit reason is required.');
-    return this.prisma.$transaction(async (tx) => {
+    const reasonText =
+      typeof dto === 'string'
+        ? dto
+        : dto?.reason || 'Administrative reactivation';
+    const merchantMessage = typeof dto === 'object' ? dto?.merchantMessage : undefined;
+    const notifyEmail = typeof dto === 'object' ? Boolean(dto?.notifyEmail) : false;
+    const notifyWhatsApp = typeof dto === 'object' ? Boolean(dto?.notifyWhatsApp) : false;
+
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
       const tenant = await tx.tenant.findUnique({
         where: { id: tenantId },
         include: {
           stores: { where: { deletedAt: null } },
           subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 },
+          memberships: {
+            where: { role: 'SELLER_OWNER', isActive: true },
+            include: { user: true },
+          },
         },
       });
       if (!tenant || tenant.deletedAt)
@@ -220,23 +481,195 @@ export class AdminService {
         where: { id: tenantId },
         data: { status: 'ACTIVE' },
       });
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          actorType: 'ADMIN',
-          tenantId,
-          action: 'MERCHANT_REACTIVATED',
-          entityType: 'Tenant',
-          entityId: tenantId,
-          metadata: {
-            reason: reason.trim(),
-            previousStatus: tenant.status,
-            paidSubscription: paid,
+      const owner = tenant.memberships[0]?.user;
+      return { tenant: updated, owner, paid };
+    });
+
+    let emailSent = false;
+    let emailStatus = 'Not requested';
+    let whatsAppUrl: string | null = null;
+    let whatsAppStatus = 'Not requested';
+
+    const defaultMsg =
+      `Hello ${result.tenant.name},\n\n` +
+      `Your LetzShop store access has been reactivated successfully.\n\n` +
+      (merchantMessage ? `Additional Information:\n${merchantMessage}\n\n` : '') +
+      `Thank you for selling with LetzShop.\n\n` +
+      `— LetzShop Support`;
+
+    const finalNoticeText = merchantMessage?.trim() || defaultMsg;
+
+    if (notifyEmail && result.owner?.email) {
+      try {
+        emailSent = await this.mailService.sendAdminMerchantEmail(
+          result.owner.email,
+          `Store Reactivated — ${result.tenant.name}`,
+          finalNoticeText,
+          result.tenant.name,
+        );
+        emailStatus = emailSent ? 'Sent' : 'Failed to deliver';
+      } catch (err: any) {
+        emailStatus = `Failed: ${err.message || 'SMTP error'}`;
+      }
+    }
+
+    if (notifyWhatsApp && result.owner?.phone) {
+      const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(
+        result.owner.phone,
+        `*Store Reactivated — ${result.tenant.name}*\n\n${finalNoticeText}`,
+      );
+      whatsAppUrl = wa.url;
+      whatsAppStatus = 'Opened in WhatsApp';
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        tenantId,
+        action: 'MERCHANT_REACTIVATED',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadata: {
+          reason: reasonText.trim(),
+          merchantMessage: finalNoticeText,
+          previousStatus: 'SUSPENDED',
+          paidSubscription: result.paid,
+          subject: 'Store Reactivation Notification',
+          status: 'Reactivated',
+          notifications: {
+            email: emailStatus,
+            whatsapp: whatsAppStatus,
+          },
+          whatsAppUrl,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      merchant: result.tenant,
+      emailSent,
+      whatsAppUrl,
+      status: 'Reactivated',
+    };
+  }
+
+  public async archiveMerchant(
+    tenantId: string,
+    actorId: string,
+    dto?: {
+      reason?: string;
+      internalNote?: string;
+      merchantMessage?: string;
+      notifyEmail?: boolean;
+      notifyWhatsApp?: boolean;
+    },
+  ) {
+    const reasonText = dto?.reason?.trim() || 'Administrative archival';
+    const internalNote = dto?.internalNote?.trim();
+    const merchantMessage = dto?.merchantMessage?.trim();
+    const notifyEmail = Boolean(dto?.notifyEmail);
+    const notifyWhatsApp = Boolean(dto?.notifyWhatsApp);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
+      const tenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        include: {
+          stores: { where: { deletedAt: null } },
+          memberships: {
+            where: { role: 'SELLER_OWNER', isActive: true },
+            include: { user: true },
           },
         },
       });
-      return updated;
+      if (!tenant || tenant.deletedAt)
+        throw new NotFoundException('Merchant not found.');
+      if (tenant.status === 'ARCHIVED')
+        throw new BadRequestException('Merchant is already archived.');
+
+      // Update tenant status to ARCHIVED while strictly preserving orders, payments, reviews
+      const updated = await tx.tenant.update({
+        where: { id: tenantId },
+        data: { status: 'ARCHIVED' },
+      });
+      await tx.store.updateMany({
+        where: { tenantId, deletedAt: null },
+        data: { status: 'ARCHIVED', isPubliclyAccessible: false },
+      });
+
+      const owner = tenant.memberships[0]?.user;
+      return { tenant: updated, owner };
     });
+
+    let emailSent = false;
+    let emailStatus = 'Not requested';
+    let whatsAppUrl: string | null = null;
+    let whatsAppStatus = 'Not requested';
+
+    const noticeText =
+      merchantMessage ||
+      `Hello ${result.tenant.name},\n\n` +
+        `Your LetzShop merchant account has been archived. All your past transaction records, orders, and financial history have been preserved.\n\n` +
+        `Reason:\n${reasonText}\n\n` +
+        `Please reach out to LetzShop Support for any questions.\n\n` +
+        `— LetzShop Support`;
+
+    if (notifyEmail && result.owner?.email) {
+      try {
+        emailSent = await this.mailService.sendAdminMerchantEmail(
+          result.owner.email,
+          `Account Archival Notice — ${result.tenant.name}`,
+          noticeText,
+          result.tenant.name,
+        );
+        emailStatus = emailSent ? 'Sent' : 'Failed to deliver';
+      } catch (err: any) {
+        emailStatus = `Failed: ${err.message || 'SMTP error'}`;
+      }
+    }
+
+    if (notifyWhatsApp && result.owner?.phone) {
+      const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(
+        result.owner.phone,
+        `*Account Archival Notice — ${result.tenant.name}*\n\n${noticeText}`,
+      );
+      whatsAppUrl = wa.url;
+      whatsAppStatus = 'Opened in WhatsApp';
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        tenantId,
+        action: 'MERCHANT_ARCHIVED',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadata: {
+          reason: reasonText,
+          internalNote: internalNote || null,
+          merchantMessage: noticeText,
+          previousStatus: result.tenant.status,
+          subject: 'Account Archival Notification',
+          status: 'Archived',
+          notifications: {
+            email: emailStatus,
+            whatsapp: whatsAppStatus,
+          },
+          whatsAppUrl,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      merchant: result.tenant,
+      emailSent,
+      whatsAppUrl,
+      status: 'Archived',
+    };
   }
 
   public getCommerceMonitoring(query: AdminQuery = {}) {

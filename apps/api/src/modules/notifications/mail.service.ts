@@ -112,6 +112,32 @@ export class MailService {
   }
 
   /**
+   * Platform Admin email notification to Merchant
+   */
+  public async sendAdminMerchantEmail(
+    to: string,
+    subject: string,
+    messageText: string,
+    merchantName?: string,
+  ): Promise<boolean> {
+    const formattedHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 32px;">
+          <h2 style="color: #0f172a; margin-top: 0;">LetzShop Platform Notice</h2>
+          <div style="color: #475569; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${messageText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">This email was sent by the LetzShop Platform Administration team regarding ${merchantName || 'your merchant account'}.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, formattedHtml);
+  }
+
+  /**
    * Order Placed Email to Buyer (Order Confirmation)
    */
   public async sendOrderPlacedEmail(ctx: OrderEmailContext): Promise<boolean> {

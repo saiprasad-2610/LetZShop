@@ -164,47 +164,82 @@ export class AdminDataService {
       );
     }
     if (q.status && q.status !== 'ALL') {
-      if (q.status === 'SUSPENDED')
+      const s = q.status.toUpperCase();
+      if (s === 'SUSPENDED') {
         conditions.push(
           Prisma.sql`(t.status='SUSPENDED' OR EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status='SUSPENDED'))`,
         );
-      else if (q.status === 'LIVE' || q.status === 'TRIAL')
+      } else if (s === 'LIVE') {
         conditions.push(
-          Prisma.sql`EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status::text=${q.status === 'LIVE' ? 'LIVE' : 'PRIVATE_PREVIEW'})`,
+          Prisma.sql`EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status='LIVE')`,
         );
-      else if (q.status === 'SUBSCRIBED')
+      } else if (s === 'PRIVATE_PREVIEW' || s === 'TRIAL') {
+        conditions.push(
+          Prisma.sql`EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status='PRIVATE_PREVIEW')`,
+        );
+      } else if (s === 'DRAFT') {
+        conditions.push(
+          Prisma.sql`EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status='DRAFT')`,
+        );
+      } else if (s === 'ARCHIVED') {
+        conditions.push(
+          Prisma.sql`(t.status='ARCHIVED' OR EXISTS(SELECT 1 FROM stores st WHERE st.tenant_id=t.id AND st.deleted_at IS NULL AND st.status='ARCHIVED'))`,
+        );
+      } else if (s === 'SUBSCRIBED') {
         conditions.push(
           Prisma.sql`sub.status='ACTIVE' AND sub.current_period_end > ${new Date()}`,
         );
-      else if (q.status === 'EXPIRED')
+      } else if (s === 'EXPIRED') {
         conditions.push(
           Prisma.sql`(sub.status IN ('EXPIRED','PAST_DUE') OR sub.current_period_end <= ${new Date()})`,
         );
-      else throw new BadRequestException('Invalid store status filter.');
+      } else {
+        throw new BadRequestException('Invalid store status filter.');
+      }
     }
-    if (q.planId) conditions.push(Prisma.sql`sub.plan_id=${q.planId}`);
+    if (q.planId && q.planId !== 'ALL') {
+      if (q.planId === 'NONE' || q.planId === 'NO_SUBSCRIPTION') {
+        conditions.push(Prisma.sql`sub.plan_id IS NULL`);
+      } else {
+        conditions.push(
+          Prisma.sql`(sub.plan_id=${q.planId} OR EXISTS(SELECT 1 FROM subscription_plans sp WHERE sp.id=sub.plan_id AND (sp.code ILIKE ${q.planId} OR sp.name ILIKE ${q.planId})))`,
+        );
+      }
+    }
     if (q.subscriptionStatus && q.subscriptionStatus !== 'ALL') {
-      if (
-        ![
+      const subStatus = q.subscriptionStatus.toUpperCase();
+      if (subStatus === 'NONE' || subStatus === 'NO_SUBSCRIPTION') {
+        conditions.push(Prisma.sql`sub.status IS NULL`);
+      } else if (
+        [
           'ACTIVE',
           'TRIALING',
           'PAST_DUE',
           'EXPIRED',
           'CANCELED',
           'UNPAID',
-        ].includes(q.subscriptionStatus)
-      )
+        ].includes(subStatus)
+      ) {
+        conditions.push(Prisma.sql`sub.status::text=${subStatus}`);
+      } else {
         throw new BadRequestException('Invalid subscription status.');
-      conditions.push(Prisma.sql`sub.status::text=${q.subscriptionStatus}`);
+      }
     }
     const base = Prisma.sql`FROM tenants t LEFT JOIN LATERAL(SELECT status,plan_id,current_period_end FROM subscriptions WHERE tenant_id=t.id ORDER BY created_at DESC LIMIT 1) sub ON true WHERE ${Prisma.join(conditions, ' AND ')}`;
-    const direction = q.sort === 'oldest' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+    let orderBySql = Prisma.sql`t.created_at DESC, t.id ASC`;
+    if (q.sort === 'oldest') {
+      orderBySql = Prisma.sql`t.created_at ASC, t.id ASC`;
+    } else if (q.sort === 'alpha_asc' || q.sort === 'name_asc') {
+      orderBySql = Prisma.sql`t.name ASC, t.id ASC`;
+    } else if (q.sort === 'alpha_desc' || q.sort === 'name_desc') {
+      orderBySql = Prisma.sql`t.name DESC, t.id ASC`;
+    }
     const [[count], ids] = await Promise.all([
       this.db.$queryRaw<Array<{ total: number }>>(
         Prisma.sql`SELECT count(*)::int AS total ${base}`,
       ),
       this.db.$queryRaw<Array<{ id: string }>>(
-        Prisma.sql`SELECT t.id ${base} ORDER BY t.created_at ${direction},t.id ASC LIMIT ${p.pageSize} OFFSET ${p.skip}`,
+        Prisma.sql`SELECT t.id ${base} ORDER BY ${orderBySql} LIMIT ${p.pageSize} OFFSET ${p.skip}`,
       ),
     ]);
     const rows = await this.db.tenant.findMany({
