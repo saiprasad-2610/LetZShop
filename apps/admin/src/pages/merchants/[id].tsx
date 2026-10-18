@@ -1,4 +1,9 @@
-import type { AdminMerchantDetail, AdminCommunicationLog, AdminStore } from '@simply/api-contracts';
+import type {
+  AdminMerchantDetail,
+  AdminCommunicationLog,
+  AdminStore,
+  AdminMerchantDocument,
+} from '@simply/api-contracts';
 import React, { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -7,6 +12,7 @@ import {
   ExternalLink,
   Mail,
   ShieldAlert,
+  ShieldCheck,
   CheckCircle2,
   Archive,
   ChevronDown,
@@ -25,6 +31,11 @@ import {
   Download,
   AlertCircle,
   Eye,
+  FileCheck,
+  X,
+  Check,
+  AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { AdminLayout } from '../../components/AdminLayout';
 import { Feedback, useAdminQuery } from '../../components/AdminUI';
@@ -35,6 +46,30 @@ import { ReactivateMerchantModal } from '../../components/merchants/ReactivateMe
 import { ArchiveMerchantModal } from '../../components/merchants/ArchiveMerchantModal';
 import { getStorefrontUrl } from '../../utils/config';
 import { formatPaise } from '@simply/ui';
+import { useAdminAuth } from '../../context/AdminAuthContext';
+
+function humanBusinessType(type?: string | null): string {
+  switch (type) {
+    case 'SOLE_PROPRIETORSHIP': return 'Sole Proprietorship';
+    case 'PARTNERSHIP': return 'Partnership Firm';
+    case 'LLP': return 'LLP';
+    case 'PRIVATE_LIMITED': return 'Private Limited';
+    case 'PUBLIC_LIMITED': return 'Public Limited';
+    case 'OTHER': return 'Other';
+    default: return type || 'Not Specified';
+  }
+}
+
+function humanDocType(type: string): string {
+  switch (type) {
+    case 'PAN': return 'Business / Entity PAN';
+    case 'OWNER_ID': return 'Owner / Signatory Identity';
+    case 'UDYAM': return 'Udyam Registration';
+    case 'GST_CERTIFICATE': return 'GST Registration Certificate';
+    case 'BUSINESS_REGISTRATION': return 'Business Registration / Deed / Incorporation Proof';
+    default: return type;
+  }
+}
 
 export default function MerchantDetailPage() {
   const router = useRouter();
@@ -97,6 +132,114 @@ export default function MerchantDetailPage() {
     merchantId ? `admin/merchants/${merchantId}/moderation-summary` : '',
     { reviewPage: modRevPage, statusPage: modStatusPage, pageSize },
   );
+
+  const { api } = useAdminAuth();
+
+  // Document preview and review modal state
+  const [selectedDocForReview, setSelectedDocForReview] = useState<AdminMerchantDocument | null>(null);
+  const [docBlobUrl, setDocBlobUrl] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectionReasonChoice, setRejectionReasonChoice] = useState('Document unclear');
+  const [rejectionReasonCustom, setRejectionReasonCustom] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  const handleViewDocument = async (doc: AdminMerchantDocument) => {
+    setSelectedDocForReview(doc);
+    setIsRejecting(false);
+    setRejectionReasonChoice('Document unclear');
+    setRejectionReasonCustom('');
+    setDocLoading(true);
+    try {
+      const token = localStorage.getItem('simply_admin_token') || '';
+      const res = await fetch(`/api/admin/merchants/${merchantId}/documents/${doc.id}/view`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error('Could not retrieve secure document stream.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setDocBlobUrl(url);
+    } catch (err: any) {
+      alert(err.message || 'Error loading document');
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
+  const handleCloseDocModal = () => {
+    if (docBlobUrl) {
+      URL.revokeObjectURL(docBlobUrl);
+    }
+    setSelectedDocForReview(null);
+    setDocBlobUrl(null);
+    setIsRejecting(false);
+  };
+
+  const handleDownloadDoc = async (doc: AdminMerchantDocument) => {
+    try {
+      const token = localStorage.getItem('simply_admin_token') || '';
+      const res = await fetch(`/api/admin/merchants/${merchantId}/documents/${doc.id}/download`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error('Could not download document.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.originalFilename || `${doc.type.toLowerCase()}-document`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message || 'Failed to download document');
+    }
+  };
+
+  const handleVerifyDoc = async () => {
+    if (!selectedDocForReview) return;
+    setReviewSubmitting(true);
+    try {
+      await api.admin.reviewMerchantDocument(merchantId, selectedDocForReview.id, {
+        status: 'VERIFIED',
+      });
+      handleCloseDocModal();
+      reloadAll();
+    } catch (err: any) {
+      alert(err.message || 'Failed to verify document');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleRejectDoc = async () => {
+    if (!selectedDocForReview) return;
+    const reason =
+      rejectionReasonChoice === 'Other'
+        ? rejectionReasonCustom.trim() || 'Other reason'
+        : rejectionReasonChoice;
+    if (!reason) {
+      alert('Please specify a rejection reason');
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await api.admin.reviewMerchantDocument(merchantId, selectedDocForReview.id, {
+        status: 'REJECTED',
+        rejectionReason: reason,
+      });
+      handleCloseDocModal();
+      reloadAll();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reject document');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const reloadAll = () => {
     reload();
@@ -547,6 +690,217 @@ export default function MerchantDetailPage() {
                     No active subscription recorded for this merchant.
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* ============================================================== */}
+            {/* BUSINESS VERIFICATION (Full-Width Responsive Section)          */}
+            {/* ============================================================== */}
+            <div className="admin-panel p-5 space-y-4 border border-admin-border shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-admin-border/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-admin-accent/10 border border-admin-accent/20">
+                    <ShieldCheck className="h-5 w-5 text-admin-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-admin-text">Business Verification</h2>
+                    <p className="text-xs text-admin-muted mt-0.5">
+                      Entity registration profile, compliance documents, and review actions
+                    </p>
+                  </div>
+                </div>
+
+                {/* Overall Verification Status */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-admin-muted font-medium">Verification Status:</span>
+                  {m.businessVerificationStatus === 'VERIFIED' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Verified
+                    </span>
+                  ) : m.businessVerificationStatus === 'PENDING_REVIEW' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                      <Clock className="w-3.5 h-3.5" />
+                      Pending Review
+                    </span>
+                  ) : m.businessVerificationStatus === 'NEEDS_CHANGES' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-500 border border-red-500/30">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Needs Changes
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-zinc-500/15 text-zinc-400 border border-zinc-500/30">
+                      Incomplete
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Legal Entity Overview Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-admin-raised/40 p-4 rounded-2xl border border-admin-border text-xs">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-admin-muted block">Business Type</span>
+                  <span className="font-bold text-admin-text block mt-0.5 text-sm">
+                    {m.businessType ? humanBusinessType(m.businessType) : 'Not Specified'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-admin-muted block">GST Registered</span>
+                  <span className="font-bold text-admin-text block mt-0.5 text-sm">
+                    {m.gstRegistered ? 'Yes' : 'No'}
+                  </span>
+                  {m.gstin && (
+                    <span className="text-[11px] font-mono text-admin-muted block mt-0.5">
+                      GSTIN: {m.gstin}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-admin-muted block">Business PAN</span>
+                  <span className="font-mono font-bold text-admin-text block mt-0.5 text-sm">
+                    {m.panNumberMasked || '—'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-admin-muted block">Udyam Registration</span>
+                  <span className="font-mono font-bold text-admin-text block mt-0.5 text-sm">
+                    {m.udyamNumber || '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Documents Table */}
+              <div className="overflow-x-auto admin-scrollbar border border-admin-border rounded-2xl">
+                <table className="w-full text-left text-xs divide-y divide-admin-border">
+                  <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="px-4 py-3">Document</th>
+                      <th className="px-4 py-3">Document Number</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Last Updated</th>
+                      <th className="px-4 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-admin-border/60 bg-admin-surface">
+                    {/* Render requirements and matching documents */}
+                    {(m.verification?.requirements && m.verification.requirements.length > 0
+                      ? m.verification.requirements
+                      : [
+                          { type: 'PAN', name: 'PAN', required: true },
+                          { type: 'OWNER_ID', name: 'Owner Identity', required: true },
+                          { type: 'UDYAM', name: 'Udyam Registration', required: false },
+                          { type: 'GST_CERTIFICATE', name: 'GST Certificate', required: Boolean(m.gstRegistered) },
+                        ]
+                    ).map((req) => {
+                      const doc = m.verification?.documents?.find(
+                        (d) => d.type === req.type && d.isCurrent,
+                      );
+
+                      return (
+                        <tr key={req.type} className="hover:bg-admin-raised/40 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-admin-text block">
+                              {humanDocType(req.type)}
+                            </span>
+                            <span className="text-[10px] text-admin-muted block mt-0.5">
+                              {req.required ? (
+                                <strong className="text-amber-500 font-semibold">Mandatory</strong>
+                              ) : (
+                                'Optional'
+                              )}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3 font-mono">
+                            {doc?.documentNumberMasked ? (
+                              <span className="font-bold text-admin-text">
+                                {doc.documentNumberMasked}
+                              </span>
+                            ) : req.type === 'PAN' && m.panNumberMasked ? (
+                              <span className="text-admin-secondary">{m.panNumberMasked}</span>
+                            ) : req.type === 'UDYAM' && m.udyamNumber ? (
+                              <span className="text-admin-secondary">{m.udyamNumber}</span>
+                            ) : req.type === 'GST_CERTIFICATE' && m.gstin ? (
+                              <span className="text-admin-secondary">{m.gstin}</span>
+                            ) : (
+                              <span className="text-admin-muted">—</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            {!doc ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                                Not Uploaded
+                              </span>
+                            ) : doc.status === 'VERIFIED' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                                <Check className="w-3 h-3" />
+                                Verified
+                              </span>
+                            ) : doc.status === 'PENDING_REVIEW' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                <Clock className="w-3 h-3" />
+                                Pending Review
+                              </span>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-500 border border-red-500/30">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Rejected
+                                </span>
+                                {doc.rejectionReason && (
+                                  <span className="block text-[10px] text-red-400 truncate max-w-xs" title={doc.rejectionReason}>
+                                    Reason: {doc.rejectionReason}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3 text-admin-secondary">
+                            {doc?.updatedAt ? (
+                              new Date(doc.updatedAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            ) : (
+                              <span className="text-admin-muted">—</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            {doc ? (
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDocument(doc)}
+                                  className="px-3 py-1 text-xs font-semibold rounded-xl bg-admin-raised hover:bg-admin-surface text-admin-secondary hover:text-admin-accent border border-admin-border hover:border-admin-accent/40 transition cursor-pointer inline-flex items-center gap-1"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>{doc.status === 'PENDING_REVIEW' ? 'Review' : 'View'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadDoc(doc)}
+                                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text hover:bg-admin-raised transition cursor-pointer"
+                                  title="Download securely"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-admin-muted text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -1316,6 +1670,186 @@ export default function MerchantDetailPage() {
           onClose={() => setArchiveOpen(false)}
           onSuccess={() => reloadAll()}
         />
+      )}
+
+      {/* ============================================================== */}
+      {/* SECURE DOCUMENT PREVIEW & REVIEW MODAL                         */}
+      {/* ============================================================== */}
+      {selectedDocForReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-admin-overlay backdrop-blur-sm animate-in fade-in">
+          <div className="bg-admin-surface border border-admin-border rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-admin-border flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-base text-admin-text">
+                    {humanDocType(selectedDocForReview.type)}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-admin-raised border border-admin-border text-admin-secondary">
+                    {selectedDocForReview.status}
+                  </span>
+                </div>
+                <p className="text-xs text-admin-muted mt-0.5">
+                  Merchant: <strong className="text-admin-text">{m?.name}</strong> · ID:{' '}
+                  <span className="font-mono text-[11px]">{selectedDocForReview.documentNumberMasked || 'N/A'}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseDocModal}
+                className="p-1.5 rounded-xl text-admin-muted hover:text-admin-text hover:bg-admin-raised"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Document Details Metadata Bar */}
+            <div className="px-5 py-2.5 bg-admin-raised/40 border-b border-admin-border flex flex-wrap items-center justify-between gap-3 text-xs text-admin-muted">
+              <div className="flex flex-wrap items-center gap-4">
+                <span>
+                  Filename: <strong className="text-admin-text font-mono text-[11px]">{selectedDocForReview.originalFilename}</strong>
+                </span>
+                <span>
+                  Size: <strong className="text-admin-text">{Math.round(selectedDocForReview.fileSizeBytes / 1024)} KB</strong>
+                </span>
+                <span>
+                  Format: <strong className="text-admin-text uppercase">{selectedDocForReview.mimeType.split('/')[1] || 'FILE'}</strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDownloadDoc(selectedDocForReview)}
+                className="inline-flex items-center gap-1.5 text-xs text-admin-accent hover:underline font-semibold"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Securely</span>
+              </button>
+            </div>
+
+            {/* Modal Body / Stream Preview */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {docLoading ? (
+                <div className="h-80 flex flex-col items-center justify-center gap-3 text-admin-muted text-xs">
+                  <span className="w-8 h-8 border-2 border-admin-accent border-t-transparent rounded-full animate-spin" />
+                  <span>Loading secure document stream...</span>
+                </div>
+              ) : docBlobUrl ? (
+                <div className="rounded-2xl border border-admin-border bg-admin-bg p-2 overflow-hidden flex items-center justify-center min-h-[380px]">
+                  {selectedDocForReview.mimeType === 'application/pdf' ? (
+                    <iframe
+                      src={docBlobUrl}
+                      title={selectedDocForReview.originalFilename}
+                      className="w-full h-[450px] rounded-xl border border-admin-border/50"
+                    />
+                  ) : (
+                    <img
+                      src={docBlobUrl}
+                      alt={selectedDocForReview.originalFilename}
+                      className="max-h-[450px] w-auto object-contain mx-auto rounded-xl"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="p-10 text-center text-xs text-admin-muted">
+                  Document could not be previewed inline. Please download securely.
+                </div>
+              )}
+
+              {/* Rejection Reason Form */}
+              {isRejecting && (
+                <div className="p-4 rounded-2xl bg-admin-danger-soft border border-admin-border space-y-3 animate-in fade-in">
+                  <div className="flex items-center gap-2 text-admin-danger font-bold text-xs">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Specify Reason for Rejection / Changes Requested</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
+                      Reason Category
+                    </label>
+                    <select
+                      value={rejectionReasonChoice}
+                      onChange={(e) => setRejectionReasonChoice(e.target.value)}
+                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text"
+                    >
+                      <option value="Document unclear">Document unclear / blurry</option>
+                      <option value="Expired document">Expired document</option>
+                      <option value="Name mismatch">Legal name mismatch with merchant profile</option>
+                      <option value="Incorrect document">Incorrect document type uploaded</option>
+                      <option value="Incomplete document">Incomplete document / missing pages</option>
+                      <option value="Other">Other reason (specify below)</option>
+                    </select>
+                  </div>
+
+                  {rejectionReasonChoice === 'Other' && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
+                        Detailed Note for Merchant
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={rejectionReasonCustom}
+                        onChange={(e) => setRejectionReasonCustom(e.target.value)}
+                        placeholder="Provide clear guidance on what the merchant needs to provide"
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="p-4 bg-admin-raised/40 border-t border-admin-border flex items-center justify-between gap-3">
+              <span className="text-[11px] text-admin-muted">
+                Audit: Actions recorded with timestamp & administrator identity.
+              </span>
+
+              <div className="flex items-center gap-2">
+                {isRejecting ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={reviewSubmitting}
+                      onClick={() => setIsRejecting(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-admin-secondary hover:bg-admin-raised"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewSubmitting}
+                      onClick={handleRejectDoc}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-xs"
+                    >
+                      {reviewSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={reviewSubmitting}
+                      onClick={() => setIsRejecting(true)}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-admin-surface hover:bg-admin-danger-soft text-admin-muted hover:text-admin-danger border border-admin-border"
+                    >
+                      Reject / Request Changes
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewSubmitting}
+                      onClick={handleVerifyDoc}
+                      className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{reviewSubmitting ? 'Verifying...' : 'Verify Document'}</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   );

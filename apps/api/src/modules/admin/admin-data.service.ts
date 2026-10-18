@@ -382,12 +382,23 @@ export class AdminDataService {
   }
   async plans() {
     const [plans, counts] = await Promise.all([
-      this.db.plan.findMany({ orderBy: { pricePaise: 'asc' } }),
+      this.db.plan.findMany(),
       this.db.$queryRaw<
         Array<{ planId: string; merchants: number; active: number }>
       >`SELECT plan_id AS "planId",count(DISTINCT tenant_id)::int AS merchants,count(DISTINCT tenant_id) FILTER(WHERE status='ACTIVE' AND current_period_end > ${new Date()})::int AS active FROM subscriptions GROUP BY plan_id`,
     ]);
-    return plans.map((p) => ({
+
+    // Plans with numeric price sort ascending by pricePaise.
+    // Plans without a fixed numeric price (0/contact) sort LAST.
+    const sortedPlans = [...plans].sort((a, b) => {
+      const aIsCustom = a.pricePaise <= 0 || a.code === 'CUSTOM';
+      const bIsCustom = b.pricePaise <= 0 || b.code === 'CUSTOM';
+      if (aIsCustom && !bIsCustom) return 1;
+      if (!aIsCustom && bIsCustom) return -1;
+      return a.pricePaise - b.pricePaise;
+    });
+
+    return sortedPlans.map((p) => ({
       ...p,
       ...planAvailability(p),
       merchantCount: counts.find((c) => c.planId === p.id)?.merchants || 0,
@@ -395,6 +406,42 @@ export class AdminDataService {
         counts.find((c) => c.planId === p.id)?.active || 0,
     }));
   }
+
+  async subscriptionKpis() {
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [activeSubscriptions, paidInvoices, expiringSoon, failedInvoices, pastDueSubscriptions] =
+      await Promise.all([
+        this.db.subscription.count({
+          where: { status: 'ACTIVE' },
+        }),
+        this.db.subscriptionInvoice.aggregate({
+          where: { status: 'PAID' },
+          _sum: { amountPaise: true },
+        }),
+        this.db.subscription.count({
+          where: {
+            status: 'ACTIVE',
+            currentPeriodEnd: { lte: sevenDaysFromNow },
+          },
+        }),
+        this.db.subscriptionInvoice.count({
+          where: { status: { in: ['FAILED', 'UNPAID'] } },
+        }),
+        this.db.subscription.count({
+          where: { status: 'PAST_DUE' },
+        }),
+      ]);
+
+    return {
+      activeSubscriptions,
+      paidRevenuePaise: paidInvoices._sum.amountPaise || 0,
+      expiringSoon,
+      failedPayments: failedInvoices + pastDueSubscriptions,
+    };
+  }
+
   async subscriptions(q: AdminQuery = {}) {
     const p = paging(q);
     const where: Prisma.SubscriptionWhereInput = {};
@@ -407,6 +454,13 @@ export class AdminDataService {
     if (q.planId && q.planId !== 'ALL') {
       where.planId = q.planId;
     }
+    if (q.range === 'EXPIRING_SOON') {
+      const now = new Date();
+      const next7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      where.currentPeriodEnd = { gte: now, lte: next7Days };
+    } else if (q.range === 'EXPIRED') {
+      where.currentPeriodEnd = { lt: new Date() };
+    }
     if (q.search?.trim()) {
       const term = q.search.trim();
       where.OR = [
@@ -417,13 +471,22 @@ export class AdminDataService {
       ];
     }
 
+    let orderBy: Prisma.SubscriptionOrderByWithRelationInput = { createdAt: 'desc' };
+    if (q.sort === 'createdAt_asc') {
+      orderBy = { createdAt: 'asc' };
+    } else if (q.sort === 'expiry_asc') {
+      orderBy = { currentPeriodEnd: 'asc' };
+    } else if (q.sort === 'expiry_desc') {
+      orderBy = { currentPeriodEnd: 'desc' };
+    }
+
     const [total, items] = await Promise.all([
       this.db.subscription.count({ where }),
       this.db.subscription.findMany({
         where,
         take: p.pageSize,
         skip: p.skip,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         select: {
           id: true,
           status: true,

@@ -69,7 +69,7 @@ export interface AdminSubscription {
   currentPeriodEnd: string;
   createdAt: string;
   plan: Pick<AdminPlan, 'id' | 'name' | 'code' | 'pricePaise'> & { billingCycle?: string };
-  tenant: { id: string; name: string };
+  tenant: { id: string; name: string; slug?: string };
   invoices?: Array<{
     id?: string;
     invoiceNumber?: string;
@@ -147,6 +147,13 @@ export interface AdminMerchantDetail {
     activeCount: number;
     avgRating: number | null;
   };
+  businessType?: string | null;
+  gstRegistered?: boolean | null;
+  gstin?: string | null;
+  panNumberMasked?: string | null;
+  udyamNumber?: string | null;
+  businessVerificationStatus?: BusinessVerificationStatus;
+  verification?: AdminBusinessVerification;
 }
 export interface AdminCommunicationLog {
   id: string;
@@ -466,3 +473,336 @@ export interface AdminTheme {
   updatedAt: string;
   _count: { storeConfigs: number };
 }
+
+export interface AdminSubscriptionKpi {
+  activeSubscriptions: number;
+  paidRevenuePaise: number;
+  expiringSoon: number;
+  failedPayments: number;
+}
+
+export type BusinessType =
+  | 'SOLE_PROPRIETORSHIP'
+  | 'PARTNERSHIP'
+  | 'LLP'
+  | 'PRIVATE_LIMITED'
+  | 'PUBLIC_LIMITED'
+  | 'OTHER';
+
+export type BusinessVerificationStatus =
+  | 'INCOMPLETE'
+  | 'PENDING_REVIEW'
+  | 'VERIFIED'
+  | 'NEEDS_CHANGES';
+
+export type MerchantDocumentType =
+  | 'PAN'
+  | 'BUSINESS_REGISTRATION'
+  | 'OWNER_ID'
+  | 'UDYAM'
+  | 'GST_CERTIFICATE'
+  | 'OTHER';
+
+export type MerchantDocumentStatus =
+  | 'PENDING_REVIEW'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'REUPLOAD_REQUIRED';
+
+export interface AdminMerchantDocument {
+  id: string;
+  tenantId: string;
+  type: MerchantDocumentType;
+  documentNumberMasked: string | null;
+  storageKey: string;
+  originalFilename: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  status: MerchantDocumentStatus;
+  isCurrent: boolean;
+  rejectionReason: string | null;
+  adminNote: string | null;
+  uploadedAt: string;
+  reviewedAt: string | null;
+  reviewedById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessDocumentRequirement {
+  type: MerchantDocumentType;
+  title: string;
+  description: string;
+  required: boolean;
+  requiresDocumentNumber: boolean;
+  numberLabel?: string;
+  numberPlaceholder?: string;
+  numberPattern?: string;
+}
+
+export interface AdminBusinessVerification {
+  businessType: BusinessType;
+  gstRegistered: boolean;
+  gstin: string | null;
+  panNumberMasked: string | null;
+  udyamNumber: string | null;
+  overallStatus: BusinessVerificationStatus;
+  requirements: BusinessDocumentRequirement[];
+  documents: AdminMerchantDocument[];
+}
+
+export function getBusinessDocumentRequirements(
+  businessType?: string | null,
+  gstRegistered?: boolean | null,
+): BusinessDocumentRequirement[] {
+  const isGst = Boolean(gstRegistered);
+  const type = (businessType as BusinessType) || 'SOLE_PROPRIETORSHIP';
+
+  const reqs: BusinessDocumentRequirement[] = [];
+
+  switch (type) {
+    case 'SOLE_PROPRIETORSHIP':
+      reqs.push({
+        type: 'PAN',
+        title: 'PAN Card (Business or Owner)',
+        description: 'Permanent Account Number of the sole proprietor or registered entity',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'PAN Number',
+        numberPlaceholder: 'ABCDE1234F',
+        numberPattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+      });
+      reqs.push({
+        type: 'OWNER_ID',
+        title: 'Owner Identity Proof',
+        description: 'Government photo ID of the sole proprietor (Aadhaar / Passport / Voter ID)',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'ID Number (Last 4 Digits)',
+        numberPlaceholder: '1234',
+        numberPattern: '^[0-9]{4}$',
+      });
+      reqs.push({
+        type: 'UDYAM',
+        title: 'Udyam Registration Certificate',
+        description: 'MSME / Udyam registration certificate if applicable',
+        required: false,
+        requiresDocumentNumber: true,
+        numberLabel: 'Udyam Number',
+        numberPlaceholder: 'UDYAM-XX-00-0000000',
+        numberPattern: '^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$',
+      });
+      break;
+
+    case 'PARTNERSHIP':
+      reqs.push({
+        type: 'PAN',
+        title: 'Partnership Firm PAN',
+        description: 'Permanent Account Number registered in the name of the partnership firm',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Firm PAN',
+        numberPlaceholder: 'ABCDE1234F',
+        numberPattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+      });
+      reqs.push({
+        type: 'BUSINESS_REGISTRATION',
+        title: 'Partnership Deed / Registration',
+        description: 'Notarized Partnership Deed or Registrar of Firms Certificate',
+        required: true,
+        requiresDocumentNumber: false,
+      });
+      reqs.push({
+        type: 'OWNER_ID',
+        title: 'Managing Partner Identity Proof',
+        description: 'Photo identification proof of authorized managing partner',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Partner ID (Last 4 Digits)',
+        numberPlaceholder: '1234',
+        numberPattern: '^[0-9]{4}$',
+      });
+      reqs.push({
+        type: 'UDYAM',
+        title: 'Udyam Registration Certificate',
+        description: 'MSME registration certificate for the partnership firm if applicable',
+        required: false,
+        requiresDocumentNumber: true,
+        numberLabel: 'Udyam Number',
+        numberPlaceholder: 'UDYAM-XX-00-0000000',
+        numberPattern: '^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$',
+      });
+      break;
+
+    case 'LLP':
+      reqs.push({
+        type: 'PAN',
+        title: 'LLP PAN Card',
+        description: 'Permanent Account Number of the Limited Liability Partnership entity',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'LLP PAN',
+        numberPlaceholder: 'ABCDE1234F',
+        numberPattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+      });
+      reqs.push({
+        type: 'BUSINESS_REGISTRATION',
+        title: 'LLP Certificate of Incorporation',
+        description: 'MCA Certificate of Incorporation or LLP Agreement',
+        required: true,
+        requiresDocumentNumber: false,
+      });
+      reqs.push({
+        type: 'OWNER_ID',
+        title: 'Designated Partner Identity Proof',
+        description: 'Photo ID and DPIN confirmation of authorized designated partner',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Partner ID (Last 4 Digits)',
+        numberPlaceholder: '1234',
+        numberPattern: '^[0-9]{4}$',
+      });
+      reqs.push({
+        type: 'UDYAM',
+        title: 'Udyam Registration Certificate',
+        description: 'MSME registration certificate for the LLP if applicable',
+        required: false,
+        requiresDocumentNumber: true,
+        numberLabel: 'Udyam Number',
+        numberPlaceholder: 'UDYAM-XX-00-0000000',
+        numberPattern: '^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$',
+      });
+      break;
+
+    case 'PRIVATE_LIMITED':
+    case 'PUBLIC_LIMITED':
+      reqs.push({
+        type: 'PAN',
+        title: 'Company PAN Card',
+        description: 'Corporate PAN registered with Ministry of Corporate Affairs',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Company PAN',
+        numberPlaceholder: 'ABCDE1234F',
+        numberPattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+      });
+      reqs.push({
+        type: 'BUSINESS_REGISTRATION',
+        title: 'Certificate of Incorporation (CIN)',
+        description: 'MCA Certificate of Incorporation and Memorandum of Association',
+        required: true,
+        requiresDocumentNumber: false,
+      });
+      reqs.push({
+        type: 'OWNER_ID',
+        title: 'Authorized Director Identity Proof',
+        description: 'Photo ID and DIN confirmation of authorized signing director',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Director ID (Last 4 Digits)',
+        numberPlaceholder: '1234',
+        numberPattern: '^[0-9]{4}$',
+      });
+      reqs.push({
+        type: 'UDYAM',
+        title: 'Udyam Registration Certificate',
+        description: 'MSME registration certificate if company is registered under MSMED',
+        required: false,
+        requiresDocumentNumber: true,
+        numberLabel: 'Udyam Number',
+        numberPlaceholder: 'UDYAM-XX-00-0000000',
+        numberPattern: '^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$',
+      });
+      break;
+
+    default: // OTHER
+      reqs.push({
+        type: 'PAN',
+        title: 'Entity / Owner PAN Card',
+        description: 'Permanent Account Number for legal tax entity',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'PAN Number',
+        numberPlaceholder: 'ABCDE1234F',
+        numberPattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+      });
+      reqs.push({
+        type: 'BUSINESS_REGISTRATION',
+        title: 'Business Registration Document',
+        description: 'Shop & Establishment license, Trust deed, or trade license',
+        required: false,
+        requiresDocumentNumber: false,
+      });
+      reqs.push({
+        type: 'OWNER_ID',
+        title: 'Authorized Signatory Identity Proof',
+        description: 'Photo identification proof of authorized operator',
+        required: true,
+        requiresDocumentNumber: true,
+        numberLabel: 'Signatory ID (Last 4 Digits)',
+        numberPlaceholder: '1234',
+        numberPattern: '^[0-9]{4}$',
+      });
+      break;
+  }
+
+  // GST Registration Condition
+  if (isGst) {
+    reqs.push({
+      type: 'GST_CERTIFICATE',
+      title: 'GST Registration Certificate (REG-06)',
+      description: 'Official Goods and Services Tax Identification Certificate',
+      required: true,
+      requiresDocumentNumber: true,
+      numberLabel: 'GSTIN (15 Digits)',
+      numberPlaceholder: '27ABCDE1234F1Z5',
+      numberPattern: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$',
+    });
+  }
+
+  return reqs;
+}
+
+export function calculateOverallVerificationStatus(
+  requirements: BusinessDocumentRequirement[],
+  documents: Array<{ type: MerchantDocumentType; status: MerchantDocumentStatus }>,
+): BusinessVerificationStatus {
+  const currentDocs = new Map<MerchantDocumentType, MerchantDocumentStatus>();
+  for (const d of documents) {
+    currentDocs.set(d.type, d.status);
+  }
+
+  const requiredReqs = requirements.filter((r) => r.required);
+
+  let hasRejected = false;
+  let allRequiredVerified = true;
+  let allRequiredUploaded = true;
+
+  for (const r of requiredReqs) {
+    const docStatus = currentDocs.get(r.type);
+    if (!docStatus) {
+      allRequiredUploaded = false;
+      allRequiredVerified = false;
+    } else if (docStatus === 'REJECTED' || docStatus === 'REUPLOAD_REQUIRED') {
+      hasRejected = true;
+      allRequiredVerified = false;
+    } else if (docStatus !== 'VERIFIED') {
+      allRequiredVerified = false;
+    }
+  }
+
+  if (hasRejected) {
+    return 'NEEDS_CHANGES';
+  }
+
+  if (allRequiredVerified && requiredReqs.length > 0) {
+    return 'VERIFIED';
+  }
+
+  if (allRequiredUploaded && requiredReqs.length > 0) {
+    return 'PENDING_REVIEW';
+  }
+
+  return 'INCOMPLETE';
+}
+

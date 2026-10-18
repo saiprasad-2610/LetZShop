@@ -1,4 +1,4 @@
-import type { AdminPlan } from '@simply/api-contracts';
+import type { AdminPlan, AdminSubscriptionKpi } from '@simply/api-contracts';
 import { Feedback, errorMessage } from '../components/AdminUI';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -21,6 +21,10 @@ import {
   CheckCircle2,
   RefreshCw,
   Sparkles,
+  Clock,
+  Layers,
+  HelpCircle,
+  ShieldAlert,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -33,6 +37,7 @@ interface PlanFormData {
   description: string;
   priceRupees: number;
   billingCycle: string;
+  availability: 'PURCHASABLE' | 'COMING_SOON' | 'CONTACT';
   maxProducts: number;
   maxStaff: number;
   maxStorageMb: number;
@@ -46,6 +51,7 @@ const initialFormData: PlanFormData = {
   description: '',
   priceRupees: 0,
   billingCycle: 'MONTHLY',
+  availability: 'PURCHASABLE',
   maxProducts: 100,
   maxStaff: 5,
   maxStorageMb: 2048,
@@ -57,6 +63,7 @@ export default function AdminBillingPage() {
   const { api } = useAdminAuth();
   const router = useRouter();
   const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [kpis, setKpis] = useState<AdminSubscriptionKpi | null>(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -70,15 +77,31 @@ export default function AdminBillingPage() {
   } | null>(null);
 
   useEffect(() => {
-    loadPlans();
+    loadData();
   }, []);
 
-  const loadPlans = async () => {
+  const loadData = async () => {
     setLoading(true);
     setLoadError('');
     try {
-      const res = await api.admin.getPlans();
-      setPlans(res);
+      const [plansRes, kpisRes] = await Promise.all([
+        api.admin.getPlans(),
+        api.admin.getSubscriptionKpis().catch(() => null),
+      ]);
+
+      // Canonical sort: Numeric prices ascending, Contact/Custom placed strictly last
+      const sorted = [...plansRes].sort((a, b) => {
+        const isCustomA = a.availability === 'CONTACT' || a.code === 'CUSTOM' || a.pricePaise <= 0;
+        const isCustomB = b.availability === 'CONTACT' || b.code === 'CUSTOM' || b.pricePaise <= 0;
+        if (isCustomA && !isCustomB) return 1;
+        if (!isCustomA && isCustomB) return -1;
+        return a.pricePaise - b.pricePaise;
+      });
+
+      setPlans(sorted);
+      if (kpisRes) {
+        setKpis(kpisRes);
+      }
     } catch (err) {
       setPlans([]);
       setLoadError(errorMessage(err));
@@ -108,6 +131,7 @@ export default function AdminBillingPage() {
       description: plan.description || '',
       priceRupees: plan.pricePaise / 100,
       billingCycle: plan.billingCycle,
+      availability: (plan.availability as any) || (plan.purchasable ? 'PURCHASABLE' : 'COMING_SOON'),
       maxProducts: plan.maxProducts,
       maxStaff: plan.maxStaff,
       maxStorageMb: plan.maxStorageMb,
@@ -167,7 +191,7 @@ export default function AdminBillingPage() {
       }
 
       setModalOpen(false);
-      await loadPlans();
+      await loadData();
     } catch (err: unknown) {
       console.error('Plan save error:', err);
       setFormError(
@@ -181,11 +205,11 @@ export default function AdminBillingPage() {
   const handleDeletePlan = async (plan: AdminPlan) => {
     const subscriberWarning =
       plan.activeSubscribersCount > 0
-        ? `\n\nNotice: This plan currently has ${plan.activeSubscribersCount} merchant subscription record(s). To protect running stores, it will be safely archived and hidden from new signups instead of hard-deleted.`
+        ? `\n\nNotice: This plan currently has ${plan.activeSubscribersCount} merchant subscription record(s). To protect running stores and preserve historical billing records, it will be safely archived and hidden from new signups instead of hard-deleted.`
         : '';
 
     const confirm = window.confirm(
-      `Are you sure you want to delete the plan "${plan.name}" (${plan.code})?${subscriberWarning}`,
+      `Are you sure you want to deactivate or archive the plan "${plan.name}" (${plan.code})?${subscriberWarning}`,
     );
     if (!confirm) return;
 
@@ -195,7 +219,7 @@ export default function AdminBillingPage() {
         'success',
         res.message || `Plan "${plan.name}" processed.`,
       );
-      await loadPlans();
+      await loadData();
     } catch (err: unknown) {
       console.error('Failed to delete plan:', err);
       showNotification('error', errorMessage(err) || 'Failed to delete plan.');
@@ -205,27 +229,26 @@ export default function AdminBillingPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>SaaS Plans & Pricing | LetzShop Admin</title>
+        <title>Plans & Subscriptions | LetzShop Admin</title>
       </Head>
 
-      <div className="space-y-6 font-sans">
-        {/* Page Header */}
+      <div className="space-y-6 font-sans max-w-7xl mx-auto">
+        {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-admin-text tracking-tight">
-              SaaS Plans & Subscriptions
+              Plans & Subscriptions
             </h1>
             <p className="text-xs text-admin-muted mt-1">
-              Create, configure, update pricing, feature caps, and govern
-              merchant subscription tiers
+              Manage plans, billing and merchant subscriptions
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={loadPlans}
+              onClick={loadData}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-admin-surface hover:bg-admin-bg text-admin-secondary text-xs font-semibold rounded-xl border border-admin-border shadow-sm transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-admin-surface hover:bg-admin-bg text-admin-secondary text-xs font-semibold rounded-xl border border-admin-border shadow-xs transition cursor-pointer"
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-admin-accent' : ''}`}
@@ -238,7 +261,7 @@ export default function AdminBillingPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-admin-primary text-admin-on-primary text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Create New Plan</span>
+              <span>Create Plan</span>
             </button>
           </div>
         </div>
@@ -253,174 +276,283 @@ export default function AdminBillingPage() {
             }`}
           >
             {feedbackMessage.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-admin-accent flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-admin-accent shrink-0" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-admin-danger flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-admin-danger shrink-0" />
             )}
             <span>{feedbackMessage.text}</span>
           </div>
         )}
 
-        {/* Plans Grid */}
-        {loadError ? (
-          <Feedback error={loadError} onRetry={loadPlans} />
-        ) : loading ? (
-          <div className="p-16 text-center text-xs text-admin-muted bg-admin-surface rounded-3xl border border-admin-border">
-            <span className="w-5 h-5 border-2 border-admin-border border-t-transparent rounded-full animate-spin inline-block mr-2" />
-            Loading subscription tiers...
+        {/* 2. REAL POSTGRESQL-BACKED SUBSCRIPTION KPI ROW */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Active Subscriptions */}
+          <div className="bg-admin-surface p-4 rounded-2xl border border-admin-border shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-admin-muted uppercase tracking-wider block">
+                Active Subscriptions
+              </span>
+              <span className="text-2xl font-black text-admin-text block tabular-nums">
+                {kpis ? kpis.activeSubscriptions : 0}
+              </span>
+              <span className="text-[10px] text-admin-muted block">
+                Platform-wide live SaaS tiers
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-emerald-500" />
+            </div>
           </div>
-        ) : plans.length === 0 ? (
-          <div className="p-16 text-center bg-admin-surface rounded-3xl border border-admin-border space-y-3">
-            <CreditCard className="w-8 h-8 text-admin-muted mx-auto" />
-            <h3 className="font-bold text-admin-secondary text-sm">
-              No Subscription Plans Configured
-            </h3>
-            <p className="text-xs text-admin-muted max-w-sm mx-auto">
-              Create your first SaaS subscription tier so merchants can choose
-              and subscribe to your platform.
-            </p>
-            <button
-              onClick={handleOpenCreateModal}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-admin-primary text-admin-on-primary rounded-xl text-xs font-bold"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Plan</span>
-            </button>
+
+          {/* Paid Revenue */}
+          <div className="bg-admin-surface p-4 rounded-2xl border border-admin-border shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-admin-muted uppercase tracking-wider block">
+                Paid Revenue
+              </span>
+              <span className="text-2xl font-black font-mono text-admin-text block tabular-nums">
+                {kpis ? formatPaise(kpis.paidRevenuePaise) : '₹0'}
+              </span>
+              <span className="text-[10px] text-admin-muted block">
+                SaaS subscription revenue
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-admin-accent/10 border border-admin-accent/20 flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-admin-accent" />
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((p) => {
-              return (
-                <div
-                  key={p.id}
-                  className={`bg-admin-surface rounded-3xl border ${'border-admin-border'} shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition duration-200 relative`}
-                >
-                  {/* Card Header & Badge */}
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-black text-lg text-admin-text">
+
+          {/* Expiring Soon */}
+          <div className="bg-admin-surface p-4 rounded-2xl border border-admin-border shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-admin-muted uppercase tracking-wider block">
+                Expiring Soon
+              </span>
+              <span className="text-2xl font-black text-admin-text block tabular-nums">
+                {kpis ? kpis.expiringSoon : 0}
+              </span>
+              <span className="text-[10px] text-admin-muted block">
+                Valid through next 7 days
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-500" />
+            </div>
+          </div>
+
+          {/* Failed / Pending Payments */}
+          <div className="bg-admin-surface p-4 rounded-2xl border border-admin-border shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-admin-muted uppercase tracking-wider block">
+                Failed Payments
+              </span>
+              <span className="text-2xl font-black text-admin-text block tabular-nums">
+                {kpis ? kpis.failedPayments : 0}
+              </span>
+              <span className="text-[10px] text-admin-muted block">
+                Requires administrative attention
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* 3 & 4. PLANS SECTION WITH CONSISTENT CARD DIMENSIONS */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-admin-text">Configured SaaS Tiers</h2>
+            <span className="text-xs text-admin-muted">
+              Sorted by price ascending · Contact tier placed last
+            </span>
+          </div>
+
+          {loadError ? (
+            <Feedback error={loadError} onRetry={loadData} />
+          ) : loading ? (
+            <div className="p-16 text-center text-xs text-admin-muted bg-admin-surface rounded-3xl border border-admin-border">
+              <span className="w-5 h-5 border-2 border-admin-border border-t-transparent rounded-full animate-spin inline-block mr-2" />
+              Loading subscription tiers...
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="p-16 text-center bg-admin-surface rounded-3xl border border-admin-border space-y-3">
+              <CreditCard className="w-8 h-8 text-admin-muted mx-auto" />
+              <h3 className="font-bold text-admin-secondary text-sm">
+                No Subscription Plans Configured
+              </h3>
+              <p className="text-xs text-admin-muted max-w-sm mx-auto">
+                Create your first SaaS subscription tier so merchants can choose
+                and subscribe to your platform.
+              </p>
+              <button
+                onClick={handleOpenCreateModal}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-admin-primary text-admin-on-primary rounded-xl text-xs font-bold"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Plan</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              {plans.map((p) => {
+                const isCustomContact =
+                  p.availability === 'CONTACT' || p.code === 'CUSTOM' || p.pricePaise <= 0;
+                const isComingSoon = p.availability === 'COMING_SOON';
+
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-admin-surface rounded-2xl border border-admin-border shadow-xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-all h-full"
+                  >
+                    {/* Top Content Area */}
+                    <div className="p-5 space-y-4 flex-1">
+                      {/* Header with Title & subtle Code */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-black text-lg text-admin-text truncate">
                             {p.name}
                           </h3>
-                          {!p.isPublic && p.availability !== 'CONTACT' && (
-                            <span className="px-2 py-0.5 rounded-full bg-admin-raised text-admin-muted text-[10px] font-bold uppercase">
-                              Archived
+                          <span className="text-[10px] font-mono text-admin-muted tracking-wider block mt-0.5">
+                            CODE: {p.code}
+                          </span>
+                        </div>
+                        {/* Status / Availability Pill */}
+                        <div>
+                          {isComingSoon ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Coming Soon
+                            </span>
+                          ) : isCustomContact ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                              Custom Quote
+                            </span>
+                          ) : p.purchasable ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                              Purchasable
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-admin-raised text-admin-muted border border-admin-border">
+                              Hidden
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono text-admin-muted tracking-wider">
-                          CODE: {p.code}
-                        </span>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-2xl font-black font-mono text-admin-text">
-                          {p.availability === 'CONTACT' || p.pricePaise <= 0
-                            ? 'Contact Aikyam'
-                            : formatPaise(p.pricePaise)}
-                        </span>
-                        {p.availability !== 'CONTACT' && p.pricePaise > 0 && (
-                          <span className="text-[11px] text-admin-muted block font-medium">
-                            /{p.billingCycle.toLowerCase()}
-                          </span>
+                      {/* Standard Pricing Area: Height-Consistent */}
+                      <div className="h-14 flex flex-col justify-center border-b border-admin-border/50 pb-2">
+                        {isCustomContact ? (
+                          <div>
+                            <span className="text-xl font-black text-admin-text block">
+                              Contact Aikyam
+                            </span>
+                            <span className="text-[11px] font-medium text-admin-muted block">
+                              Custom Quote
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="text-2xl font-black font-mono text-admin-text block">
+                              {formatPaise(p.pricePaise)}
+                            </span>
+                            <span className="text-[11px] font-medium text-admin-muted block">
+                              /{p.billingCycle.toLowerCase()}
+                            </span>
+                          </div>
                         )}
                       </div>
+
+                      {/* Description & Availability Summary (consistent 44px height) */}
+                      <div className="h-11">
+                        <p className="text-xs text-admin-muted line-clamp-2 leading-relaxed">
+                          {p.description || 'Standard subscription tier with defined catalog boundaries.'}
+                        </p>
+                      </div>
+
+                      {/* Feature Caps List: Height-Consistent */}
+                      <div className="space-y-2 pt-2 border-t border-admin-border/50 text-xs text-admin-secondary">
+                        <div className="flex items-center justify-between">
+                          <span className="text-admin-muted flex items-center gap-1.5">
+                            <Package className="w-3.5 h-3.5 text-admin-muted" />
+                            <span>Product Catalog:</span>
+                          </span>
+                          <span className="font-bold font-mono text-admin-text">
+                            Up to {p.maxProducts} items
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-admin-muted flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-admin-muted" />
+                            <span>Staff Accounts:</span>
+                          </span>
+                          <span className="font-bold font-mono text-admin-text">
+                            {p.maxStaff} members
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-admin-muted flex items-center gap-1.5">
+                            <HardDrive className="w-3.5 h-3.5 text-admin-muted" />
+                            <span>Media Storage:</span>
+                          </span>
+                          <span className="font-bold font-mono text-admin-text">
+                            {p.maxStorageMb >= 1024
+                              ? `${p.maxStorageMb / 1024} GB`
+                              : `${p.maxStorageMb} MB`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-admin-muted flex items-center gap-1.5">
+                            <Globe className="w-3.5 h-3.5 text-admin-muted" />
+                            <span>Custom Domain:</span>
+                          </span>
+                          <span
+                            className={`font-semibold ${p.customDomainAllowed ? 'text-admin-accent' : 'text-admin-muted'}`}
+                          >
+                            {p.customDomainAllowed ? 'Included' : 'Not Allowed'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <p className="text-xs text-admin-muted leading-relaxed min-h-[36px]">
-                      <span className="block font-semibold text-admin-accent mb-2">
-                        {p.availability === 'COMING_SOON'
-                          ? 'Coming Soon'
-                          : p.availability === 'CONTACT'
-                            ? 'Contact Aikyam'
-                            : p.purchasable
-                              ? 'Purchasable'
-                              : 'Hidden'}{' '}
-                        · {p.merchantCount} merchant(s)
+                    {/* Card Footer: Real merchant counts & actions */}
+                    <div className="p-3.5 bg-admin-raised/40 border-t border-admin-border flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-admin-muted">
+                        merchants: <strong className="text-admin-text font-bold">{p.merchantCount}</strong>
+                        {p.activeSubscribersCount !== p.merchantCount && (
+                          <span className="text-[10px] ml-1">({p.activeSubscribersCount} active)</span>
+                        )}
                       </span>
-                      {p.description || 'No description provided.'}
-                    </p>
 
-                    {/* Feature Caps List */}
-                    <div className="space-y-2.5 pt-4 border-t border-admin-border text-xs text-admin-secondary">
-                      <div className="flex items-center justify-between">
-                        <span className="text-admin-muted flex items-center gap-1.5">
-                          <Package className="w-3.5 h-3.5 text-admin-muted" />
-                          <span>Product Catalog:</span>
-                        </span>
-                        <span className="font-bold font-mono text-admin-text">
-                          Up to {p.maxProducts} items
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-admin-muted flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5 text-admin-muted" />
-                          <span>Staff Accounts:</span>
-                        </span>
-                        <span className="font-bold font-mono text-admin-text">
-                          {p.maxStaff} members
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-admin-muted flex items-center gap-1.5">
-                          <HardDrive className="w-3.5 h-3.5 text-admin-muted" />
-                          <span>Media Storage:</span>
-                        </span>
-                        <span className="font-bold font-mono text-admin-text">
-                          {p.maxStorageMb >= 1024
-                            ? `${p.maxStorageMb / 1024} GB`
-                            : `${p.maxStorageMb} MB`}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-admin-muted flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-admin-muted" />
-                          <span>Custom Domain:</span>
-                        </span>
-                        <span
-                          className={`font-semibold ${p.customDomainAllowed ? 'text-admin-accent' : 'text-admin-muted'}`}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditModal(p)}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-admin-surface hover:bg-admin-raised text-admin-secondary border border-admin-border transition cursor-pointer inline-flex items-center gap-1"
+                          title="Edit Plan"
                         >
-                          {p.customDomainAllowed ? 'Included' : 'Not Allowed'}
-                        </span>
+                          <Edit3 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDeletePlan(p)}
+                          className="p-1.5 rounded-lg bg-admin-surface hover:bg-admin-danger-soft text-admin-muted hover:text-admin-danger border border-admin-border transition cursor-pointer"
+                          title="Archive / Deactivate Plan"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                  {/* Card Footer: Subscribers & Action Buttons */}
-                  <div className="p-4 bg-admin-bg border-t border-admin-border flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-admin-muted">
-                      {p.activeSubscribersCount} active merchant(s)
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenEditModal(p)}
-                        className="p-2 rounded-xl bg-admin-surface hover:bg-admin-raised text-admin-secondary border border-admin-border transition cursor-pointer"
-                        title="Edit Plan"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleDeletePlan(p)}
-                        className="p-2 rounded-xl bg-admin-surface hover:bg-admin-danger-soft text-admin-muted hover:text-admin-danger border border-admin-border hover:border-admin-border transition cursor-pointer"
-                        title="Delete or Archive Plan"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Create / Edit Plan Modal Dialog */}
+        {/* 8. STRUCTURED CREATE / EDIT PLAN MODAL */}
         {modalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-admin-overlay backdrop-blur-sm animate-in fade-in">
             <div
@@ -434,7 +566,7 @@ export default function AdminBillingPage() {
               className="bg-admin-surface rounded-3xl border border-admin-border shadow-2xl max-w-lg w-full max-h-[90dvh] overflow-y-auto animate-in zoom-in-95 duration-200"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-admin-border flex items-center justify-between">
+              <div className="p-5 border-b border-admin-border flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-black text-admin-text">
                     {isEditing
@@ -442,181 +574,221 @@ export default function AdminBillingPage() {
                       : 'Create New Subscription Tier'}
                   </h2>
                   <p className="text-xs text-admin-muted mt-0.5">
-                    Configure pricing, product boundaries, and merchant
-                    capabilities
+                    Configure pricing, product boundaries, and merchant capabilities
                   </p>
                 </div>
                 <button
                   onClick={() => setModalOpen(false)}
-                  className="p-2 rounded-xl text-admin-muted hover:text-admin-secondary hover:bg-admin-raised transition cursor-pointer"
+                  className="p-1.5 rounded-xl text-admin-muted hover:text-admin-secondary hover:bg-admin-raised transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Modal Form */}
-              <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
+              {/* Modal Form with 4 Clean Sections */}
+              <form onSubmit={handleFormSubmit} className="p-6 space-y-5 text-xs">
                 {formError && (
                   <div className="p-3 rounded-2xl bg-admin-danger-soft border border-admin-border text-admin-danger text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{formError}</span>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                      Plan Name *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Enterprise Tier"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
-                      required
-                    />
+                {/* SECTION 1: BASIC DETAILS */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5" />
+                    1. Basic Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Plan Name *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Growth Tier"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Plan Code {!isEditing && '(Optional)'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. GROWTH_MONTHLY"
+                        value={formData.code}
+                        onChange={(e) =>
+                          setFormData({ ...formData, code: e.target.value })
+                        }
+                        disabled={isEditing}
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-mono text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface disabled:opacity-50"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                      Unique Plan Code {!isEditing && '(Optional)'}
+                      Description / Tagline
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. ENTERPRISE_MONTHLY"
-                      value={formData.code}
+                      placeholder="e.g. Essential tools for growing regional retail businesses"
+                      value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, code: e.target.value })
+                        setFormData({ ...formData, description: e.target.value })
                       }
-                      disabled={isEditing}
-                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-mono text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                      Price in INR (₹) *
+                {/* SECTION 2: PRICING */}
+                <div className="space-y-3 pt-3 border-t border-admin-border">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    2. Pricing
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Price in INR (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="Price in rupees"
+                        value={formData.priceRupees}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            priceRupees: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                        required
+                      />
+                      <span className="text-[10px] text-admin-muted mt-0.5 block">
+                        Changing price applies to future subscriptions only; historical invoices remain strictly immutable.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Billing Interval
+                      </label>
+                      <select
+                        value={formData.billingCycle}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            billingCycle: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                      >
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="YEARLY">Yearly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 3: AVAILABILITY */}
+                <div className="space-y-3 pt-3 border-t border-admin-border">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    3. Availability
+                  </h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary">
+                      <input
+                        type="checkbox"
+                        checked={formData.isPublic}
+                        onChange={(e) =>
+                          setFormData({ ...formData, isPublic: e.target.checked })
+                        }
+                        className="w-4 h-4 text-admin-accent rounded focus:ring-admin-border"
+                      />
+                      <span>Publicly Purchasable by Merchants</span>
                     </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      placeholder="Price in rupees"
-                      value={formData.priceRupees}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          priceRupees: Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
-                      required
-                    />
-                    <span className="text-[10px] text-admin-muted mt-0.5 block">
-                      0 for 100% Free / Trial
+                    <span className="text-[10px] text-admin-muted block pl-6">
+                      Uncheck to make this tier Internal/Hidden. Growth plan remains Coming Soon by backend enforcement.
                     </span>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                      Billing Cycle
-                    </label>
-                    <select
-                      value={formData.billingCycle}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          billingCycle: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
-                    >
-                      <option value="MONTHLY">Monthly</option>
-                      <option value="YEARLY">Yearly</option>
-                    </select>
-                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                    Plan Tagline / Description
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Best for high-growth merchants requiring custom domains"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
-                  />
-                </div>
+                {/* SECTION 4: LIMITS */}
+                <div className="space-y-3 pt-3 border-t border-admin-border">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5" />
+                    4. Operational Limits
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
+                        Product Count
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.maxProducts}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maxProducts: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
+                      />
+                    </div>
 
-                {/* Limits Grid */}
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
-                      Max Products
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.maxProducts}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          maxProducts: Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
-                    />
+                    <div>
+                      <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
+                        Staff Seats
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.maxStaff}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maxStaff: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
+                        Storage (MB)
+                      </label>
+                      <input
+                        type="number"
+                        min="100"
+                        value={formData.maxStorageMb}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maxStorageMb: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
-                      Staff Seats
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.maxStaff}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          maxStaff: Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-admin-secondary mb-1">
-                      Storage (MB)
-                    </label>
-                    <input
-                      type="number"
-                      min="100"
-                      value={formData.maxStorageMb}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          maxStorageMb: Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-2.5 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs text-admin-text font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Toggles */}
-                <div className="pt-2 space-y-2 border-t border-admin-border">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary pt-1">
                     <input
                       type="checkbox"
                       checked={formData.customDomainAllowed}
@@ -629,18 +801,6 @@ export default function AdminBillingPage() {
                       className="w-4 h-4 text-admin-accent rounded focus:ring-admin-border"
                     />
                     <span>Allow Custom Domain Mapping (e.g. mystore.com)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary">
-                    <input
-                      type="checkbox"
-                      checked={formData.isPublic}
-                      onChange={(e) =>
-                        setFormData({ ...formData, isPublic: e.target.checked })
-                      }
-                      className="w-4 h-4 text-admin-accent rounded focus:ring-admin-border"
-                    />
-                    <span>Publicly Visible in Merchant Plan Picker</span>
                   </label>
                 </div>
 
@@ -670,6 +830,8 @@ export default function AdminBillingPage() {
             </div>
           </div>
         )}
+
+        {/* MERCHANT SUBSCRIPTIONS TABLE & TOOLBAR */}
         <SubscriptionList
           tenantId={
             typeof router.query.tenantId === 'string'

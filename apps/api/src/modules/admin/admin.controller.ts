@@ -17,6 +17,7 @@ import { AdminService } from './admin.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { AuthenticatedUser, UserRole } from '@simply/types';
+import * as fs from 'fs';
 
 @ApiTags('Platform Admin')
 @ApiBearerAuth()
@@ -34,6 +35,12 @@ export class AdminController {
   @Get('subscriptions')
   getSubscriptions(@Query() query: import('./admin-data.service').AdminQuery) {
     return this.adminService.getSubscriptionList(query);
+  }
+
+  @Get('subscriptions/kpis')
+  @ApiOperation({ summary: 'Get SaaS subscription operational KPIs' })
+  getSubscriptionKpis() {
+    return this.adminService.getSubscriptionKpis();
   }
 
   @Get('subscriptions/:id')
@@ -246,6 +253,59 @@ export class AdminController {
       statusPage ? parseInt(statusPage, 10) : 1,
       pageSize ? parseInt(pageSize, 10) : 5,
     );
+  }
+
+  @Get('merchants/:id/verification')
+  @ApiOperation({ summary: 'Get business verification status and documents for a merchant' })
+  async getMerchantVerification(@Param('id') id: string) {
+    return this.adminService.getMerchantVerification(id);
+  }
+
+  @Post('merchants/:id/documents/:docId/review')
+  @ApiOperation({ summary: 'Verify or reject a merchant business document' })
+  async reviewMerchantDocument(
+    @Param('id') id: string,
+    @Param('docId') docId: string,
+    @Body() body: { status: 'VERIFIED' | 'REJECTED'; rejectionReason?: string; adminNote?: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.reviewMerchantDocument(user.userId, id, docId, body);
+  }
+
+  @Get('merchants/:id/documents/:docId/download')
+  @ApiOperation({ summary: 'Securely download merchant business document' })
+  async downloadMerchantDocument(
+    @Param('id') id: string,
+    @Param('docId') docId: string,
+    @Res() res: any,
+  ) {
+    const { filePath, mimeType, filename } =
+      await this.adminService.getMerchantDocumentStream(docId, id);
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+  }
+
+  @Get('merchants/:id/documents/:docId/view')
+  @ApiOperation({ summary: 'Securely preview merchant business document inline' })
+  async viewMerchantDocument(
+    @Param('id') id: string,
+    @Param('docId') docId: string,
+    @Res() res: any,
+  ) {
+    const { filePath, mimeType, filename } =
+      await this.adminService.getMerchantDocumentStream(docId, id);
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
   }
 
   @Get('commerce')

@@ -383,7 +383,14 @@ model Tenant {
   enquiries             Enquiry[]
   auditLogs             AuditLog[]
   dataSubjectRequests   DataSubjectRequest[]
-  mediaAssets           MediaAsset[]
+  mediaAssets               MediaAsset[]
+  businessType              String?                 @map("business_type") // SOLE_PROPRIETORSHIP, PARTNERSHIP, LLP, PRIVATE_LIMITED, PUBLIC_LIMITED, OTHER
+  gstRegistered             Boolean?                @default(false) @map("gst_registered")
+  gstin                     String?
+  panNumber                 String?                 @map("pan_number")
+  udyamNumber               String?                 @map("udyam_number")
+  businessVerificationStatus String                 @default("INCOMPLETE") @map("business_verification_status") // INCOMPLETE, PENDING_REVIEW, VERIFIED, NEEDS_CHANGES
+  documents                 MerchantDocument[]
 
   @@map("tenants")
 }
@@ -1564,4 +1571,50 @@ model ReviewReport {
   @@index([status, createdAt])
   // The migration adds a partial unique index allowing only one open report per review.
   @@map("review_reports")
+}
+
+// ==============================================================================
+// BUSINESS VERIFICATION & MERCHANT DOCUMENTS
+// ==============================================================================
+
+enum MerchantDocumentType {
+  PAN
+  BUSINESS_REGISTRATION
+  OWNER_ID
+  UDYAM
+  GST_CERTIFICATE
+  OTHER
+}
+
+enum MerchantDocumentStatus {
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  REUPLOAD_REQUIRED
+}
+
+model MerchantDocument {
+  id                   String                 @id @default(uuid())
+  tenantId             String                 @map("tenant_id")
+  type                 MerchantDocumentType
+  documentNumberMasked String?                @map("document_number_masked")
+  storageKey           String                 @map("storage_key")
+  originalFilename     String                 @map("original_filename")
+  mimeType             String                 @map("mime_type")
+  fileSizeBytes        Int                    @map("file_size_bytes")
+  status               MerchantDocumentStatus @default(PENDING_REVIEW)
+  isCurrent            Boolean                @default(true) @map("is_current")
+  rejectionReason      String?                @map("rejection_reason")
+  adminNote            String?                @map("admin_note")
+  uploadedAt           DateTime               @default(now()) @map("uploaded_at")
+  reviewedAt           DateTime?              @map("reviewed_at")
+  reviewedById         String?                @map("reviewed_by_id")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@map("merchant_documents")
 }

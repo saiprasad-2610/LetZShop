@@ -29,7 +29,19 @@ import {
   Star,
   MessageSquare,
   Globe,
+  ShieldCheck,
+  Upload,
+  FileCheck,
+  FileText,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
+import type {
+  AdminBusinessVerification,
+  BusinessType,
+  MerchantDocumentType,
+  MerchantDocumentStatus,
+} from '@simply/api-contracts';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, ACTIVE_LOCALES, isActiveLocale, type SupportedLocale } from '@simply/i18n';
@@ -120,6 +132,20 @@ export default function SettingsPage() {
   const [partnerNotes, setPartnerNotes] = useState('');
   const [partnerIsDefault, setPartnerIsDefault] = useState(false);
 
+  // Business Verification & Documents State
+  const [verificationData, setVerificationData] = useState<AdminBusinessVerification | null>(null);
+  const [loadingVerification, setLoadingVerification] = useState(false);
+  const [businessType, setBusinessType] = useState<BusinessType>('SOLE_PROPRIETORSHIP');
+  const [gstRegistered, setGstRegistered] = useState(false);
+  const [gstin, setGstin] = useState('');
+  const [panNumber, setPanNumber] = useState('');
+  const [udyamNumber, setUdyamNumber] = useState('');
+  const [savingVerificationProfile, setSavingVerificationProfile] = useState(false);
+  const [verificationProfileMsg, setVerificationProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [uploadingDocType, setUploadingDocType] = useState<MerchantDocumentType | null>(null);
+  const [docFeedbackMsg, setDocFeedbackMsg] = useState<{ docType: string; type: 'success' | 'error'; text: string } | null>(null);
+  const [docNumbers, setDocNumbers] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (authLoading && !token) return;
     loadSettings();
@@ -127,7 +153,119 @@ export default function SettingsPage() {
     loadDeliveryRates();
     loadShippingSettings();
     loadDeliveryPartners();
+    loadVerification();
   }, [authLoading, token]);
+
+  const loadVerification = async () => {
+    setLoadingVerification(true);
+    try {
+      const data = await api.verification.getVerification();
+      setVerificationData(data);
+      if (data.businessType) {
+        setBusinessType(data.businessType as BusinessType);
+      }
+      setGstRegistered(Boolean(data.gstRegistered));
+      if (data.gstin) setGstin(data.gstin);
+      if (data.panNumberMasked) setPanNumber(data.panNumberMasked);
+      if (data.udyamNumber) setUdyamNumber(data.udyamNumber);
+    } catch (err: any) {
+      console.error('Failed to load business verification:', err);
+    } finally {
+      setLoadingVerification(false);
+    }
+  };
+
+  const handleSaveVerificationProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingVerificationProfile(true);
+    setVerificationProfileMsg(null);
+    try {
+      const updated = await api.verification.updateProfile({
+        businessType,
+        gstRegistered,
+        gstin: gstRegistered ? gstin.trim() : undefined,
+        panNumber: panNumber.trim() || undefined,
+        udyamNumber: udyamNumber.trim() || undefined,
+      });
+      setVerificationData(updated);
+      setVerificationProfileMsg({
+        type: 'success',
+        text: 'Business verification profile updated successfully! Document requirements adjusted.',
+      });
+    } catch (err: any) {
+      setVerificationProfileMsg({
+        type: 'error',
+        text: err?.message || 'Failed to update business profile.',
+      });
+    } finally {
+      setSavingVerificationProfile(false);
+    }
+  };
+
+  const handleDocumentUpload = async (type: MerchantDocumentType, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setDocFeedbackMsg({
+        docType: type,
+        type: 'error',
+        text: 'File size must be 10 MB or less.',
+      });
+      return;
+    }
+
+    const validMimes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!validMimes.includes(file.type)) {
+      setDocFeedbackMsg({
+        docType: type,
+        type: 'error',
+        text: 'Only PDF, JPEG, and PNG files are accepted.',
+      });
+      return;
+    }
+
+    setUploadingDocType(type);
+    setDocFeedbackMsg(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = (reader.result as string).split(',')[1];
+        await api.verification.uploadDocument({
+          type,
+          documentNumber: docNumbers[type]?.trim() || undefined,
+          filename: file.name,
+          mimeType: file.type,
+          base64Data,
+        });
+        setDocFeedbackMsg({
+          docType: type,
+          type: 'success',
+          text: `${file.name} uploaded successfully and submitted for Super Admin review.`,
+        });
+        await loadVerification();
+      } catch (err: any) {
+        setDocFeedbackMsg({
+          docType: type,
+          type: 'error',
+          text: err?.message || 'Failed to upload document.',
+        });
+      } finally {
+        setUploadingDocType(null);
+        e.target.value = '';
+      }
+    };
+    reader.onerror = () => {
+      setUploadingDocType(null);
+      setDocFeedbackMsg({
+        docType: type,
+        type: 'error',
+        text: 'Error reading file. Please try again.',
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -662,6 +800,309 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+
+        {/* SECTION 2: Business Verification & Documents */}
+        <div className="bg-[var(--merchant-surface)] p-6 rounded-2xl border border-[var(--merchant-border)] shadow-xs space-y-6 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--merchant-border)] pb-4">
+            <div>
+              <h2 className="text-base font-bold text-[var(--merchant-text)] flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[var(--merchant-primary)]" />
+                Business Verification & Documents
+              </h2>
+              <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+                Upload business proof & tax documents for platform merchant verification
+              </p>
+            </div>
+
+            {/* Overall Verification Status Pill */}
+            <div>
+              {verificationData?.overallStatus === 'VERIFIED' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Verified
+                </span>
+              ) : verificationData?.overallStatus === 'PENDING_REVIEW' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  <Clock className="w-3.5 h-3.5" />
+                  Pending Review
+                </span>
+              ) : verificationData?.overallStatus === 'NEEDS_CHANGES' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Needs Changes
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-zinc-500/15 text-zinc-400 border border-zinc-500/30">
+                  Incomplete
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Form Message Banner */}
+          {verificationProfileMsg && (
+            <div
+              className={`p-3.5 rounded-xl text-xs flex items-center gap-2.5 ${
+                verificationProfileMsg.type === 'success'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                  : 'bg-red-500/10 border border-red-500/30 text-red-300'
+              }`}
+            >
+              {verificationProfileMsg.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              )}
+              <span>{verificationProfileMsg.text}</span>
+            </div>
+          )}
+
+          {/* Entity Profile Form */}
+          <form onSubmit={handleSaveVerificationProfile} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Business Type */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
+                  Business Entity Type *
+                </label>
+                <select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value as BusinessType)}
+                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
+                >
+                  <option value="SOLE_PROPRIETORSHIP">Sole Proprietorship</option>
+                  <option value="PARTNERSHIP">Partnership Firm</option>
+                  <option value="LLP">LLP</option>
+                  <option value="PRIVATE_LIMITED">Private Limited</option>
+                  <option value="PUBLIC_LIMITED">Public Limited</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <span className="text-[11px] text-[var(--merchant-text-muted)] mt-1 block">
+                  Document requirements dynamically adapt based on selected entity type.
+                </span>
+              </div>
+
+              {/* GST Registered */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
+                  GST Registered? *
+                </label>
+                <select
+                  value={gstRegistered ? 'YES' : 'NO'}
+                  onChange={(e) => setGstRegistered(e.target.value === 'YES')}
+                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none"
+                >
+                  <option value="NO">No — Not GST Registered</option>
+                  <option value="YES">Yes — GST Registered</option>
+                </select>
+                <span className="text-[11px] text-[var(--merchant-text-muted)] mt-1 block">
+                  If Yes, GSTIN & certificate will be required.
+                </span>
+              </div>
+            </div>
+
+            {/* GSTIN (Conditional) */}
+            {gstRegistered && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
+                  GST Identification Number (GSTIN) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 27ABCDE1234F1Z5"
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none uppercase"
+                  required={gstRegistered}
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* PAN Number */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
+                  Entity / Business PAN
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. ABCDE1234F"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none uppercase"
+                />
+              </div>
+
+              {/* Udyam Registration */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--merchant-text-secondary)] mb-1">
+                  Udyam Registration Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UDYAM-MH-01-0012345"
+                  value={udyamNumber}
+                  onChange={(e) => setUdyamNumber(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none uppercase"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={savingVerificationProfile}
+                className="px-5 py-2 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{savingVerificationProfile ? 'Saving Profile...' : 'Save Verification Profile'}</span>
+              </button>
+            </div>
+          </form>
+
+          {/* DOCUMENT REQUIREMENTS & UPLOAD TABLE */}
+          <div className="space-y-3 pt-4 border-t border-[var(--merchant-border)]">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--merchant-text-secondary)]">
+              Required Business Documents
+            </h3>
+
+            {/* Document Specific Feedback */}
+            {docFeedbackMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  docFeedbackMsg.type === 'success'
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-300'
+                }`}
+              >
+                {docFeedbackMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                )}
+                <span>{docFeedbackMsg.text}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {(verificationData?.requirements || [
+                { type: 'PAN', title: 'PAN', required: true, description: 'PAN card of business or proprietor' },
+                { type: 'OWNER_ID', title: 'Owner Identity', required: true, description: 'Identity document of proprietor or authorized signatory' },
+                { type: 'UDYAM', title: 'Udyam Registration', required: false, description: 'MSME / Udyam registration certificate if registered' },
+                { type: 'GST_CERTIFICATE', title: 'GST Certificate', required: gstRegistered, description: 'GST certificate if registered' },
+              ]).map((req) => {
+                const doc = verificationData?.documents?.find(
+                  (d) => d.type === req.type && d.isCurrent,
+                );
+                const isUploading = uploadingDocType === req.type;
+
+                return (
+                  <div
+                    key={req.type}
+                    className="p-4 rounded-xl border border-[var(--merchant-border)] bg-[var(--merchant-surface-muted)]/30 space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[var(--merchant-text)]">
+                            {req.title}
+                          </span>
+                          {req.required ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              Mandatory
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-500/15 text-zinc-400">
+                              Optional
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--merchant-text-muted)] mt-0.5">
+                          {req.description}
+                        </p>
+                      </div>
+
+                      {/* Status Pill */}
+                      <div className="shrink-0">
+                        {!doc ? (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-zinc-500/15 text-zinc-400 border border-zinc-500/20">
+                            Not Uploaded
+                          </span>
+                        ) : doc.status === 'VERIFIED' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            <Check className="w-3.5 h-3.5" />
+                            Verified
+                          </span>
+                        ) : doc.status === 'PENDING_REVIEW' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            <Clock className="w-3.5 h-3.5" />
+                            Pending Review
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Needs Changes
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rejection Notice if any */}
+                    {doc?.rejectionReason && (
+                      <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-300">
+                        <strong className="block font-bold">Feedback from Administrator:</strong>
+                        <span>{doc.rejectionReason}</span>
+                      </div>
+                    )}
+
+                    {/* Upload Controls Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[var(--merchant-border)]/50 text-xs">
+                      {doc ? (
+                        <div className="text-[11px] text-[var(--merchant-text-muted)]">
+                          <span>Current file: </span>
+                          <strong className="text-[var(--merchant-text)] font-mono">{doc.originalFilename}</strong>
+                          {doc.documentNumberMasked && (
+                            <span className="ml-2 font-mono">({doc.documentNumberMasked})</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex-1 max-w-xs">
+                          <input
+                            type="text"
+                            placeholder={
+                              req.type === 'OWNER_ID'
+                                ? 'Last 4 digits / Masked ID'
+                                : 'Document number (Optional)'
+                            }
+                            value={docNumbers[req.type] || ''}
+                            onChange={(e) =>
+                              setDocNumbers({ ...docNumbers, [req.type]: e.target.value })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded text-xs"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white text-xs font-semibold shadow-xs transition">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{isUploading ? 'Uploading...' : doc ? 'Replace File' : 'Upload File'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            disabled={isUploading}
+                            onChange={(e) => handleDocumentUpload(req.type as MerchantDocumentType, e)}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* SECTION: Multilingual & Internationalization Settings */}
         <form

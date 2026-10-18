@@ -19,6 +19,7 @@ import { planAvailability } from '../subscriptions/plan-policy';
 
 import { MailService } from '../notifications/mail.service';
 import { WhatsAppService } from '../notifications/whatsapp.service';
+import { VerificationService } from '../verification/verification.service';
 
 @Injectable()
 export class AdminService {
@@ -31,6 +32,7 @@ export class AdminService {
     private readonly data: AdminDataService,
     private readonly mailService: MailService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly verificationService: VerificationService,
   ) {}
 
   public getOverview(range?: string, from?: string, to?: string) {
@@ -227,6 +229,8 @@ export class AdminService {
       });
 
     const { invoices, ...merchant } = tenant;
+    const verification = await this.verificationService.getVerification(tenantId);
+
     return {
       ...merchant,
       paymentHistory: invoices,
@@ -238,6 +242,13 @@ export class AdminService {
         activeCount: reviewStats?.activeCount || 0,
         avgRating: reviewStats?.avgRating ? Number(reviewStats.avgRating.toFixed(1)) : null,
       },
+      verification,
+      businessType: verification.businessType,
+      gstRegistered: verification.gstRegistered,
+      gstin: verification.gstin,
+      panNumberMasked: verification.panNumberMasked,
+      udyamNumber: verification.udyamNumber,
+      businessVerificationStatus: verification.overallStatus,
     };
   }
 
@@ -1854,4 +1865,30 @@ export class AdminService {
       return updated;
     });
   }
+
+  public async getSubscriptionKpis() {
+    return this.data.subscriptionKpis();
+  }
+
+  public async getMerchantVerification(tenantId: string) {
+    return this.verificationService.getVerification(tenantId);
+  }
+
+  public async reviewMerchantDocument(
+    adminId: string,
+    tenantId: string,
+    docId: string,
+    data: {
+      status: 'VERIFIED' | 'REJECTED';
+      rejectionReason?: string;
+      adminNote?: string;
+    },
+  ) {
+    return this.verificationService.reviewDocument(adminId, tenantId, docId, data);
+  }
+
+  public async getMerchantDocumentStream(documentId: string, tenantId: string) {
+    return this.verificationService.getDocumentStream(documentId, tenantId, true);
+  }
 }
+

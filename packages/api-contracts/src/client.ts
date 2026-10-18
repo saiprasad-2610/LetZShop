@@ -11,6 +11,8 @@ import type {
   AdminCommunicationLog,
   AdminReviewsSummary,
   AdminReviewTimelineEvent,
+  AdminSubscriptionKpi,
+  AdminBusinessVerification,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -608,6 +610,51 @@ export class SimplyApiClient {
       this.request(`admin/subscriptions/${id}/cancel`, { method: 'POST', body }),
     getSubscriptionDetail: (id: string) =>
       this.request(`admin/subscriptions/${id}`),
+    getSubscriptionKpis: () =>
+      this.request<AdminSubscriptionKpi>('admin/subscriptions/kpis'),
+    getMerchantVerification: (id: string) =>
+      this.request<AdminBusinessVerification>(`admin/merchants/${id}/verification`),
+    reviewMerchantDocument: (
+      tenantId: string,
+      docId: string,
+      data: {
+        status: 'VERIFIED' | 'REJECTED';
+        rejectionReason?: string;
+        adminNote?: string;
+      },
+    ) =>
+      this.request(`admin/merchants/${tenantId}/documents/${docId}/review`, {
+        method: 'POST',
+        body: data,
+      }),
+  };
+
+  // --- Merchant Business Verification & Documents ---
+  public verification = {
+    getVerification: () =>
+      this.request<AdminBusinessVerification>('seller/verification'),
+    updateProfile: (data: {
+      businessType?: string;
+      gstRegistered?: boolean;
+      gstin?: string;
+      panNumber?: string;
+      udyamNumber?: string;
+    }) =>
+      this.request('seller/verification/profile', {
+        method: 'PATCH',
+        body: data,
+      }),
+    uploadDocument: (data: {
+      type: string;
+      documentNumber?: string;
+      filename: string;
+      mimeType: string;
+      base64Data: string;
+    }) =>
+      this.request('seller/verification/documents', {
+        method: 'POST',
+        body: data,
+      }),
   };
 
   // --- Buyer Payments (Merchant Razorpay Checkout) ---
