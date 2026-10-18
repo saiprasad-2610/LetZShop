@@ -43,6 +43,15 @@ export enum SubscriptionStatus {
   EXPIRED = 'EXPIRED',
 }
 
+export interface PlanHighlight {
+  id: string;
+  planId: string;
+  text: string;
+  sortOrder: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export enum ProductMode {
   SELL_ONLINE = 'SELL_ONLINE',
   ENQUIRY_ONLY = 'ENQUIRY_ONLY',

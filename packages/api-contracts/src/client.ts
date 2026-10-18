@@ -13,6 +13,7 @@ import type {
   AdminReviewTimelineEvent,
   AdminSubscriptionKpi,
   AdminBusinessVerification,
+  PlanHighlightItem,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -583,6 +584,7 @@ export class SimplyApiClient {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      highlights?: PlanHighlightItem[];
     }) => this.request('admin/plans', { method: 'POST', body: data }),
     updatePlan: (
       id: string,

@@ -1533,6 +1533,18 @@ export class AdminService {
         },
       });
 
+      if (Array.isArray((data as any).highlights) && (data as any).highlights.length > 0) {
+        await tx.planHighlight.createMany({
+          data: (data as any).highlights
+            .filter((h: any) => (typeof h === 'string' ? h.trim() : h?.text?.trim()))
+            .map((h: any, idx: number) => ({
+              planId: plan.id,
+              text: typeof h === 'string' ? h.trim() : h.text.trim(),
+              sortOrder: typeof h === 'object' && typeof h.sortOrder === 'number' ? h.sortOrder : idx,
+            })),
+        });
+      }
+
       await tx.auditLog.create({
         data: {
           actorId,
@@ -1547,7 +1559,10 @@ export class AdminService {
         },
       });
 
-      return plan;
+      return tx.plan.findUnique({
+        where: { id: plan.id },
+        include: { highlights: { orderBy: { sortOrder: 'asc' } } },
+      });
     });
   }
 
@@ -1563,6 +1578,7 @@ export class AdminService {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      highlights?: Array<{ text: string; sortOrder?: number } | string>;
     },
     actorId: string,
   ) {
@@ -1599,6 +1615,22 @@ export class AdminService {
         },
       });
 
+      if (Array.isArray(data.highlights)) {
+        await tx.planHighlight.deleteMany({ where: { planId: id } });
+        const validHighlights = data.highlights.filter((h: any) =>
+          typeof h === 'string' ? h.trim() : h?.text?.trim(),
+        );
+        if (validHighlights.length > 0) {
+          await tx.planHighlight.createMany({
+            data: validHighlights.map((h: any, idx: number) => ({
+              planId: id,
+              text: typeof h === 'string' ? h.trim() : h.text.trim(),
+              sortOrder: typeof h === 'object' && typeof h.sortOrder === 'number' ? h.sortOrder : idx,
+            })),
+          });
+        }
+      }
+
       await tx.auditLog.create({
         data: {
           actorId,
@@ -1609,7 +1641,10 @@ export class AdminService {
         },
       });
 
-      return updated;
+      return tx.plan.findUnique({
+        where: { id },
+        include: { highlights: { orderBy: { sortOrder: 'asc' } } },
+      });
     });
   }
 

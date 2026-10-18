@@ -631,8 +631,23 @@ model Plan {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   subscriptions Subscription[]
+  highlights    PlanHighlight[]
 
   @@map("plans")
+}
+
+model PlanHighlight {
+  id        String   @id @default(uuid())
+  planId    String   @map("plan_id")
+  text      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, sortOrder])
+  @@map("plan_highlights")
 }
 
 model Subscription {

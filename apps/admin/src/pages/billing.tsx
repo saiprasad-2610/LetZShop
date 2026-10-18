@@ -25,6 +25,8 @@ import {
   Layers,
   HelpCircle,
   ShieldAlert,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -43,6 +45,7 @@ interface PlanFormData {
   maxStorageMb: number;
   customDomainAllowed: boolean;
   isPublic: boolean;
+  highlights: Array<{ text: string; sortOrder: number }>;
 }
 
 const initialFormData: PlanFormData = {
@@ -57,6 +60,7 @@ const initialFormData: PlanFormData = {
   maxStorageMb: 2048,
   customDomainAllowed: false,
   isPublic: true,
+  highlights: [],
 };
 
 export default function AdminBillingPage() {
@@ -137,9 +141,55 @@ export default function AdminBillingPage() {
       maxStorageMb: plan.maxStorageMb,
       customDomainAllowed: Boolean(plan.customDomainAllowed),
       isPublic: Boolean(plan.isPublic),
+      highlights: (plan.highlights || []).map((h, idx) => ({
+        text: h.text,
+        sortOrder: typeof h.sortOrder === 'number' ? h.sortOrder : idx,
+      })),
     });
     setFormError(null);
     setModalOpen(true);
+  };
+
+  const handleAddHighlight = () => {
+    setFormData((prev) => ({
+      ...prev,
+      highlights: [...prev.highlights, { text: '', sortOrder: prev.highlights.length }],
+    }));
+  };
+
+  const handleUpdateHighlightText = (index: number, text: string) => {
+    setFormData((prev) => {
+      const updated = [...prev.highlights];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], text };
+      }
+      return { ...prev, highlights: updated };
+    });
+  };
+
+  const handleDeleteHighlight = (index: number) => {
+    setFormData((prev) => {
+      const updated = prev.highlights.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        highlights: updated.map((item, idx) => ({ ...item, sortOrder: idx })),
+      };
+    });
+  };
+
+  const handleMoveHighlight = (index: number, direction: 'UP' | 'DOWN') => {
+    setFormData((prev) => {
+      const list = [...prev.highlights];
+      const targetIdx = direction === 'UP' ? index - 1 : index + 1;
+      if (targetIdx < 0 || targetIdx >= list.length) return prev;
+      const temp = list[index];
+      list[index] = list[targetIdx];
+      list[targetIdx] = temp;
+      return {
+        ...prev,
+        highlights: list.map((item, idx) => ({ ...item, sortOrder: idx })),
+      };
+    });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -154,6 +204,9 @@ export default function AdminBillingPage() {
     setSubmitting(true);
     try {
       const pricePaise = Math.round(Number(formData.priceRupees) * 100);
+      const highlights = formData.highlights
+        .filter((h) => h.text.trim())
+        .map((h, idx) => ({ text: h.text.trim(), sortOrder: idx }));
 
       if (isEditing && formData.id) {
         await api.admin.updatePlan(formData.id, {
@@ -166,6 +219,7 @@ export default function AdminBillingPage() {
           maxStorageMb: Number(formData.maxStorageMb),
           customDomainAllowed: formData.customDomainAllowed,
           isPublic: formData.isPublic,
+          highlights,
         });
         showNotification(
           'success',
@@ -183,6 +237,7 @@ export default function AdminBillingPage() {
           maxStorageMb: Number(formData.maxStorageMb),
           customDomainAllowed: formData.customDomainAllowed,
           isPublic: formData.isPublic,
+          highlights,
         });
         showNotification(
           'success',
@@ -515,6 +570,28 @@ export default function AdminBillingPage() {
                           </span>
                         </div>
                       </div>
+
+                      {/* Admin-defined Highlights */}
+                      {p.highlights && p.highlights.length > 0 && (
+                        <div className="pt-2 border-t border-admin-border/50 space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-admin-muted">
+                            Highlights ({p.highlights.length})
+                          </span>
+                          <ul className="space-y-1">
+                            {p.highlights.slice(0, 4).map((h, i) => (
+                              <li key={i} className="text-[11px] text-admin-secondary flex items-start gap-1.5 truncate">
+                                <Check className="w-3 h-3 text-admin-accent shrink-0 mt-0.5" />
+                                <span className="truncate">{h.text}</span>
+                              </li>
+                            ))}
+                            {p.highlights.length > 4 && (
+                              <span className="text-[10px] text-admin-muted block pl-4">
+                                +{p.highlights.length - 4} more
+                              </span>
+                            )}
+                          </ul>
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Footer: Real merchant counts & actions */}
@@ -726,11 +803,83 @@ export default function AdminBillingPage() {
                   </div>
                 </div>
 
-                {/* SECTION 4: LIMITS */}
+                {/* SECTION 4: PLAN HIGHLIGHTS */}
+                <div className="space-y-3 pt-3 border-t border-admin-border">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      4. Plan Highlights
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleAddHighlight}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-admin-raised hover:bg-admin-border text-admin-primary transition cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Highlight</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-admin-muted">
+                    Point-wise merchant-facing bullets displayed on the subscription card. There are no hardcoded bullets.
+                  </p>
+
+                  {formData.highlights.length === 0 ? (
+                    <div className="p-3 rounded-xl border border-dashed border-admin-border text-center text-admin-muted text-xs">
+                      No highlights added yet. Click &ldquo;+ Add Highlight&rdquo; to add merchant-facing benefit points.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.highlights.map((h, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-admin-muted w-5 shrink-0 text-right">
+                            {idx + 1}.
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="e.g. 0% transaction fees on all orders"
+                            value={h.text}
+                            onChange={(e) => handleUpdateHighlightText(idx, e.target.value)}
+                            className="flex-1 px-3 py-1.5 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                          />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveHighlight(idx, 'UP')}
+                              className="p-1 rounded-lg text-admin-muted hover:text-admin-secondary hover:bg-admin-raised disabled:opacity-30 cursor-pointer"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === formData.highlights.length - 1}
+                              onClick={() => handleMoveHighlight(idx, 'DOWN')}
+                              className="p-1 rounded-lg text-admin-muted hover:text-admin-secondary hover:bg-admin-raised disabled:opacity-30 cursor-pointer"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHighlight(idx)}
+                              className="p-1 rounded-lg text-admin-muted hover:text-admin-danger hover:bg-admin-danger-soft cursor-pointer"
+                              title="Delete Highlight"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 5: OPERATIONAL LIMITS */}
                 <div className="space-y-3 pt-3 border-t border-admin-border">
                   <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
                     <Package className="w-3.5 h-3.5" />
-                    4. Operational Limits
+                    5. Operational Limits (Backend Enforcement)
                   </h4>
                   <div className="grid grid-cols-3 gap-2">
                     <div>

@@ -150,11 +150,15 @@ export default function MerchantDetailPage() {
     setRejectionReasonChoice('Document unclear');
     setRejectionReasonCustom('');
     setDocLoading(true);
+    if (docBlobUrl) {
+      URL.revokeObjectURL(docBlobUrl);
+      setDocBlobUrl(null);
+    }
     try {
       const token = localStorage.getItem('simply_admin_token') || '';
-      const res = await fetch(`/api/admin/merchants/${merchantId}/documents/${doc.id}/view`, {
+      const res = await fetch(`/api/platform/admin/merchants/${merchantId}/documents/${doc.id}/view`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
       if (!res.ok) throw new Error('Could not retrieve secure document stream.');
@@ -177,12 +181,20 @@ export default function MerchantDetailPage() {
     setIsRejecting(false);
   };
 
+  useEffect(() => {
+    return () => {
+      if (docBlobUrl) {
+        URL.revokeObjectURL(docBlobUrl);
+      }
+    };
+  }, [docBlobUrl]);
+
   const handleDownloadDoc = async (doc: AdminMerchantDocument) => {
     try {
       const token = localStorage.getItem('simply_admin_token') || '';
-      const res = await fetch(`/api/admin/merchants/${merchantId}/documents/${doc.id}/download`, {
+      const res = await fetch(`/api/platform/admin/merchants/${merchantId}/documents/${doc.id}/download`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
       if (!res.ok) throw new Error('Could not download document.');
@@ -1741,17 +1753,21 @@ export default function MerchantDetailPage() {
                       title={selectedDocForReview.originalFilename}
                       className="w-full h-[450px] rounded-xl border border-admin-border/50"
                     />
-                  ) : (
+                  ) : selectedDocForReview.mimeType.startsWith('image/') ? (
                     <img
                       src={docBlobUrl}
                       alt={selectedDocForReview.originalFilename}
                       className="max-h-[450px] w-auto object-contain mx-auto rounded-xl"
                     />
+                  ) : (
+                    <div className="p-10 text-center text-xs text-admin-muted">
+                      Preview unavailable. Download securely.
+                    </div>
                   )}
                 </div>
               ) : (
                 <div className="p-10 text-center text-xs text-admin-muted">
-                  Document could not be previewed inline. Please download securely.
+                  Preview unavailable. Download securely.
                 </div>
               )}
 

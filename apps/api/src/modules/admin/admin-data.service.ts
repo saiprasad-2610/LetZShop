@@ -382,7 +382,13 @@ export class AdminDataService {
   }
   async plans() {
     const [plans, counts] = await Promise.all([
-      this.db.plan.findMany(),
+      this.db.plan.findMany({
+        include: {
+          highlights: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      }),
       this.db.$queryRaw<
         Array<{ planId: string; merchants: number; active: number }>
       >`SELECT plan_id AS "planId",count(DISTINCT tenant_id)::int AS merchants,count(DISTINCT tenant_id) FILTER(WHERE status='ACTIVE' AND current_period_end > ${new Date()})::int AS active FROM subscriptions GROUP BY plan_id`,

@@ -401,9 +401,24 @@ export class VerificationService {
 
     const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
     const relativeKey = document.storageKey.replace(/^[\\\/]+/, '');
-    const absolutePath = path.resolve(baseStorage, relativeKey);
+    let absolutePath = path.resolve(baseStorage, relativeKey);
 
-    if (!absolutePath.startsWith(baseStorage) || !fs.existsSync(absolutePath)) {
+    if (!fs.existsSync(absolutePath)) {
+      const candidates = [
+        path.resolve(process.cwd(), 'apps/api/media-storage', relativeKey),
+        path.resolve(process.cwd(), 'media-storage', relativeKey),
+        path.resolve(process.cwd(), '..', 'media-storage', relativeKey),
+        path.resolve(process.cwd(), '..', 'apps/api/media-storage', relativeKey),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          absolutePath = cand;
+          break;
+        }
+      }
+    }
+
+    if (!fs.existsSync(absolutePath)) {
       throw new NotFoundException('Document file missing or not found on storage.');
     }
 

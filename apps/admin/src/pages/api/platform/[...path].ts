@@ -12,7 +12,9 @@ export default async function handler(
 ) {
   res.setHeader('Cache-Control', 'no-store');
   if (!allowMutation(req, res)) return;
-  const token = req.cookies[ADMIN_COOKIE];
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  const token = req.cookies[ADMIN_COOKIE] || bearerToken;
   if (!token) return res.status(401).json({ message: 'Please log in.' });
   const parts = req.query.path as string[];
   if (
@@ -40,15 +42,32 @@ export default async function handler(
       res.setHeader('Set-Cookie', sessionCookie('', 0));
 
     const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/pdf')) {
-      res.setHeader('Content-Type', 'application/pdf');
+    const isBinary =
+      contentType.includes('application/pdf') ||
+      contentType.startsWith('image/') ||
+      contentType.includes('application/octet-stream');
+
+    if (isBinary) {
+      res.setHeader('Content-Type', contentType);
       const disposition = response.headers.get('content-disposition');
       if (disposition) res.setHeader('Content-Disposition', disposition);
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      const etag = response.headers.get('etag');
+      if (etag) res.setHeader('ETag', etag);
+      res.setHeader('Cache-Control', 'private, no-store');
+
       const arrayBuffer = await response.arrayBuffer();
       return res.status(response.status).send(Buffer.from(arrayBuffer));
     }
 
-    return res.status(response.status).json(await response.json());
+    if (contentType.includes('application/json')) {
+      return res.status(response.status).json(await response.json());
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    if (contentType) res.setHeader('Content-Type', contentType);
+    return res.status(response.status).send(Buffer.from(arrayBuffer));
   } catch {
     return res
       .status(503)

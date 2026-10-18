@@ -282,12 +282,12 @@ export class AdminController {
     const { filePath, mimeType, filename } =
       await this.adminService.getMerchantDocumentStream(docId, id);
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.setHeader('Cache-Control', 'private, no-store');
+    res.header('Content-Type', mimeType);
+    res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.header('Cache-Control', 'private, no-store');
 
     const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
+    return res.send(stream);
   }
 
   @Get('merchants/:id/documents/:docId/view')
@@ -300,12 +300,12 @@ export class AdminController {
     const { filePath, mimeType, filename } =
       await this.adminService.getMerchantDocumentStream(docId, id);
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
-    res.setHeader('Cache-Control', 'private, no-store');
+    res.header('Content-Type', mimeType);
+    res.header('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
+    res.header('Cache-Control', 'private, no-store');
 
     const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
+    return res.send(stream);
   }
 
   @Get('commerce')

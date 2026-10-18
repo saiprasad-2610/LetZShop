@@ -39,6 +39,12 @@ export interface AdminStore {
     productReviews: number;
   };
 }
+export interface PlanHighlightItem {
+  id?: string;
+  planId?: string;
+  text: string;
+  sortOrder: number;
+}
 export interface AdminPlan {
   id: string;
   name: string;
@@ -55,6 +61,7 @@ export interface AdminPlan {
   purchasable: boolean;
   merchantCount: number;
   activeSubscribersCount: number;
+  highlights?: PlanHighlightItem[];
 }
 export interface AdminOwner {
   id: string;
