@@ -396,10 +396,27 @@ export class AdminDataService {
     }));
   }
   async subscriptions(q: AdminQuery = {}) {
-    const p = paging(q),
-      where: Prisma.SubscriptionWhereInput = q.tenantId
-        ? { tenantId: q.tenantId }
-        : {};
+    const p = paging(q);
+    const where: Prisma.SubscriptionWhereInput = {};
+    if (q.tenantId) {
+      where.tenantId = q.tenantId;
+    }
+    if (q.status && q.status !== 'ALL') {
+      where.status = q.status.toUpperCase() as any;
+    }
+    if (q.planId && q.planId !== 'ALL') {
+      where.planId = q.planId;
+    }
+    if (q.search?.trim()) {
+      const term = q.search.trim();
+      where.OR = [
+        { tenant: { name: { contains: term, mode: 'insensitive' } } },
+        { plan: { name: { contains: term, mode: 'insensitive' } } },
+        { plan: { code: { contains: term, mode: 'insensitive' } } },
+        { invoices: { some: { invoiceNumber: { contains: term, mode: 'insensitive' } } } },
+      ];
+    }
+
     const [total, items] = await Promise.all([
       this.db.subscription.count({ where }),
       this.db.subscription.findMany({
@@ -413,19 +430,30 @@ export class AdminDataService {
           currentPeriodStart: true,
           currentPeriodEnd: true,
           createdAt: true,
-          tenant: { select: { id: true, name: true } },
+          tenant: { select: { id: true, name: true, slug: true } },
           plan: {
             select: { id: true, name: true, pricePaise: true, code: true },
           },
           invoices: {
             take: 1,
             orderBy: { createdAt: 'desc' },
-            select: { status: true, paidAt: true },
+            select: { id: true, invoiceNumber: true, status: true, paidAt: true, amountPaise: true, invoicePdfUrl: true },
           },
         },
       }),
     ]);
-    return envelope(items, total, p);
+    const mappedItems = items.map((sub) => ({
+      ...sub,
+      invoices: sub.invoices.map((inv) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        status: inv.status,
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+        amountPaise: inv.amountPaise,
+        pdfUrl: inv.invoicePdfUrl,
+      })),
+    }));
+    return envelope(mappedItems, total, p);
   }
   async analytics(range = '30d') {
     const from = adminRange(range),

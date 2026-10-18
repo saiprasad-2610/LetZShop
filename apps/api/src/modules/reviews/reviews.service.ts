@@ -332,6 +332,10 @@ export class ReviewsService {
 
   async updateReviewReport(reportId: string, actorId: string, status: 'UNDER_REVIEW' | 'DISMISSED', note?: string) { return this.moderation.updateReport(reportId, actorId, status, note); }
 
+  async recordWhatsAppOpened(reviewId: string, actorId: string, recipientType: 'MERCHANT' | 'BUYER', phone?: string) {
+    return this.moderation.recordWhatsAppOpened(reviewId, actorId, recipientType, phone);
+  }
+
   /**
    * Seller Portal: View reviews for their store's products with filtering, search, metrics, and pagination.
    * Can accept either a TenantContext object or legacy storeId string for full compatibility.

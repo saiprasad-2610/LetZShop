@@ -33,6 +33,7 @@ import {
   Trash2,
   FileText,
   AlertTriangle,
+  Check,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import {
@@ -45,6 +46,159 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import { useAdminAttention } from '../context/AdminAttentionContext';
 import { StatusBadge } from '../components/dashboard/StatusBadge';
 import { getStorefrontUrl } from '../utils/config';
+
+interface SearchableComboboxOption {
+  id: string;
+  label: string;
+  sub?: string;
+}
+
+function SearchableCombobox({
+  label,
+  placeholder,
+  value,
+  onChange,
+  options,
+  disabled,
+  disabledPlaceholder,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: SearchableComboboxOption[];
+  disabled?: boolean;
+  disabledPlaceholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find((o) => o.id === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = options.filter((o) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return o.label.toLowerCase().includes(term) || (o.sub && o.sub.toLowerCase().includes(term));
+  });
+
+  if (disabled) {
+    return (
+      <div className="space-y-1">
+        <label className="text-[11px] font-semibold text-admin-muted">{label}</label>
+        <div className="admin-input text-xs py-1.5 w-full bg-admin-raised/40 text-admin-muted cursor-not-allowed select-none">
+          {disabledPlaceholder || 'Select previous filter first'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 relative" ref={wrapperRef}>
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] font-semibold text-admin-muted">{label}</label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setSearchTerm('');
+            }}
+            className="text-[10px] text-admin-accent hover:underline cursor-pointer"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div
+        onClick={() => setOpen(!open)}
+        className="admin-input text-xs py-1.5 w-full flex items-center justify-between cursor-pointer"
+      >
+        <span className={selected ? 'text-admin-text font-medium truncate' : 'text-admin-muted'}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 text-admin-muted shrink-0 ml-1" />
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-admin-surface border border-admin-border rounded-xl shadow-2xl z-50 p-2 space-y-1.5 text-xs">
+          <div className="relative">
+            <Search className="h-3 w-3 text-admin-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}...`}
+              className="admin-input pl-8 pr-2 py-1 text-xs w-full"
+            />
+          </div>
+
+          <div className="max-h-48 overflow-y-auto admin-scrollbar divide-y divide-admin-border/30">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+                setSearchTerm('');
+              }}
+              className={`w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-admin-raised transition-colors flex items-center justify-between ${
+                !value ? 'bg-admin-raised font-bold text-admin-accent' : 'text-admin-text'
+              }`}
+            >
+              <span>All {label}s</span>
+              {!value && <Check className="h-3.5 w-3.5 text-admin-accent" />}
+            </button>
+
+            {filtered.length === 0 ? (
+              <div className="text-center text-admin-muted py-3 text-[11px]">
+                No matching {label.toLowerCase()} found
+              </div>
+            ) : (
+              filtered.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.id);
+                    setOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-admin-raised transition-colors flex items-center justify-between ${
+                    value === opt.id ? 'bg-admin-raised font-bold text-admin-accent' : 'text-admin-text'
+                  }`}
+                >
+                  <div className="truncate pr-1">
+                    <span className="block truncate font-medium">{opt.label}</span>
+                    {opt.sub && (
+                      <span className="block text-[10px] text-admin-muted truncate font-normal">
+                        {opt.sub}
+                      </span>
+                    )}
+                  </div>
+                  {value === opt.id && (
+                    <Check className="h-3.5 w-3.5 text-admin-accent shrink-0 ml-1" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const REMOVAL_REASONS = [
   'Abuse / harassment',
@@ -69,6 +223,7 @@ export default function ReviewsPage() {
   const [status, setStatus] = useState('ALL');
   const [reportStatus, setReportStatus] = useState('ALL');
   const [rating, setRating] = useState('');
+  const [merchantId, setMerchantId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [productId, setProductId] = useState('');
   const [verified, setVerified] = useState('');
@@ -99,13 +254,46 @@ export default function ReviewsPage() {
   const [notifyMerchantWhatsApp, setNotifyMerchantWhatsApp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [whatsappPopup, setWhatsappPopup] = useState<{
+    merchantUrl?: string | null;
+    buyerUrl?: string | null;
+    reviewId: string;
+    storeName: string;
+  } | null>(null);
 
   const filterRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
+  // Cascading handler functions
+  const handleMerchantChange = (newMerchantId: string) => {
+    setMerchantId(newMerchantId);
+    if (storeId) {
+      const storeBelongs = filtersQuery.data?.stores?.some(
+        (s) => s.id === storeId && (!newMerchantId || s.tenantId === newMerchantId),
+      );
+      if (!storeBelongs) {
+        setStoreId('');
+        setProductId('');
+      }
+    }
+  };
+
+  const handleStoreChange = (newStoreId: string) => {
+    setStoreId(newStoreId);
+    if (productId) {
+      const prodBelongs = filtersQuery.data?.products?.some(
+        (p) => p.id === productId && (!newStoreId || p.storeId === newStoreId),
+      );
+      if (!prodBelongs) {
+        setProductId('');
+      }
+    }
+  };
+
   // Sync router queries on initial mount
   useEffect(() => {
     if (typeof router.query.search === 'string') setSearch(router.query.search);
+    if (typeof router.query.merchantId === 'string') setMerchantId(router.query.merchantId);
     if (typeof router.query.storeId === 'string') setStoreId(router.query.storeId);
     if (typeof router.query.reportStatus === 'string') setReportStatus(router.query.reportStatus);
   }, [router.query]);
@@ -121,7 +309,7 @@ export default function ReviewsPage() {
   // Reset to page 1 on filter changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status, reportStatus, rating, storeId, productId, verified, hasComplaint, from, to, sort, limit]);
+  }, [debouncedSearch, status, reportStatus, rating, merchantId, storeId, productId, verified, hasComplaint, from, to, sort, limit]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -151,6 +339,7 @@ export default function ReviewsPage() {
     status,
     reportStatus,
     rating,
+    merchantId,
     storeId,
     productId,
     verified,
@@ -176,12 +365,14 @@ export default function ReviewsPage() {
     let active = true;
     setTimelineLoading(true);
     api
-      .request<AdminReviewTimelineEvent[]>(`admin/reviews/${selectedReview.id}/timeline`)
-      .then((events) => {
-        if (active) setTimeline(events);
+      .request<any>(`admin/reviews/${selectedReview.id}/timeline`)
+      .then((res) => {
+        if (!active) return;
+        const events = Array.isArray(res) ? res : res?.timeline || [];
+        setTimeline(events);
       })
       .catch(() => {
-        if (active) setTimeline([]);
+        if (!active) setTimeline([]);
       })
       .finally(() => {
         if (active) setTimelineLoading(false);
@@ -207,7 +398,7 @@ export default function ReviewsPage() {
     setNotifyBuyerEmail(true);
     setNotifyMerchantEmail(true);
     setNotifyBuyerWhatsApp(false);
-    setNotifyMerchantWhatsApp(false);
+    setNotifyMerchantWhatsApp(true);
     setActionError('');
   };
 
@@ -272,6 +463,34 @@ export default function ReviewsPage() {
           notifyBuyerWhatsApp,
           notifyMerchantWhatsApp,
         });
+
+        // Prepare WhatsApp deep link if selected
+        const merchantInfo = filtersQuery.data?.merchants?.find(
+          (m) => m.id === (activeReviewForDialog.store.tenantId || activeReviewForDialog.store.tenant?.id),
+        );
+        const merchantPhone = merchantInfo?.phone;
+        const buyerPhone = activeReviewForDialog.order?.customer?.phone;
+
+        let merchantUrl: string | null = null;
+        let buyerUrl: string | null = null;
+
+        if (notifyMerchantWhatsApp && merchantPhone) {
+          const cleanPhone = merchantPhone.replace(/[^0-9]/g, '');
+          merchantUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(merchantMessage.trim())}`;
+        }
+        if (notifyBuyerWhatsApp && buyerPhone) {
+          const cleanPhone = buyerPhone.replace(/[^0-9]/g, '');
+          buyerUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(buyerMessage.trim())}`;
+        }
+
+        if (merchantUrl || buyerUrl) {
+          setWhatsappPopup({
+            reviewId: activeReviewForDialog.id,
+            storeName: activeReviewForDialog.store.name,
+            merchantUrl,
+            buyerUrl,
+          });
+        }
       } else if (dialogAction === 'RESTORE') {
         await api.reviews.moderateAdminReview(activeReviewForDialog.id, {
           status: 'ACTIVE',
@@ -298,9 +517,12 @@ export default function ReviewsPage() {
       reloadAll();
 
       if (selectedReview?.id === activeReviewForDialog.id) {
-        // Refresh detail drawer review object
+        // Refresh detail drawer review object and timeline
         const updated = await api.request<AdminReview>(`admin/reviews/${activeReviewForDialog.id}`);
         setSelectedReview(updated);
+        const tlRes = await api.reviews.getAdminReviewTimeline(activeReviewForDialog.id);
+        const events = Array.isArray(tlRes) ? tlRes : (tlRes as any)?.timeline || [];
+        setTimeline(events);
       }
     } catch (err: unknown) {
       setActionError(errorMessage(err));
@@ -309,11 +531,33 @@ export default function ReviewsPage() {
     }
   };
 
+  const handleOpenWhatsApp = async (type: 'MERCHANT' | 'BUYER', url: string) => {
+    if (!whatsappPopup) return;
+    window.open(url, '_blank');
+    try {
+      await api.request(`admin/reviews/${whatsappPopup.reviewId}/whatsapp-opened`, {
+        method: 'POST',
+        body: {
+          recipientType: type,
+          phone: type === 'MERCHANT' ? 'merchant' : 'buyer',
+        },
+      });
+      if (selectedReview?.id === whatsappPopup.reviewId) {
+        const tlRes = await api.reviews.getAdminReviewTimeline(whatsappPopup.reviewId);
+        const events = Array.isArray(tlRes) ? tlRes : (tlRes as any)?.timeline || [];
+        setTimeline(events);
+      }
+    } catch (err) {
+      console.error('Failed to record whatsapp opened', err);
+    }
+  };
+
   const clearAllFilters = () => {
     setSearch('');
     setStatus('ALL');
     setReportStatus('ALL');
     setRating('');
+    setMerchantId('');
     setStoreId('');
     setProductId('');
     setVerified('');
@@ -329,6 +573,7 @@ export default function ReviewsPage() {
     (status !== 'ALL' ? 1 : 0) +
     (reportStatus !== 'ALL' ? 1 : 0) +
     (rating ? 1 : 0) +
+    (merchantId ? 1 : 0) +
     (storeId ? 1 : 0) +
     (productId ? 1 : 0) +
     (verified ? 1 : 0) +
@@ -339,9 +584,29 @@ export default function ReviewsPage() {
   const items = reviewsQuery.data?.items ?? [];
   const totalPages = Math.max(1, Math.ceil(totalReviews / limit));
 
-  // Store & Product name lookups for chips
+  // Store, Merchant & Product name lookups for chips
+  const selectedMerchantName = filtersQuery.data?.merchants?.find((m) => m.id === merchantId)?.name;
   const selectedStoreName = filtersQuery.data?.stores?.find((s) => s.id === storeId)?.name;
   const selectedProductName = filtersQuery.data?.products?.find((p) => p.id === productId)?.name;
+
+  // Options for SearchableComboboxes
+  const merchantOptions = (filtersQuery.data?.merchants || []).map((m) => ({
+    id: m.id,
+    label: m.name,
+    sub: [m.ownerName, m.email, m.phone].filter(Boolean).join(' • '),
+  }));
+
+  const storeOptions = (filtersQuery.data?.stores || [])
+    .filter((s) => !merchantId || s.tenantId === merchantId)
+    .map((s) => ({
+      id: s.id,
+      label: s.name,
+      sub: s.slug,
+    }));
+
+  const availableProducts = (filtersQuery.data?.products || []).filter(
+    (p) => !storeId || p.storeId === storeId,
+  );
 
   return (
     <AdminLayout>
@@ -577,143 +842,156 @@ export default function ReviewsPage() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    {/* Report Status */}
+                  <div className="space-y-3 text-xs">
+                    {/* Merchant Combobox */}
+                    <SearchableCombobox
+                      label="Merchant"
+                      placeholder="All Merchants"
+                      value={merchantId}
+                      onChange={handleMerchantChange}
+                      options={merchantOptions}
+                    />
+
+                    {/* Store Combobox */}
+                    <SearchableCombobox
+                      label="Store"
+                      placeholder={merchantId ? "Select store for merchant..." : "All Stores"}
+                      value={storeId}
+                      onChange={handleStoreChange}
+                      options={storeOptions}
+                    />
+
+                    {/* Report Status & Visibility */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          Report Status
+                        </label>
+                        <select
+                          value={reportStatus}
+                          onChange={(e) => setReportStatus(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        >
+                          <option value="ALL">All Reports</option>
+                          <option value="PENDING">Pending Reports</option>
+                          <option value="UNDER_REVIEW">Under Review</option>
+                          <option value="RESOLVED">Resolved</option>
+                          <option value="DISMISSED">Dismissed</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          Review Visibility
+                        </label>
+                        <select
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        >
+                          <option value="ALL">All Visibilities</option>
+                          <option value="ACTIVE">Active Reviews</option>
+                          <option value="REMOVED">Removed Reviews</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Rating & Verified Purchase */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          Rating
+                        </label>
+                        <select
+                          value={rating}
+                          onChange={(e) => setRating(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        >
+                          <option value="">All Ratings</option>
+                          <option value="5">5 Stars</option>
+                          <option value="4">4 Stars</option>
+                          <option value="3">3 Stars</option>
+                          <option value="2">2 Stars</option>
+                          <option value="1">1 Star</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          Verified Purchase
+                        </label>
+                        <select
+                          value={verified}
+                          onChange={(e) => setVerified(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        >
+                          <option value="">All Purchases</option>
+                          <option value="true">Verified Only</option>
+                          <option value="false">Unverified Only</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Product Filter (Constrained by store) */}
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Report Status
-                      </label>
-                      <select
-                        value={reportStatus}
-                        onChange={(e) => setReportStatus(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="ALL">All Reports</option>
-                        <option value="PENDING">Pending Reports</option>
-                        <option value="UNDER_REVIEW">Under Review</option>
-                        <option value="RESOLVED">Resolved</option>
-                        <option value="DISMISSED">Dismissed</option>
-                      </select>
-                    </div>
-
-                    {/* Review Visibility */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Review Visibility
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="ALL">All Visibilities</option>
-                        <option value="ACTIVE">Active Reviews</option>
-                        <option value="REMOVED">Removed Reviews</option>
-                      </select>
-                    </div>
-
-                    {/* Rating */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Rating
-                      </label>
-                      <select
-                        value={rating}
-                        onChange={(e) => setRating(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="">All Ratings</option>
-                        <option value="5">5 Stars</option>
-                        <option value="4">4 Stars</option>
-                        <option value="3">3 Stars</option>
-                        <option value="2">2 Stars</option>
-                        <option value="1">1 Star</option>
-                      </select>
-                    </div>
-
-                    {/* Verified Purchase */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Verified Purchase
-                      </label>
-                      <select
-                        value={verified}
-                        onChange={(e) => setVerified(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="">All Purchases</option>
-                        <option value="true">Verified Only</option>
-                        <option value="false">Unverified Only</option>
-                      </select>
-                    </div>
-
-                    {/* Store Filter */}
-                    <div className="space-y-1 col-span-2">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Store / Merchant
-                      </label>
-                      <select
-                        value={storeId}
-                        onChange={(e) => {
-                          setStoreId(e.target.value);
-                          setProductId('');
-                        }}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="">All Stores</option>
-                        {filtersQuery.data?.stores?.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Product Filter */}
-                    <div className="space-y-1 col-span-2">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        Product
-                      </label>
-                      <select
-                        value={productId}
-                        onChange={(e) => setProductId(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      >
-                        <option value="">All Products</option>
-                        {filtersQuery.data?.products
-                          ?.filter((p) => !storeId || p.storeId === storeId)
-                          ?.map((p) => (
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          Product
+                        </label>
+                        {productId && (
+                          <button
+                            type="button"
+                            onClick={() => setProductId('')}
+                            className="text-[10px] text-admin-accent hover:underline cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      {!storeId ? (
+                        <div className="admin-input text-xs py-1.5 w-full bg-admin-raised/40 text-admin-muted cursor-not-allowed select-none">
+                          Select a store first
+                        </div>
+                      ) : (
+                        <select
+                          value={productId}
+                          onChange={(e) => setProductId(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        >
+                          <option value="">All Products</option>
+                          {availableProducts.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name}
                             </option>
                           ))}
-                      </select>
+                        </select>
+                      )}
                     </div>
 
-                    {/* Date From */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        From Date
-                      </label>
-                      <input
-                        type="date"
-                        value={from}
-                        onChange={(e) => setFrom(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      />
-                    </div>
-
-                    {/* Date To */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-admin-muted">
-                        To Date
-                      </label>
-                      <input
-                        type="date"
-                        value={to}
-                        onChange={(e) => setTo(e.target.value)}
-                        className="admin-input text-xs py-1.5 w-full"
-                      />
+                    {/* From & To Date */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          From Date
+                        </label>
+                        <input
+                          type="date"
+                          value={from}
+                          onChange={(e) => setFrom(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-admin-muted">
+                          To Date
+                        </label>
+                        <input
+                          type="date"
+                          value={to}
+                          onChange={(e) => setTo(e.target.value)}
+                          className="admin-input text-xs py-1.5 w-full"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -784,6 +1062,7 @@ export default function ReviewsPage() {
           status !== 'ALL' ||
           reportStatus !== 'ALL' ||
           rating ||
+          merchantId ||
           storeId ||
           productId ||
           verified ||
@@ -796,6 +1075,15 @@ export default function ReviewsPage() {
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-admin-raised border border-admin-border text-admin-text">
                 Search: &ldquo;{debouncedSearch}&rdquo;
                 <button type="button" onClick={() => setSearch('')} className="hover:text-red-500">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+
+            {merchantId && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-admin-raised border border-admin-border text-admin-text">
+                Merchant: {selectedMerchantName || merchantId}
+                <button type="button" onClick={() => handleMerchantChange('')} className="hover:text-red-500">
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -831,7 +1119,7 @@ export default function ReviewsPage() {
             {storeId && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-admin-raised border border-admin-border text-admin-text">
                 Store: {selectedStoreName || storeId}
-                <button type="button" onClick={() => setStoreId('')} className="hover:text-red-500">
+                <button type="button" onClick={() => handleStoreChange('')} className="hover:text-red-500">
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -1235,9 +1523,12 @@ export default function ReviewsPage() {
                       <span className="text-admin-muted text-[11px] block">Store</span>
                       <span className="font-bold text-admin-text">{selectedReview.store.name}</span>
                       {selectedReview.store.tenant && (
-                        <span className="text-[10px] text-admin-muted block font-medium">
-                          Merchant: {selectedReview.store.tenant.name}
-                        </span>
+                        <Link
+                          href={`/merchants/${selectedReview.store.tenantId || selectedReview.store.tenant.id}`}
+                          className="text-[10px] text-admin-accent hover:underline block font-medium mt-0.5"
+                        >
+                          Merchant: {selectedReview.store.tenant.name} &rarr;
+                        </Link>
                       )}
                     </div>
                     <a
@@ -1257,7 +1548,7 @@ export default function ReviewsPage() {
                       <span className="font-bold text-admin-text">{selectedReview.product.name}</span>
                     </div>
                     <a
-                      href={`${getStorefrontUrl()}/product/${selectedReview.product.slug}`}
+                      href={`${getStorefrontUrl()}/store/${selectedReview.store.slug}/product/${selectedReview.product.slug || selectedReview.product.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
@@ -1275,7 +1566,7 @@ export default function ReviewsPage() {
                       </span>
                     </div>
                     <Link
-                      href={`/orders?search=${selectedReview.order.orderNumber}`}
+                      href={`/commerce?search=${encodeURIComponent(selectedReview.order.orderNumber)}`}
                       className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
                     >
                       <ShoppingBag className="h-3 w-3 text-admin-accent" />
@@ -1334,23 +1625,34 @@ export default function ReviewsPage() {
                   <p className="text-xs text-admin-muted py-2">Loading timeline...</p>
                 ) : timeline.length > 0 ? (
                   <div className="space-y-3 text-xs pl-2 border-l-2 border-admin-border/80">
-                    {timeline.map((evt) => (
-                      <div key={evt.id} className="relative pl-3 space-y-0.5">
-                        <div className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full bg-admin-accent border-2 border-admin-surface" />
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-admin-text">{evt.title}</span>
-                          <span className="text-[10px] text-admin-muted">
-                            {new Date(evt.date).toLocaleString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
+                    {timeline.map((evt) => {
+                      const dateVal = evt.timestamp || evt.date || (evt as any).createdAt;
+                      const formattedDate = dateVal
+                        ? new Date(dateVal).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Date unknown';
+                      return (
+                        <div key={evt.id} className="relative pl-3 space-y-0.5">
+                          <div className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full bg-admin-accent border-2 border-admin-surface" />
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-admin-text">{evt.title}</span>
+                            <span className="text-[10px] text-admin-muted">{formattedDate}</span>
+                          </div>
+                          <p className="text-[11px] text-admin-muted">
+                            {typeof evt.details === 'string'
+                              ? evt.details
+                              : evt.details
+                                ? JSON.stringify(evt.details)
+                                : evt.description || ''}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-admin-muted">{evt.description}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-xs text-admin-muted py-2">No lifecycle events recorded.</p>
@@ -1540,6 +1842,15 @@ export default function ReviewsPage() {
                   />
                   <span>Send Email</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyMerchantWhatsApp}
+                    onChange={(e) => setNotifyMerchantWhatsApp(e.target.checked)}
+                    className="rounded text-admin-accent"
+                  />
+                  <span>WhatsApp Deep-link</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1610,6 +1921,55 @@ export default function ReviewsPage() {
                 className="admin-input text-xs w-full py-2"
               />
             </div>
+          </div>
+        </ActionModal>
+      )}
+
+      {/* ============================================================== */}
+      {/* WORKFLOW MODAL: PREPARED WHATSAPP NOTIFICATION                 */}
+      {/* ============================================================== */}
+      {whatsappPopup && (
+        <ActionModal
+          title="Prepared WhatsApp Notification"
+          busy={false}
+          confirmLabel="Done"
+          onClose={() => setWhatsappPopup(null)}
+          onConfirm={() => setWhatsappPopup(null)}
+        >
+          <div className="space-y-3.5 text-xs">
+            <p className="text-admin-muted">
+              Review moderation complete! Prepared WhatsApp notifications are ready for{' '}
+              <strong className="text-admin-text">{whatsappPopup.storeName}</strong>. Clicking a link
+              will open WhatsApp Web/App with the pre-filled moderation notice and record an audit log.
+            </p>
+
+            <div className="space-y-2 pt-1">
+              {whatsappPopup.merchantUrl && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenWhatsApp('MERCHANT', whatsappPopup.merchantUrl!)}
+                  className="w-full admin-button py-2 px-3 text-xs flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Open Merchant WhatsApp (wa.me)
+                </button>
+              )}
+
+              {whatsappPopup.buyerUrl && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenWhatsApp('BUYER', whatsappPopup.buyerUrl!)}
+                  className="w-full admin-secondary py-2 px-3 text-xs flex items-center justify-center gap-2 text-blue-500 border-blue-500/40 hover:bg-blue-500/10 font-semibold"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Open Buyer WhatsApp (wa.me)
+                </button>
+              )}
+            </div>
+
+            <p className="text-[10px] text-admin-muted italic">
+              Note: Using wa.me records &ldquo;Opened in WhatsApp&rdquo; in the moderation timeline and audit trail.
+            </p>
           </div>
         </ActionModal>
       )}

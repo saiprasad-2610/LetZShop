@@ -316,13 +316,15 @@ export default function AdminBillingPage() {
 
                       <div className="text-right">
                         <span className="text-2xl font-black font-mono text-admin-text">
-                          {p.availability === 'CONTACT'
+                          {p.availability === 'CONTACT' || p.pricePaise <= 0
                             ? 'Contact Aikyam'
                             : formatPaise(p.pricePaise)}
                         </span>
-                        <span className="text-[11px] text-admin-muted block font-medium">
-                          /{p.billingCycle.toLowerCase()}
-                        </span>
+                        {p.availability !== 'CONTACT' && p.pricePaise > 0 && (
+                          <span className="text-[11px] text-admin-muted block font-medium">
+                            /{p.billingCycle.toLowerCase()}
+                          </span>
+                        )}
                       </div>
                     </div>
 

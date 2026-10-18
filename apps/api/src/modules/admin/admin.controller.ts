@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -33,6 +34,42 @@ export class AdminController {
   @Get('subscriptions')
   getSubscriptions(@Query() query: import('./admin-data.service').AdminQuery) {
     return this.adminService.getSubscriptionList(query);
+  }
+
+  @Get('subscriptions/:id')
+  @ApiOperation({ summary: 'Get subscription detail including invoices and events' })
+  getSubscriptionDetail(@Param('id') id: string) {
+    return this.adminService.getSubscriptionDetail(id);
+  }
+
+  @Patch('subscriptions/:id/plan')
+  @ApiOperation({ summary: 'Change merchant subscription plan' })
+  changeSubscriptionPlan(
+    @Param('id') id: string,
+    @Body() body: { planId: string; reason: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.changeSubscriptionPlan(id, body.planId, body.reason, user.userId);
+  }
+
+  @Patch('subscriptions/:id/expiry')
+  @ApiOperation({ summary: 'Extend or adjust merchant subscription expiry' })
+  extendSubscriptionExpiry(
+    @Param('id') id: string,
+    @Body() body: { newEnd: string; reason: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.extendSubscriptionExpiry(id, new Date(body.newEnd), body.reason, user.userId);
+  }
+
+  @Post('subscriptions/:id/cancel')
+  @ApiOperation({ summary: 'Cancel merchant subscription' })
+  cancelSubscription(
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.cancelSubscription(id, body.reason, user.userId);
   }
 
   @Get('themes')

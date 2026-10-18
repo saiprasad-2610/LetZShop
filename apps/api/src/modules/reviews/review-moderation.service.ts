@@ -28,21 +28,50 @@ export class ReviewModerationService {
   ) {}
 
   async getFilters() {
-    const [stores, products] = await Promise.all([
+    const [tenants, stores, products] = await Promise.all([
+      this.prisma.tenant.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          memberships: {
+            where: { role: 'SELLER_OWNER', isActive: true },
+            take: 1,
+            select: {
+              user: { select: { fullName: true, email: true, phone: true } },
+            },
+          },
+        },
+        orderBy: { name: 'asc' },
+      }),
       this.prisma.store.findMany({
-        where: { productReviews: { some: {} } },
+        where: { deletedAt: null },
         take: 500,
-        select: { id: true, name: true },
+        select: { id: true, name: true, slug: true, tenantId: true },
         orderBy: { name: 'asc' },
       }),
       this.prisma.product.findMany({
-        where: { reviews: { some: {} } },
+        where: { deletedAt: null },
         take: 500,
-        select: { id: true, name: true, storeId: true },
+        select: { id: true, name: true, slug: true, storeId: true },
         orderBy: { name: 'asc' },
       }),
     ]);
-    return { stores, products };
+
+    const merchants = tenants.map((t) => {
+      const owner = t.memberships[0]?.user;
+      return {
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        ownerName: owner?.fullName,
+        email: owner?.email,
+        phone: owner?.phone,
+      };
+    });
+
+    return { merchants, stores, products };
   }
 
   async getSummary() {
@@ -80,6 +109,7 @@ export class ReviewModerationService {
     status?: string;
     reportStatus?: string;
     search?: string;
+    merchantId?: string;
     storeId?: string;
     productId?: string;
     rating?: string;
@@ -141,7 +171,11 @@ export class ReviewModerationService {
       where.verifiedPurchase = String(query.verified) === 'true';
     }
 
-    if (query.storeId) where.storeId = query.storeId;
+    if (query.storeId) {
+      where.storeId = query.storeId;
+    } else if (query.merchantId) {
+      where.store = { tenantId: query.merchantId };
+    }
     if (query.productId) where.productId = query.productId;
     if (query.rating) {
       const rating = Number(query.rating);
@@ -300,7 +334,9 @@ export class ReviewModerationService {
       title: string;
       actor: string;
       timestamp: string;
+      date: string;
       details?: string | null;
+      description?: string | null;
     }> = [];
 
     events.push({
@@ -309,17 +345,22 @@ export class ReviewModerationService {
       title: 'Review Created',
       actor: review.reviewerName,
       timestamp: review.createdAt.toISOString(),
+      date: review.createdAt.toISOString(),
       details: `${review.rating} Stars — "${review.title || review.body.slice(0, 40)}"`,
+      description: `${review.rating} Stars — "${review.title || review.body.slice(0, 40)}"`,
     });
 
     for (const report of review.reports) {
+      const desc = `Reason: ${report.reason}${report.merchantNote ? ` · Note: ${report.merchantNote}` : ''}`;
       events.push({
         id: `report-${report.id}`,
         type: 'MERCHANT_REPORTED',
         title: 'Merchant Reported Review',
         actor: 'Merchant',
         timestamp: report.createdAt.toISOString(),
-        details: `Reason: ${report.reason}${report.merchantNote ? ` · Note: ${report.merchantNote}` : ''}`,
+        date: report.createdAt.toISOString(),
+        details: desc,
+        description: desc,
       });
     }
 
@@ -332,14 +373,18 @@ export class ReviewModerationService {
       if (log.action === 'REVIEW_RESTORED') title = 'Review Restored';
       if (log.action === 'BUYER_NOTIFIED') title = 'Buyer Notified (Email)';
       if (log.action === 'MERCHANT_NOTIFIED') title = 'Merchant Notified (Email)';
+      if (log.action === 'OPENED_IN_WHATSAPP') title = 'Opened in WhatsApp';
 
+      const desc = meta.reason || meta.note || meta.details || null;
       events.push({
         id: `audit-${log.id}`,
         type: log.action,
         title,
         actor: log.actorType === 'ADMIN' ? 'Platform Admin' : 'System',
         timestamp: log.createdAt.toISOString(),
-        details: meta.reason || meta.note || meta.details || null,
+        date: log.createdAt.toISOString(),
+        details: desc,
+        description: desc,
       });
     }
 
@@ -677,6 +722,37 @@ export class ReviewModerationService {
       }
 
       return updated;
+    });
+  }
+
+  async recordWhatsAppOpened(
+    reviewId: string,
+    actorId: string,
+    recipientType: 'MERCHANT' | 'BUYER',
+    phone?: string,
+  ) {
+    const review = await this.prisma.productReview.findUnique({
+      where: { id: reviewId },
+      include: { store: true },
+    });
+    if (!review) throw new NotFoundException('Review not found.');
+
+    return this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        tenantId: review.store.tenantId,
+        storeId: review.storeId,
+        action: 'OPENED_IN_WHATSAPP',
+        entityType: 'ProductReview',
+        entityId: review.id,
+        metadata: {
+          recipientType,
+          phone,
+          channel: 'WHATSAPP_DEEP_LINK',
+          status: 'Opened in WhatsApp',
+        },
+      },
     });
   }
 

@@ -12,6 +12,7 @@ import {
   TenantStatus,
   StoreStatus,
   UserRole,
+  SubscriptionStatus,
 } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
 import { planAvailability } from '../subscriptions/plan-policy';
@@ -1655,6 +1656,202 @@ export class AdminService {
         archived: false,
         message: `Plan "${plan.name}" successfully deleted.`,
       };
+    });
+  }
+
+  public async getSubscriptionDetail(id: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { id },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            memberships: {
+              where: { role: 'SELLER_OWNER', isActive: true },
+              take: 1,
+              select: { user: { select: { fullName: true, email: true, phone: true } } },
+            },
+            stores: { where: { deletedAt: null }, take: 1, select: { id: true, name: true, slug: true } },
+          },
+        },
+        plan: true,
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            payments: { orderBy: { createdAt: 'desc' } },
+          },
+        },
+        events: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!sub) throw new NotFoundException('Subscription not found.');
+    return sub;
+  }
+
+  public async changeSubscriptionPlan(
+    id: string,
+    planId: string,
+    reason: string,
+    actorId: string,
+  ) {
+    if (!reason?.trim()) throw new BadRequestException('Reason is required.');
+    const newPlan = await this.prisma.plan.findUnique({ where: { id: planId } });
+    if (!newPlan) throw new NotFoundException('Plan not found.');
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.subscription.findUnique({
+        where: { id },
+        include: { plan: true },
+      });
+      if (!existing) throw new NotFoundException('Subscription not found.');
+
+      const updated = await tx.subscription.update({
+        where: { id },
+        data: { planId: newPlan.id },
+        include: { plan: true, tenant: true },
+      });
+
+      await tx.subscriptionEvent.create({
+        data: {
+          subscriptionId: id,
+          eventType: 'PLAN_CHANGED',
+          metadata: {
+            fromPlan: existing.plan.code,
+            toPlan: newPlan.code,
+            reason: reason.trim(),
+            actorId,
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'SUBSCRIPTION_PLAN_CHANGED',
+          entityType: 'Subscription',
+          entityId: id,
+          tenantId: existing.tenantId,
+          metadata: {
+            fromPlan: existing.plan.name,
+            toPlan: newPlan.name,
+            reason: reason.trim(),
+          },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  public async extendSubscriptionExpiry(
+    id: string,
+    newEnd: Date,
+    reason: string,
+    actorId: string,
+  ) {
+    if (!reason?.trim()) throw new BadRequestException('Reason is required.');
+    if (isNaN(newEnd.getTime())) throw new BadRequestException('Invalid expiry date.');
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.subscription.findUnique({
+        where: { id },
+        include: { plan: true },
+      });
+      if (!existing) throw new NotFoundException('Subscription not found.');
+
+      const updated = await tx.subscription.update({
+        where: { id },
+        data: {
+          currentPeriodEnd: newEnd,
+          status: SubscriptionStatus.ACTIVE,
+        },
+        include: { plan: true, tenant: true },
+      });
+
+      await tx.subscriptionEvent.create({
+        data: {
+          subscriptionId: id,
+          eventType: 'VALIDITY_EXTENDED',
+          metadata: {
+            previousEnd: existing.currentPeriodEnd,
+            newEnd: newEnd.toISOString(),
+            reason: reason.trim(),
+            actorId,
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'SUBSCRIPTION_EXPIRY_EXTENDED',
+          entityType: 'Subscription',
+          entityId: id,
+          tenantId: existing.tenantId,
+          metadata: {
+            previousEnd: existing.currentPeriodEnd,
+            newEnd: newEnd.toISOString(),
+            reason: reason.trim(),
+          },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  public async cancelSubscription(
+    id: string,
+    reason: string,
+    actorId: string,
+  ) {
+    if (!reason?.trim()) throw new BadRequestException('Cancellation reason is required.');
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.subscription.findUnique({
+        where: { id },
+        include: { plan: true },
+      });
+      if (!existing) throw new NotFoundException('Subscription not found.');
+
+      const updated = await tx.subscription.update({
+        where: { id },
+        data: {
+          status: SubscriptionStatus.CANCELED,
+          cancelAtPeriodEnd: true,
+        },
+        include: { plan: true, tenant: true },
+      });
+
+      await tx.subscriptionEvent.create({
+        data: {
+          subscriptionId: id,
+          eventType: 'CANCELED',
+          metadata: {
+            reason: reason.trim(),
+            actorId,
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'SUBSCRIPTION_CANCELED',
+          entityType: 'Subscription',
+          entityId: id,
+          tenantId: existing.tenantId,
+          metadata: {
+            reason: reason.trim(),
+          },
+        },
+      });
+
+      return updated;
     });
   }
 }

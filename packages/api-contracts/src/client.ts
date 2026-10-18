@@ -600,6 +600,14 @@ export class SimplyApiClient {
         `admin/plans/${id}`,
         { method: 'DELETE' },
       ),
+    changeSubscriptionPlan: (id: string, body: { planId: string; reason?: string }) =>
+      this.request(`admin/subscriptions/${id}/plan`, { method: 'PATCH', body }),
+    extendSubscriptionExpiry: (id: string, body: { currentPeriodEnd: string; reason?: string }) =>
+      this.request(`admin/subscriptions/${id}/expiry`, { method: 'PATCH', body }),
+    cancelSubscription: (id: string, body: { reason: string }) =>
+      this.request(`admin/subscriptions/${id}/cancel`, { method: 'POST', body }),
+    getSubscriptionDetail: (id: string) =>
+      this.request(`admin/subscriptions/${id}`),
   };
 
   // --- Buyer Payments (Merchant Razorpay Checkout) ---

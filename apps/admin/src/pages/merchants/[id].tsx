@@ -1006,7 +1006,7 @@ export default function MerchantDetailPage() {
                     <ShoppingBag className="h-4 w-4 text-admin-accent" />
                     Recent Orders (Page Size: {pageSize})
                   </h2>
-                  <Link href={`/orders?search=${m.slug}`} className="text-xs text-admin-accent font-semibold hover:underline">
+                  <Link href={`/commerce?search=${m.slug}`} className="text-xs text-admin-accent font-semibold hover:underline">
                     View All in Orders
                   </Link>
                 </div>

@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import type { AdminPage, AdminOrder, AdminRange } from '@simply/api-contracts';
 import { formatPaise } from '@simply/ui';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, Pagination, useAdminQuery } from '../components/AdminUI';
 import { DateRange } from '../components/AdminCharts';
 export default function Commerce() {
+  const router = useRouter();
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1),
     [range, setRange] = useState<AdminRange>('ALL'),
     [sort, setSort] = useState('newest');
+
+  useEffect(() => {
+    if (typeof router.query.search === 'string') {
+      setSearch(router.query.search);
+      setPage(1);
+    }
+  }, [router.query.search]);
+
   const { data, loading, error, reload } = useAdminQuery<AdminPage<AdminOrder>>(
     'admin/commerce',
     { search, page, range, sort },

@@ -70,7 +70,14 @@ export interface AdminSubscription {
   createdAt: string;
   plan: Pick<AdminPlan, 'id' | 'name' | 'code' | 'pricePaise'> & { billingCycle?: string };
   tenant: { id: string; name: string };
-  invoices?: Array<{ status: string; paidAt: string | null }>;
+  invoices?: Array<{
+    id?: string;
+    invoiceNumber?: string;
+    amountPaise?: number;
+    status: string;
+    paidAt: string | null;
+    pdfUrl?: string | null;
+  }>;
 }
 export interface AdminMerchant {
   id: string;
@@ -194,7 +201,7 @@ export interface AdminReview {
   moderatedBy?: string | null;
   createdAt: string;
   updatedAt?: string;
-  store: { id: string; name: string; slug: string; tenant?: { id: string; name: string } };
+  store: { id: string; name: string; slug: string; tenantId?: string; tenant?: { id: string; name: string } };
   product: { id: string; name: string; slug: string; media?: Array<{ publicUrl: string }> };
   order: {
     id: string;
@@ -221,11 +228,31 @@ export interface AdminReviewTimelineEvent {
   description: string;
   actor: string;
   date: string;
-  details?: Record<string, any>;
+  timestamp?: string;
+  details?: Record<string, any> | string | null;
 }
 export interface AdminReviewFilters {
-  stores: Array<{ id: string; name: string }>;
-  products: Array<{ id: string; name: string; storeId: string }>;
+  merchants: Array<{
+    id: string;
+    name: string;
+    slug?: string;
+    ownerName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }>;
+  stores: Array<{ id: string; name: string; slug?: string; tenantId: string }>;
+  products: Array<{ id: string; name: string; slug?: string; storeId: string }>;
+}
+export interface AdminChangeSubscriptionPlanDto {
+  planId: string;
+  reason?: string;
+}
+export interface AdminExtendSubscriptionExpiryDto {
+  currentPeriodEnd: string;
+  reason?: string;
+}
+export interface AdminCancelSubscriptionDto {
+  reason: string;
 }
 export interface AdminPagination {
   page: number;

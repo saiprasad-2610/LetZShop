@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
@@ -45,6 +46,7 @@ export class AdminReviewsController {
   async getReviews(
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('merchantId') merchantId?: string,
     @Query('storeId') storeId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -60,6 +62,7 @@ export class AdminReviewsController {
     return this.reviewsService.getAdminReviews({
       status,
       search,
+      merchantId,
       storeId,
       reportStatus,
       productId,
@@ -134,6 +137,21 @@ export class AdminReviewsController {
         notifyMerchantEmail: body.notifyMerchantEmail,
         notifyMerchantWhatsapp: body.notifyMerchantWhatsapp,
       },
+    );
+  }
+
+  @Post(':id/whatsapp-opened')
+  @ApiOperation({ summary: 'Record audit log when WhatsApp message is opened' })
+  async recordWhatsAppOpened(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { recipientType?: 'MERCHANT' | 'BUYER'; phone?: string },
+  ) {
+    return this.reviewsService.recordWhatsAppOpened(
+      id,
+      user.userId,
+      body?.recipientType || 'MERCHANT',
+      body?.phone,
     );
   }
 }
