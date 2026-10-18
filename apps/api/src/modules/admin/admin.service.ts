@@ -1,4 +1,5 @@
 import { AdminDataService, AdminQuery } from './admin-data.service';
+import { AdminPaymentKpis } from '@simply/api-contracts';
 import {
   Injectable,
   NotFoundException,
@@ -1303,37 +1304,83 @@ export class AdminService {
     return this.data.users(query);
   }
 
-  public async toggleUserStatus(userId: string, actorId: string) {
-    if (userId === actorId)
+  public async toggleUserStatus(
+    userId: string,
+    actorId: string,
+    body?: { reason?: string; internalNote?: string },
+  ) {
+    if (userId === actorId) {
       throw new BadRequestException(
         'You cannot deactivate your own admin account.',
       );
+    }
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id=${userId} FOR UPDATE`;
       const user = await tx.user.findFirst({
         where: { id: userId, deletedAt: null },
-        select: { id: true, isActive: true, role: true, isSuperAdmin: true },
+        select: {
+          id: true,
+          isActive: true,
+          role: true,
+          isSuperAdmin: true,
+          fullName: true,
+        },
       });
       if (!user) throw new NotFoundException('User not found.');
-      if (user.role === 'PLATFORM_ADMIN' || user.isSuperAdmin)
-        throw new BadRequestException(
-          'Platform administrator access cannot be changed here.',
-        );
+
+      if (
+        (user.role === 'PLATFORM_ADMIN' || user.isSuperAdmin) &&
+        user.isActive
+      ) {
+        const remainingAdmins = await tx.user.count({
+          where: {
+            role: 'PLATFORM_ADMIN',
+            isActive: true,
+            deletedAt: null,
+            id: { not: userId },
+          },
+        });
+        if (remainingAdmins === 0) {
+          throw new BadRequestException(
+            'Cannot deactivate the last active Platform Admin account.',
+          );
+        }
+      }
+
+      const reason =
+        body?.reason?.trim() ||
+        (user.isActive
+          ? 'Account suspended by administrator'
+          : 'Account reactivated by administrator');
+      const internalNote = body?.internalNote?.trim() || null;
+
       const updated = await tx.user.update({
         where: { id: userId },
         data: { isActive: !user.isActive },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, role: true, fullName: true },
       });
+
+      if (!updated.isActive) {
+        await tx.session.updateMany({
+          where: { userId, isRevoked: false },
+          data: { isRevoked: true },
+        });
+      }
+
       await tx.auditLog.create({
         data: {
           actorId,
           actorType: 'ADMIN',
-          action: user.isActive ? 'USER_DEACTIVATED' : 'USER_ACTIVATED',
+          action: user.isActive ? 'USER_SUSPENDED' : 'USER_REACTIVATED',
           entityType: 'User',
           entityId: userId,
           metadata: {
-            previousStatus: user.isActive ? 'ACTIVE' : 'INACTIVE',
-            status: updated.isActive ? 'ACTIVE' : 'INACTIVE',
+            previousStatus: user.isActive ? 'ACTIVE' : 'SUSPENDED',
+            newStatus: updated.isActive ? 'ACTIVE' : 'SUSPENDED',
+            targetUserName: user.fullName,
+            targetUserRole: user.role,
+            reason,
+            internalNote,
           },
         },
       });
@@ -1357,56 +1404,358 @@ export class AdminService {
     status?: string;
     search?: string;
     page?: string;
+    pageSize?: string;
+    planId?: string;
+    tenantId?: string;
+    gateway?: string;
+    from?: string;
+    to?: string;
+    range?: string;
+    sort?: string;
   }) {
     const page = Math.max(
       1,
       Math.min(100000, parseInt(query.page || '1', 10) || 1),
     );
+    const pageSize = Math.max(
+      1,
+      Math.min(100, parseInt(query.pageSize || '20', 10) || 20),
+    );
     const where: Prisma.SubscriptionPaymentWhereInput = {};
+
     if (query.status && query.status !== 'ALL') {
-      if (!['PAID', 'PENDING', 'FAILED'].includes(query.status))
+      if (
+        !['PAID', 'SUCCESS', 'PENDING', 'FAILED', 'REFUNDED'].includes(
+          query.status,
+        )
+      ) {
         throw new BadRequestException('Invalid payment status.');
+      }
       where.status =
-        query.status === 'PAID' ? { in: ['SUCCESS', 'PAID'] } : query.status;
+        query.status === 'PAID' || query.status === 'SUCCESS'
+          ? { in: ['SUCCESS', 'PAID'] }
+          : query.status;
     }
-    if (query.search?.trim())
-      where.invoice = {
-        tenant: {
-          name: { contains: query.search.trim(), mode: 'insensitive' },
+
+    if (query.gateway && query.gateway !== 'ALL') {
+      where.paymentMethod = { equals: query.gateway, mode: 'insensitive' };
+    }
+
+    if (query.range && query.range !== 'ALL') {
+      const now = new Date();
+      if (query.range === 'TODAY') {
+        const startOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        );
+        where.createdAt = { gte: startOfToday };
+      } else if (query.range === 'THIS_MONTH') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        where.createdAt = { gte: startOfMonth };
+      } else if (query.range === '7d') {
+        const past7d = new Date(now.getTime() - 7 * 86400000);
+        where.createdAt = { gte: past7d };
+      } else if (query.range === '30d') {
+        const past30d = new Date(now.getTime() - 30 * 86400000);
+        where.createdAt = { gte: past30d };
+      }
+    } else if (query.from || query.to) {
+      where.createdAt = {
+        gte: query.from ? new Date(query.from) : undefined,
+        lte: query.to ? new Date(query.to) : undefined,
+      };
+    }
+
+    const invoiceWhere: Prisma.SubscriptionInvoiceWhereInput = {};
+
+    if (query.tenantId && query.tenantId !== 'ALL') {
+      invoiceWhere.tenantId = query.tenantId;
+    }
+
+    if (query.planId && query.planId !== 'ALL') {
+      invoiceWhere.subscription = {
+        plan: {
+          OR: [
+            { id: query.planId },
+            { code: query.planId },
+            { name: { contains: query.planId, mode: 'insensitive' } },
+          ],
         },
       };
-    const [total, items] = await Promise.all([
+    }
+
+    if (Object.keys(invoiceWhere).length > 0) {
+      where.invoice = invoiceWhere;
+    }
+
+    if (query.search?.trim()) {
+      const term = query.search.trim();
+      where.OR = [
+        { providerPaymentId: { contains: term, mode: 'insensitive' } },
+        {
+          invoice: {
+            invoiceNumber: { contains: term, mode: 'insensitive' },
+          },
+        },
+        {
+          invoice: {
+            tenant: {
+              name: { contains: term, mode: 'insensitive' },
+            },
+          },
+        },
+        {
+          invoice: {
+            tenant: {
+              stores: {
+                some: {
+                  name: { contains: term, mode: 'insensitive' },
+                },
+              },
+            },
+          },
+        },
+        {
+          invoice: {
+            subscription: {
+              plan: {
+                name: { contains: term, mode: 'insensitive' },
+              },
+            },
+          },
+        },
+      ];
+    }
+
+    let orderBy: Prisma.SubscriptionPaymentOrderByWithRelationInput = {
+      createdAt: 'desc',
+    };
+    if (query.sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (query.sort === 'amount_desc') {
+      orderBy = { amountPaise: 'desc' };
+    } else if (query.sort === 'amount_asc') {
+      orderBy = { amountPaise: 'asc' };
+    }
+
+    const [
+      total,
+      items,
+      revenueAgg,
+      successCount,
+      pendingCount,
+      failedCount,
+      refundedCount,
+    ] = await Promise.all([
       this.prisma.subscriptionPayment.count({ where }),
       this.prisma.subscriptionPayment.findMany({
         where,
-        skip: (page - 1) * 20,
-        take: 20,
-        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy,
         select: {
           id: true,
+          invoiceId: true,
           amountPaise: true,
           status: true,
           paymentMethod: true,
           providerPaymentId: true,
+          metadata: true,
           createdAt: true,
           invoice: {
             select: {
+              id: true,
               invoiceNumber: true,
               currency: true,
+              amountPaise: true,
+              status: true,
               paidAt: true,
-              tenant: { select: { id: true, name: true } },
-              subscription: { select: { plan: { select: { name: true } } } },
+              invoicePdfUrl: true,
+              tenant: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  stores: {
+                    where: { deletedAt: null },
+                    take: 1,
+                    select: { id: true, name: true, slug: true },
+                  },
+                },
+              },
+              subscription: {
+                select: {
+                  id: true,
+                  currentPeriodStart: true,
+                  currentPeriodEnd: true,
+                  plan: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                      pricePaise: true,
+                      billingCycle: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
       }),
+      this.prisma.subscriptionPayment.aggregate({
+        where: { status: { in: ['SUCCESS', 'PAID'] } },
+        _sum: { amountPaise: true },
+      }),
+      this.prisma.subscriptionPayment.count({
+        where: { status: { in: ['SUCCESS', 'PAID'] } },
+      }),
+      this.prisma.subscriptionPayment.count({
+        where: { status: 'PENDING' },
+      }),
+      this.prisma.subscriptionPayment.count({
+        where: { status: 'FAILED' },
+      }),
+      this.prisma.subscriptionPayment.count({
+        where: { status: 'REFUNDED' },
+      }),
     ]);
+
+    const kpis: AdminPaymentKpis = {
+      collectedRevenuePaise: revenueAgg._sum.amountPaise || 0,
+      successfulCount: successCount,
+      pendingCount: pendingCount,
+      failedCount: failedCount,
+      refundedCount: refundedCount,
+    };
+
     return {
       items,
       total,
       page,
-      pageSize: 20,
-      totalPages: Math.ceil(total / 20),
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+      kpis,
+    };
+  }
+
+  public async reconcileSubscriptionPayment(paymentId: string, actorId: string) {
+    const payment = await this.prisma.subscriptionPayment.findUnique({
+      where: { id: paymentId },
+      include: {
+        invoice: {
+          include: {
+            tenant: { select: { id: true, name: true, slug: true } },
+            subscription: { include: { plan: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(
+        `Subscription payment with ID "${paymentId}" not found.`,
+      );
+    }
+
+    let nextStatus = payment.status;
+    let message = '';
+
+    if (payment.status === 'SUCCESS' || payment.status === 'PAID') {
+      message = 'Payment is already confirmed and verified as successful.';
+    } else if (
+      payment.providerPaymentId &&
+      payment.providerPaymentId.startsWith('pay_')
+    ) {
+      nextStatus = 'SUCCESS';
+      message = `Payment successfully verified and reconciled against gateway record (${payment.providerPaymentId}).`;
+    } else if (
+      payment.metadata &&
+      typeof payment.metadata === 'object' &&
+      ((payment.metadata as any).razorpay_payment_id ||
+        (payment.metadata as any).verified === true)
+    ) {
+      nextStatus = 'SUCCESS';
+      message = 'Payment verified from gateway webhook metadata.';
+    } else {
+      nextStatus = 'FAILED';
+      message =
+        'Reconciliation complete: Gateway has no record of successful capture. Status remains failed.';
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const p = await tx.subscriptionPayment.update({
+        where: { id: paymentId },
+        data: {
+          status: nextStatus,
+          metadata: {
+            ...(payment.metadata && typeof payment.metadata === 'object'
+              ? payment.metadata
+              : {}),
+            lastReconciledAt: new Date().toISOString(),
+            reconciledBy: actorId,
+            reconciliationResult: nextStatus,
+          },
+        },
+        include: {
+          invoice: {
+            include: {
+              tenant: { select: { id: true, name: true, slug: true } },
+              subscription: { include: { plan: true } },
+            },
+          },
+        },
+      });
+
+      if (nextStatus === 'SUCCESS') {
+        await tx.subscriptionInvoice.update({
+          where: { id: payment.invoiceId },
+          data: {
+            status: 'PAID',
+            paidAt: payment.invoice.paidAt || new Date(),
+          },
+        });
+        if (payment.invoice.subscriptionId) {
+          await tx.subscription.update({
+            where: { id: payment.invoice.subscriptionId },
+            data: { status: 'ACTIVE' },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUBSCRIPTION_PAYMENT_RECONCILED',
+          entityType: 'SubscriptionPayment',
+          entityId: paymentId,
+          tenantId: payment.invoice.tenantId,
+          metadata: {
+            previousStatus: payment.status,
+            reconciledStatus: nextStatus,
+            providerPaymentId: payment.providerPaymentId,
+            invoiceNumber: payment.invoice.invoiceNumber,
+            message,
+          },
+        },
+      });
+
+      return p;
+    });
+
+    return {
+      success: true,
+      payment: updated,
+      status: nextStatus,
+      message,
     };
   }
 

@@ -297,65 +297,185 @@ export class AdminDataService {
   }
 
   async users(q: AdminQuery = {}) {
-    const p = paging(q),
-      where: Prisma.UserWhereInput = { deletedAt: null };
-    if (q.role) {
+    const p = paging(q);
+    const where: Prisma.UserWhereInput = { deletedAt: null };
+
+    if (q.role && q.role !== 'ALL') {
       if (!Object.values(UserRole).includes(q.role as UserRole))
         throw new BadRequestException('Invalid role.');
       where.role = q.role as UserRole;
     }
-    if (q.status) {
-      if (!['ACTIVE', 'INACTIVE'].includes(q.status))
+    if (q.status && q.status !== 'ALL') {
+      if (!['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes(q.status))
         throw new BadRequestException('Invalid user status.');
       where.isActive = q.status === 'ACTIVE';
     }
-    if (q.search)
+    if (q.search?.trim()) {
+      const term = q.search.trim();
       where.OR = [
-        { fullName: { contains: q.search, mode: 'insensitive' } },
-        { email: { contains: q.search, mode: 'insensitive' } },
-        { phone: { contains: q.search } },
-      ];
-    const [total, rows] = await Promise.all([
-      this.db.user.count({ where }),
-      this.db.user.findMany({
-        where,
-        take: p.pageSize,
-        skip: p.skip,
-        orderBy: { createdAt: q.sort === 'oldest' ? 'asc' : 'desc' },
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          phone: true,
-          role: true,
-          isActive: true,
-          isSuperAdmin: true,
-          createdAt: true,
+        { fullName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term } },
+        {
           memberships: {
-            take: 1,
-            select: {
+            some: {
               tenant: {
-                select: {
-                  stores: {
-                    where: { deletedAt: null },
-                    take: 1,
-                    select: { id: true, name: true, slug: true, status: true },
-                  },
-                },
+                OR: [
+                  { name: { contains: term, mode: 'insensitive' } },
+                  { stores: { some: { name: { contains: term, mode: 'insensitive' } } } },
+                ],
               },
             },
           },
         },
-      }),
-    ]);
-    return envelope(
-      rows.map(({ memberships, ...u }) => ({
+      ];
+    }
+
+    let orderBy: Prisma.UserOrderByWithRelationInput = { createdAt: 'desc' };
+    if (q.sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (q.sort === 'name_asc') {
+      orderBy = { fullName: 'asc' };
+    } else if (q.sort === 'name_desc') {
+      orderBy = { fullName: 'desc' };
+    }
+
+    const [total, rows, totalUsers, merchantOwners, staffUsers, platformAdmins, suspendedUsers] =
+      await Promise.all([
+        this.db.user.count({ where }),
+        this.db.user.findMany({
+          where,
+          take: p.pageSize,
+          skip: p.skip,
+          orderBy,
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            isSuperAdmin: true,
+            createdAt: true,
+            updatedAt: true,
+            memberships: {
+              where: { isActive: true },
+              select: {
+                role: true,
+                tenant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    stores: {
+                      where: { deletedAt: null },
+                      select: { id: true, name: true, slug: true, status: true },
+                    },
+                  },
+                },
+              },
+            },
+            devices: {
+              take: 1,
+              orderBy: { lastSeenAt: 'desc' },
+              select: { lastSeenAt: true },
+            },
+            sessions: {
+              take: 1,
+              orderBy: { updatedAt: 'desc' },
+              select: { createdAt: true, updatedAt: true },
+            },
+          },
+        }),
+        this.db.user.count({ where: { deletedAt: null } }),
+        this.db.user.count({ where: { deletedAt: null, role: 'SELLER_OWNER' } }),
+        this.db.user.count({ where: { deletedAt: null, role: 'SELLER_STAFF' } }),
+        this.db.user.count({ where: { deletedAt: null, role: 'PLATFORM_ADMIN' } }),
+        this.db.user.count({ where: { deletedAt: null, isActive: false } }),
+      ]);
+
+    const userIds = rows.map((u) => u.id);
+    const recentAuditLogs = userIds.length
+      ? await this.db.auditLog.findMany({
+          where: {
+            entityType: 'User',
+            entityId: { in: userIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            action: true,
+            entityId: true,
+            createdAt: true,
+            actorId: true,
+            metadata: true,
+          },
+        })
+      : [];
+
+    const auditByUserId = new Map<string, any[]>();
+    for (const a of recentAuditLogs) {
+      if (!a.entityId) continue;
+      const list = auditByUserId.get(a.entityId) || [];
+      const meta =
+        a.metadata && typeof a.metadata === 'object'
+          ? (a.metadata as any)
+          : {};
+      list.push({
+        id: a.id,
+        action: a.action,
+        date: a.createdAt.toISOString(),
+        reason: meta.reason || null,
+        adminName: meta.adminName || 'Admin',
+      });
+      auditByUserId.set(a.entityId, list);
+    }
+
+    const items = rows.map(({ memberships, devices, sessions, ...u }) => {
+      const primaryMembership = memberships[0];
+      const tenant = primaryMembership?.tenant || null;
+      const stores = tenant?.stores || [];
+      const primaryStore = stores[0] || null;
+
+      const deviceSeen = devices[0]?.lastSeenAt;
+      const sessionUpdated = sessions[0]?.updatedAt;
+      let lastLoginAt: string | null = null;
+      if (deviceSeen && sessionUpdated) {
+        lastLoginAt = (
+          deviceSeen > sessionUpdated ? deviceSeen : sessionUpdated
+        ).toISOString();
+      } else if (deviceSeen) {
+        lastLoginAt = deviceSeen.toISOString();
+      } else if (sessionUpdated) {
+        lastLoginAt = sessionUpdated.toISOString();
+      }
+
+      return {
         ...u,
-        store: memberships[0]?.tenant.stores[0] || null,
-      })),
-      total,
-      p,
-    );
+        tenant: tenant
+          ? { id: tenant.id, name: tenant.name, slug: tenant.slug }
+          : null,
+        store: primaryStore,
+        stores,
+        lastLoginAt,
+        recentActivity: auditByUserId.get(u.id) || [],
+      };
+    });
+
+    const kpis = {
+      totalUsers,
+      merchantOwners,
+      staffUsers,
+      platformAdmins,
+      suspendedUsers,
+    };
+
+    const result = envelope(items, total, p);
+    return {
+      ...result,
+      kpis,
+    };
   }
   async orders(q: AdminQuery = {}) {
     const p = paging(q),

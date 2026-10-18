@@ -190,7 +190,30 @@ export interface AdminUser extends AdminOwner {
   isActive: boolean;
   isSuperAdmin: boolean;
   createdAt: string;
+  updatedAt?: string;
+  lastLoginAt?: string | null;
+  tenant?: { id: string; name: string; slug?: string } | null;
   store: AdminStore | null;
+  stores?: Array<{ id: string; name: string; slug: string }>;
+  recentActivity?: Array<{
+    id: string;
+    action: string;
+    date: string;
+    adminName?: string;
+    reason?: string | null;
+  }>;
+}
+
+export interface AdminUserKpis {
+  totalUsers: number;
+  merchantOwners: number;
+  staffUsers: number;
+  platformAdmins: number;
+  suspendedUsers: number;
+}
+
+export interface AdminUsersResponse extends AdminPage<AdminUser> {
+  kpis: AdminUserKpis;
 }
 export interface AdminReport {
   id: string;
@@ -332,18 +355,52 @@ export interface AdminMerchantModerationSummary {
 }
 export interface AdminPayment {
   id: string;
+  invoiceId?: string;
   amountPaise: number;
   status: string;
   paymentMethod: string;
   providerPaymentId: string | null;
+  metadata?: Record<string, any> | null;
   createdAt: string;
   invoice: {
+    id?: string;
     invoiceNumber: string;
     currency: string;
+    amountPaise?: number;
+    status?: string;
     paidAt: string | null;
-    tenant: { id: string; name: string };
-    subscription: { plan: { name: string } };
+    invoicePdfUrl?: string | null;
+    tenant: {
+      id: string;
+      name: string;
+      slug?: string;
+      stores?: Array<{ id: string; name: string; slug: string }>;
+    };
+    subscription?: {
+      id?: string;
+      currentPeriodStart?: string;
+      currentPeriodEnd?: string;
+      plan: {
+        id?: string;
+        name: string;
+        code?: string;
+        pricePaise?: number;
+        billingCycle?: string;
+      };
+    } | null;
   };
+}
+
+export interface AdminPaymentKpis {
+  collectedRevenuePaise: number;
+  successfulCount: number;
+  pendingCount: number;
+  failedCount: number;
+  refundedCount?: number;
+}
+
+export interface AdminPaymentsResponse extends AdminPage<AdminPayment> {
+  kpis: AdminPaymentKpis;
 }
 export interface AdminAudit {
   id: string;

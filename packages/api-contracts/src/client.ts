@@ -14,6 +14,7 @@ import type {
   AdminSubscriptionKpi,
   AdminBusinessVerification,
   PlanHighlightItem,
+  AdminPayment,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -565,12 +566,30 @@ export class SimplyApiClient {
       this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, {
         method: 'POST',
       }),
+    reconcileSubscriptionPayment: (paymentId: string) =>
+      this.request<{
+        success: boolean;
+        payment: AdminPayment;
+        status: string;
+        message: string;
+      }>(`admin/payments/${paymentId}/reconcile`, {
+        method: 'POST',
+      }),
     getUsers: (search?: string, role?: string) =>
       this.request<AdminPage<AdminUser>>('admin/users', {
         params: { search, role },
       }),
-    toggleUserStatus: (userId: string) =>
-      this.request(`admin/users/${userId}/toggle-status`, { method: 'POST' }),
+    toggleUserStatus: (
+      userId: string,
+      data?: { reason: string; internalNote?: string },
+    ) =>
+      this.request<{ id: string; isActive: boolean }>(
+        `admin/users/${userId}/toggle-status`,
+        {
+          method: 'POST',
+          body: data || { reason: 'Status updated by administrator' },
+        },
+      ),
     getAnalytics: () => this.request<AdminAnalytics>('admin/analytics'),
     getPlans: () => this.request<AdminPlan[]>('admin/plans'),
     createPlan: (data: {

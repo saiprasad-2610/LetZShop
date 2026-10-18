@@ -85,12 +85,42 @@ export class AdminController {
   }
 
   @Get('payments')
+  @ApiOperation({ summary: 'Paginated subscription payments with search, filters, and KPIs' })
   getPayments(
     @Query('status') status?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('planId') planId?: string,
+    @Query('tenantId') tenantId?: string,
+    @Query('gateway') gateway?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('range') range?: string,
+    @Query('sort') sort?: string,
   ) {
-    return this.adminService.getSubscriptionPayments({ status, search, page });
+    return this.adminService.getSubscriptionPayments({
+      status,
+      search,
+      page,
+      pageSize,
+      planId,
+      tenantId,
+      gateway,
+      from,
+      to,
+      range,
+      sort,
+    });
+  }
+
+  @Post('payments/:id/reconcile')
+  @ApiOperation({ summary: 'Reconcile subscription payment against gateway with audit trail' })
+  async reconcileSubscriptionPayment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.reconcileSubscriptionPayment(id, user.userId);
   }
 
   @Get('audit-logs')
@@ -356,12 +386,13 @@ export class AdminController {
   }
 
   @Post('users/:id/toggle-status')
-  @ApiOperation({ summary: 'Activate or deactivate a user account' })
+  @ApiOperation({ summary: 'Activate or deactivate a user account with audit logging' })
   async toggleUserStatus(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
+    @Body() body?: { reason?: string; internalNote?: string },
   ) {
-    return this.adminService.toggleUserStatus(id, user.userId);
+    return this.adminService.toggleUserStatus(id, user.userId, body);
   }
 
   @Get('analytics')
