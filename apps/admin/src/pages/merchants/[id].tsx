@@ -63,11 +63,49 @@ export default function MerchantDetailPage() {
   // PDF download state
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
-  // Pagination states
+  // Server-side pagination states
+  const [commPage, setCommPage] = useState(1);
   const [subPage, setSubPage] = useState(1);
   const [invPage, setInvPage] = useState(1);
-  const [commPage, setCommPage] = useState(1);
+  const [orderPage, setOrderPage] = useState(1);
+  const [modRevPage, setModRevPage] = useState(1);
+  const [modStatusPage, setModStatusPage] = useState(1);
   const pageSize = 5;
+
+  // Server-side paginated queries
+  const commQuery = useAdminQuery<any>(
+    merchantId ? `admin/merchants/${merchantId}/communications` : '',
+    { page: commPage, pageSize },
+  );
+
+  const subQuery = useAdminQuery<any>(
+    merchantId ? `admin/merchants/${merchantId}/subscriptions` : '',
+    { page: subPage, pageSize },
+  );
+
+  const invQuery = useAdminQuery<any>(
+    merchantId ? `admin/merchants/${merchantId}/invoices` : '',
+    { page: invPage, pageSize },
+  );
+
+  const orderQuery = useAdminQuery<any>(
+    merchantId ? `admin/merchants/${merchantId}/orders` : '',
+    { page: orderPage, pageSize },
+  );
+
+  const modQuery = useAdminQuery<any>(
+    merchantId ? `admin/merchants/${merchantId}/moderation-summary` : '',
+    { reviewPage: modRevPage, statusPage: modStatusPage, pageSize },
+  );
+
+  const reloadAll = () => {
+    reload();
+    commQuery.reload();
+    subQuery.reload();
+    invQuery.reload();
+    orderQuery.reload();
+    modQuery.reload();
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -112,15 +150,54 @@ export default function MerchantDetailPage() {
   const totalCustomers = m?.stores?.reduce((acc, s) => acc + (s._count?.customers || 0), 0) || 0;
   const totalReviews = m?.reviewStats?.activeCount ?? (m?.stores?.reduce((acc, s) => acc + (s._count?.productReviews || 0), 0) || 0);
 
-  // Paginated collections
-  const totalSubPages = Math.ceil((m?.subscriptions?.length || 0) / pageSize) || 1;
-  const paginatedSubs = (m?.subscriptions || []).slice((subPage - 1) * pageSize, subPage * pageSize);
+  // Server-side paginated collections with graceful fallback
+  const commData = commQuery.data?.data || m?.communicationHistory || [];
+  const commPagination = commQuery.data?.pagination || {
+    page: commPage,
+    pageSize,
+    total: commData.length,
+    totalPages: Math.ceil(commData.length / pageSize) || 1,
+  };
 
-  const totalInvPages = Math.ceil((m?.paymentHistory?.length || 0) / pageSize) || 1;
-  const paginatedInvoices = (m?.paymentHistory || []).slice((invPage - 1) * pageSize, invPage * pageSize);
+  const subData = subQuery.data?.data || m?.subscriptions || [];
+  const subPagination = subQuery.data?.pagination || {
+    page: subPage,
+    pageSize,
+    total: subData.length,
+    totalPages: Math.ceil(subData.length / pageSize) || 1,
+  };
 
-  const totalCommPages = Math.ceil((m?.communicationHistory?.length || 0) / pageSize) || 1;
-  const paginatedComm = (m?.communicationHistory || []).slice((commPage - 1) * pageSize, commPage * pageSize);
+  const invData = invQuery.data?.data || m?.paymentHistory || [];
+  const invPagination = invQuery.data?.pagination || {
+    page: invPage,
+    pageSize,
+    total: invData.length,
+    totalPages: Math.ceil(invData.length / pageSize) || 1,
+  };
+
+  const orderData = orderQuery.data?.data || m?.recentOrders || [];
+  const orderPagination = orderQuery.data?.pagination || {
+    page: orderPage,
+    pageSize,
+    total: orderData.length,
+    totalPages: Math.ceil(orderData.length / pageSize) || 1,
+  };
+
+  const modStats = modQuery.data?.stats || {
+    activeReviews: m?.reviewStats?.activeCount ?? totalReviews,
+    avgRating: m?.reviewStats?.avgRating ?? 0,
+    pendingReports: m?.reportedReviewCount ?? 0,
+    underReviewReports: 0,
+    removedReviews: 0,
+  };
+  const modReviewData = modQuery.data?.reviewModerationActivity?.data || modQuery.data?.reviewActivity?.data || [];
+  const modReviewPagination = modQuery.data?.reviewModerationActivity?.pagination || modQuery.data?.reviewActivity?.pagination || {
+    page: modRevPage,
+    pageSize,
+    total: modReviewData.length,
+    totalPages: Math.ceil(modReviewData.length / pageSize) || 1,
+  };
+  const modStatusData = modQuery.data?.statusHistory?.data || m?.suspensionHistory || [];
 
   // PDF Download Handler
   const handleDownloadInvoicePdf = async (invoiceId: string, invoiceNumber: string) => {
@@ -602,24 +679,29 @@ export default function MerchantDetailPage() {
             </div>
 
             {/* ============================================================== */}
-            {/* ROW 3: COMMUNICATION HISTORY (Full Width)                      */}
+            {/* ROW 3: COMMUNICATION HISTORY (Full Width, Controlled Height)   */}
             {/* ============================================================== */}
-            <div className="admin-panel p-5 space-y-3.5 border border-admin-border">
-              <div className="flex items-center justify-between border-b border-admin-border/60 pb-3">
+            <div id="communication-history-card" className="admin-panel h-[380px] flex flex-col p-5 border border-admin-border">
+              <div className="flex items-center justify-between border-b border-admin-border/60 pb-3 shrink-0">
                 <h2 className="text-base font-bold text-admin-text flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-admin-accent" />
                   Communication History
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setMessageOpen(true)}
-                  className="text-xs text-admin-accent font-semibold hover:underline"
-                >
-                  + New Message
-                </button>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-admin-muted tabular-nums">
+                    {commPagination.total} record{commPagination.total === 1 ? '' : 's'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMessageOpen(true)}
+                    className="text-xs text-admin-accent font-semibold hover:underline"
+                  >
+                    + New Message
+                  </button>
+                </div>
               </div>
 
-              <div className="overflow-x-auto admin-scrollbar max-h-72">
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto admin-scrollbar mt-3">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold border-b border-admin-border sticky top-0 z-10">
                     <tr>
@@ -631,8 +713,8 @@ export default function MerchantDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-admin-border/60">
-                    {paginatedComm.length > 0 ? (
-                      paginatedComm.map((item) => (
+                    {commData.length > 0 ? (
+                      commData.map((item: any) => (
                         <tr key={item.id} className="hover:bg-admin-raised/40 transition-colors">
                           <td className="px-3.5 py-2.5 text-admin-muted whitespace-nowrap">
                             {new Date(item.date).toLocaleDateString('en-IN', {
@@ -683,70 +765,70 @@ export default function MerchantDetailPage() {
                 </table>
               </div>
 
-              {totalCommPages > 1 && (
-                <div className="flex items-center justify-between text-xs text-admin-muted pt-2 border-t border-admin-border/50">
-                  <span>
-                    Showing page {commPage} of {totalCommPages}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={commPage <= 1}
-                      onClick={() => setCommPage((p) => p - 1)}
-                      className="admin-secondary text-xs px-2 py-1 disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      disabled={commPage >= totalCommPages}
-                      onClick={() => setCommPage((p) => p + 1)}
-                      className="admin-secondary text-xs px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
+              {/* Fixed Pagination Footer */}
+              <div className="shrink-0 pt-2.5 mt-auto border-t border-admin-border/50 flex items-center justify-between text-xs text-admin-muted">
+                <span>
+                  Showing page {commPagination.page} of {commPagination.totalPages} ({commPagination.total} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={commPage <= 1}
+                    onClick={() => setCommPage((p) => Math.max(1, p - 1))}
+                    className="admin-secondary text-xs px-2.5 py-1 disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={commPage >= commPagination.totalPages}
+                    onClick={() => setCommPage((p) => p + 1)}
+                    className="admin-secondary text-xs px-2.5 py-1 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* ============================================================== */}
             {/* ROW 4: SUBSCRIPTION HISTORY (Left) + INVOICE HISTORY (Right)   */}
+            {/* Desktop: Identical Computed Heights (420px)                    */}
             {/* ============================================================== */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Subscription History */}
-              <div className="admin-panel p-5 space-y-3.5 border border-admin-border">
-                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5">
+              {/* Subscription History Card */}
+              <div id="subscription-history-card" className="admin-panel h-[420px] flex flex-col p-5 border border-admin-border">
+                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5 shrink-0">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-admin-secondary flex items-center gap-2">
                     <Clock className="h-4 w-4 text-admin-accent" />
                     Subscription History
                   </h2>
                   <span className="text-xs text-admin-muted tabular-nums">
-                    {m.subscriptions?.length || 0} total
+                    {subPagination.total} total
                   </span>
                 </div>
 
-                <div className="overflow-x-auto admin-scrollbar max-h-64">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto admin-scrollbar mt-3">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold border-b border-admin-border sticky top-0 z-10">
                       <tr>
                         <th className="px-3 py-2">Plan</th>
+                        <th className="px-3 py-2">Amount</th>
                         <th className="px-3 py-2">Status</th>
                         <th className="px-3 py-2">Start</th>
                         <th className="px-3 py-2">Valid Until</th>
+                        <th className="px-3 py-2">Payment</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-admin-border/60">
-                      {paginatedSubs.length > 0 ? (
-                        paginatedSubs.map((s) => (
+                      {subData.length > 0 ? (
+                        subData.map((s: any) => (
                           <tr key={s.id} className="hover:bg-admin-raised/40">
-                            <td className="px-3 py-2 font-semibold text-admin-text">
-                              {s.plan.name}
-                              {s.plan.pricePaise && (
-                                <span className="block text-[10px] text-admin-muted font-normal font-mono">
-                                  {formatPaise(s.plan.pricePaise)}
-                                </span>
-                              )}
+                            <td className="px-3 py-2 font-semibold text-admin-text whitespace-nowrap">
+                              {s.plan?.name || 'Standard'}
+                            </td>
+                            <td className="px-3 py-2 font-mono tabular-nums text-admin-text">
+                              {s.plan?.pricePaise != null ? formatPaise(s.plan.pricePaise) : '—'}
                             </td>
                             <td className="px-3 py-2">
                               <StatusBadge status={s.status} category="subscription" />
@@ -765,12 +847,15 @@ export default function MerchantDetailPage() {
                                 year: 'numeric',
                               })}
                             </td>
+                            <td className="px-3 py-2">
+                              <StatusBadge status={s.paymentStatus || 'PAID'} category="payment" />
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={4} className="p-4 text-center text-admin-muted">
-                            No subscription history.
+                          <td colSpan={6} className="p-6 text-center text-admin-muted">
+                            No subscription history recorded.
                           </td>
                         </tr>
                       )}
@@ -778,66 +863,71 @@ export default function MerchantDetailPage() {
                   </table>
                 </div>
 
-                {totalSubPages > 1 && (
-                  <div className="flex items-center justify-between text-xs text-admin-muted pt-2 border-t border-admin-border/50">
-                    <span>
-                      Page {subPage} of {totalSubPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={subPage <= 1}
-                        onClick={() => setSubPage((p) => p - 1)}
-                        className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <button
-                        type="button"
-                        disabled={subPage >= totalSubPages}
-                        onClick={() => setSubPage((p) => p + 1)}
-                        className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
+                {/* Fixed Pagination Footer */}
+                <div className="shrink-0 pt-2.5 mt-auto border-t border-admin-border/50 flex items-center justify-between text-xs text-admin-muted">
+                  <span>
+                    Page {subPagination.page} of {subPagination.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={subPage <= 1}
+                      onClick={() => setSubPage((p) => Math.max(1, p - 1))}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={subPage >= subPagination.totalPages}
+                      onClick={() => setSubPage((p) => p + 1)}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Invoice History with PDF action */}
-              <div className="admin-panel p-5 space-y-3.5 border border-admin-border">
-                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5">
+              {/* Invoice History with PDF action Card */}
+              <div id="invoice-history-card" className="admin-panel h-[420px] flex flex-col p-5 border border-admin-border">
+                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5 shrink-0">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-admin-secondary flex items-center gap-2">
                     <FileText className="h-4 w-4 text-admin-accent" />
                     Invoice History & PDF
                   </h2>
                   <span className="text-xs text-admin-muted tabular-nums">
-                    {m.paymentHistory?.length || 0} total
+                    {invPagination.total} total
                   </span>
                 </div>
 
-                <div className="overflow-x-auto admin-scrollbar max-h-64">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto admin-scrollbar mt-3">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold border-b border-admin-border sticky top-0 z-10">
                       <tr>
                         <th className="px-3 py-2">Invoice #</th>
+                        <th className="px-3 py-2">Billing Period</th>
                         <th className="px-3 py-2">Plan</th>
                         <th className="px-3 py-2">Amount</th>
                         <th className="px-3 py-2">Status</th>
                         <th className="px-3 py-2">Date</th>
-                        <th className="px-3 py-2 text-right">Action</th>
+                        <th className="px-3 py-2 text-right">PDF</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-admin-border/60">
-                      {paginatedInvoices.length > 0 ? (
-                        paginatedInvoices.map((inv) => (
+                      {invData.length > 0 ? (
+                        invData.map((inv: any) => (
                           <tr key={inv.id} className="hover:bg-admin-raised/40">
-                            <td className="px-3 py-2 font-mono text-admin-text font-semibold">
+                            <td className="px-3 py-2 font-mono text-admin-text font-semibold whitespace-nowrap">
                               {inv.invoiceNumber}
                             </td>
+                            <td className="px-3 py-2 text-admin-muted whitespace-nowrap text-[11px]">
+                              {inv.periodStart && inv.periodEnd
+                                ? `${new Date(inv.periodStart).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} – ${new Date(inv.periodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                                : '—'}
+                            </td>
                             <td className="px-3 py-2 text-admin-secondary font-medium">
-                              {inv.subscription?.plan?.name || 'Launch'}
+                              {inv.planName || inv.subscription?.plan?.name || 'Launch'}
                             </td>
                             <td className="px-3 py-2 font-bold tabular-nums text-admin-text">
                               {formatPaise(inv.amountPaise)}
@@ -868,7 +958,7 @@ export default function MerchantDetailPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6} className="p-4 text-center text-admin-muted">
+                          <td colSpan={7} className="p-6 text-center text-admin-muted">
                             No recorded invoices for this merchant.
                           </td>
                         </tr>
@@ -877,53 +967,53 @@ export default function MerchantDetailPage() {
                   </table>
                 </div>
 
-                {totalInvPages > 1 && (
-                  <div className="flex items-center justify-between text-xs text-admin-muted pt-2 border-t border-admin-border/50">
-                    <span>
-                      Page {invPage} of {totalInvPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={invPage <= 1}
-                        onClick={() => setInvPage((p) => p - 1)}
-                        className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <button
-                        type="button"
-                        disabled={invPage >= totalInvPages}
-                        onClick={() => setInvPage((p) => p + 1)}
-                        className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
+                {/* Fixed Pagination Footer */}
+                <div className="shrink-0 pt-2.5 mt-auto border-t border-admin-border/50 flex items-center justify-between text-xs text-admin-muted">
+                  <span>
+                    Page {invPagination.page} of {invPagination.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={invPage <= 1}
+                      onClick={() => setInvPage((p) => Math.max(1, p - 1))}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={invPage >= invPagination.totalPages}
+                      onClick={() => setInvPage((p) => p + 1)}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
             {/* ============================================================== */}
             {/* ROW 5: RECENT ORDERS (Left) + REVIEW & MODERATION (Right)      */}
+            {/* Desktop: Identical Computed Heights (420px)                    */}
             {/* ============================================================== */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Recent Orders */}
-              <div className="admin-panel p-5 space-y-3.5 border border-admin-border">
-                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5">
+              {/* Recent Orders Card */}
+              <div id="recent-orders-card" className="admin-panel h-[420px] flex flex-col p-5 border border-admin-border">
+                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5 shrink-0">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-admin-secondary flex items-center gap-2">
                     <ShoppingBag className="h-4 w-4 text-admin-accent" />
-                    Recent Orders (Latest 5)
+                    Recent Orders (Page Size: {pageSize})
                   </h2>
                   <Link href={`/orders?search=${m.slug}`} className="text-xs text-admin-accent font-semibold hover:underline">
-                    View All
+                    View All in Orders
                   </Link>
                 </div>
 
-                <div className="overflow-x-auto admin-scrollbar">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto admin-scrollbar mt-3">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold border-b border-admin-border">
+                    <thead className="bg-admin-raised text-admin-secondary uppercase tracking-wider font-semibold border-b border-admin-border sticky top-0 z-10">
                       <tr>
                         <th className="px-3 py-2">Order #</th>
                         <th className="px-3 py-2">Customer</th>
@@ -933,10 +1023,10 @@ export default function MerchantDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-admin-border/60">
-                      {m.recentOrders && m.recentOrders.length > 0 ? (
-                        m.recentOrders.map((ord) => (
+                      {orderData.length > 0 ? (
+                        orderData.map((ord: any) => (
                           <tr key={ord.id} className="hover:bg-admin-raised/40">
-                            <td className="px-3 py-2 font-mono font-semibold text-admin-text">
+                            <td className="px-3 py-2 font-mono font-semibold text-admin-text whitespace-nowrap">
                               {ord.orderNumber}
                             </td>
                             <td className="px-3 py-2 text-admin-secondary">
@@ -958,19 +1048,44 @@ export default function MerchantDetailPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-admin-muted">
-                            No recent customer orders.
+                          <td colSpan={5} className="p-6 text-center text-admin-muted">
+                            No recent customer orders recorded.
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Fixed Pagination Footer */}
+                <div className="shrink-0 pt-2.5 mt-auto border-t border-admin-border/50 flex items-center justify-between text-xs text-admin-muted">
+                  <span>
+                    Page {orderPagination.page} of {orderPagination.totalPages} ({orderPagination.total} total)
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={orderPage <= 1}
+                      onClick={() => setOrderPage((p) => Math.max(1, p - 1))}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={orderPage >= orderPagination.totalPages}
+                      onClick={() => setOrderPage((p) => p + 1)}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Review / Moderation Summary */}
-              <div className="admin-panel p-5 space-y-3.5 border border-admin-border">
-                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5">
+              {/* Review / Moderation Summary Card */}
+              <div id="moderation-summary-card" className="admin-panel h-[420px] flex flex-col p-5 border border-admin-border">
+                <div className="flex items-center justify-between border-b border-admin-border/60 pb-2.5 shrink-0">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-admin-secondary flex items-center gap-2">
                     <Star className="h-4 w-4 text-admin-accent" />
                     Review & Moderation Summary
@@ -983,53 +1098,164 @@ export default function MerchantDetailPage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-admin-raised p-3 border border-admin-border/40">
-                    <span className="text-[10px] uppercase font-bold text-admin-muted block">Active Reviews</span>
-                    <span className="text-xl font-bold text-admin-text block mt-1 tabular-nums">
-                      {m.reviewStats?.activeCount || totalReviews}
-                    </span>
-                    <span className="text-[11px] text-admin-muted mt-0.5 block">
-                      Avg Rating: {m.reviewStats?.avgRating ? `${m.reviewStats.avgRating}/5` : 'No ratings yet'}
+                {/* Fixed Compact Summary Metrics (5 Cards) */}
+                <div className="grid grid-cols-5 gap-2 pt-3 shrink-0">
+                  <div className="rounded-lg bg-admin-raised p-2 border border-admin-border/40 text-center">
+                    <span className="text-[9px] uppercase font-bold text-admin-muted block truncate">Active</span>
+                    <span className="text-sm font-bold text-admin-text block mt-0.5 tabular-nums">
+                      {modStats.activeReviews}
                     </span>
                   </div>
-
-                  <div className="rounded-xl bg-admin-raised p-3 border border-admin-border/40">
-                    <span className="text-[10px] uppercase font-bold text-admin-muted block">Pending Reports</span>
-                    <span className={`text-xl font-bold block mt-1 tabular-nums ${m.reportedReviewCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-admin-text'}`}>
-                      {m.reportedReviewCount || 0}
+                  <div className="rounded-lg bg-admin-raised p-2 border border-admin-border/40 text-center">
+                    <span className="text-[9px] uppercase font-bold text-admin-muted block truncate">Rating</span>
+                    <span className="text-sm font-bold text-admin-text block mt-0.5 tabular-nums">
+                      {modStats.avgRating ? `${modStats.avgRating}★` : '—'}
                     </span>
-                    <span className="text-[11px] text-admin-muted mt-0.5 block">
-                      {m.reportedReviewCount > 0 ? 'Action required in Reviews' : 'All reports resolved'}
+                  </div>
+                  <div className="rounded-lg bg-admin-raised p-2 border border-admin-border/40 text-center">
+                    <span className="text-[9px] uppercase font-bold text-admin-muted block truncate">Pending</span>
+                    <span className={`text-sm font-bold block mt-0.5 tabular-nums ${modStats.pendingReports > 0 ? 'text-amber-500 font-extrabold' : 'text-admin-text'}`}>
+                      {modStats.pendingReports}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-admin-raised p-2 border border-admin-border/40 text-center">
+                    <span className="text-[9px] uppercase font-bold text-admin-muted block truncate">Reviewing</span>
+                    <span className={`text-sm font-bold block mt-0.5 tabular-nums ${modStats.underReviewReports > 0 ? 'text-blue-500 font-extrabold' : 'text-admin-text'}`}>
+                      {modStats.underReviewReports}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-admin-raised p-2 border border-admin-border/40 text-center">
+                    <span className="text-[9px] uppercase font-bold text-admin-muted block truncate">Removed</span>
+                    <span className={`text-sm font-bold block mt-0.5 tabular-nums ${modStats.removedReviews > 0 ? 'text-red-500 font-extrabold' : 'text-admin-text'}`}>
+                      {modStats.removedReviews}
                     </span>
                   </div>
                 </div>
 
-                {m.suspensionHistory && m.suspensionHistory.length > 0 && (
-                  <div className="pt-2 border-t border-admin-border/50">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-admin-secondary block mb-1.5">
-                      Recent Suspension / Reactivation History
+                {/* Internally Scrollable Body with Two Visually Separated Sections */}
+                <div className="flex-1 min-h-0 overflow-y-auto admin-scrollbar mt-3 space-y-4">
+                  {/* Section A: Review Moderation Activity */}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-admin-secondary flex items-center justify-between mb-2">
+                      <span>Review Moderation Activity</span>
+                      <span className="text-admin-muted text-[10px] font-normal">
+                        {modReviewPagination.total} reviews
+                      </span>
                     </span>
-                    <div className="space-y-1 text-xs">
-                      {m.suspensionHistory.slice(0, 3).map((sh) => (
-                        <div key={sh.id} className="flex items-center justify-between py-1 border-b border-admin-border/30 last:border-0">
-                          <div>
-                            <span className={`font-semibold ${sh.action === 'SUSPENDED' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                              {sh.action}
-                            </span>
-                            <span className="text-admin-muted ml-1.5">({sh.target})</span>
-                            <span className="text-admin-secondary ml-1.5 font-medium truncate max-w-xs inline-block align-bottom">
-                              · {sh.reason}
+
+                    {modReviewData.length > 0 ? (
+                      <div className="space-y-2">
+                        {modReviewData.map((rev: any) => {
+                          const activeReport = rev.reports?.find((p: any) =>
+                            ['PENDING', 'UNDER_REVIEW'].includes(p.status),
+                          ) || rev.reports?.[0];
+
+                          return (
+                            <div
+                              key={rev.id}
+                              className="p-2.5 rounded-lg bg-admin-raised/60 border border-admin-border/40 hover:border-admin-accent/40 transition-colors text-xs space-y-1"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-admin-text truncate">
+                                  {rev.customer?.fullName || 'Customer'}
+                                  <span className="font-normal text-admin-muted ml-1.5">
+                                    on {rev.product?.name || 'Product'}
+                                  </span>
+                                </span>
+                                <span className="text-amber-500 font-bold shrink-0 ml-2">
+                                  {rev.rating}★
+                                </span>
+                              </div>
+                              <p className="text-admin-secondary text-[11px] line-clamp-1 italic">
+                                &ldquo;{rev.comment || 'No comment text'}&rdquo;
+                              </p>
+                              <div className="flex items-center justify-between pt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <StatusBadge status={rev.status} category="auto" className="text-[10px] py-0" />
+                                  {activeReport && (
+                                    <StatusBadge status={activeReport.status} category="auto" className="text-[10px] py-0" />
+                                  )}
+                                </div>
+                                <span className="text-admin-muted text-[10px]">
+                                  {new Date(rev.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-center text-admin-muted text-xs py-3">
+                        No reviews or complaints for this merchant.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Section B: Store / Account Status History */}
+                  <div className="pt-2 border-t border-admin-border/50">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-admin-secondary block mb-2">
+                      Store / Account Status History
+                    </span>
+                    {modStatusData && modStatusData.length > 0 ? (
+                      <div className="space-y-1.5 text-xs">
+                        {modStatusData.map((sh: any) => (
+                          <div
+                            key={sh.id}
+                            className="flex items-center justify-between py-1 border-b border-admin-border/30 last:border-0"
+                          >
+                            <div className="truncate mr-2">
+                              <span
+                                className={`font-semibold ${
+                                  sh.action === 'SUSPENDED'
+                                    ? 'text-red-500'
+                                    : 'text-emerald-500'
+                                }`}
+                              >
+                                {sh.action}
+                              </span>
+                              <span className="text-admin-muted ml-1.5">({sh.target})</span>
+                              {sh.reason && (
+                                <span className="text-admin-secondary ml-1.5 font-medium truncate max-w-xs inline-block align-bottom">
+                                  · {sh.reason}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-admin-muted text-[10px] shrink-0">
+                              {new Date(sh.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                             </span>
                           </div>
-                          <span className="text-admin-muted text-[11px] shrink-0">
-                            {new Date(sh.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-admin-muted text-xs py-1">No suspension or reactivation events recorded.</p>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Fixed Pagination Footer for Moderation Activity */}
+                <div className="shrink-0 pt-2.5 mt-auto border-t border-admin-border/50 flex items-center justify-between text-xs text-admin-muted">
+                  <span>
+                    Review Page {modReviewPagination.page} of {modReviewPagination.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={modRevPage <= 1}
+                      onClick={() => setModRevPage((p) => Math.max(1, p - 1))}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={modRevPage >= modReviewPagination.totalPages}
+                      onClick={() => setModRevPage((p) => p + 1)}
+                      className="admin-secondary text-xs px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </>
@@ -1046,7 +1272,7 @@ export default function MerchantDetailPage() {
           recipientEmail={owner?.email}
           recipientPhone={owner?.phone}
           onClose={() => setMessageOpen(false)}
-          onSuccess={() => reload()}
+          onSuccess={() => reloadAll()}
         />
       )}
 
@@ -1062,7 +1288,7 @@ export default function MerchantDetailPage() {
             setSuspendOpen(false);
             setSelectedStoreForAction(null);
           }}
-          onSuccess={() => reload()}
+          onSuccess={() => reloadAll()}
         />
       )}
 
@@ -1077,7 +1303,7 @@ export default function MerchantDetailPage() {
             setReactivateOpen(false);
             setSelectedStoreForAction(null);
           }}
-          onSuccess={() => reload()}
+          onSuccess={() => reloadAll()}
         />
       )}
 
@@ -1088,7 +1314,7 @@ export default function MerchantDetailPage() {
           recipientEmail={owner?.email}
           recipientPhone={owner?.phone}
           onClose={() => setArchiveOpen(false)}
-          onSuccess={() => reload()}
+          onSuccess={() => reloadAll()}
         />
       )}
     </AdminLayout>

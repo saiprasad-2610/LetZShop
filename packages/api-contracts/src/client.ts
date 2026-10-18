@@ -9,6 +9,8 @@ import type {
   AdminOperations,
   AdminAnalytics,
   AdminCommunicationLog,
+  AdminReviewsSummary,
+  AdminReviewTimelineEvent,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -745,7 +747,24 @@ export class SimplyApiClient {
       }),
     getAdminReviews: (params?: { page?: number; limit?: number; status?: string; search?: string; storeId?: string }) =>
       this.request('admin/reviews', { params }),
-    moderateAdminReview: (id: string, data: { status: 'ACTIVE' | 'REMOVED'; reason?: string }) =>
+    getAdminReviewSummary: () =>
+      this.request<AdminReviewsSummary>('admin/reviews/summary'),
+    getAdminReviewTimeline: (id: string) =>
+      this.request<AdminReviewTimelineEvent[]>(`admin/reviews/${id}/timeline`),
+    moderateAdminReview: (
+      id: string,
+      data: {
+        status: 'ACTIVE' | 'REMOVED';
+        reason?: string;
+        internalNote?: string;
+        buyerFacingMessage?: string;
+        merchantFacingMessage?: string;
+        notifyBuyerEmail?: boolean;
+        notifyMerchantEmail?: boolean;
+        notifyBuyerWhatsApp?: boolean;
+        notifyMerchantWhatsApp?: boolean;
+      },
+    ) =>
       this.request(`admin/reviews/${id}/moderate`, {
         method: 'PATCH',
         body: data,

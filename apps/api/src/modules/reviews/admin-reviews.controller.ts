@@ -22,8 +22,23 @@ import { ReviewsService } from './reviews.service';
 export class AdminReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @Get('summary')
+  @ApiOperation({ summary: 'Real PostgreSQL review moderation summary counts' })
+  getSummary() {
+    return this.reviewsService.getAdminReviewSummary();
+  }
+
   @Get('filters')
-  getFilters() { return this.reviewsService.getAdminReviewFilters(); }
+  @ApiOperation({ summary: 'Available store and product filter options' })
+  getFilters() {
+    return this.reviewsService.getAdminReviewFilters();
+  }
+
+  @Get(':id/timeline')
+  @ApiOperation({ summary: 'Get lifecycle timeline for a specific review' })
+  getTimeline(@Param('id') id: string) {
+    return this.reviewsService.getAdminReviewTimeline(id);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List and search all reviews across merchants for moderation' })
@@ -32,27 +47,40 @@ export class AdminReviewsController {
     @Query('search') search?: string,
     @Query('storeId') storeId?: string,
     @Query('page') page?: string,
-    @Query('limit') limit?: string
-    ,@Query('reportStatus') reportStatus?: string
-    ,@Query('productId') productId?: string
-    ,@Query('rating') rating?: string
-    ,@Query('from') from?: string
-    ,@Query('to') to?: string
-    ,@Query('sort') sort?: string
+    @Query('limit') limit?: string,
+    @Query('reportStatus') reportStatus?: string,
+    @Query('productId') productId?: string,
+    @Query('rating') rating?: string,
+    @Query('verified') verified?: string,
+    @Query('hasComplaint') hasComplaint?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('sort') sort?: string,
   ) {
     return this.reviewsService.getAdminReviews({
       status,
       search,
       storeId,
-      reportStatus, productId, rating, from, to, sort,
+      reportStatus,
+      productId,
+      rating,
+      verified,
+      hasComplaint,
+      from,
+      to,
+      sort,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     });
   }
 
   @Patch('reports/:reportId')
-  updateReport(@CurrentUser() user: AuthenticatedUser, @Param('reportId') id: string,
-    @Body() body: { status: 'UNDER_REVIEW' | 'DISMISSED'; note?: string }) {
+  @ApiOperation({ summary: 'Update report status to UNDER_REVIEW or DISMISSED' })
+  updateReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('reportId') id: string,
+    @Body() body: { status: 'UNDER_REVIEW' | 'DISMISSED'; note?: string },
+  ) {
     return this.reviewsService.updateReviewReport(id, user.userId, body.status, body.note);
   }
 
@@ -61,24 +89,51 @@ export class AdminReviewsController {
   async moderateReview(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body() body: { action: 'REMOVE' | 'RESTORE'; reason?: string }
+    @Body()
+    body: {
+      action?: 'REMOVE' | 'RESTORE';
+      status?: 'ACTIVE' | 'REMOVED';
+      reason?: string;
+      internalNote?: string;
+      buyerMessage?: string;
+      merchantMessage?: string;
+      notifyBuyerEmail?: boolean;
+      notifyBuyerWhatsapp?: boolean;
+      notifyMerchantEmail?: boolean;
+      notifyMerchantWhatsapp?: boolean;
+    },
   ) {
-    const action: string | undefined = (body as any)?.action || (body as any)?.status;
+    const rawAction = body?.action || body?.status;
     const effectiveAction: 'REMOVE' | 'RESTORE' | null =
-      action === 'REMOVED' || action === 'REMOVE'
+      rawAction === 'REMOVED' || rawAction === 'REMOVE'
         ? 'REMOVE'
-        : action === 'ACTIVE' || action === 'RESTORE'
+        : rawAction === 'ACTIVE' || rawAction === 'RESTORE'
         ? 'RESTORE'
         : null;
 
     if (!effectiveAction) {
       throw new BadRequestException('Action must be either "REMOVE" or "RESTORE" (or status ACTIVE / REMOVED).');
     }
+
+    const effectiveReason =
+      body.reason ||
+      body.internalNote ||
+      (effectiveAction === 'RESTORE' ? 'Restored by platform admin' : '');
+
     return this.reviewsService.moderateReview(
       id,
       { userId: user.userId, fullName: user.phone || 'Admin' },
       effectiveAction,
-      body.reason
+      effectiveReason,
+      {
+        internalNote: body.internalNote,
+        buyerMessage: body.buyerMessage,
+        merchantMessage: body.merchantMessage,
+        notifyBuyerEmail: body.notifyBuyerEmail,
+        notifyBuyerWhatsapp: body.notifyBuyerWhatsapp,
+        notifyMerchantEmail: body.notifyMerchantEmail,
+        notifyMerchantWhatsapp: body.notifyMerchantWhatsapp,
+      },
     );
   }
 }

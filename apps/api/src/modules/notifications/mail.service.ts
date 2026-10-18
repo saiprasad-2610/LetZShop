@@ -803,4 +803,109 @@ export class MailService {
     await Promise.allSettled(sendPromises);
     return true;
   }
+
+  /**
+   * Buyer notification when their review is removed following moderation.
+   * Never exposes merchant complaint text or admin internal notes.
+   */
+  public async sendReviewRemovedBuyerEmail(ctx: {
+    recipientEmail: string;
+    buyerName: string;
+    productName: string;
+    storeName: string;
+    buyerFacingReason: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `Notice regarding your review for ${ctx.productName} at ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Moderation Notice</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.buyerName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            Your review for <strong>${ctx.productName}</strong> at <strong>${ctx.storeName}</strong> has been removed following a LetzShop moderation review.
+          </p>
+          <div style="background: #f1f5f9; border-left: 4px solid #64748b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: #1e293b;">
+            <strong>Reason:</strong> ${ctx.buyerFacingReason}
+          </div>
+          <p style="font-size: 13px; color: #64748b; margin: 0;">
+            If you believe this was incorrect, please contact LetzShop Support.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
+
+  /**
+   * Merchant notification regarding review moderation outcome.
+   * Result: 'Review removed' or 'Complaint dismissed'.
+   */
+  public async sendReviewModeratedMerchantEmail(ctx: {
+    recipientEmail: string;
+    storeName: string;
+    productName: string;
+    orderNumber: string;
+    result: 'Review removed' | 'Complaint dismissed';
+    safeReason: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `[Review Moderation] ${ctx.result} for Order #${ctx.orderNumber} - ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Moderation Decision</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.storeName}</strong> Team,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            The reported review for <strong>${ctx.productName}</strong> (Order #${ctx.orderNumber}) has been reviewed by LetzShop platform administrators.
+          </p>
+          <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: #1e293b;">
+            <p style="margin: 0 0 6px 0;"><strong>Result:</strong> ${ctx.result}</p>
+            <p style="margin: 0; color: #475569;"><strong>Notes / Status:</strong> ${ctx.safeReason}</p>
+          </div>
+          <p style="font-size: 13px; color: #64748b; margin: 0;">
+            Thank you for helping maintain quality feedback on LetzShop.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
+
+  /**
+   * Merchant notification when a review is restored.
+   */
+  public async sendReviewRestoredMerchantEmail(ctx: {
+    recipientEmail: string;
+    storeName: string;
+    productName: string;
+    orderNumber: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `[Review Moderation] Review restored for Order #${ctx.orderNumber} - ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Status Update</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.storeName}</strong> Team,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            A previously removed customer review for <strong>${ctx.productName}</strong> (Order #${ctx.orderNumber}) has been restored to active visibility.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
 }

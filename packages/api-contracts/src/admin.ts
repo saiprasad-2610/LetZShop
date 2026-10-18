@@ -190,21 +190,104 @@ export interface AdminReview {
   verifiedPurchase: boolean;
   status: 'ACTIVE' | 'REMOVED';
   moderationReason: string | null;
+  moderatedAt?: string | null;
+  moderatedBy?: string | null;
   createdAt: string;
-  store: { id: string; name: string; slug: string };
-  product: { id: string; name: string; slug: string };
+  updatedAt?: string;
+  store: { id: string; name: string; slug: string; tenant?: { id: string; name: string } };
+  product: { id: string; name: string; slug: string; media?: Array<{ publicUrl: string }> };
   order: {
     id: string;
     orderNumber: string;
     status: string;
     paymentStatus: string;
     createdAt: string;
+    customer?: { id?: string; fullName: string; email?: string | null; phone?: string | null } | null;
   };
   reports: AdminReport[];
+}
+export interface AdminReviewsSummary {
+  pendingReports: number;
+  underReviewReports: number;
+  removedReviews: number;
+  resolvedThisMonth: number;
+  activeReviews: number;
+  totalReviews: number;
+}
+export interface AdminReviewTimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  actor: string;
+  date: string;
+  details?: Record<string, any>;
 }
 export interface AdminReviewFilters {
   stores: Array<{ id: string; name: string }>;
   products: Array<{ id: string; name: string; storeId: string }>;
+}
+export interface AdminPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+export interface AdminPaginatedResult<T> {
+  data: T[];
+  pagination: AdminPagination;
+}
+export interface AdminMerchantSubscriptionItem {
+  id: string;
+  plan: { id?: string; name: string; code?: string; pricePaise?: number; billingCycle?: string };
+  amountPaise: number;
+  status: string;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  paymentStatus: string;
+  createdAt: string;
+}
+export interface AdminMerchantInvoiceItem {
+  id: string;
+  invoiceNumber: string;
+  billingPeriod: string;
+  plan: string;
+  amountPaise: number;
+  status: string;
+  createdAt: string;
+  paidAt: string | null;
+}
+export interface AdminMerchantOrderItem {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  amountPaise: number;
+  status: string;
+  createdAt: string;
+}
+export interface AdminMerchantModerationSummary {
+  stats: {
+    activeReviews: number;
+    avgRating: number | null;
+    pendingReports: number;
+    underReviewReports: number;
+    removedReviews: number;
+  };
+  reviewModerationActivity: AdminPaginatedResult<{
+    id: string;
+    date: string;
+    action: string;
+    reason: string | null;
+    adminName: string;
+  }>;
+  statusHistory: AdminPaginatedResult<{
+    id: string;
+    date: string;
+    action: string;
+    target: string;
+    reason: string | null;
+    adminName: string;
+  }>;
 }
 export interface AdminPayment {
   id: string;

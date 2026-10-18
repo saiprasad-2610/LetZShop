@@ -330,6 +330,349 @@ export class AdminService {
     return detail.communicationHistory || [];
   }
 
+  public async getMerchantSubscriptions(tenantId: string, page = 1, pageSize = 5) {
+    const p = Math.max(1, Number(page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(pageSize) || 5));
+    const skip = (p - 1) * limit;
+
+    const [total, subs] = await Promise.all([
+      this.prisma.subscription.count({ where: { tenantId } }),
+      this.prisma.subscription.findMany({
+        where: { tenantId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          plan: {
+            select: { id: true, name: true, code: true, pricePaise: true, billingCycle: true },
+          },
+          invoices: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              payments: {
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+                select: { status: true, amountPaise: true, createdAt: true },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const data = subs.map((s) => {
+      const inv = s.invoices?.[0];
+      const payment = inv?.payments?.[0];
+      const amountPaise = inv?.amountPaise || payment?.amountPaise || s.plan?.pricePaise || 0;
+      const paymentStatus = payment?.status || inv?.status || (s.status === 'ACTIVE' ? 'PAID' : s.status === 'PAST_DUE' ? 'FAILED' : 'UNPAID');
+      return {
+        id: s.id,
+        plan: s.plan,
+        amountPaise,
+        status: s.status,
+        currentPeriodStart: s.currentPeriodStart.toISOString(),
+        currentPeriodEnd: s.currentPeriodEnd.toISOString(),
+        paymentStatus,
+        createdAt: s.createdAt.toISOString(),
+      };
+    });
+
+    return {
+      data,
+      pagination: {
+        page: p,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  public async getMerchantInvoices(tenantId: string, page = 1, pageSize = 5) {
+    const p = Math.max(1, Number(page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(pageSize) || 5));
+    const skip = (p - 1) * limit;
+
+    const [total, invoices] = await Promise.all([
+      this.prisma.subscriptionInvoice.count({ where: { tenantId } }),
+      this.prisma.subscriptionInvoice.findMany({
+        where: { tenantId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          subscription: {
+            include: { plan: { select: { name: true, code: true } } },
+          },
+        },
+      }),
+    ]);
+
+    const data = invoices.map((inv) => {
+      let billingPeriod = 'N/A';
+      if (inv.subscription) {
+        const start = new Date(inv.subscription.currentPeriodStart).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const end = new Date(inv.subscription.currentPeriodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        billingPeriod = `${start} – ${end}`;
+      }
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        billingPeriod,
+        plan: inv.subscription?.plan?.name || 'Launch',
+        amountPaise: inv.amountPaise,
+        status: inv.status,
+        createdAt: inv.createdAt.toISOString(),
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+      };
+    });
+
+    return {
+      data,
+      pagination: {
+        page: p,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  public async getMerchantOrders(tenantId: string, page = 1, pageSize = 5) {
+    const p = Math.max(1, Number(page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(pageSize) || 5));
+    const skip = (p - 1) * limit;
+
+    const where = { store: { tenantId } };
+    const [total, orders] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          customer: { select: { fullName: true } },
+          orderAddress: { select: { fullName: true } },
+        },
+      }),
+    ]);
+
+    const data = orders.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      customerName: o.customer?.fullName || (o.orderAddress as any)?.fullName || 'Guest',
+      amountPaise: o.totalPaise,
+      status: o.status,
+      createdAt: o.createdAt.toISOString(),
+    }));
+
+    return {
+      data,
+      pagination: {
+        page: p,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  public async getMerchantCommunications(tenantId: string, page = 1, pageSize = 5) {
+    const p = Math.max(1, Number(page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(pageSize) || 5));
+    const skip = (p - 1) * limit;
+
+    const where = {
+      tenantId,
+      action: {
+        in: [
+          'MERCHANT_MESSAGE_SENT',
+          'MERCHANT_SUSPENDED',
+          'MERCHANT_REACTIVATED',
+          'MERCHANT_ARCHIVED',
+        ],
+      },
+    };
+
+    const [total, logs] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const actorIds = [...new Set(logs.map((l) => l.actorId).filter(Boolean))] as string[];
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, fullName: true, email: true },
+        })
+      : [];
+    const actorMap = new Map(actors.map((a) => [a.id, a.fullName || a.email || 'Admin']));
+
+    const data = logs.map((l) => {
+      const meta = (l.metadata as any) || {};
+      let channel = meta.channel || 'SYSTEM';
+      if (meta.notifications) {
+        const parts: string[] = [];
+        if (meta.notifications.email && meta.notifications.email !== 'Not requested') parts.push('Email');
+        if (meta.notifications.whatsapp && meta.notifications.whatsapp !== 'Not requested') parts.push('WhatsApp');
+        if (parts.length) channel = parts.join(', ');
+      }
+      return {
+        id: l.id,
+        date: l.createdAt.toISOString(),
+        channel,
+        subject: meta.subject || l.action.replace(/_/g, ' '),
+        message: meta.message || meta.merchantMessage || meta.reason || null,
+        status: meta.status || (meta.notifications?.email === 'Sent' ? 'Sent' : meta.notifications?.whatsapp ? 'Opened in WhatsApp' : 'Completed'),
+        adminName: (l.actorId && actorMap.get(l.actorId)) || 'Admin',
+      };
+    });
+
+    return {
+      data,
+      pagination: {
+        page: p,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  public async getMerchantModerationSummary(tenantId: string, reviewPage = 1, statusPage = 1, pageSize = 5) {
+    const rPage = Math.max(1, Number(reviewPage) || 1);
+    const sPage = Math.max(1, Number(statusPage) || 1);
+    const limit = Math.max(1, Math.min(100, Number(pageSize) || 5));
+
+    const [
+      activeCount,
+      avgResult,
+      pendingReports,
+      underReviewReports,
+      removedReviews,
+    ] = await Promise.all([
+      this.prisma.productReview.count({
+        where: { store: { tenantId }, status: 'ACTIVE' },
+      }),
+      this.prisma.productReview.aggregate({
+        where: { store: { tenantId }, status: 'ACTIVE' },
+        _avg: { rating: true },
+      }),
+      this.prisma.reviewReport.count({
+        where: { review: { store: { tenantId } }, status: 'PENDING' },
+      }),
+      this.prisma.reviewReport.count({
+        where: { review: { store: { tenantId } }, status: 'UNDER_REVIEW' },
+      }),
+      this.prisma.productReview.count({
+        where: { store: { tenantId }, status: 'REMOVED' },
+      }),
+    ]);
+
+    const reviewLogWhere = {
+      tenantId,
+      action: {
+        in: [
+          'REVIEW_REPORTED',
+          'REVIEW_REPORT_UNDER_REVIEW',
+          'REVIEW_REMOVED',
+          'REVIEW_RESTORED',
+          'REVIEW_REPORT_DISMISSED',
+        ],
+      },
+    };
+    const statusLogWhere = {
+      tenantId,
+      action: {
+        in: ['MERCHANT_SUSPENDED', 'MERCHANT_REACTIVATED', 'MERCHANT_ARCHIVED'],
+      },
+    };
+
+    const [reviewTotal, reviewLogs, statusTotal, statusLogs] = await Promise.all([
+      this.prisma.auditLog.count({ where: reviewLogWhere }),
+      this.prisma.auditLog.findMany({
+        where: reviewLogWhere,
+        skip: (rPage - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.auditLog.count({ where: statusLogWhere }),
+      this.prisma.auditLog.findMany({
+        where: statusLogWhere,
+        skip: (sPage - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const allActorIds = [...new Set([...reviewLogs, ...statusLogs].map((l) => l.actorId).filter(Boolean))] as string[];
+    const actors = allActorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: allActorIds } },
+          select: { id: true, fullName: true, email: true },
+        })
+      : [];
+    const actorMap = new Map(actors.map((a) => [a.id, a.fullName || a.email || 'Admin']));
+
+    const reviewModerationActivity = {
+      data: reviewLogs.map((l) => {
+        const meta = (l.metadata as any) || {};
+        return {
+          id: l.id,
+          date: l.createdAt.toISOString(),
+          action: l.action.replace(/_/g, ' '),
+          reason: meta.reason || meta.note || meta.details || null,
+          adminName: (l.actorId && actorMap.get(l.actorId)) || 'Admin',
+        };
+      }),
+      pagination: {
+        page: rPage,
+        pageSize: limit,
+        total: reviewTotal,
+        totalPages: Math.ceil(reviewTotal / limit) || 1,
+      },
+    };
+
+    const statusHistory = {
+      data: statusLogs.map((l) => {
+        const meta = (l.metadata as any) || {};
+        return {
+          id: l.id,
+          date: l.createdAt.toISOString(),
+          action: l.action === 'MERCHANT_SUSPENDED' ? 'SUSPENDED' : l.action === 'MERCHANT_REACTIVATED' ? 'REACTIVATED' : 'ARCHIVED',
+          target: l.entityType === 'Store' ? 'Store' : 'Merchant Account',
+          reason: meta.reason || meta.internalNote || 'Administrative action',
+          adminName: (l.actorId && actorMap.get(l.actorId)) || 'Admin',
+        };
+      }),
+      pagination: {
+        page: sPage,
+        pageSize: limit,
+        total: statusTotal,
+        totalPages: Math.ceil(statusTotal / limit) || 1,
+      },
+    };
+
+    return {
+      stats: {
+        activeReviews: activeCount,
+        avgRating: avgResult._avg?.rating ? Number(avgResult._avg.rating.toFixed(1)) : null,
+        pendingReports,
+        underReviewReports,
+        removedReviews,
+      },
+      reviewModerationActivity,
+      statusHistory,
+    };
+  }
+
   public async sendMessageToMerchant(
     tenantId: string,
     actorId: string,

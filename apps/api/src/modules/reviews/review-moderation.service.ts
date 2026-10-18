@@ -3,12 +3,29 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaClient, Prisma, ReviewReportStatus } from '@prisma/client';
+import { MailService } from '../notifications/mail.service';
+
+export interface ModerateReviewOptions {
+  internalNote?: string;
+  buyerMessage?: string;
+  merchantMessage?: string;
+  notifyBuyerEmail?: boolean;
+  notifyBuyerWhatsapp?: boolean;
+  notifyMerchantEmail?: boolean;
+  notifyMerchantWhatsapp?: boolean;
+}
 
 @Injectable()
 export class ReviewModerationService {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly logger = new Logger(ReviewModerationService.name);
+
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly mailService: MailService,
+  ) {}
 
   async getFilters() {
     const [stores, products] = await Promise.all([
@@ -28,6 +45,37 @@ export class ReviewModerationService {
     return { stores, products };
   }
 
+  async getSummary() {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [
+      pendingReports,
+      underReviewReports,
+      removedReviews,
+      resolvedThisMonth,
+      activeReviews,
+      totalReviews,
+    ] = await Promise.all([
+      this.prisma.reviewReport.count({ where: { status: 'PENDING' } }),
+      this.prisma.reviewReport.count({ where: { status: 'UNDER_REVIEW' } }),
+      this.prisma.productReview.count({ where: { status: 'REMOVED' } }),
+      this.prisma.reviewReport.count({
+        where: { status: 'RESOLVED', resolvedAt: { gte: firstDayOfMonth } },
+      }),
+      this.prisma.productReview.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.productReview.count(),
+    ]);
+
+    return {
+      pendingReports,
+      underReviewReports,
+      removedReviews,
+      resolvedThisMonth,
+      activeReviews,
+      totalReviews,
+    };
+  }
+
   async getReviews(query: {
     status?: string;
     reportStatus?: string;
@@ -35,6 +83,8 @@ export class ReviewModerationService {
     storeId?: string;
     productId?: string;
     rating?: string;
+    verified?: string | boolean;
+    hasComplaint?: string | boolean;
     from?: string;
     to?: string;
     sort?: string;
@@ -48,6 +98,7 @@ export class ReviewModerationService {
       ? Math.max(1, Math.min(100, Math.floor(Number(query.limit) || 20)))
       : 20;
     const where: Prisma.ProductReviewWhereInput = {};
+
     if (
       query.status &&
       query.status !== 'ALL' &&
@@ -57,6 +108,7 @@ export class ReviewModerationService {
         throw new BadRequestException('Invalid review visibility.');
       where.status = query.status;
     }
+
     const reportStatus =
       query.status === 'SENT_FOR_REVIEW' ? 'PENDING' : query.reportStatus;
     if (reportStatus && reportStatus !== 'ALL') {
@@ -75,6 +127,20 @@ export class ReviewModerationService {
         },
       };
     }
+
+    if (query.hasComplaint !== undefined && query.hasComplaint !== '' && query.hasComplaint !== 'ALL') {
+      const hasC = String(query.hasComplaint) === 'true' || String(query.hasComplaint) === 'YES';
+      if (hasC) {
+        where.reports = { some: {} };
+      } else {
+        where.reports = { none: {} };
+      }
+    }
+
+    if (query.verified !== undefined && query.verified !== '' && query.verified !== 'ALL') {
+      where.verifiedPurchase = String(query.verified) === 'true';
+    }
+
     if (query.storeId) where.storeId = query.storeId;
     if (query.productId) where.productId = query.productId;
     if (query.rating) {
@@ -94,6 +160,7 @@ export class ReviewModerationService {
         throw new BadRequestException('Invalid date range.');
       where.createdAt = { gte: from, lte: to };
     }
+
     if (query.search?.trim()) {
       const text = query.search.trim().slice(0, 200);
       where.OR = [
@@ -103,7 +170,11 @@ export class ReviewModerationService {
         { title: { contains: text, mode: 'insensitive' } },
         { product: { name: { contains: text, mode: 'insensitive' } } },
         { store: { name: { contains: text, mode: 'insensitive' } } },
+        { store: { tenant: { name: { contains: text, mode: 'insensitive' } } } },
         { order: { orderNumber: { contains: text, mode: 'insensitive' } } },
+        { order: { customer: { fullName: { contains: text, mode: 'insensitive' } } } },
+        { order: { customer: { email: { contains: text, mode: 'insensitive' } } } },
+        { order: { customer: { phone: { contains: text, mode: 'insensitive' } } } },
         {
           reports: {
             some: {
@@ -116,19 +187,47 @@ export class ReviewModerationService {
         },
       ];
     }
+
+    let orderBy: Prisma.ProductReviewOrderByWithRelationInput[] = [
+      { createdAt: 'desc' },
+      { id: 'asc' },
+    ];
+    if (query.sort === 'oldest') {
+      orderBy = [{ createdAt: 'asc' }, { id: 'asc' }];
+    } else if (query.sort === 'highest_rating') {
+      orderBy = [{ rating: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }];
+    } else if (query.sort === 'lowest_rating') {
+      orderBy = [{ rating: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }];
+    }
+
     const [total, items] = await Promise.all([
       this.prisma.productReview.count({ where }),
       this.prisma.productReview.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: [
-          { createdAt: query.sort === 'oldest' ? 'asc' : 'desc' },
-          { id: 'asc' },
-        ],
+        orderBy,
         include: {
-          store: { select: { id: true, name: true, slug: true } },
-          product: { select: { id: true, name: true, slug: true } },
+          store: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              tenant: { select: { id: true, name: true } },
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              media: {
+                where: { mediaAsset: { deletedAt: null } },
+                include: { mediaAsset: true },
+                take: 1,
+              },
+            },
+          },
           order: {
             select: {
               id: true,
@@ -136,15 +235,31 @@ export class ReviewModerationService {
               status: true,
               paymentStatus: true,
               createdAt: true,
+              customer: {
+                select: { id: true, fullName: true, email: true, phone: true },
+              },
             },
           },
           reports: { take: 50, orderBy: { createdAt: 'desc' } },
         },
       }),
     ]);
+
+    const formatted = items.map((r) => ({
+      ...r,
+      product: {
+        id: r.product.id,
+        name: r.product.name,
+        slug: r.product.slug,
+        media: r.product.media.map((m) => ({
+          publicUrl: m.mediaAsset?.publicUrl || '',
+        })),
+      },
+    }));
+
     return {
-      items,
-      reviews: items,
+      items: formatted,
+      reviews: formatted,
       total,
       page,
       limit,
@@ -153,29 +268,137 @@ export class ReviewModerationService {
     };
   }
 
+  async getReviewTimeline(reviewId: string) {
+    const review = await this.prisma.productReview.findUnique({
+      where: { id: reviewId },
+      include: {
+        store: { select: { id: true, name: true, tenantId: true } },
+        product: { select: { id: true, name: true } },
+        order: { select: { orderNumber: true } },
+        reports: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    if (!review) throw new NotFoundException('Review not found.');
+
+    const auditLogs = await this.prisma.auditLog.findMany({
+      where: {
+        OR: [
+          { entityType: 'ProductReview', entityId: reviewId },
+          {
+            entityType: 'ReviewReport',
+            entityId: { in: review.reports.map((r) => r.id) },
+          },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const events: Array<{
+      id: string;
+      type: string;
+      title: string;
+      actor: string;
+      timestamp: string;
+      details?: string | null;
+    }> = [];
+
+    events.push({
+      id: `created-${review.id}`,
+      type: 'REVIEW_CREATED',
+      title: 'Review Created',
+      actor: review.reviewerName,
+      timestamp: review.createdAt.toISOString(),
+      details: `${review.rating} Stars — "${review.title || review.body.slice(0, 40)}"`,
+    });
+
+    for (const report of review.reports) {
+      events.push({
+        id: `report-${report.id}`,
+        type: 'MERCHANT_REPORTED',
+        title: 'Merchant Reported Review',
+        actor: 'Merchant',
+        timestamp: report.createdAt.toISOString(),
+        details: `Reason: ${report.reason}${report.merchantNote ? ` · Note: ${report.merchantNote}` : ''}`,
+      });
+    }
+
+    for (const log of auditLogs) {
+      const meta = (log.metadata as any) || {};
+      let title = log.action.replace(/_/g, ' ');
+      if (log.action === 'REVIEW_REPORT_UNDER_REVIEW') title = 'Admin Started Review';
+      if (log.action === 'REVIEW_REPORT_DISMISSED') title = 'Complaint Dismissed';
+      if (log.action === 'REVIEW_REMOVED') title = 'Review Removed';
+      if (log.action === 'REVIEW_RESTORED') title = 'Review Restored';
+      if (log.action === 'BUYER_NOTIFIED') title = 'Buyer Notified (Email)';
+      if (log.action === 'MERCHANT_NOTIFIED') title = 'Merchant Notified (Email)';
+
+      events.push({
+        id: `audit-${log.id}`,
+        type: log.action,
+        title,
+        actor: log.actorType === 'ADMIN' ? 'Platform Admin' : 'System',
+        timestamp: log.createdAt.toISOString(),
+        details: meta.reason || meta.note || meta.details || null,
+      });
+    }
+
+    events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    return {
+      review,
+      timeline: events,
+    };
+  }
+
   async moderate(
     reviewId: string,
     actorId: string,
     action: 'REMOVE' | 'RESTORE',
     reason?: string,
+    opts?: ModerateReviewOptions,
   ) {
-    const note = reason?.trim();
-    if (!note || note.length > 2000)
+    const note = (reason || opts?.internalNote || '').trim();
+    if (!note || note.length > 2000) {
       throw new BadRequestException(
         'A moderation reason of 1–2000 characters is required.',
       );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM product_reviews WHERE id = ${reviewId} FOR UPDATE`;
       const review = await tx.productReview.findUnique({
         where: { id: reviewId },
-        include: { store: { select: { tenantId: true } } },
+        include: {
+          store: {
+            select: {
+              id: true,
+              name: true,
+              tenantId: true,
+              supportEmail: true,
+              supportPhone: true,
+              whatsappNumber: true,
+            },
+          },
+          product: { select: { id: true, name: true } },
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              customer: { select: { fullName: true, email: true, phone: true } },
+            },
+          },
+        },
       });
       if (!review) throw new NotFoundException('Review not found.');
+
       const status = action === 'REMOVE' ? 'REMOVED' : 'ACTIVE';
-      if (review.status === status)
+      if (review.status === status) {
         throw new ConflictException(
           'Review already has this visibility status.',
         );
+      }
+
       const updated = await tx.productReview.update({
         where: { id: reviewId },
         data: {
@@ -185,7 +408,8 @@ export class ReviewModerationService {
           moderationReason: note,
         },
       });
-      if (action === 'REMOVE')
+
+      if (action === 'REMOVE') {
         await tx.reviewReport.updateMany({
           where: { reviewId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
           data: {
@@ -195,6 +419,8 @@ export class ReviewModerationService {
             adminNote: note,
           },
         });
+      }
+
       await tx.auditLog.create({
         data: {
           actorId,
@@ -204,10 +430,133 @@ export class ReviewModerationService {
           action: action === 'REMOVE' ? 'REVIEW_REMOVED' : 'REVIEW_RESTORED',
           entityType: 'ProductReview',
           entityId: review.id,
-          metadata: { reason: note, previousStatus: review.status, status },
+          metadata: {
+            reason: note,
+            internalNote: opts?.internalNote || null,
+            buyerMessage: opts?.buyerMessage || null,
+            merchantMessage: opts?.merchantMessage || null,
+            previousStatus: review.status,
+            status,
+          },
         },
       });
-      return updated;
+
+      // Buyer Notification
+      let buyerNotified = false;
+      const buyerEmail = review.order.customer?.email;
+      if (
+        action === 'REMOVE' &&
+        opts?.notifyBuyerEmail &&
+        buyerEmail &&
+        buyerEmail.includes('@')
+      ) {
+        try {
+          await this.mailService.sendReviewRemovedBuyerEmail({
+            recipientEmail: buyerEmail,
+            buyerName: review.reviewerName || review.order.customer?.fullName || 'Customer',
+            productName: review.product.name,
+            storeName: review.store.name,
+            buyerFacingReason: opts.buyerMessage?.trim() || note,
+          });
+          buyerNotified = true;
+          await tx.auditLog.create({
+            data: {
+              actorId,
+              actorType: 'ADMIN',
+              tenantId: review.store.tenantId,
+              storeId: review.storeId,
+              action: 'BUYER_NOTIFIED',
+              entityType: 'ProductReview',
+              entityId: review.id,
+              metadata: {
+                channel: 'EMAIL',
+                recipient: buyerEmail,
+                reason: opts.buyerMessage?.trim() || note,
+              },
+            },
+          });
+        } catch (err: any) {
+          this.logger.warn(`Failed to send buyer removal email: ${err.message}`);
+        }
+      }
+
+      // Merchant Notification
+      let merchantNotified = false;
+      if (opts?.notifyMerchantEmail) {
+        const ownerMembership = await tx.tenantMembership.findFirst({
+          where: { tenantId: review.store.tenantId, role: 'SELLER_OWNER' },
+          include: { user: true },
+        });
+        const merchantEmail =
+          ownerMembership?.user?.email || review.store.supportEmail;
+        if (merchantEmail && merchantEmail.includes('@')) {
+          try {
+            if (action === 'REMOVE') {
+              await this.mailService.sendReviewModeratedMerchantEmail({
+                recipientEmail: merchantEmail,
+                storeName: review.store.name,
+                productName: review.product.name,
+                orderNumber: review.order.orderNumber,
+                result: 'Review removed',
+                safeReason: opts.merchantMessage?.trim() || note,
+              });
+            } else {
+              await this.mailService.sendReviewRestoredMerchantEmail({
+                recipientEmail: merchantEmail,
+                storeName: review.store.name,
+                productName: review.product.name,
+                orderNumber: review.order.orderNumber,
+              });
+            }
+            merchantNotified = true;
+            await tx.auditLog.create({
+              data: {
+                actorId,
+                actorType: 'ADMIN',
+                tenantId: review.store.tenantId,
+                storeId: review.storeId,
+                action: 'MERCHANT_NOTIFIED',
+                entityType: 'ProductReview',
+                entityId: review.id,
+                metadata: {
+                  channel: 'EMAIL',
+                  recipient: merchantEmail,
+                  action,
+                  reason: opts.merchantMessage?.trim() || note,
+                },
+              },
+            });
+          } catch (err: any) {
+            this.logger.warn(`Failed to send merchant review notification email: ${err.message}`);
+          }
+        }
+      }
+
+      // WhatsApp link preparation (wa.me)
+      let whatsappBuyerUrl: string | null = null;
+      let whatsappMerchantUrl: string | null = null;
+      if (opts?.notifyBuyerWhatsapp && review.order.customer?.phone) {
+        const cleanPhone = review.order.customer.phone.replace(/[^0-9]/g, '');
+        const msg = encodeURIComponent(
+          `Hello ${review.reviewerName}, your review for ${review.product.name} at ${review.store.name} was removed following a LetzShop moderation review. Reason: ${opts.buyerMessage?.trim() || note}`,
+        );
+        whatsappBuyerUrl = `https://wa.me/${cleanPhone}?text=${msg}`;
+      }
+      if (opts?.notifyMerchantWhatsapp && (review.store.whatsappNumber || review.store.supportPhone)) {
+        const cleanPhone = (review.store.whatsappNumber || review.store.supportPhone)!.replace(/[^0-9]/g, '');
+        const msg = encodeURIComponent(
+          `Hello ${review.store.name}, the reported review for ${review.product.name} (Order #${review.order.orderNumber}) has been reviewed. Result: ${action === 'REMOVE' ? 'Review removed' : 'Review restored'}.`,
+        );
+        whatsappMerchantUrl = `https://wa.me/${cleanPhone}?text=${msg}`;
+      }
+
+      return {
+        ...updated,
+        buyerNotified,
+        merchantNotified,
+        whatsappBuyerUrl,
+        whatsappMerchantUrl,
+      };
     });
   }
 
@@ -225,20 +574,36 @@ export class ReviewModerationService {
       );
     if ((note?.length || 0) > 2000)
       throw new BadRequestException('Moderation note is too long.');
+
     const found = await this.prisma.reviewReport.findUnique({
       where: { id: reportId },
     });
     if (!found) throw new NotFoundException('Report not found.');
+
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM product_reviews WHERE id = ${found.reviewId} FOR UPDATE`;
       const report = await tx.reviewReport.findUnique({
         where: { id: reportId },
         include: {
-          review: { include: { store: { select: { tenantId: true } } } },
+          review: {
+            include: {
+              store: {
+                select: {
+                  id: true,
+                  name: true,
+                  tenantId: true,
+                  supportEmail: true,
+                },
+              },
+              product: { select: { id: true, name: true } },
+              order: { select: { orderNumber: true } },
+            },
+          },
         },
       });
       if (!report || !['PENDING', 'UNDER_REVIEW'].includes(report.status))
         throw new ConflictException('This report is already closed.');
+
       const updated = await tx.reviewReport.update({
         where: { id: reportId },
         data: {
@@ -249,6 +614,7 @@ export class ReviewModerationService {
             : {}),
         },
       });
+
       await tx.auditLog.create({
         data: {
           actorId,
@@ -269,6 +635,47 @@ export class ReviewModerationService {
           },
         },
       });
+
+      if (status === 'DISMISSED') {
+        const ownerMembership = await tx.tenantMembership.findFirst({
+          where: { tenantId: report.review.store.tenantId, role: 'SELLER_OWNER' },
+          include: { user: true },
+        });
+        const merchantEmail =
+          ownerMembership?.user?.email || report.review.store.supportEmail;
+        if (merchantEmail && merchantEmail.includes('@')) {
+          try {
+            await this.mailService.sendReviewModeratedMerchantEmail({
+              recipientEmail: merchantEmail,
+              storeName: report.review.store.name,
+              productName: report.review.product.name,
+              orderNumber: report.review.order.orderNumber,
+              result: 'Complaint dismissed',
+              safeReason: note?.trim() || 'Reviewed and dismissed by administrator',
+            });
+            await tx.auditLog.create({
+              data: {
+                actorId,
+                actorType: 'ADMIN',
+                tenantId: report.review.store.tenantId,
+                storeId: report.review.storeId,
+                action: 'MERCHANT_NOTIFIED',
+                entityType: 'ReviewReport',
+                entityId: reportId,
+                metadata: {
+                  channel: 'EMAIL',
+                  recipient: merchantEmail,
+                  status: 'DISMISSED',
+                  reason: note?.trim(),
+                },
+              },
+            });
+          } catch (err: any) {
+            this.logger.warn(`Failed to send dismissal email to merchant: ${err.message}`);
+          }
+        }
+      }
+
       return updated;
     });
   }

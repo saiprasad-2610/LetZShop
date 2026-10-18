@@ -155,6 +155,62 @@ export class AdminController {
     return this.adminService.getCommunicationHistory(id);
   }
 
+  @Get('merchants/:id/communications')
+  @ApiOperation({ summary: 'Paginated communication history for a merchant' })
+  async getMerchantCommunications(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getMerchantCommunications(id, page ? parseInt(page, 10) : 1, pageSize ? parseInt(pageSize, 10) : 5);
+  }
+
+  @Get('merchants/:id/subscriptions')
+  @ApiOperation({ summary: 'Paginated subscription history for a merchant' })
+  async getMerchantSubscriptions(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getMerchantSubscriptions(id, page ? parseInt(page, 10) : 1, pageSize ? parseInt(pageSize, 10) : 5);
+  }
+
+  @Get('merchants/:id/invoices')
+  @ApiOperation({ summary: 'Paginated invoice history for a merchant' })
+  async getMerchantInvoices(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getMerchantInvoices(id, page ? parseInt(page, 10) : 1, pageSize ? parseInt(pageSize, 10) : 5);
+  }
+
+  @Get('merchants/:id/orders')
+  @ApiOperation({ summary: 'Paginated orders for a merchant' })
+  async getMerchantOrders(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getMerchantOrders(id, page ? parseInt(page, 10) : 1, pageSize ? parseInt(pageSize, 10) : 5);
+  }
+
+  @Get('merchants/:id/moderation-summary')
+  @ApiOperation({ summary: 'Review & moderation summary with paginated activity for a merchant' })
+  async getMerchantModerationSummary(
+    @Param('id') id: string,
+    @Query('reviewPage') reviewPage?: string,
+    @Query('statusPage') statusPage?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getMerchantModerationSummary(
+      id,
+      reviewPage ? parseInt(reviewPage, 10) : 1,
+      statusPage ? parseInt(statusPage, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 5,
+    );
+  }
+
   @Get('commerce')
   @ApiOperation({
     summary:

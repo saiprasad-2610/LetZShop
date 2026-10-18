@@ -314,11 +314,23 @@ export class ReviewsService {
    */
   async getAdminReviews(query: Parameters<ReviewModerationService['getReviews']>[0]) { return this.moderation.getReviews(query); }
 
+  async getAdminReviewSummary() { return this.moderation.getSummary(); }
+
   async getAdminReviewFilters() { return this.moderation.getFilters(); }
 
-  async moderateReview(reviewId:string,moderator:{userId:string;fullName:string},action:'REMOVE'|'RESTORE',reason?:string) { return this.moderation.moderate(reviewId,moderator.userId,action,reason); }
+  async getAdminReviewTimeline(reviewId: string) { return this.moderation.getReviewTimeline(reviewId); }
 
-  async updateReviewReport(reportId:string,actorId:string,status:'UNDER_REVIEW'|'DISMISSED',note?:string) { return this.moderation.updateReport(reportId,actorId,status,note); }
+  async moderateReview(
+    reviewId: string,
+    moderator: { userId: string; fullName: string },
+    action: 'REMOVE' | 'RESTORE',
+    reason?: string,
+    opts?: import('./review-moderation.service').ModerateReviewOptions,
+  ) {
+    return this.moderation.moderate(reviewId, moderator.userId, action, reason, opts);
+  }
+
+  async updateReviewReport(reportId: string, actorId: string, status: 'UNDER_REVIEW' | 'DISMISSED', note?: string) { return this.moderation.updateReport(reportId, actorId, status, note); }
 
   /**
    * Seller Portal: View reviews for their store's products with filtering, search, metrics, and pagination.
