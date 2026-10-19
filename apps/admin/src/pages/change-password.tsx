@@ -27,8 +27,12 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword.trim()) {
+      setError('Please enter your temporary / current password.');
+      return;
+    }
     if (!isFormValid) {
-      setError('Please ensure password meets all security requirements and matches confirmation.');
+      setError('Please ensure new password meets all security requirements and matches confirmation.');
       return;
     }
 

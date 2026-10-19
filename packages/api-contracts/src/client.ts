@@ -6,6 +6,8 @@ import type {
   AdminPlan,
   AdminUser,
   AdminOrder,
+  AdminOrdersResponse,
+  AdminOrderDetail,
   AdminOperations,
   AdminAnalytics,
   AdminCommunicationLog,
@@ -195,8 +197,16 @@ export class SimplyApiClient {
       throw err;
     }
 
+    const isUnrefreshableRoute =
+      path.startsWith('auth/session/refresh') ||
+      path.startsWith('auth/otp') ||
+      path.startsWith('auth/pin') ||
+      path.startsWith('auth/register') ||
+      path.startsWith('auth/admin/login') ||
+      path.startsWith('auth/admin/activate');
+
     // Auto-refresh token if 401 Unauthorized occurs on a protected route and refreshToken is present
-    if (res.status === 401 && !_isRetry && this.refreshToken && !path.startsWith('auth/')) {
+    if (res.status === 401 && !_isRetry && this.refreshToken && !isUnrefreshableRoute) {
       const refreshed = await this.refreshAccessToken();
       if (refreshed) {
         return this.request<T>(path, { ...options, _isRetry: true });
@@ -207,7 +217,7 @@ export class SimplyApiClient {
 
     if (!res.ok || json.success === false) {
       if (res.status === 401) {
-        if (!path.startsWith('auth/')) {
+        if (!this.refreshToken && !isUnrefreshableRoute) {
           this.onSessionExpired?.();
         }
         this.onAuthFailure?.();
@@ -568,6 +578,10 @@ export class SimplyApiClient {
         `admin/merchants/${id}/communication-history`,
       ),
     getCommerce: () => this.request<AdminPage<AdminOrder>>('admin/commerce'),
+    getOrders: (params?: any) =>
+      this.request<AdminOrdersResponse>('admin/orders', { params }),
+    getOrderDetail: (id: string) =>
+      this.request<AdminOrderDetail>(`admin/orders/${id}`),
     getOperations: () => this.request<AdminOperations>('admin/operations'),
     retryOutbox: (id: string) =>
       this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
@@ -599,7 +613,8 @@ export class SimplyApiClient {
           body: data || { reason: 'Status updated by administrator' },
         },
       ),
-    getAnalytics: () => this.request<AdminAnalytics>('admin/analytics'),
+    getAnalytics: (params?: any) =>
+      this.request<AdminAnalytics>('admin/analytics', { params }),
     getPlans: () => this.request<AdminPlan[]>('admin/plans'),
     createPlan: (data: {
       name: string;
@@ -721,7 +736,7 @@ export class SimplyApiClient {
       ),
     changePassword: (data: AdminChangePasswordDto) =>
       this.request<{ success: boolean; message: string }>(
-        'auth/admin/change-password',
+        'admin/change-password',
         { method: 'POST', body: data },
       ),
     getAuditLogs: (params?: any) =>

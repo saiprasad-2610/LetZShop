@@ -1372,7 +1372,7 @@ export default function MerchantDetailPage() {
                     <ShoppingBag className="h-4 w-4 text-admin-accent" />
                     Recent Orders (Page Size: {pageSize})
                   </h2>
-                  <Link href={`/commerce?search=${m.slug}`} className="text-xs text-admin-accent font-semibold hover:underline">
+                  <Link href={`/orders?search=${m.slug}`} className="text-xs text-admin-accent font-semibold hover:underline">
                     View All in Orders
                   </Link>
                 </div>
@@ -1393,7 +1393,9 @@ export default function MerchantDetailPage() {
                         orderData.map((ord: any) => (
                           <tr key={ord.id} className="hover:bg-admin-raised/40">
                             <td className="px-3 py-2 font-mono font-semibold text-admin-text whitespace-nowrap">
-                              {ord.orderNumber}
+                              <Link href={`/orders/${ord.id}`} className="hover:text-admin-accent hover:underline">
+                                {ord.orderNumber}
+                              </Link>
                             </td>
                             <td className="px-3 py-2 text-admin-secondary">
                               {ord.customer?.fullName || 'Guest'}

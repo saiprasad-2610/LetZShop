@@ -15,7 +15,18 @@ export default async function handler(
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
   const token = req.cookies[ADMIN_COOKIE] || bearerToken;
-  const parts = req.query.path as string[];
+  let parts = req.query.path as string[];
+
+  // Support backward compatibility if frontend calls auth/admin/change-password
+  if (
+    parts?.length === 3 &&
+    parts[0] === 'auth' &&
+    parts[1] === 'admin' &&
+    parts[2] === 'change-password'
+  ) {
+    parts = ['admin', 'change-password'];
+  }
+
   const isPublicAuth =
     parts?.length === 3 &&
     parts[0] === 'auth' &&

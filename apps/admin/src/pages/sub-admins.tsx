@@ -42,45 +42,176 @@ interface PermissionMeta {
   key: AdminPermission;
   label: string;
   category: string;
+  description: string;
 }
 
 const ALL_PERMISSION_METAS: PermissionMeta[] = [
-  // Dashboard & General
-  { key: AdminPermission.DASHBOARD_VIEW, label: 'View Dashboard', category: 'General' },
+  // General
+  {
+    key: AdminPermission.DASHBOARD_VIEW,
+    label: 'View Dashboard',
+    category: 'General',
+    description: 'View platform overview, operational KPIs, and recent activity.',
+  },
   // Merchants
-  { key: AdminPermission.MERCHANTS_VIEW, label: 'View Merchants', category: 'Merchants' },
-  { key: AdminPermission.MERCHANTS_CONTACT, label: 'Contact Merchants', category: 'Merchants' },
-  { key: AdminPermission.MERCHANTS_SUSPEND, label: 'Suspend / Reactivate Merchants', category: 'Merchants' },
-  // Reviews & Moderation
-  { key: AdminPermission.REVIEWS_VIEW, label: 'View Reviews & Reports', category: 'Reviews' },
-  { key: AdminPermission.REVIEWS_MODERATE, label: 'Moderate Reviews', category: 'Reviews' },
-  // Subscriptions & Finance
-  { key: AdminPermission.SUBSCRIPTIONS_VIEW, label: 'View Subscriptions', category: 'Subscriptions' },
-  { key: AdminPermission.SUBSCRIPTIONS_MANAGE, label: 'Manage Subscriptions', category: 'Subscriptions' },
-  { key: AdminPermission.PAYMENTS_VIEW, label: 'View Payments', category: 'Payments' },
-  { key: AdminPermission.PAYMENTS_RECONCILE, label: 'Reconcile Payments', category: 'Payments' },
+  {
+    key: AdminPermission.MERCHANTS_VIEW,
+    label: 'View Merchants',
+    category: 'Merchants',
+    description: 'View merchant profiles, storefronts, and account status.',
+  },
+  {
+    key: AdminPermission.MERCHANTS_CONTACT,
+    label: 'Contact Merchants',
+    category: 'Merchants',
+    description: 'Send merchant email or WhatsApp notifications.',
+  },
+  {
+    key: AdminPermission.MERCHANTS_SUSPEND,
+    label: 'Suspend / Reactivate Merchants',
+    category: 'Merchants',
+    description: 'Temporarily restrict or restore merchant store access.',
+  },
+  // Orders
+  {
+    key: AdminPermission.ORDERS_VIEW,
+    label: 'View Orders',
+    category: 'Orders',
+    description: 'Monitor customer orders and inspect fulfillment and items.',
+  },
+  {
+    key: AdminPermission.ORDERS_MANAGE,
+    label: 'Manage Orders',
+    category: 'Orders',
+    description: 'Operational inspection and fulfillment coordination.',
+  },
+  // Reviews
+  {
+    key: AdminPermission.REVIEWS_VIEW,
+    label: 'View Reviews & Reports',
+    category: 'Reviews',
+    description: 'Inspect product reviews, ratings, and customer feedback.',
+  },
+  {
+    key: AdminPermission.REVIEWS_MODERATE,
+    label: 'Moderate Reviews',
+    category: 'Reviews',
+    description: 'Dismiss reports, remove abusive reviews, and restore content.',
+  },
+  // Subscriptions
+  {
+    key: AdminPermission.SUBSCRIPTIONS_VIEW,
+    label: 'View Subscriptions',
+    category: 'Subscriptions',
+    description: 'View merchant SaaS plans, billing tiers, and cycles.',
+  },
+  {
+    key: AdminPermission.SUBSCRIPTIONS_MANAGE,
+    label: 'Manage Subscriptions',
+    category: 'Subscriptions',
+    description: 'Assign plans, update grace periods, and adjust subscriptions.',
+  },
+  // Payments
+  {
+    key: AdminPermission.PAYMENTS_VIEW,
+    label: 'View Payments',
+    category: 'Payments',
+    description: 'View customer order payments and merchant subscription invoices.',
+  },
+  {
+    key: AdminPermission.PAYMENTS_RECONCILE,
+    label: 'Reconcile Payments',
+    category: 'Payments',
+    description: 'Trigger payment reconciliation and verify gateway settlements.',
+  },
   // Users
-  { key: AdminPermission.USERS_VIEW, label: 'View Users', category: 'Users' },
-  { key: AdminPermission.USERS_MANAGE, label: 'Manage Users', category: 'Users' },
+  {
+    key: AdminPermission.USERS_VIEW,
+    label: 'View Users',
+    category: 'Users',
+    description: 'View customer accounts and registered platform users.',
+  },
+  {
+    key: AdminPermission.USERS_MANAGE,
+    label: 'Manage Users',
+    category: 'Users',
+    description: 'Manage customer accounts, roles, and status.',
+  },
   // Business Verification
-  { key: AdminPermission.BUSINESS_VERIFICATION_VIEW, label: 'View Verifications', category: 'Business Verification' },
-  { key: AdminPermission.BUSINESS_VERIFICATION_APPROVE, label: 'Approve / Reject Verifications', category: 'Business Verification' },
+  {
+    key: AdminPermission.BUSINESS_VERIFICATION_VIEW,
+    label: 'View Verifications',
+    category: 'Business Verification',
+    description: 'Inspect submitted business documents, GSTIN, and PAN.',
+  },
+  {
+    key: AdminPermission.BUSINESS_VERIFICATION_APPROVE,
+    label: 'Approve / Reject Verifications',
+    category: 'Business Verification',
+    description: 'Approve or reject merchant business verification documents.',
+  },
+  // Analytics
+  {
+    key: AdminPermission.ANALYTICS_VIEW,
+    label: 'View Analytics',
+    category: 'Analytics',
+    description: 'Access platform revenue, GMV, and growth performance analytics.',
+  },
+  // Themes
+  {
+    key: AdminPermission.THEMES_VIEW,
+    label: 'View Themes',
+    category: 'Themes',
+    description: 'Browse storefront themes and layout templates.',
+  },
+  {
+    key: AdminPermission.THEMES_MANAGE,
+    label: 'Manage Themes',
+    category: 'Themes',
+    description: 'Install, customize, and publish storefront themes.',
+  },
   // Settings
-  { key: AdminPermission.SETTINGS_VIEW, label: 'View Platform Settings', category: 'Settings' },
-  { key: AdminPermission.SETTINGS_MANAGE, label: 'Modify Platform Settings', category: 'Settings' },
-  // Delegation
-  { key: AdminPermission.SUB_ADMINS_MANAGE, label: 'Manage Sub Admins', category: 'Sub Admins' },
-  // Audit
-  { key: AdminPermission.AUDIT_LOGS_VIEW, label: 'View Audit Logs', category: 'Audit Logs' },
-  // Future Capabilities (Themes, Orders, Analytics)
-  { key: AdminPermission.THEMES_VIEW, label: 'View Themes', category: 'Themes' },
-  { key: AdminPermission.THEMES_MANAGE, label: 'Manage Themes', category: 'Themes' },
-  { key: AdminPermission.ANALYTICS_VIEW, label: 'View Analytics', category: 'Analytics' },
-  { key: AdminPermission.ORDERS_VIEW, label: 'View Orders', category: 'Orders' },
-  { key: AdminPermission.ORDERS_MANAGE, label: 'Manage Orders', category: 'Orders' },
+  {
+    key: AdminPermission.SETTINGS_VIEW,
+    label: 'View Settings',
+    category: 'Settings',
+    description: 'View platform configuration, security policies, and integrations.',
+  },
+  {
+    key: AdminPermission.SETTINGS_MANAGE,
+    label: 'Modify Settings',
+    category: 'Settings',
+    description: 'Modify platform settings, session policies, and API keys.',
+  },
+  {
+    key: AdminPermission.SUB_ADMINS_MANAGE,
+    label: 'Manage Sub Admins',
+    category: 'Settings',
+    description: 'Create, delegate, and manage administrator access and permissions.',
+  },
+  // Audit Logs
+  {
+    key: AdminPermission.AUDIT_LOGS_VIEW,
+    label: 'View Audit Logs',
+    category: 'Audit Logs',
+    description: 'Inspect immutable platform security and operational audit logs.',
+  },
 ];
 
-const CATEGORIES = Array.from(new Set(ALL_PERMISSION_METAS.map((p) => p.category)));
+const CATEGORIES = [
+  'General',
+  'Merchants',
+  'Orders',
+  'Reviews',
+  'Subscriptions',
+  'Payments',
+  'Users',
+  'Business Verification',
+  'Analytics',
+  'Themes',
+  'Settings',
+  'Audit Logs',
+];
 
 const PRESETS: Record<string, { label: string; permissions: AdminPermission[] }> = {
   SUPPORT_ADMIN: {
@@ -90,6 +221,7 @@ const PRESETS: Record<string, { label: string; permissions: AdminPermission[] }>
       AdminPermission.MERCHANTS_VIEW,
       AdminPermission.MERCHANTS_CONTACT,
       AdminPermission.USERS_VIEW,
+      AdminPermission.ORDERS_VIEW,
     ],
   },
   FINANCE_ADMIN: {
@@ -117,6 +249,7 @@ const PRESETS: Record<string, { label: string; permissions: AdminPermission[] }>
       AdminPermission.DASHBOARD_VIEW,
       AdminPermission.MERCHANTS_VIEW,
       AdminPermission.MERCHANTS_SUSPEND,
+      AdminPermission.ORDERS_VIEW,
       AdminPermission.BUSINESS_VERIFICATION_VIEW,
       AdminPermission.BUSINESS_VERIFICATION_APPROVE,
     ],
@@ -148,6 +281,8 @@ export default function SubAdminsPage() {
 
   // Create Sub Admin modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activePreset, setActivePreset] = useState<string>('SUPPORT_ADMIN');
+  const [createModalError, setCreateModalError] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<{
     fullName: string;
     email: string;
@@ -160,7 +295,7 @@ export default function SubAdminsPage() {
     email: '',
     phone: '',
     temporaryPassword: '',
-    permissions: [AdminPermission.DASHBOARD_VIEW, AdminPermission.MERCHANTS_VIEW],
+    permissions: [...PRESETS.SUPPORT_ADMIN.permissions],
     forcePasswordChange: true,
   });
   const [createdCredentialsAlert, setCreatedCredentialsAlert] = useState<{
@@ -239,6 +374,61 @@ export default function SubAdminsPage() {
     return pass;
   };
 
+  const handleOpenCreateModal = () => {
+    setCreateModalError(null);
+    const pass = generateSecurePassword();
+    setCreateForm({
+      fullName: '',
+      email: '',
+      phone: '',
+      temporaryPassword: pass,
+      permissions: [...PRESETS.SUPPORT_ADMIN.permissions],
+      forcePasswordChange: true,
+    });
+    setActivePreset('SUPPORT_ADMIN');
+    setShowCreateModal(true);
+  };
+
+  const toggleCreatePermission = (key: AdminPermission) => {
+    let updated: AdminPermission[];
+    if (createForm.permissions.includes(key)) {
+      updated = createForm.permissions.filter((p) => p !== key);
+    } else {
+      updated = [...createForm.permissions, key];
+    }
+    const matchingPreset = Object.entries(PRESETS).find(
+      ([, p]) =>
+        p.permissions.length === updated.length &&
+        p.permissions.every((k) => updated.includes(k)),
+    );
+    setActivePreset(matchingPreset ? matchingPreset[0] : 'CUSTOM');
+    setCreateForm({ ...createForm, permissions: updated });
+  };
+
+  const handleSelectAllInCreateGroup = (catPerms: PermissionMeta[]) => {
+    const toAdd = catPerms.map((p) => p.key).filter((k) => !createForm.permissions.includes(k));
+    const updated = [...createForm.permissions, ...toAdd];
+    const matchingPreset = Object.entries(PRESETS).find(
+      ([, p]) =>
+        p.permissions.length === updated.length &&
+        p.permissions.every((k) => updated.includes(k)),
+    );
+    setActivePreset(matchingPreset ? matchingPreset[0] : 'CUSTOM');
+    setCreateForm({ ...createForm, permissions: updated });
+  };
+
+  const handleClearCreateGroup = (catPerms: PermissionMeta[]) => {
+    const catKeys = new Set(catPerms.map((p) => p.key));
+    const updated = createForm.permissions.filter((k) => !catKeys.has(k));
+    const matchingPreset = Object.entries(PRESETS).find(
+      ([, p]) =>
+        p.permissions.length === updated.length &&
+        p.permissions.every((k) => updated.includes(k)),
+    );
+    setActivePreset(matchingPreset ? matchingPreset[0] : 'CUSTOM');
+    setCreateForm({ ...createForm, permissions: updated });
+  };
+
   // Open detail drawer
   const openDetailDrawer = async (adminId: string) => {
     setSelectedAdminId(adminId);
@@ -264,10 +454,27 @@ export default function SubAdminsPage() {
   // Handle Sub Admin Creation
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateModalError(null);
+    const tempPass = createForm.temporaryPassword.trim();
+    if (tempPass.length < 8) {
+      setCreateModalError('Temporary password must be at least 8 characters in length.');
+      return;
+    }
+    if (!/[A-Za-z]/.test(tempPass)) {
+      setCreateModalError('Temporary password must contain at least one letter.');
+      return;
+    }
+    if (!/[0-9]/.test(tempPass)) {
+      setCreateModalError('Temporary password must contain at least one number.');
+      return;
+    }
+    if (createForm.permissions.length === 0) {
+      setCreateModalError('Please select at least one permission for this administrator.');
+      return;
+    }
+
     setActionLoading(true);
-    setActionMessage(null);
     try {
-      const tempPass = createForm.temporaryPassword.trim() || generateSecurePassword();
       const res = await api.admin.createSubAdmin({
         fullName: createForm.fullName.trim(),
         email: createForm.email.trim(),
@@ -287,20 +494,19 @@ export default function SubAdminsPage() {
         text: `Sub Admin created successfully! Login details emailed to ${createForm.email}.`,
       });
       setShowCreateModal(false);
+      setCreateModalError(null);
       setCreateForm({
         fullName: '',
         email: '',
         phone: '',
         temporaryPassword: '',
-        permissions: [AdminPermission.DASHBOARD_VIEW, AdminPermission.MERCHANTS_VIEW],
+        permissions: [...PRESETS.SUPPORT_ADMIN.permissions],
         forcePasswordChange: true,
       });
       loadSubAdmins();
     } catch (err: any) {
-      setActionMessage({
-        type: 'error',
-        text: err.message || 'Failed to create sub administrator.',
-      });
+      // KEEP MODAL OPEN! Display safe validation error directly inside modal!
+      setCreateModalError(err.message || 'Failed to create sub administrator.');
     } finally {
       setActionLoading(false);
     }
@@ -513,10 +719,7 @@ export default function SubAdminsPage() {
           </div>
           {currentUser?.isSuperAdmin && (
             <button
-              onClick={() => {
-                setShowCreateModal(true);
-                setActionMessage(null);
-              }}
+              onClick={handleOpenCreateModal}
               className="btn-admin-primary flex items-center gap-2 text-xs self-start"
             >
               <UserPlus className="w-4 h-4" />
@@ -1207,6 +1410,16 @@ export default function SubAdminsPage() {
               </div>
 
               <form onSubmit={handleCreateSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1 subtle-scrollbar">
+                {createModalError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 p-3.5 text-xs flex items-start gap-2.5"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+                    <div className="flex-1 font-semibold">{createModalError}</div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="block text-xs font-semibold text-admin-secondary">
                     Full Name *
@@ -1270,6 +1483,43 @@ export default function SubAdminsPage() {
                         <span>Generate</span>
                       </button>
                     </div>
+
+                    {/* Inline Temporary Password Policy Checklist */}
+                    <div className="rounded-xl bg-admin-raised/40 border border-admin-border p-3 space-y-1 text-[11px] mt-2">
+                      <div className="font-semibold text-admin-muted uppercase tracking-wider text-[10px] mb-0.5">
+                        Temporary Password Policy:
+                      </div>
+                      <div
+                        className={`flex items-center gap-1.5 ${
+                          (createForm.temporaryPassword || '').length >= 8
+                            ? 'text-emerald-500 font-semibold'
+                            : 'text-admin-muted'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>At least 8 characters in length</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-1.5 ${
+                          /[A-Za-z]/.test(createForm.temporaryPassword || '')
+                            ? 'text-emerald-500 font-semibold'
+                            : 'text-admin-muted'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Contains at least one letter</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-1.5 ${
+                          /[0-9]/.test(createForm.temporaryPassword || '')
+                            ? 'text-emerald-500 font-semibold'
+                            : 'text-admin-muted'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Contains at least one number</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1286,64 +1536,115 @@ export default function SubAdminsPage() {
 
                 {/* Role Presets */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold text-admin-secondary">Quick-Pick Permission Presets:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-admin-secondary">
+                      Quick-Pick Permission Presets:
+                    </span>
+                    <span className="text-[11px] text-admin-muted font-medium">
+                      Active: <strong className="text-admin-text">{activePreset === 'CUSTOM' ? 'Custom Configuration' : PRESETS[activePreset]?.label || 'Custom'}</strong>
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(PRESETS).map(([key, preset]) => (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setCreateForm({ ...createForm, permissions: preset.permissions })}
-                        className="px-2.5 py-1 rounded-lg bg-admin-raised border border-admin-border text-admin-text hover:border-admin-accent hover:text-admin-accent text-[11px] transition-colors"
+                        onClick={() => {
+                          setActivePreset(key);
+                          setCreateForm({ ...createForm, permissions: [...preset.permissions] });
+                        }}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                          activePreset === key
+                            ? 'bg-admin-accent text-white border-admin-accent shadow-xs'
+                            : 'bg-admin-raised border-admin-border text-admin-text hover:border-admin-accent hover:text-admin-accent'
+                        }`}
                       >
                         {preset.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setActivePreset('CUSTOM')}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                        activePreset === 'CUSTOM'
+                          ? 'bg-admin-accent text-white border-admin-accent shadow-xs'
+                          : 'bg-admin-raised border-admin-border text-admin-text hover:border-admin-accent hover:text-admin-accent'
+                      }`}
+                    >
+                      Custom
+                    </button>
                   </div>
                 </div>
 
                 {/* Granular Permission Checklist */}
-                <div className="space-y-3 pt-2 border-t border-admin-border">
+                <div className="space-y-4 pt-3 border-t border-admin-border">
                   <div className="flex items-center justify-between text-xs font-semibold text-admin-secondary">
                     <span>Granular Authorities:</span>
-                    <span className="text-[11px] text-admin-accent">{createForm.permissions.length} selected</span>
+                    <span className="text-[11px] text-admin-accent font-bold">
+                      {createForm.permissions.length} of {ALL_PERMISSION_METAS.length} selected
+                    </span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {CATEGORIES.map((category) => {
                       const catPerms = ALL_PERMISSION_METAS.filter((p) => p.category === category);
+                      const selectedInGroup = catPerms.filter((p) => createForm.permissions.includes(p.key)).length;
                       return (
-                        <div key={category} className="rounded-xl border border-admin-border/60 bg-admin-raised/20 p-2.5">
-                          <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider mb-2">
-                            {category}
+                        <div key={category} className="rounded-xl border border-admin-border bg-admin-surface p-3.5 shadow-xs">
+                          {/* Category Header with Select All / Clear */}
+                          <div className="flex items-center justify-between border-b border-admin-border/60 pb-2 mb-3">
+                            <div className="text-xs font-bold text-admin-text uppercase tracking-wider flex items-center gap-2">
+                              <span>{category}</span>
+                              <span className="text-[10px] text-admin-muted font-normal lowercase">
+                                ({selectedInGroup}/{catPerms.length} granted)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectAllInCreateGroup(catPerms)}
+                                className="text-[11px] text-admin-accent hover:underline font-semibold"
+                              >
+                                Select All
+                              </button>
+                              <span className="text-admin-border text-xs">|</span>
+                              <button
+                                type="button"
+                                onClick={() => handleClearCreateGroup(catPerms)}
+                                className="text-[11px] text-admin-muted hover:text-admin-text font-medium"
+                              >
+                                Clear
+                              </button>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+
+                          {/* Large Clickable Permission Cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                             {catPerms.map((perm) => {
                               const checked = createForm.permissions.includes(perm.key);
                               return (
-                                <label
+                                <div
                                   key={perm.key}
-                                  className="flex items-center gap-2 cursor-pointer hover:bg-admin-raised/40 p-1.5 rounded-lg transition-colors"
+                                  onClick={() => toggleCreatePermission(perm.key)}
+                                  className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                                    checked
+                                      ? 'bg-admin-soft/80 border-admin-accent shadow-xs'
+                                      : 'bg-admin-surface border-admin-border hover:bg-admin-raised/40 hover:border-admin-border/80'
+                                  }`}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={checked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setCreateForm({
-                                          ...createForm,
-                                          permissions: [...createForm.permissions, perm.key],
-                                        });
-                                      } else {
-                                        setCreateForm({
-                                          ...createForm,
-                                          permissions: createForm.permissions.filter((k) => k !== perm.key),
-                                        });
-                                      }
-                                    }}
-                                    className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                                    onChange={() => {}}
+                                    className="mt-0.5 h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent cursor-pointer shrink-0"
                                   />
-                                  <span className="text-[11px] text-admin-text">{perm.label}</span>
-                                </label>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-bold text-admin-text">{perm.label}</div>
+                                    <p className="text-[11px] text-admin-muted mt-0.5 leading-relaxed">
+                                      {perm.description}
+                                    </p>
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -1364,7 +1665,7 @@ export default function SubAdminsPage() {
                   <button
                     type="submit"
                     disabled={actionLoading || createForm.permissions.length === 0}
-                    className="btn-admin-primary text-xs px-4 flex items-center gap-2"
+                    className="btn-admin-primary text-xs px-4 flex items-center gap-2 disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{actionLoading ? 'Creating…' : 'Create & Send Login Details'}</span>
@@ -1399,36 +1700,78 @@ export default function SubAdminsPage() {
               </div>
 
               {/* Granular Permission Checklist */}
-              <div className="overflow-y-auto space-y-3 flex-1 pr-1 subtle-scrollbar">
+              <div className="overflow-y-auto space-y-4 flex-1 pr-1 subtle-scrollbar">
                 {CATEGORIES.map((category) => {
                   const catPerms = ALL_PERMISSION_METAS.filter((p) => p.category === category);
+                  const selectedInGroup = catPerms.filter((p) => editPermissions.includes(p.key)).length;
                   return (
-                    <div key={category} className="rounded-xl border border-admin-border/60 bg-admin-raised/20 p-3">
-                      <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider mb-2">
-                        {category}
+                    <div key={category} className="rounded-xl border border-admin-border bg-admin-surface p-3.5 shadow-xs">
+                      {/* Category Header with Select All / Clear */}
+                      <div className="flex items-center justify-between border-b border-admin-border/60 pb-2 mb-3">
+                        <div className="text-xs font-bold text-admin-text uppercase tracking-wider flex items-center gap-2">
+                          <span>{category}</span>
+                          <span className="text-[10px] text-admin-muted font-normal lowercase">
+                            ({selectedInGroup}/{catPerms.length} granted)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const toAdd = catPerms.map((p) => p.key).filter((k) => !editPermissions.includes(k));
+                              setEditPermissions([...editPermissions, ...toAdd]);
+                            }}
+                            className="text-[11px] text-admin-accent hover:underline font-semibold"
+                          >
+                            Select All
+                          </button>
+                          <span className="text-admin-border text-xs">|</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const catKeys = new Set(catPerms.map((p) => p.key));
+                              setEditPermissions(editPermissions.filter((k) => !catKeys.has(k)));
+                            }}
+                            className="text-[11px] text-admin-muted hover:text-admin-text font-medium"
+                          >
+                            Clear
+                          </button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+
+                      {/* Large Clickable Permission Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {catPerms.map((perm) => {
                           const checked = editPermissions.includes(perm.key);
                           return (
-                            <label
+                            <div
                               key={perm.key}
-                              className="flex items-center gap-2 cursor-pointer hover:bg-admin-raised/40 p-1.5 rounded-lg transition-colors"
+                              onClick={() => {
+                                if (checked) {
+                                  setEditPermissions(editPermissions.filter((k) => k !== perm.key));
+                                } else {
+                                  setEditPermissions([...editPermissions, perm.key]);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                                checked
+                                  ? 'bg-admin-soft/80 border-admin-accent shadow-xs'
+                                  : 'bg-admin-surface border-admin-border hover:bg-admin-raised/40 hover:border-admin-border/80'
+                              }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setEditPermissions([...editPermissions, perm.key]);
-                                  } else {
-                                    setEditPermissions(editPermissions.filter((k) => k !== perm.key));
-                                  }
-                                }}
-                                className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                                onChange={() => {}}
+                                className="mt-0.5 h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent cursor-pointer shrink-0"
                               />
-                              <span className="text-[11px] text-admin-text">{perm.label}</span>
-                            </label>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-bold text-admin-text">{perm.label}</div>
+                                <p className="text-[11px] text-admin-muted mt-0.5 leading-relaxed">
+                                  {perm.description}
+                                </p>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>

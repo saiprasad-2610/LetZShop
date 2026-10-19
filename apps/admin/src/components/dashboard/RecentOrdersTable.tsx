@@ -60,7 +60,7 @@ export function RecentOrdersTable({
           </h2>
         </div>
         <Link
-          href="/commerce"
+          href="/orders"
           className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:underline"
         >
           View All Orders
@@ -92,7 +92,9 @@ export function RecentOrdersTable({
                   {items.map((o: any) => (
                     <tr key={o.id} className="hover:bg-admin-raised/40 transition-colors">
                       <td className="px-4 py-2.5 font-semibold text-admin-text">
-                        {o.orderNumber}
+                        <Link href={`/orders/${o.id}`} className="hover:text-admin-accent hover:underline">
+                          {o.orderNumber}
+                        </Link>
                       </td>
                       <td className="px-4 py-2.5 text-xs text-admin-secondary font-medium truncate max-w-[150px]">
                         {o.store?.name}
@@ -118,9 +120,9 @@ export function RecentOrdersTable({
                 <li className="py-2.5" key={o.id}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-admin-text">
+                      <Link href={`/orders/${o.id}`} className="text-sm font-semibold text-admin-text hover:text-admin-accent hover:underline">
                         {o.orderNumber}
-                      </p>
+                      </Link>
                       <p className="text-xs text-admin-muted">{o.store?.name}</p>
                     </div>
                     <strong className="text-sm font-bold tabular-nums text-admin-text">

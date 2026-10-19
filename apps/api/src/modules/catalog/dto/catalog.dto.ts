@@ -235,11 +235,12 @@ export class CreateProductDto {
   @IsString()
   sku?: string;
 
-  @ApiPropertyOptional({ example: ['media-uuid-1'], description: 'Media asset IDs to attach' })
-  @IsOptional()
+  @ApiProperty({ example: ['media-uuid-1'], description: 'Media asset IDs to attach (1-3 compulsory)' })
   @IsArray({ message: 'mediaAssetIds must be an array.' })
+  @ArrayMinSize(1, { message: 'At least 1 product image is required.' })
+  @ArrayMaxSize(3, { message: 'A maximum of 3 product images are allowed.' })
   @IsString({ each: true })
-  mediaAssetIds?: string[];
+  mediaAssetIds: string[];
 
   @ApiPropertyOptional({ type: [ProductMediaItemDto] })
   @IsOptional()

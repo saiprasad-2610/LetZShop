@@ -283,6 +283,32 @@ export default function Settings() {
                 </nav>
               </div>
 
+              <div className="border rounded-2xl p-3 bg-admin-surface border-admin-border space-y-2 shadow-xs">
+                <div className="text-[10px] uppercase font-bold text-admin-muted px-1 tracking-wider">
+                  Operational Tools
+                </div>
+                <Link
+                  href="/themes"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-admin-secondary hover:bg-admin-raised hover:text-admin-text transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className="w-4 h-4 text-admin-muted" />
+                    <span>Storefront Themes</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-admin-muted" />
+                </Link>
+                <Link
+                  href="/operations"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-admin-secondary hover:bg-admin-raised hover:text-admin-text transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Cpu className="w-4 h-4 text-admin-muted" />
+                    <span>Platform Operations</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-admin-muted" />
+                </Link>
+              </div>
+
               <div className="p-4 rounded-2xl border border-admin-border bg-admin-surface/60 text-xs text-admin-muted space-y-2 hidden lg:block shadow-xs">
                 <div className="flex items-center gap-2 font-semibold text-admin-text text-xs">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />

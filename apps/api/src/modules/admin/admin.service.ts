@@ -1265,6 +1265,14 @@ export class AdminService {
     return this.data.orders(query);
   }
 
+  public getOrders(query: AdminQuery = {}) {
+    return this.data.orders(query);
+  }
+
+  public getOrderDetail(id: string) {
+    return this.data.orderDetail(id);
+  }
+
   public async getOperationsSummary() {
     const [totalEvents, pendingEvents, failedEvents, failedOutbox] =
       await Promise.all([
@@ -1432,8 +1440,8 @@ export class AdminService {
     });
   }
 
-  public getAnalytics(range?: string) {
-    return this.data.analytics(range);
+  public getAnalytics(query?: any) {
+    return this.data.analytics(query);
   }
 
   public getPlans() {
@@ -2637,7 +2645,7 @@ export class AdminService {
       },
     });
     if (existing && existing.role === UserRole.PLATFORM_ADMIN && existing.isActive && !(existing as any).isDeactivated) {
-      throw new BadRequestException('An active platform administrator with this email already exists.');
+      throw new BadRequestException('An administrator account already exists for this email.');
     }
 
     // Determine temporary password
@@ -3324,16 +3332,23 @@ export class AdminService {
     }
 
     const pinCred = user.credentials?.find((c) => c.credentialType === CredentialType.PIN);
-    if (dto.currentPassword && pinCred?.pinHash) {
+    if (!dto.currentPassword || !dto.currentPassword.trim()) {
+      throw new BadRequestException('Current password is required.');
+    }
+    if (pinCred?.pinHash) {
       const parts = pinCred.pinHash.split(':');
       if (parts.length === 2) {
         const [salt, origHash] = parts;
-        const compHash = crypto.scryptSync(dto.currentPassword, salt, 64).toString('hex');
+        const compHash = crypto.scryptSync(dto.currentPassword.trim(), salt, 64).toString('hex');
         const isMatch = crypto.timingSafeEqual(Buffer.from(compHash, 'hex'), Buffer.from(origHash, 'hex'));
         if (!isMatch) {
-          throw new BadRequestException('Current password does not match.');
+          throw new BadRequestException('Current password is incorrect.');
         }
+      } else {
+        throw new BadRequestException('Current password is incorrect.');
       }
+    } else {
+      throw new BadRequestException('Current password is incorrect.');
     }
 
     const salt = crypto.randomBytes(16).toString('hex');

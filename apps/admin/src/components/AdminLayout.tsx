@@ -16,12 +16,14 @@ interface NavItem {
 const nav: NavItem[] = [
   { label: 'Dashboard', href: '/' },
   { label: 'Merchants', href: '/merchants', badgeKey: 'suspendedStores', requiredPermission: 'MERCHANTS_VIEW' },
+  { label: 'Orders', href: '/orders', requiredPermission: 'ORDERS_VIEW' },
   { label: 'Reviews & Reports', href: '/reviews', badgeKey: 'reviewReports', requiredPermission: 'REVIEWS_VIEW' },
   { label: 'Subscriptions', href: '/billing', requiredPermission: 'SUBSCRIPTIONS_VIEW' },
   { label: 'Payments', href: '/payments', badgeKey: 'failedPayments', requiredPermission: 'PAYMENTS_VIEW' },
   { label: 'Users', href: '/users', requiredPermission: 'USERS_VIEW' },
-  { label: 'Sub Admins', href: '/sub-admins', requiredPermission: 'SUB_ADMINS_MANAGE' },
+  { label: 'Analytics', href: '/analytics', requiredPermission: 'ANALYTICS_VIEW' },
   { label: 'Settings', href: '/settings', requiredPermission: 'SETTINGS_VIEW' },
+  { label: 'Sub Admins', href: '/sub-admins', requiredPermission: 'SUB_ADMINS_MANAGE' },
   { label: 'Audit Logs', href: '/audit-logs', requiredPermission: 'AUDIT_LOGS_VIEW' },
 ];
 
@@ -113,19 +115,6 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
               );
             })}
           </nav>
-          <details className="mt-6 text-xs text-admin-muted">
-            <summary className="cursor-pointer px-3">Existing tools</summary>
-            {[
-              ['Commerce', '/commerce'],
-              ['Themes', '/themes'],
-              ['Analytics', '/analytics'],
-              ['Operations', '/operations'],
-            ].map(([label, href]) => (
-              <Link className="block px-3 py-2" key={href} href={href}>
-                {label}
-              </Link>
-            ))}
-          </details>
         </aside>
         <main className="min-w-0 flex-1 max-w-7xl mx-auto p-4 lg:p-7">
           {children}

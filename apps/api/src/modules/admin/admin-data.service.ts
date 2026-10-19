@@ -1,5 +1,5 @@
 import { AdminDashboardService } from './admin-dashboard.service';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, PrismaClient, UserRole, StoreStatus } from '@prisma/client';
 import { getBrandConfig } from '@simply/config';
 import { planAvailability } from '../subscriptions/plan-policy';
@@ -7,14 +7,19 @@ import { planAvailability } from '../subscriptions/plan-policy';
 export interface AdminQuery {
   search?: string;
   status?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
   role?: string;
   planId?: string;
   subscriptionStatus?: string;
   tenantId?: string;
+  storeId?: string;
   page?: string | number;
   pageSize?: string | number;
   sort?: string;
   range?: string;
+  from?: string;
+  to?: string;
 }
 function paging(q: AdminQuery) {
   const page = Math.max(1, Math.min(100000, Math.floor(Number(q.page) || 1))),
@@ -54,10 +59,54 @@ export function adminRange(range = '30d') {
     throw new BadRequestException('Choose 7d, 30d, 90d, 3m, 6m, 12m or ALL.');
   return new Date(Date.now() - days[range] * 86400000);
 }
+
+export function parseAnalyticsRange(range = '30d', fromStr?: string, toStr?: string) {
+  const now = new Date();
+  if (range === 'CUSTOM' || range === 'custom' || (fromStr && toStr)) {
+    if (!fromStr || !toStr) {
+      throw new BadRequestException('Both From and To dates are required for custom date range.');
+    }
+    const fromDate = new Date(fromStr);
+    const toDate = new Date(toStr);
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      throw new BadRequestException('Invalid date provided for custom range.');
+    }
+    if (fromDate > toDate) {
+      throw new BadRequestException('From Date must be earlier than or equal to To Date.');
+    }
+    const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 0, 0, 0, 0);
+    const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999);
+    const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const interval: 'day' | 'week' | 'month' = diffDays > 120 ? 'month' : (diffDays > 45 ? 'week' : 'day');
+    return { from: start, to: end, interval, range: 'custom' };
+  }
+
+  if (range === 'ALL') {
+    return { from: null, to: null, interval: 'month' as const, range: 'ALL' };
+  }
+
+  const daysMap: Record<string, number> = {
+    '7d': 7,
+    '30d': 30,
+    '3m': 90,
+    '90d': 90,
+    '6m': 180,
+    '12m': 365,
+  };
+  const days = daysMap[range] ?? 30;
+  const start = new Date(now.getTime() - days * 86400000);
+  const interval: 'day' | 'week' | 'month' = days > 120 ? 'month' : (days > 45 ? 'week' : 'day');
+  return { from: start, to: now, interval, range };
+}
+
 const orderSelect = {
   id: true,
   orderNumber: true,
   totalPaise: true,
+  subtotalPaise: true,
+  shippingPaise: true,
+  taxPaise: true,
+  discountPaise: true,
   currency: true,
   paymentMethod: true,
   paymentStatus: true,
@@ -65,8 +114,10 @@ const orderSelect = {
   shipmentStatus: true,
   status: true,
   createdAt: true,
+  _count: { select: { items: true } },
   store: { select: { id: true, name: true, slug: true } },
-  customer: { select: { fullName: true } },
+  tenant: { select: { id: true, name: true, slug: true } },
+  customer: { select: { id: true, fullName: true, phone: true, email: true } },
 } satisfies Prisma.OrderSelect;
 
 @Injectable()
@@ -480,25 +531,232 @@ export class AdminDataService {
   async orders(q: AdminQuery = {}) {
     const p = paging(q),
       where: Prisma.OrderWhereInput = {};
-    if (q.search)
+
+    if (q.search?.trim()) {
+      const term = q.search.trim();
       where.OR = [
-        { orderNumber: { contains: q.search, mode: 'insensitive' } },
-        { store: { name: { contains: q.search, mode: 'insensitive' } } },
-        { customer: { fullName: { contains: q.search, mode: 'insensitive' } } },
+        { orderNumber: { contains: term, mode: 'insensitive' } },
+        { store: { name: { contains: term, mode: 'insensitive' } } },
+        { tenant: { name: { contains: term, mode: 'insensitive' } } },
+        { customer: { fullName: { contains: term, mode: 'insensitive' } } },
+        { customer: { phone: { contains: term, mode: 'insensitive' } } },
+        { customer: { email: { contains: term, mode: 'insensitive' } } },
       ];
-    const from = adminRange(q.range || 'ALL');
-    if (from) where.createdAt = { gte: from };
-    const [total, items] = await Promise.all([
+    }
+
+    if (q.status && q.status !== 'ALL') {
+      where.status = q.status as any;
+    }
+    if (q.paymentStatus && q.paymentStatus !== 'ALL') {
+      where.paymentStatus = q.paymentStatus as any;
+    }
+    if (q.paymentMethod && q.paymentMethod !== 'ALL') {
+      where.paymentMethod = { equals: q.paymentMethod, mode: 'insensitive' };
+    }
+    if (q.storeId && q.storeId !== 'ALL') {
+      where.storeId = q.storeId;
+    }
+    if (q.tenantId && q.tenantId !== 'ALL') {
+      where.tenantId = q.tenantId;
+    }
+
+    if (q.from && q.to) {
+      const fromDate = new Date(q.from);
+      const toDate = new Date(q.to);
+      if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+        const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 0, 0, 0, 0);
+        const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999);
+        where.createdAt = { gte: start, lte: end };
+      }
+    } else if (q.range && q.range !== 'ALL') {
+      const from = adminRange(q.range);
+      if (from) where.createdAt = { gte: from };
+    }
+
+    let orderBy: Prisma.OrderOrderByWithRelationInput = { createdAt: 'desc' };
+    if (q.sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (q.sort === 'highest_amount') {
+      orderBy = { totalPaise: 'desc' };
+    } else if (q.sort === 'lowest_amount') {
+      orderBy = { totalPaise: 'asc' };
+    }
+
+    const summaryWhere: Prisma.OrderWhereInput = {
+      ...(where.storeId ? { storeId: where.storeId } : {}),
+      ...(where.tenantId ? { tenantId: where.tenantId } : {}),
+      ...(where.createdAt ? { createdAt: where.createdAt } : {}),
+    };
+
+    const [total, items, newOrders, inFulfillmentOrders, completedOrders, cancelledOrders] = await Promise.all([
       this.db.order.count({ where }),
       this.db.order.findMany({
         where,
         take: p.pageSize,
         skip: p.skip,
-        orderBy: { createdAt: q.sort === 'oldest' ? 'asc' : 'desc' },
+        orderBy,
         select: orderSelect,
       }),
+      this.db.order.count({ where: { ...summaryWhere, status: 'NEW' } }),
+      this.db.order.count({ where: { ...summaryWhere, status: { in: ['ACCEPTED', 'CONFIRMED', 'READY', 'DISPATCHED'] } } }),
+      this.db.order.count({ where: { ...summaryWhere, status: 'COMPLETED' } }),
+      this.db.order.count({ where: { ...summaryWhere, status: 'CANCELLED' } }),
     ]);
-    return envelope(items, total, p);
+
+    const mappedItems = items.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      totalPaise: o.totalPaise,
+      subtotalPaise: (o as any).subtotalPaise,
+      shippingPaise: (o as any).shippingPaise,
+      taxPaise: (o as any).taxPaise,
+      discountPaise: (o as any).discountPaise,
+      currency: o.currency,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      fulfillmentStatus: o.fulfillmentStatus,
+      shipmentStatus: o.shipmentStatus,
+      status: o.status,
+      createdAt: o.createdAt.toISOString(),
+      itemsCount: (o as any)._count?.items ?? 0,
+      store: o.store,
+      tenant: (o as any).tenant,
+      customer: o.customer,
+    }));
+
+    const result = envelope(mappedItems, total, p);
+    return {
+      ...result,
+      summary: {
+        totalOrders: total,
+        newOrders,
+        inFulfillmentOrders,
+        completedOrders,
+        cancelledOrders,
+      },
+    };
+  }
+
+  async orderDetail(id: string) {
+    const order = await this.db.order.findFirst({
+      where: {
+        OR: [{ id }, { orderNumber: id }],
+      },
+      include: {
+        store: { select: { id: true, name: true, slug: true } },
+        tenant: { select: { id: true, name: true, slug: true } },
+        customer: { select: { id: true, fullName: true, phone: true, email: true } },
+        orderAddress: true,
+        items: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            productId: true,
+            productName: true,
+            variantId: true,
+            variantTitle: true,
+            sku: true,
+            selectedOptions: true,
+            quantity: true,
+            unitPricePaise: true,
+            taxPaise: true,
+            totalPaise: true,
+            imageUrl: true,
+          },
+        },
+        shipments: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            awbNumber: true,
+            courierName: true,
+            trackingUrl: true,
+            status: true,
+            fulfillmentStatus: true,
+            createdAt: true,
+          },
+        },
+        paymentOrders: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            provider: true,
+            providerOrderId: true,
+            status: true,
+            amountPaise: true,
+            createdAt: true,
+          },
+        },
+        statusHistory: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            fromStatus: true,
+            toStatus: true,
+            reason: true,
+            actorId: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    const orderAny = order as any;
+
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      shipmentStatus: order.shipmentStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      fulfillmentMode: order.fulfillmentMode,
+      subtotalPaise: order.subtotalPaise,
+      taxPaise: order.taxPaise,
+      shippingPaise: order.shippingPaise,
+      discountPaise: order.discountPaise,
+      totalPaise: order.totalPaise,
+      currency: order.currency,
+      notes: order.notes,
+      paymentMethod: order.paymentMethod,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+      tenant: orderAny.tenant,
+      store: orderAny.store,
+      customer: orderAny.customer,
+      orderAddress: orderAny.orderAddress,
+      items: orderAny.items || [],
+      shipments: (orderAny.shipments || []).map((s: any) => ({
+        id: s.id,
+        trackingNumber: s.awbNumber || null,
+        carrier: s.courierName || null,
+        status: s.status,
+        awbCode: s.awbNumber || null,
+        shippedAt: null,
+        deliveredAt: null,
+      })),
+      paymentOrders: (orderAny.paymentOrders || []).map((p: any) => ({
+        id: p.id,
+        provider: p.provider,
+        gatewayOrderId: p.providerOrderId,
+        status: p.status,
+        amountPaise: p.amountPaise,
+        createdAt: p.createdAt ? p.createdAt.toISOString() : new Date().toISOString(),
+      })),
+      statusHistory: (orderAny.statusHistory || []).map((h: any) => ({
+        id: h.id,
+        fromStatus: h.fromStatus,
+        toStatus: h.toStatus,
+        reason: h.reason,
+        actorId: h.actorId,
+        createdAt: h.createdAt ? h.createdAt.toISOString() : new Date().toISOString(),
+      })),
+    };
   }
   async plans() {
     const [plans, counts] = await Promise.all([
@@ -644,48 +902,349 @@ export class AdminDataService {
     }));
     return envelope(mappedItems, total, p);
   }
-  async analytics(range = '30d') {
-    const from = adminRange(range),
-      createdAt = from ? { gte: from } : undefined;
-    const [paid, totalOrders, subscriptionRevenue] = await Promise.all([
+  async analytics(queryInput: any = '30d') {
+    const q: {
+      range?: string;
+      from?: string;
+      to?: string;
+      storeId?: string;
+      tenantId?: string;
+      planId?: string;
+    } = typeof queryInput === 'string' ? { range: queryInput } : (queryInput || {});
+
+    const { from, to, interval, range } = parseAnalyticsRange(q.range, q.from, q.to);
+    const dateFilter = from ? (to ? { gte: from, lte: to } : { gte: from }) : undefined;
+
+    const orderWhere: Prisma.OrderWhereInput = {};
+    if (dateFilter) orderWhere.createdAt = dateFilter;
+    if (q.storeId && q.storeId !== 'ALL') orderWhere.storeId = q.storeId;
+    if (q.tenantId && q.tenantId !== 'ALL') orderWhere.tenantId = q.tenantId;
+
+    const subWhere: Prisma.SubscriptionPaymentWhereInput = {
+      status: { in: ['SUCCESS', 'CAPTURED', 'PAID'] },
+    };
+    if (dateFilter) subWhere.createdAt = dateFilter;
+    if (q.tenantId && q.tenantId !== 'ALL') {
+      (subWhere as any).invoice = { ...(subWhere as any).invoice, tenantId: q.tenantId };
+    }
+    if (q.planId && q.planId !== 'ALL') {
+      (subWhere as any).invoice = {
+        ...(subWhere as any).invoice,
+        subscription: { planId: q.planId },
+      };
+    }
+
+    const merchantWhere: Prisma.TenantWhereInput = {
+      deletedAt: null,
+      memberships: {
+        some: {
+          role: 'SELLER_OWNER',
+          isActive: true,
+          user: { deletedAt: null },
+        },
+      },
+    };
+    if (dateFilter) merchantWhere.createdAt = dateFilter;
+
+    const storeWhere: Prisma.StoreWhereInput = {
+      status: 'LIVE',
+      deletedAt: null,
+    };
+    if (q.storeId && q.storeId !== 'ALL') storeWhere.id = q.storeId;
+    if (q.tenantId && q.tenantId !== 'ALL') storeWhere.tenantId = q.tenantId;
+
+    const [paid, totalOrders, subscriptionRevenue, merchantsCreated, activeStores] = await Promise.all([
       this.db.order.aggregate({
-        where: { paymentStatus: 'PAID', createdAt },
+        where: { ...orderWhere, paymentStatus: 'PAID' },
         _sum: { totalPaise: true },
         _count: true,
       }),
-      this.db.order.count({ where: { createdAt } }),
+      this.db.order.count({ where: orderWhere }),
       this.db.subscriptionPayment.aggregate({
-        where: { status: { in: ['SUCCESS', 'PAID'] }, createdAt },
+        where: subWhere,
         _sum: { amountPaise: true },
       }),
+      this.db.tenant.count({ where: merchantWhere }),
+      this.db.store.count({ where: storeWhere }),
     ]);
-    const leaders = await this.db.order.groupBy({
-      by: ['storeId'],
-      where: { createdAt },
-      _count: { _all: true },
-      orderBy: { _count: { storeId: 'desc' } },
-      take: 5,
+
+    const totalGmvPaise = paid._sum.totalPaise || 0;
+    const paidOrdersCount = paid._count || 0;
+    const averageOrderValuePaise = paidOrdersCount > 0 ? Math.round(totalGmvPaise / paidOrdersCount) : 0;
+    const subscriptionRevenuePaise = subscriptionRevenue._sum.amountPaise || 0;
+
+    // Time-series bucketing
+    const cutoff = from || new Date('1970-01-01T00:00:00Z');
+    const endCutoff = to || new Date();
+    const dateFormat = interval === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD';
+    const truncInterval = interval === 'month' ? 'month' : (interval === 'week' ? 'week' : 'day');
+
+    const [
+      rawOrderTrends,
+      rawSubTrends,
+      rawMerchantTrends,
+      rawStatusMix,
+      rawPaymentMix,
+      rawTopStores,
+      rawTopProducts,
+      rawReviews,
+      rawReports,
+      rawResolved,
+      rawRemoved,
+      rawAvgRes,
+      filterMerchants,
+      filterStores,
+      filterPlans,
+    ] = await Promise.all([
+      this.db.$queryRaw<Array<{ date: string; count: number; gmvPaise: number }>>`
+        SELECT to_char(date_trunc(${truncInterval}, created_at), ${dateFormat}) AS date,
+               count(*)::int AS count,
+               COALESCE(sum(total_paise) FILTER (WHERE payment_status='PAID'), 0)::double precision AS "gmvPaise"
+        FROM orders
+        WHERE created_at >= ${cutoff} AND created_at <= ${endCutoff}
+        ${q.storeId && q.storeId !== 'ALL' ? Prisma.sql`AND store_id = ${q.storeId}` : Prisma.empty}
+        ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND tenant_id = ${q.tenantId}` : Prisma.empty}
+        GROUP BY 1 ORDER BY 1
+      `,
+      this.db.$queryRaw<Array<{ date: string; amountPaise: number }>>`
+        SELECT to_char(date_trunc(${truncInterval}, sp.created_at), ${dateFormat}) AS date,
+               COALESCE(sum(sp.amount_paise), 0)::double precision AS "amountPaise"
+        FROM subscription_payments sp
+        ${q.planId && q.planId !== 'ALL' ? Prisma.sql`JOIN subscriptions s ON s.id=sp.subscription_id` : Prisma.empty}
+        WHERE sp.status IN ('SUCCESS','PAID')
+          AND sp.created_at >= ${cutoff} AND sp.created_at <= ${endCutoff}
+          ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND sp.tenant_id = ${q.tenantId}` : Prisma.empty}
+          ${q.planId && q.planId !== 'ALL' ? Prisma.sql`AND s.plan_id = ${q.planId}` : Prisma.empty}
+        GROUP BY 1 ORDER BY 1
+      `,
+      this.db.$queryRaw<Array<{ date: string; count: number }>>`
+        SELECT to_char(date_trunc(${truncInterval}, t.created_at), ${dateFormat}) AS date,
+               count(*)::int AS count
+        FROM tenants t
+        WHERE t.deleted_at IS NULL
+          AND t.created_at >= ${cutoff} AND t.created_at <= ${endCutoff}
+          AND EXISTS (
+            SELECT 1 FROM tenant_memberships m
+            JOIN users u ON u.id=m.user_id
+            WHERE m.tenant_id=t.id AND m.role='SELLER_OWNER' AND m.is_active=true AND u.deleted_at IS NULL
+          )
+        GROUP BY 1 ORDER BY 1
+      `,
+      this.db.$queryRaw<Array<{ status: string; count: number; totalPaise: number }>>`
+        SELECT status, count(*)::int AS count, COALESCE(sum(total_paise), 0)::double precision AS "totalPaise"
+        FROM orders
+        WHERE created_at >= ${cutoff} AND created_at <= ${endCutoff}
+        ${q.storeId && q.storeId !== 'ALL' ? Prisma.sql`AND store_id = ${q.storeId}` : Prisma.empty}
+        ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND tenant_id = ${q.tenantId}` : Prisma.empty}
+        GROUP BY status ORDER BY count DESC
+      `,
+      this.db.$queryRaw<Array<{ method: string; count: number; totalPaise: number }>>`
+        SELECT COALESCE(payment_method, 'COD') AS method, count(*)::int AS count, COALESCE(sum(total_paise), 0)::double precision AS "totalPaise"
+        FROM orders
+        WHERE created_at >= ${cutoff} AND created_at <= ${endCutoff}
+        ${q.storeId && q.storeId !== 'ALL' ? Prisma.sql`AND store_id = ${q.storeId}` : Prisma.empty}
+        ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND tenant_id = ${q.tenantId}` : Prisma.empty}
+        GROUP BY 1 ORDER BY count DESC
+      `,
+      this.db.$queryRaw<Array<{ store_id: string; count: number; gmv_paise: number; paid_count: number }>>`
+        SELECT store_id, count(*)::int AS count,
+               COALESCE(sum(total_paise) FILTER (WHERE payment_status='PAID'), 0)::double precision AS gmv_paise,
+               count(*) FILTER (WHERE payment_status='PAID')::int AS paid_count
+        FROM orders
+        WHERE created_at >= ${cutoff} AND created_at <= ${endCutoff}
+        ${q.storeId && q.storeId !== 'ALL' ? Prisma.sql`AND store_id = ${q.storeId}` : Prisma.empty}
+        ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND tenant_id = ${q.tenantId}` : Prisma.empty}
+        GROUP BY store_id ORDER BY count DESC LIMIT 10
+      `,
+      this.db.$queryRaw<Array<{ product_name: string; sku: string; product_id: string | null; store_id: string; store_name: string; units_sold: number; revenue_paise: number; orders_count: number }>>`
+        SELECT oi.product_name, oi.sku, oi.product_id, o.store_id, s.name AS store_name,
+               sum(oi.quantity)::int AS units_sold,
+               sum(oi.total_paise)::double precision AS revenue_paise,
+               count(DISTINCT oi.order_id)::int AS orders_count
+        FROM order_items oi
+        JOIN orders o ON o.id=oi.order_id
+        JOIN stores s ON s.id=o.store_id
+        WHERE o.created_at >= ${cutoff} AND o.created_at <= ${endCutoff}
+        ${q.storeId && q.storeId !== 'ALL' ? Prisma.sql`AND o.store_id = ${q.storeId}` : Prisma.empty}
+        ${q.tenantId && q.tenantId !== 'ALL' ? Prisma.sql`AND o.tenant_id = ${q.tenantId}` : Prisma.empty}
+        GROUP BY oi.product_name, oi.sku, oi.product_id, o.store_id, s.name
+        ORDER BY units_sold DESC
+        LIMIT 10
+      `,
+      this.db.productReview.count({
+        where: {
+          createdAt: { gte: cutoff, lte: endCutoff },
+          ...(q.storeId && q.storeId !== 'ALL' ? { storeId: q.storeId } : {}),
+          ...(q.tenantId && q.tenantId !== 'ALL' ? { tenantId: q.tenantId } : {}),
+        },
+      }),
+      this.db.reviewReport.count({
+        where: {
+          createdAt: { gte: cutoff, lte: endCutoff },
+        },
+      }),
+      this.db.reviewReport.count({
+        where: {
+          status: 'RESOLVED',
+          resolvedAt: { gte: cutoff, lte: endCutoff },
+        },
+      }),
+      this.db.productReview.count({
+        where: {
+          status: 'REMOVED',
+          moderatedAt: { gte: cutoff, lte: endCutoff },
+          ...(q.storeId && q.storeId !== 'ALL' ? { storeId: q.storeId } : {}),
+          ...(q.tenantId && q.tenantId !== 'ALL' ? { tenantId: q.tenantId } : {}),
+        },
+      }),
+      this.db.$queryRaw<Array<{ avg_min: number | null }>>`
+        SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))/60.0 AS avg_min
+        FROM review_reports
+        WHERE status='RESOLVED' AND resolved_at IS NOT NULL
+          AND resolved_at >= ${cutoff} AND resolved_at <= ${endCutoff}
+      `,
+      this.db.tenant.findMany({
+        where: { deletedAt: null },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+        take: 100,
+      }),
+      this.db.store.findMany({
+        where: { deletedAt: null },
+        select: { id: true, name: true, tenantId: true },
+        orderBy: { name: 'asc' },
+        take: 100,
+      }),
+      this.db.plan.findMany({
+        select: { id: true, name: true, code: true },
+        orderBy: { pricePaise: 'asc' },
+      }),
+    ]);
+
+    // Build unified series for Platform Performance chart
+    const dateMap = new Map<string, any>();
+    for (const r of rawOrderTrends) {
+      dateMap.set(r.date, {
+        date: r.date,
+        gmvPaise: Math.round(r.gmvPaise || 0),
+        ordersCount: r.count || 0,
+        subscriptionRevenuePaise: 0,
+        merchantsCount: 0,
+      });
+    }
+    for (const r of rawSubTrends) {
+      const existing = dateMap.get(r.date) || {
+        date: r.date,
+        gmvPaise: 0,
+        ordersCount: 0,
+        subscriptionRevenuePaise: 0,
+        merchantsCount: 0,
+      };
+      existing.subscriptionRevenuePaise = Math.round(r.amountPaise || 0);
+      dateMap.set(r.date, existing);
+    }
+    for (const r of rawMerchantTrends) {
+      const existing = dateMap.get(r.date) || {
+        date: r.date,
+        gmvPaise: 0,
+        ordersCount: 0,
+        subscriptionRevenuePaise: 0,
+        merchantsCount: 0,
+      };
+      existing.merchantsCount = r.count || 0;
+      dateMap.set(r.date, existing);
+    }
+    const series = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Order status mix
+    const totalStatusCount = rawStatusMix.reduce((sum, s) => sum + s.count, 0);
+    const orderStatusMix = rawStatusMix.map((s) => ({
+      status: s.status,
+      count: s.count,
+      percentage: totalStatusCount > 0 ? Math.round((s.count / totalStatusCount) * 1000) / 10 : 0,
+      totalPaise: Math.round(s.totalPaise || 0),
+    }));
+
+    // Payment mix
+    const totalPaymentCount = rawPaymentMix.reduce((sum, p) => sum + p.count, 0);
+    const paymentMix = rawPaymentMix.map((p) => ({
+      method: p.method,
+      count: p.count,
+      percentage: totalPaymentCount > 0 ? Math.round((p.count / totalPaymentCount) * 1000) / 10 : 0,
+      totalPaise: Math.round(p.totalPaise || 0),
+    }));
+
+    // Top stores
+    const storeIds = rawTopStores.map((s) => s.store_id);
+    const storeRecords = storeIds.length > 0 ? await this.db.store.findMany({
+      where: { id: { in: storeIds } },
+      select: { id: true, name: true, slug: true, tenantId: true, tenant: { select: { id: true, name: true } } },
+    }) : [];
+
+    const topStores = rawTopStores.map((s) => {
+      const store = storeRecords.find((r) => r.id === s.store_id);
+      const gmv = Math.round(s.gmv_paise || 0);
+      const paidCount = s.paid_count || 0;
+      return {
+        id: s.store_id,
+        name: store?.name || 'Unknown Store',
+        slug: store?.slug || '',
+        tenantId: store?.tenantId || '',
+        merchantName: store?.tenant?.name || 'Unknown Merchant',
+        ordersCount: s.count,
+        gmvPaise: gmv,
+        aovPaise: paidCount > 0 ? Math.round(gmv / paidCount) : 0,
+      };
     });
-    const stores = await this.db.store.findMany({
-      where: { id: { in: leaders.map((l) => l.storeId) } },
-      select: { id: true, name: true, slug: true },
-    });
+
+    // Top products
+    const topProducts = rawTopProducts.map((p) => ({
+      productId: p.product_id,
+      productName: p.product_name,
+      sku: p.sku,
+      storeId: p.store_id,
+      storeName: p.store_name,
+      unitsSold: p.units_sold,
+      revenuePaise: Math.round(p.revenue_paise || 0),
+      ordersCount: p.orders_count,
+    }));
+
+    const averageResolutionMinutes = rawAvgRes?.[0]?.avg_min != null ? Math.round(Number(rawAvgRes[0].avg_min)) : null;
+
     return {
       range,
+      from: from ? from.toISOString() : null,
+      to: to ? to.toISOString() : null,
       kpis: {
         totalOrders,
-        paidOrdersCount: paid._count,
-        totalGmvPaise: paid._sum.totalPaise || 0,
-        averageOrderValuePaise: paid._count
-          ? Math.round((paid._sum.totalPaise || 0) / paid._count)
-          : 0,
-        subscriptionRevenuePaise: subscriptionRevenue._sum.amountPaise || 0,
+        paidOrdersCount,
+        totalGmvPaise,
+        averageOrderValuePaise,
+        subscriptionRevenuePaise,
+        merchantsCreated,
+        activeStores,
+      },
+      performanceChart: {
+        interval,
+        series,
+      },
+      orderStatusMix,
+      paymentMix,
+      topStores,
+      topProducts,
+      reviewModeration: {
+        reviewsCreated: rawReviews,
+        reportsCreated: rawReports,
+        reportsResolved: rawResolved,
+        reviewsRemoved: rawRemoved,
+        averageResolutionMinutes,
+      },
+      filterOptions: {
+        merchants: filterMerchants,
+        stores: filterStores,
+        plans: filterPlans,
       },
       charts: await this.charts(from),
-      topStores: leaders.map((l) => ({
-        ...stores.find((s) => s.id === l.storeId)!,
-        ordersCount: l._count._all,
-      })),
     };
   }
   async themes() {

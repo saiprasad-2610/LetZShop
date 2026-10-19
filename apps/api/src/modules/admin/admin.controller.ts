@@ -87,6 +87,7 @@ export class AdminController {
     return this.adminService.cancelSubscription(id, body.reason, user.userId);
   }
 
+  @RequirePermission(AdminPermission.THEMES_VIEW)
   @Get('themes')
   getThemes() {
     return this.adminService.getThemes();
@@ -215,10 +216,18 @@ export class AdminController {
     return this.adminService.getAttentionSummary();
   }
 
+  @RequirePermission(AdminPermission.ORDERS_VIEW)
   @Get('orders')
-  @ApiOperation({ summary: 'List platform orders with pagination' })
+  @ApiOperation({ summary: 'List platform orders with pagination, search, and operational filters' })
   async getOrders(@Query() query: import('./admin-data.service').AdminQuery) {
-    return this.adminService.getCommerceMonitoring(query);
+    return this.adminService.getOrders(query);
+  }
+
+  @RequirePermission(AdminPermission.ORDERS_VIEW)
+  @Get('orders/:id')
+  @ApiOperation({ summary: 'Get detailed order inspection record' })
+  async getOrderDetail(@Param('id') id: string) {
+    return this.adminService.getOrderDetail(id);
   }
 
   @RequirePermission(AdminPermission.MERCHANTS_VIEW)
@@ -415,6 +424,7 @@ export class AdminController {
     return res.send(stream);
   }
 
+  @RequirePermission(AdminPermission.ORDERS_VIEW)
   @Get('commerce')
   @ApiOperation({
     summary:
@@ -596,12 +606,13 @@ export class AdminController {
   }
 
 
+  @RequirePermission(AdminPermission.ANALYTICS_VIEW)
   @Get('analytics')
   @ApiOperation({
     summary: 'Platform SaaS analytics, revenue metrics, and top stores',
   })
-  async getAnalytics(@Query('range') range?: string) {
-    return this.adminService.getAnalytics(range);
+  async getAnalytics(@Query() query: any) {
+    return this.adminService.getAnalytics(query);
   }
 
   @Get('plans')

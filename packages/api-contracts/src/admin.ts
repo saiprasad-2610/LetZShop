@@ -171,10 +171,22 @@ export interface AdminCommunicationLog {
   status: string;
   adminName: string;
 }
+export interface AdminOrdersSummary {
+  totalOrders: number;
+  newOrders: number;
+  inFulfillmentOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+}
+
 export interface AdminOrder {
   id: string;
   orderNumber: string;
   totalPaise: number;
+  subtotalPaise?: number;
+  shippingPaise?: number;
+  taxPaise?: number;
+  discountPaise?: number;
   currency: string;
   paymentMethod: string | null;
   paymentStatus: string;
@@ -182,8 +194,90 @@ export interface AdminOrder {
   shipmentStatus: string;
   status: string;
   createdAt: string;
-  store: { id: string; name: string; slug: string };
-  customer: { fullName: string };
+  itemsCount?: number;
+  store: { id: string; name: string; slug?: string };
+  tenant?: { id: string; name: string; slug?: string };
+  customer: { id?: string; fullName: string; phone?: string; email?: string | null };
+}
+
+export interface AdminOrdersResponse extends AdminPage<AdminOrder> {
+  summary: AdminOrdersSummary;
+}
+
+export interface AdminOrderDetailItem {
+  id: string;
+  productId?: string | null;
+  productName: string;
+  variantId?: string | null;
+  variantTitle: string;
+  sku: string;
+  selectedOptions?: any;
+  quantity: number;
+  unitPricePaise: number;
+  taxPaise: number;
+  totalPaise: number;
+  imageUrl?: string | null;
+}
+
+export interface AdminOrderDetail {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  shipmentStatus: string;
+  fulfillmentStatus: string;
+  fulfillmentMode: string;
+  subtotalPaise: number;
+  taxPaise: number;
+  shippingPaise: number;
+  discountPaise: number;
+  totalPaise: number;
+  currency: string;
+  notes?: string | null;
+  paymentMethod: string | null;
+  createdAt: string;
+  updatedAt: string;
+  cancelledAt?: string | null;
+  tenant: { id: string; name: string; slug?: string };
+  store: { id: string; name: string; slug?: string };
+  customer: { id: string; fullName: string; phone: string; email?: string | null };
+  orderAddress?: {
+    fullName: string;
+    phone: string;
+    addressLine1: string;
+    addressLine2?: string | null;
+    landmark?: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  } | null;
+  items: AdminOrderDetailItem[];
+  shipments: Array<{
+    id: string;
+    trackingNumber?: string | null;
+    carrier?: string | null;
+    status: string;
+    awbCode?: string | null;
+    shippedAt?: string | null;
+    deliveredAt?: string | null;
+  }>;
+  paymentOrders: Array<{
+    id: string;
+    provider: string;
+    gatewayOrderId?: string | null;
+    status: string;
+    amountPaise: number;
+    createdAt: string;
+  }>;
+  statusHistory: Array<{
+    id: string;
+    fromStatus?: string | null;
+    toStatus: string;
+    reason?: string | null;
+    actorId?: string | null;
+    createdAt: string;
+  }>;
 }
 export interface AdminUser extends AdminOwner {
   role: string;
@@ -519,22 +613,88 @@ export interface AdminAttentionSummary {
   suspendedStores: number;
   failedPayments: number;
 }
+export interface AdminAnalyticsPerformanceSeries {
+  date: string;
+  gmvPaise: number;
+  ordersCount: number;
+  subscriptionRevenuePaise: number;
+  merchantsCount: number;
+}
+
+export interface AdminAnalyticsOrderStatusItem {
+  status: string;
+  count: number;
+  percentage: number;
+  totalPaise: number;
+}
+
+export interface AdminAnalyticsPaymentMixItem {
+  method: string;
+  count: number;
+  percentage: number;
+  totalPaise: number;
+}
+
+export interface AdminAnalyticsTopStoreItem {
+  id: string;
+  name: string;
+  slug: string;
+  tenantId?: string;
+  merchantName?: string;
+  ordersCount: number;
+  gmvPaise?: number;
+  aovPaise?: number;
+}
+
+export interface AdminAnalyticsTopProductItem {
+  productId?: string | null;
+  productName: string;
+  sku: string;
+  storeId: string;
+  storeName: string;
+  unitsSold: number;
+  revenuePaise: number;
+  ordersCount: number;
+}
+
+export interface AdminAnalyticsReviewModeration {
+  reviewsCreated: number;
+  reportsCreated: number;
+  reportsResolved: number;
+  reviewsRemoved: number;
+  averageResolutionMinutes?: number | null;
+}
+
+export interface AdminAnalyticsFilterOptions {
+  merchants: Array<{ id: string; name: string }>;
+  stores: Array<{ id: string; name: string; tenantId: string }>;
+  plans: Array<{ id: string; name: string; code: string }>;
+}
+
 export interface AdminAnalytics {
-  range: AdminRange;
+  range: AdminRange | string;
+  from?: string | null;
+  to?: string | null;
   kpis: {
     totalOrders: number;
     paidOrdersCount: number;
     totalGmvPaise: number;
     averageOrderValuePaise: number;
     subscriptionRevenuePaise: number;
+    merchantsCreated?: number;
+    activeStores?: number;
   };
   charts: AdminCharts;
-  topStores: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    ordersCount: number;
-  }>;
+  performanceChart?: {
+    interval: 'day' | 'week' | 'month';
+    series: AdminAnalyticsPerformanceSeries[];
+  };
+  orderStatusMix?: AdminAnalyticsOrderStatusItem[];
+  paymentMix?: AdminAnalyticsPaymentMixItem[];
+  topStores: AdminAnalyticsTopStoreItem[];
+  topProducts?: AdminAnalyticsTopProductItem[];
+  reviewModeration?: AdminAnalyticsReviewModeration;
+  filterOptions?: AdminAnalyticsFilterOptions;
 }
 export interface AdminOperations {
   outbox: { totalEvents: number; pendingEvents: number; failedEvents: number };

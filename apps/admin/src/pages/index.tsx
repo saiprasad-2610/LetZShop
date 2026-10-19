@@ -229,7 +229,7 @@ export default function Dashboard() {
                     ? `+${growth.ordersThisMonth.toLocaleString('en-IN')} this month`
                     : null
                 }
-                href="/commerce"
+                href="/orders"
               />
 
               {/* 5. Platform Revenue */}

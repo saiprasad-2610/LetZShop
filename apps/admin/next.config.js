@@ -12,6 +12,15 @@ const nextConfig = {
     }
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/commerce',
+        destination: '/orders',
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

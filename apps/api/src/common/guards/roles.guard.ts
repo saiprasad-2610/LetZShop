@@ -51,8 +51,21 @@ export class RolesGuard implements CanActivate {
       }
       const permissions: string[] = Array.isArray(user.adminPermissions)
         ? user.adminPermissions
+        : Array.isArray((user as any).permissions)
+        ? (user as any).permissions
         : [];
-      if (!permissions.includes(requiredPermission)) {
+      const hasPermission =
+        permissions.includes(requiredPermission) ||
+        (requiredPermission === 'BUSINESS_VERIFICATION_VIEW' && permissions.includes('VERIFICATION_VIEW')) ||
+        (requiredPermission === 'VERIFICATION_VIEW' && permissions.includes('BUSINESS_VERIFICATION_VIEW')) ||
+        (requiredPermission === 'BUSINESS_VERIFICATION_APPROVE' && permissions.includes('VERIFICATION_APPROVE')) ||
+        (requiredPermission === 'VERIFICATION_APPROVE' && permissions.includes('BUSINESS_VERIFICATION_APPROVE')) ||
+        (requiredPermission === 'ORDERS_VIEW' && permissions.includes('ORDERS_MANAGE')) ||
+        (requiredPermission === 'SUBSCRIPTIONS_VIEW' && permissions.includes('SUBSCRIPTIONS_MANAGE')) ||
+        (requiredPermission === 'USERS_VIEW' && permissions.includes('USERS_MANAGE')) ||
+        (requiredPermission === 'SETTINGS_VIEW' && permissions.includes('SETTINGS_MANAGE')) ||
+        (requiredPermission === 'THEMES_VIEW' && permissions.includes('THEMES_MANAGE'));
+      if (!hasPermission) {
         if (this.prisma) {
           this.prisma.auditLog
             .create({

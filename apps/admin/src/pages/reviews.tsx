@@ -1576,7 +1576,7 @@ export default function ReviewsPage() {
                     </div>
                     {selectedReview.order?.orderNumber ? (
                       <Link
-                        href={`/commerce?search=${encodeURIComponent(selectedReview.order.orderNumber)}`}
+                        href={selectedReview.order?.id ? `/orders/${selectedReview.order.id}` : `/orders?search=${encodeURIComponent(selectedReview.order.orderNumber)}`}
                         className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
                       >
                         <ShoppingBag className="h-3 w-3 text-admin-accent" />
