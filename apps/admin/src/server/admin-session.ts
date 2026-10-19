@@ -4,7 +4,7 @@ export const ADMIN_COOKIE = 'letzshop_admin_session';
 export const backendUrl = (
   process.env.ADMIN_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:4000'
+  'http://127.0.0.1:4000'
 )
   .replace(/\/api\/v1\/?$/, '')
   .replace(/\/+$/, '');

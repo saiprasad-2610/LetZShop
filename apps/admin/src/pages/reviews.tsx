@@ -34,6 +34,7 @@ import {
   FileText,
   AlertTriangle,
   Check,
+  Building,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import {
@@ -1523,23 +1524,31 @@ export default function ReviewsPage() {
                       <span className="text-admin-muted text-[11px] block">Store</span>
                       <span className="font-bold text-admin-text">{selectedReview.store.name}</span>
                       {selectedReview.store.tenant && (
-                        <Link
-                          href={`/merchants/${selectedReview.store.tenantId || selectedReview.store.tenant.id}`}
-                          className="text-[10px] text-admin-accent hover:underline block font-medium mt-0.5"
-                        >
-                          Merchant: {selectedReview.store.tenant.name} &rarr;
-                        </Link>
+                        <span className="text-[10px] text-admin-muted block font-medium mt-0.5">
+                          Merchant: {selectedReview.store.tenant.name}
+                        </span>
                       )}
                     </div>
-                    <a
-                      href={`${getStorefrontUrl()}/store/${selectedReview.store.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
-                    >
-                      <ExternalLink className="h-3 w-3 text-admin-accent" />
-                      View Store
-                    </a>
+                    <div className="flex items-center gap-1.5">
+                      {selectedReview.store.tenant && (
+                        <Link
+                          href={`/merchants/${selectedReview.store.tenantId || selectedReview.store.tenant.id}`}
+                          className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
+                        >
+                          <Building className="h-3 w-3 text-admin-accent" />
+                          View Merchant
+                        </Link>
+                      )}
+                      <a
+                        href={`${getStorefrontUrl()}/store/${selectedReview.store.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
+                      >
+                        <ExternalLink className="h-3 w-3 text-admin-accent" />
+                        View Store
+                      </a>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
@@ -1562,16 +1571,20 @@ export default function ReviewsPage() {
                     <div>
                       <span className="text-admin-muted text-[11px] block">Order</span>
                       <span className="font-mono font-bold text-admin-text">
-                        #{selectedReview.order.orderNumber}
+                        #{selectedReview.order?.orderNumber || 'N/A'}
                       </span>
                     </div>
-                    <Link
-                      href={`/commerce?search=${encodeURIComponent(selectedReview.order.orderNumber)}`}
-                      className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
-                    >
-                      <ShoppingBag className="h-3 w-3 text-admin-accent" />
-                      View Order
-                    </Link>
+                    {selectedReview.order?.orderNumber ? (
+                      <Link
+                        href={`/commerce?search=${encodeURIComponent(selectedReview.order.orderNumber)}`}
+                        className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"
+                      >
+                        <ShoppingBag className="h-3 w-3 text-admin-accent" />
+                        View Order
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-admin-muted italic">Order not linked</span>
+                    )}
                   </div>
                 </div>
               </div>

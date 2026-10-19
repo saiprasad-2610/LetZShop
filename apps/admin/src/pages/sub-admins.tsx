@@ -36,6 +36,7 @@ import {
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback } from '../components/AdminUI';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { FloatingPortal } from '../components/FloatingPortal';
 
 interface PermissionMeta {
   key: AdminPermission;
@@ -186,19 +187,16 @@ export default function SubAdminsPage() {
     text: string;
   } | null>(null);
 
-  // Row dropdown menus
-  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  // Floating portal states for Action Menu and Permissions Popover
+  const [actionMenuState, setActionMenuState] = useState<{
+    admin: AdminSubAdmin;
+    triggerEl: HTMLElement;
+  } | null>(null);
 
-  // Close menus when clicking outside
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.action-menu-container')) {
-        setOpenActionMenuId(null);
-      }
-    };
-    window.addEventListener('click', handleOutsideClick);
-    return () => window.removeEventListener('click', handleOutsideClick);
-  }, []);
+  const [permsPopoverState, setPermsPopoverState] = useState<{
+    admin: AdminSubAdmin;
+    triggerEl: HTMLElement;
+  } | null>(null);
 
   const loadSubAdmins = async () => {
     setLoading(true);
@@ -793,14 +791,29 @@ export default function SubAdminsPage() {
 
                             {remainingCount > 0 ? (
                               <button
-                                onClick={() => setPermissionsModalAdmin(admin)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (permsPopoverState?.admin.id === admin.id) {
+                                    setPermsPopoverState(null);
+                                  } else {
+                                    setPermsPopoverState({ admin, triggerEl: e.currentTarget });
+                                  }
+                                }}
                                 className="px-2 py-0.5 rounded bg-admin-soft text-admin-accent hover:bg-admin-soft/80 border border-admin-accent/30 text-[10px] font-bold cursor-pointer transition-colors"
+                                title="Click to view authorities"
                               >
                                 +{remainingCount} more
                               </button>
                             ) : perms.length > 0 ? (
                               <button
-                                onClick={() => setPermissionsModalAdmin(admin)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (permsPopoverState?.admin.id === admin.id) {
+                                    setPermsPopoverState(null);
+                                  } else {
+                                    setPermsPopoverState({ admin, triggerEl: e.currentTarget });
+                                  }
+                                }}
                                 className="text-[10px] text-admin-accent hover:underline ml-1"
                               >
                                 View All
@@ -833,164 +846,20 @@ export default function SubAdminsPage() {
 
                         {/* 6. Actions (⋮ Menu) */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          <div className="relative inline-block text-left action-menu-container">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenActionMenuId(openActionMenuId === admin.id ? null : admin.id);
-                              }}
-                              className="p-1.5 rounded-lg hover:bg-admin-raised text-admin-muted hover:text-admin-text transition-colors"
-                              title="Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {openActionMenuId === admin.id && (
-                              <div className="absolute right-0 mt-1 w-52 rounded-xl bg-admin-surface border border-admin-border shadow-xl z-30 py-1.5 text-left text-xs divide-y divide-admin-border/50">
-                                {/* State-dependent menu items */}
-                                <div className="py-1">
-                                  <button
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      openDetailDrawer(admin.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-admin-muted" />
-                                    <span>View Details</span>
-                                  </button>
-
-                                  {currentUser?.isSuperAdmin && !isSuper && (
-                                    <button
-                                      onClick={() => {
-                                        setOpenActionMenuId(null);
-                                        setEditAdmin(admin);
-                                        setEditPermissions(perms as AdminPermission[]);
-                                      }}
-                                      className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                    >
-                                      <Lock className="w-3.5 h-3.5 text-admin-muted" />
-                                      <span>Edit Permissions</span>
-                                    </button>
-                                  )}
-
-                                  {admin.email && (
-                                    <a
-                                      href={`mailto:${admin.email}`}
-                                      className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                    >
-                                      <Mail className="w-3.5 h-3.5 text-admin-muted" />
-                                      <span>Send Message</span>
-                                    </a>
-                                  )}
-                                </div>
-
-                                {currentUser?.isSuperAdmin && !isSuper && (
-                                  <div className="py-1">
-                                    {isInvite ? (
-                                      <>
-                                        <button
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            handleResendInvite(admin.inviteId || admin.id);
-                                          }}
-                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                        >
-                                          <Send className="w-3.5 h-3.5 text-admin-accent" />
-                                          <span>Resend Invite</span>
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            setDeleteAdmin(admin);
-                                            setDeleteConfirmationInput('');
-                                          }}
-                                          className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                          <span>Revoke / Delete Invite</span>
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <button
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            setResetTempAdmin(admin);
-                                            setResetTempPassword('');
-                                          }}
-                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                        >
-                                          <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                                          <span>Reset Temp Password</span>
-                                        </button>
-
-                                        <button
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            handleRevokeSessions(admin);
-                                          }}
-                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
-                                        >
-                                          <RefreshCw className="w-3.5 h-3.5 text-admin-muted" />
-                                          <span>Revoke Sessions</span>
-                                        </button>
-
-                                        {admin.status === 'ACTIVE' ? (
-                                          <button
-                                            onClick={() => {
-                                              setOpenActionMenuId(null);
-                                              handleToggleStatus(admin);
-                                            }}
-                                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
-                                          >
-                                            <Power className="w-3.5 h-3.5 text-rose-500" />
-                                            <span>Suspend Access</span>
-                                          </button>
-                                        ) : admin.status === 'SUSPENDED' && !(admin as any).isDeactivated ? (
-                                          <button
-                                            onClick={() => {
-                                              setOpenActionMenuId(null);
-                                              handleToggleStatus(admin);
-                                            }}
-                                            className="w-full px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
-                                          >
-                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                            <span>Reactivate Access</span>
-                                          </button>
-                                        ) : null}
-
-                                        {!(admin as any).isDeactivated && (
-                                          <button
-                                            onClick={() => {
-                                              setOpenActionMenuId(null);
-                                              handleDeactivate(admin);
-                                            }}
-                                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
-                                          >
-                                            <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
-                                            <span>Deactivate / Revoke</span>
-                                          </button>
-                                        )}
-
-                                        <button
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            setDeleteAdmin(admin);
-                                            setDeleteConfirmationInput('');
-                                          }}
-                                          className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                          <span>Delete Sub Admin</span>
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (actionMenuState?.admin.id === admin.id) {
+                                setActionMenuState(null);
+                              } else {
+                                setActionMenuState({ admin, triggerEl: e.currentTarget });
+                              }
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-admin-raised text-admin-muted hover:text-admin-text transition-colors"
+                            title="Actions"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -1027,6 +896,218 @@ export default function SubAdminsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Floating Portal: Action Menu (Outside table overflow) */}
+        {actionMenuState && (
+          <FloatingPortal
+            isOpen={true}
+            triggerEl={actionMenuState.triggerEl}
+            onClose={() => setActionMenuState(null)}
+            align="right"
+            minWidth={208}
+            className="w-52 rounded-xl bg-admin-surface border border-admin-border shadow-2xl py-1.5 text-left text-xs divide-y divide-admin-border/50"
+          >
+            {(() => {
+              const admin = actionMenuState.admin;
+              const isSuper = admin.isSuperAdmin;
+              const isInvite = admin.id.startsWith('invite-');
+              const perms = admin.permissions || admin.adminPermissions || [];
+
+              return (
+                <>
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        const id = admin.id;
+                        setActionMenuState(null);
+                        openDetailDrawer(id);
+                      }}
+                      className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-admin-muted" />
+                      <span>View Details</span>
+                    </button>
+
+                    {currentUser?.isSuperAdmin && !isSuper && (
+                      <button
+                        onClick={() => {
+                          setActionMenuState(null);
+                          setEditAdmin(admin);
+                          setEditPermissions(perms as AdminPermission[]);
+                        }}
+                        className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-admin-muted" />
+                        <span>Edit Permissions</span>
+                      </button>
+                    )}
+
+                    {admin.email && (
+                      <a
+                        href={`mailto:${admin.email}`}
+                        onClick={() => setActionMenuState(null)}
+                        className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-admin-muted" />
+                        <span>Send Message</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {currentUser?.isSuperAdmin && !isSuper && (
+                    <div className="py-1">
+                      {isInvite ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              const id = admin.inviteId || admin.id;
+                              setActionMenuState(null);
+                              handleResendInvite(id);
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                          >
+                            <Send className="w-3.5 h-3.5 text-admin-accent" />
+                            <span>Resend Invite</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActionMenuState(null);
+                              setDeleteAdmin(admin);
+                              setDeleteConfirmationInput('');
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Revoke / Delete Invite</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setActionMenuState(null);
+                              setResetTempAdmin(admin);
+                              setResetTempPassword('');
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                          >
+                            <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Reset Temp Password</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setActionMenuState(null);
+                              handleRevokeSessions(admin);
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-admin-muted" />
+                            <span>Revoke Sessions</span>
+                          </button>
+
+                          {admin.status === 'ACTIVE' ? (
+                            <button
+                              onClick={() => {
+                                setActionMenuState(null);
+                                handleToggleStatus(admin);
+                              }}
+                              className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                            >
+                              <Power className="w-3.5 h-3.5 text-rose-500" />
+                              <span>Suspend Access</span>
+                            </button>
+                          ) : admin.status === 'SUSPENDED' && !(admin as any).isDeactivated ? (
+                            <button
+                              onClick={() => {
+                                setActionMenuState(null);
+                                handleToggleStatus(admin);
+                              }}
+                              className="w-full px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>Reactivate Access</span>
+                            </button>
+                          ) : null}
+
+                          {!(admin as any).isDeactivated && (
+                            <button
+                              onClick={() => {
+                                setActionMenuState(null);
+                                handleDeactivate(admin);
+                              }}
+                              className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                            >
+                              <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                              <span>Deactivate / Revoke</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setActionMenuState(null);
+                              setDeleteAdmin(admin);
+                              setDeleteConfirmationInput('');
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Delete Sub Admin</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </FloatingPortal>
+        )}
+
+        {/* Floating Portal: Permissions Popover (Outside table overflow) */}
+        {permsPopoverState && (
+          <FloatingPortal
+            isOpen={true}
+            triggerEl={permsPopoverState.triggerEl}
+            onClose={() => setPermsPopoverState(null)}
+            align="left"
+            minWidth={240}
+            className="w-80 max-w-[90vw] p-3 rounded-xl bg-admin-surface border border-admin-border shadow-2xl text-xs space-y-2.5"
+          >
+            {(() => {
+              const admin = permsPopoverState.admin;
+              const perms = admin.permissions || [];
+              return (
+                <>
+                  <div className="flex items-center justify-between pb-1.5 border-b border-admin-border">
+                    <span className="font-semibold text-admin-text">
+                      Authorities ({perms.length})
+                    </span>
+                    <button
+                      onClick={() => {
+                        setPermsPopoverState(null);
+                        setPermissionsModalAdmin(admin);
+                      }}
+                      className="text-[11px] text-admin-accent hover:underline font-medium"
+                    >
+                      Expand All
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto py-1 subtle-scrollbar">
+                    {perms.map((p) => (
+                      <span
+                        key={p}
+                        className="px-2 py-0.5 rounded bg-admin-raised border border-admin-border text-[10px] text-admin-secondary font-mono"
+                      >
+                        {p.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </FloatingPortal>
         )}
 
         {/* ========================================================================= */}
