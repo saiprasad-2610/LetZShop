@@ -15,14 +15,22 @@ export default async function handler(
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
   const token = req.cookies[ADMIN_COOKIE] || bearerToken;
-  if (!token) return res.status(401).json({ message: 'Please log in.' });
   const parts = req.query.path as string[];
-  if (
-    !parts?.length ||
-    parts[0] !== 'admin' ||
-    parts.some((p) => !p || p === '.' || p === '..' || /[\\/]/.test(p))
-  )
-    return res.status(404).end();
+  const isPublicAuth =
+    parts?.length === 3 &&
+    parts[0] === 'auth' &&
+    parts[1] === 'admin' &&
+    parts[2] === 'activate';
+
+  if (!isPublicAuth) {
+    if (!token) return res.status(401).json({ message: 'Please log in.' });
+    if (
+      !parts?.length ||
+      parts[0] !== 'admin' ||
+      parts.some((p) => !p || p === '.' || p === '..' || /[\\/]/.test(p))
+    )
+      return res.status(404).end();
+  }
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(req.query))
     if (key !== 'path' && typeof value === 'string') query.set(key, value);
@@ -38,7 +46,7 @@ export default async function handler(
           : JSON.stringify(req.body),
       },
     );
-    if ([401, 403].includes(response.status))
+    if (response.status === 401)
       res.setHeader('Set-Cookie', sessionCookie('', 0));
 
     const contentType = response.headers.get('content-type') || '';

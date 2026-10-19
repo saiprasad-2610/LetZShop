@@ -18,6 +18,10 @@ const nextConfig = {
         source: '/api/v1/:path*',
         destination: 'http://localhost:4000/:path*',
       },
+      {
+        source: '/api/admin/invoices/:path*',
+        destination: '/api/platform/admin/invoices/:path*',
+      },
     ];
   },
 };

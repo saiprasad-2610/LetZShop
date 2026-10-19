@@ -558,7 +558,7 @@ export function SubscriptionList({ tenantId }: { tenantId?: string }) {
                               </span>
                               {latestInvoice.id && (
                                 <a
-                                  href={`/api/admin/invoices/${latestInvoice.id}/pdf`}
+                                  href={`/api/platform/admin/invoices/${latestInvoice.id}/pdf`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-[10px] text-admin-accent hover:underline inline-flex items-center gap-1 font-medium"
@@ -792,7 +792,7 @@ export function SubscriptionList({ tenantId }: { tenantId?: string }) {
                         </div>
                         {selectedSub.invoices[0].id && (
                           <a
-                            href={`/api/admin/invoices/${selectedSub.invoices[0].id}/pdf`}
+                            href={`/api/platform/admin/invoices/${selectedSub.invoices[0].id}/pdf`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-3 py-1.5 rounded-xl bg-admin-primary text-admin-on-primary font-semibold text-xs inline-flex items-center gap-1.5"

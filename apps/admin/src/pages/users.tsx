@@ -5,9 +5,17 @@ import type { AdminUser, AdminUsersResponse } from '@simply/api-contracts';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, ActionModal, useAdminQuery, errorMessage } from '../components/AdminUI';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useAdminAttention } from '../context/AdminAttentionContext';
 
 export default function Users() {
   const { api, user: currentAdmin } = useAdminAuth();
+  const { refreshAttention } = useAdminAttention();
+
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+  } | null>(null);
 
   // Search, Filter & Pagination states
   const [page, setPage] = useState(1);
@@ -91,6 +99,7 @@ export default function Users() {
       setActionError('Reason is required for account status change.');
       return;
     }
+    const wasActive = statusModalUser.isActive;
     setBusy(true);
     setActionError('');
     try {
@@ -107,6 +116,14 @@ export default function Users() {
           isActive: !selectedUser.isActive,
         });
       }
+      setToastMessage({
+        type: 'success',
+        text: wasActive
+          ? 'Merchant account suspended. Active sessions revoked.'
+          : 'Merchant account reactivated.',
+      });
+      setTimeout(() => setToastMessage(null), 5000);
+      void refreshAttention();
       reload();
     } catch (e) {
       setActionError(errorMessage(e));
@@ -160,6 +177,28 @@ export default function Users() {
             Refresh Users
           </button>
         </div>
+
+        {/* Action Toast Notification */}
+        {toastMessage && (
+          <div
+            className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+            }`}
+          >
+            <div className="flex items-center gap-2 font-medium">
+              <span className="w-2 h-2 rounded-full bg-current"></span>
+              <span>{toastMessage.text}</span>
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="opacity-70 hover:opacity-100 p-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Real KPI Cards */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">

@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles, CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser, UserRole } from '@simply/types';
+import { Roles, CurrentUser, RequirePermission } from '../../common/decorators';
+import { AuthenticatedUser, UserRole, AdminPermission } from '@simply/types';
 import { ReviewsService } from './reviews.service';
 
 @ApiTags('Admin Review Moderation')
@@ -23,24 +23,28 @@ import { ReviewsService } from './reviews.service';
 export class AdminReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @RequirePermission(AdminPermission.REVIEWS_VIEW)
   @Get('summary')
   @ApiOperation({ summary: 'Real PostgreSQL review moderation summary counts' })
   getSummary() {
     return this.reviewsService.getAdminReviewSummary();
   }
 
+  @RequirePermission(AdminPermission.REVIEWS_VIEW)
   @Get('filters')
   @ApiOperation({ summary: 'Available store and product filter options' })
   getFilters() {
     return this.reviewsService.getAdminReviewFilters();
   }
 
+  @RequirePermission(AdminPermission.REVIEWS_VIEW)
   @Get(':id/timeline')
   @ApiOperation({ summary: 'Get lifecycle timeline for a specific review' })
   getTimeline(@Param('id') id: string) {
     return this.reviewsService.getAdminReviewTimeline(id);
   }
 
+  @RequirePermission(AdminPermission.REVIEWS_VIEW)
   @Get()
   @ApiOperation({ summary: 'List and search all reviews across merchants for moderation' })
   async getReviews(
@@ -77,6 +81,7 @@ export class AdminReviewsController {
     });
   }
 
+  @RequirePermission(AdminPermission.REVIEWS_MODERATE)
   @Patch('reports/:reportId')
   @ApiOperation({ summary: 'Update report status to UNDER_REVIEW or DISMISSED' })
   updateReport(
@@ -87,6 +92,7 @@ export class AdminReviewsController {
     return this.reviewsService.updateReviewReport(id, user.userId, body.status, body.note);
   }
 
+  @RequirePermission(AdminPermission.REVIEWS_MODERATE)
   @Patch(':id/moderate')
   @ApiOperation({ summary: 'Moderate (remove or restore) a product review with audit reason' })
   async moderateReview(

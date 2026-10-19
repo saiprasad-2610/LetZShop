@@ -132,8 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          // If session invalid and cannot be refreshed, clear expired session
-          if (err?.status === 401) {
+          // If session invalid, revoked, or account suspended, clear expired session
+          if (err?.status === 401 || err?.status === 403) {
             setToken(null);
             setUser(null);
             setStore(null);

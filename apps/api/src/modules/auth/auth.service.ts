@@ -175,6 +175,17 @@ export class AuthService {
       include: { credentials: true },
     });
 
+    if (existingUser && (!existingUser.isActive || existingUser.deletedAt)) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const isNewUser = !existingUser || !existingUser.credentials.some(c => c.credentialType === CredentialType.PIN);
 
     // Issue ephemeral verification token (valid for 15 minutes)
@@ -248,6 +259,17 @@ export class AuthService {
         },
       },
     });
+
+    if (user && (!user.isActive || user.deletedAt)) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
 
     if (!user) {
       user = await this.prisma.user.create({
@@ -403,6 +425,17 @@ export class AuthService {
       throw new UnauthorizedException('No account found for this mobile number. Please register first.');
     }
 
+    if (!user.isActive || user.deletedAt) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const pinCredential = user.credentials[0];
     if (!pinCredential || !pinCredential.pinHash) {
       throw new UnauthorizedException('PIN is not configured for this account. Please verify via OTP and set up your PIN.');
@@ -551,7 +584,14 @@ export class AuthService {
     }
 
     if (!admin.isActive) {
-      throw new UnauthorizedException('Administrator account has been deactivated.');
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Administrator account has been deactivated.',
+        },
+        HttpStatus.FORBIDDEN
+      );
     }
 
     // Verify secret
@@ -582,6 +622,8 @@ export class AuthService {
         storeId: null,
         sessionId: tokens.sessionId,
         isPlatformAdmin: true,
+        isSuperAdmin: admin.isSuperAdmin,
+        adminPermissions: Array.isArray(admin.adminPermissions) ? (admin.adminPermissions as string[]) : [],
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -842,6 +884,17 @@ export class AuthService {
       throw new UnauthorizedException('Underlying session has been revoked. Please log in again.');
     }
 
+    if (!tokenRecord.user.isActive || tokenRecord.user.deletedAt) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const newRefreshTokenPlain = crypto.randomBytes(40).toString('hex');
     const newRefreshHash = this.hashCode(newRefreshTokenPlain);
     const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -957,7 +1010,14 @@ export class AuthService {
       }
 
       if (session.userId !== payload.sub || !session.user.isActive || session.user.deletedAt) {
-        throw new UnauthorizedException('Account is no longer active.');
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            code: 'ACCOUNT_SUSPENDED',
+            message: 'Your account has been suspended. Please contact LetzShop Support.',
+          },
+          HttpStatus.FORBIDDEN
+        );
       }
       const isPlatformAdmin = session.user.isSuperAdmin || session.user.role === UserRole.PLATFORM_ADMIN;
 
@@ -969,10 +1029,157 @@ export class AuthService {
         storeId: payload.storeId,
         sessionId: payload.sessionId,
         isPlatformAdmin,
+        isSuperAdmin: session.user.isSuperAdmin,
+        adminPermissions: Array.isArray(session.user.adminPermissions)
+          ? (session.user.adminPermissions as string[])
+          : [],
       };
     } catch (err: any) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
       throw new UnauthorizedException(err.message || 'Invalid authentication token.');
     }
+  }
+
+  public async activateSubAdmin(
+    data: { token: string; pin: string; fullName?: string; phone?: string },
+    userAgent?: string,
+    ipAddress?: string
+  ): Promise<{
+    user: AuthenticatedUser;
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  }> {
+    if (!data.token?.trim()) {
+      throw new BadRequestException('Activation token is required.');
+    }
+    if (!/^\d{6}$/.test(data.pin)) {
+      throw new BadRequestException('PIN must be exactly 6 numeric digits.');
+    }
+
+    const tokenHash = this.hashCode(data.token.trim());
+    const invite = await this.prisma.adminInvite.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid activation link.');
+    }
+    if (invite.acceptedAt) {
+      throw new BadRequestException('This invitation has already been accepted. Please log in.');
+    }
+    if (invite.expiresAt < new Date()) {
+      throw new BadRequestException('This invitation has expired. Please request a new invite.');
+    }
+
+    const pinHash = this.hashPin(data.pin);
+
+    // Check if user with this email or phone exists
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: invite.email, mode: 'insensitive' } },
+          ...(invite.phone ? [{ phone: invite.phone }] : []),
+          ...(data.phone ? [{ phone: data.phone }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
+
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: invite.permissions as any,
+          fullName: data.fullName?.trim() || invite.fullName || user.fullName,
+        },
+      });
+    } else {
+      const userPhone = data.phone?.trim() || invite.phone || `+9199${Math.floor(10000000 + Math.random() * 90000000)}`;
+      user = await this.prisma.user.create({
+        data: {
+          email: invite.email.toLowerCase().trim(),
+          phone: userPhone,
+          fullName: data.fullName?.trim() || invite.fullName,
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: invite.permissions as any,
+        },
+      });
+    }
+
+    // Set credential PIN
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    // Mark invite as accepted
+    await this.prisma.adminInvite.update({
+      where: { id: invite.id },
+      data: { acceptedAt: new Date() },
+    });
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: 'SUB_ADMIN_ACTIVATED',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: {
+          email: user.email,
+          inviteId: invite.id,
+        },
+      },
+    });
+
+    const tokens = await this.createSessionAndIssueTokens(user, undefined, undefined, userAgent, ipAddress);
+
+    return {
+      user: {
+        userId: user.id,
+        phone: user.phone,
+        email: user.email,
+        role: user.role as any,
+        tenantId: null,
+        storeId: null,
+        sessionId: tokens.sessionId,
+        isPlatformAdmin: true,
+        isSuperAdmin: false,
+        adminPermissions: Array.isArray(user.adminPermissions) ? (user.adminPermissions as string[]) : [],
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: 900,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: 900,
+      },
+    };
   }
 
   // ============================================================================

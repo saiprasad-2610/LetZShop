@@ -23,6 +23,9 @@ export default function Payments() {
   const [planId, setPlanId] = useState('ALL');
   const [gateway, setGateway] = useState('ALL');
   const [dateRange, setDateRange] = useState('ALL');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [customDateError, setCustomDateError] = useState('');
   const [sort, setSort] = useState('newest');
 
   // UI state
@@ -70,6 +73,8 @@ export default function Payments() {
     planId: planId !== 'ALL' ? planId : undefined,
     gateway: gateway !== 'ALL' ? gateway : undefined,
     range: dateRange !== 'ALL' ? dateRange : undefined,
+    from: dateRange === 'CUSTOM' && customFrom ? customFrom : undefined,
+    to: dateRange === 'CUSTOM' && customTo ? customTo : undefined,
     sort,
   };
 
@@ -93,8 +98,27 @@ export default function Payments() {
     gateway !== 'ALL' && { key: 'gateway', label: `Gateway: ${gateway}`, clear: () => setGateway('ALL') },
     dateRange !== 'ALL' && {
       key: 'range',
-      label: `Date: ${dateRange === 'TODAY' ? 'Today' : dateRange === 'THIS_MONTH' ? 'This Month' : dateRange === '7d' ? 'Last 7 Days' : 'Last 30 Days'}`,
-      clear: () => setDateRange('ALL'),
+      label: `Date: ${
+        dateRange === 'TODAY'
+          ? 'Today'
+          : dateRange === '7d'
+          ? 'Last 7 Days'
+          : dateRange === '30d'
+          ? 'Last 30 Days'
+          : dateRange === '90d'
+          ? 'Last 90 Days'
+          : dateRange === 'THIS_MONTH'
+          ? 'This Month'
+          : dateRange === 'LAST_MONTH'
+          ? 'Last Month'
+          : `Custom (${customFrom || '...'} to ${customTo || '...'})`
+      }`,
+      clear: () => {
+        setDateRange('ALL');
+        setCustomFrom('');
+        setCustomTo('');
+        setCustomDateError('');
+      },
     },
   ].filter(Boolean) as Array<{ key: string; label: string; clear: () => void }>;
 
@@ -103,6 +127,9 @@ export default function Payments() {
     setPlanId('ALL');
     setGateway('ALL');
     setDateRange('ALL');
+    setCustomFrom('');
+    setCustomTo('');
+    setCustomDateError('');
     setSearchInput('');
     setDebouncedSearch('');
     setPage(1);
@@ -218,7 +245,12 @@ export default function Payments() {
             <div className="mt-3 text-2xl font-bold text-admin-text">
               {kpis?.pendingCount ?? 0}
             </div>
-            <p className="mt-1 text-xs text-admin-muted">Awaiting gateway capture</p>
+            <p
+              className="mt-1 text-xs text-admin-muted cursor-help"
+              title="Pending means LetzShop has created/received a payment attempt, but the gateway has not yet confirmed successful capture or final failure."
+            >
+              Payment initiated but not yet confirmed by the gateway.
+            </p>
           </div>
 
           <div className="rounded-xl border border-admin-border bg-admin-surface p-5 shadow-sm">
@@ -374,22 +406,112 @@ export default function Payments() {
                       className="admin-input text-xs"
                       value={dateRange}
                       onChange={(e) => {
-                        setDateRange(e.target.value);
-                        setPage(1);
+                        const val = e.target.value;
+                        setDateRange(val);
+                        setCustomDateError('');
+                        if (val !== 'CUSTOM') {
+                          setCustomFrom('');
+                          setCustomTo('');
+                          setPage(1);
+                        }
                       }}
                     >
                       <option value="ALL">All Time</option>
                       <option value="TODAY">Today</option>
-                      <option value="THIS_MONTH">This Month</option>
                       <option value="7d">Last 7 Days</option>
                       <option value="30d">Last 30 Days</option>
+                      <option value="90d">Last 90 Days</option>
+                      <option value="THIS_MONTH">This Month</option>
+                      <option value="LAST_MONTH">Last Month</option>
+                      <option value="CUSTOM">Custom Date Range</option>
                     </select>
                   </div>
+
+                  {/* Custom Date Range Picker */}
+                  {dateRange === 'CUSTOM' && (
+                    <div className="space-y-2 rounded-lg border border-admin-border bg-admin-raised/40 p-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-admin-muted mb-1">From Date</label>
+                          <input
+                            type="date"
+                            className="admin-input text-xs py-1 px-2"
+                            value={customFrom}
+                            onChange={(e) => {
+                              setCustomFrom(e.target.value);
+                              setCustomDateError('');
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-admin-muted mb-1">To Date</label>
+                          <input
+                            type="date"
+                            className="admin-input text-xs py-1 px-2"
+                            value={customTo}
+                            onChange={(e) => {
+                              setCustomTo(e.target.value);
+                              setCustomDateError('');
+                            }}
+                          />
+                        </div>
+                      </div>
+                      {customDateError && (
+                        <p className="text-[11px] text-rose-500 font-medium">{customDateError}</p>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          className="text-[11px] text-admin-muted hover:text-admin-text"
+                          onClick={() => {
+                            setCustomFrom('');
+                            setCustomTo('');
+                            setCustomDateError('');
+                            setDateRange('ALL');
+                            setPage(1);
+                          }}
+                        >
+                          Clear
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-button text-[11px] py-1 px-2.5"
+                          onClick={() => {
+                            if (!customFrom || !customTo) {
+                              setCustomDateError('Both From and To dates are required.');
+                              return;
+                            }
+                            if (customFrom > customTo) {
+                              setCustomDateError('From Date must be earlier than or equal to To Date.');
+                              return;
+                            }
+                            setCustomDateError('');
+                            setPage(1);
+                            setFiltersOpen(false);
+                          }}
+                        >
+                          Apply Custom
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-admin-border flex justify-end">
                     <button
                       className="admin-button text-xs py-1.5 px-3"
-                      onClick={() => setFiltersOpen(false)}
+                      onClick={() => {
+                        if (dateRange === 'CUSTOM') {
+                          if (!customFrom || !customTo) {
+                            setCustomDateError('Both From and To dates are required.');
+                            return;
+                          }
+                          if (customFrom > customTo) {
+                            setCustomDateError('From Date must be earlier than or equal to To Date.');
+                            return;
+                          }
+                        }
+                        setFiltersOpen(false);
+                      }}
                     >
                       Apply
                     </button>
@@ -796,7 +918,7 @@ export default function Payments() {
                 </div>
                 {selectedPayment.invoice?.id && (
                   <a
-                    href={`/api/admin/invoices/${selectedPayment.invoice.id}/pdf`}
+                    href={`/api/platform/admin/invoices/${selectedPayment.invoice.id}/pdf`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs text-admin-accent hover:underline font-medium"

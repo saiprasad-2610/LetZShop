@@ -15,8 +15,9 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles, CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser, UserRole } from '@simply/types';
+import { Roles, CurrentUser, RequirePermission } from '../../common/decorators';
+import { AuthenticatedUser, UserRole, AdminPermission } from '@simply/types';
+import { CreateSubAdminDto, UpdateSubAdminDto } from '@simply/api-contracts';
 import * as fs from 'fs';
 
 @ApiTags('Platform Admin')
@@ -32,23 +33,27 @@ export class AdminController {
     return { user };
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_VIEW)
   @Get('subscriptions')
   getSubscriptions(@Query() query: import('./admin-data.service').AdminQuery) {
     return this.adminService.getSubscriptionList(query);
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_VIEW)
   @Get('subscriptions/kpis')
   @ApiOperation({ summary: 'Get SaaS subscription operational KPIs' })
   getSubscriptionKpis() {
     return this.adminService.getSubscriptionKpis();
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_VIEW)
   @Get('subscriptions/:id')
   @ApiOperation({ summary: 'Get subscription detail including invoices and events' })
   getSubscriptionDetail(@Param('id') id: string) {
     return this.adminService.getSubscriptionDetail(id);
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_MANAGE)
   @Patch('subscriptions/:id/plan')
   @ApiOperation({ summary: 'Change merchant subscription plan' })
   changeSubscriptionPlan(
@@ -59,6 +64,7 @@ export class AdminController {
     return this.adminService.changeSubscriptionPlan(id, body.planId, body.reason, user.userId);
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_MANAGE)
   @Patch('subscriptions/:id/expiry')
   @ApiOperation({ summary: 'Extend or adjust merchant subscription expiry' })
   extendSubscriptionExpiry(
@@ -69,6 +75,7 @@ export class AdminController {
     return this.adminService.extendSubscriptionExpiry(id, new Date(body.newEnd), body.reason, user.userId);
   }
 
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_MANAGE)
   @Post('subscriptions/:id/cancel')
   @ApiOperation({ summary: 'Cancel merchant subscription' })
   cancelSubscription(
@@ -84,6 +91,7 @@ export class AdminController {
     return this.adminService.getThemes();
   }
 
+  @RequirePermission(AdminPermission.PAYMENTS_VIEW)
   @Get('payments')
   @ApiOperation({ summary: 'Paginated subscription payments with search, filters, and KPIs' })
   getPayments(
@@ -114,6 +122,7 @@ export class AdminController {
     });
   }
 
+  @RequirePermission(AdminPermission.PAYMENTS_RECONCILE)
   @Post('payments/:id/reconcile')
   @ApiOperation({ summary: 'Reconcile subscription payment against gateway with audit trail' })
   async reconcileSubscriptionPayment(
@@ -123,16 +132,40 @@ export class AdminController {
     return this.adminService.reconcileSubscriptionPayment(id, user.userId);
   }
 
+  @RequirePermission(AdminPermission.AUDIT_LOGS_VIEW)
   @Get('audit-logs')
   getAuditLogs(@Query('search') search?: string, @Query('page') page?: string) {
     return this.adminService.getAuditLogs({ search, page });
   }
 
+  @RequirePermission(AdminPermission.SETTINGS_VIEW)
   @Get('settings')
   getSettings() {
     return this.adminService.getSafeSettings();
   }
 
+  @RequirePermission(AdminPermission.SETTINGS_MANAGE)
+  @Put('settings/:category')
+  @ApiOperation({ summary: 'Update platform settings by category with database persistence' })
+  async updateSettings(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('category') category: string,
+    @Body() body: any,
+  ) {
+    return this.adminService.updateSettings(category, body, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.SETTINGS_MANAGE)
+  @Post('settings/test-smtp')
+  @ApiOperation({ summary: 'Test outgoing platform SMTP connection' })
+  async testSmtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { targetEmail: string },
+  ) {
+    return this.adminService.testSmtpConnection(body.targetEmail, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.DASHBOARD_VIEW)
   @Get('overview')
   @ApiOperation({ summary: 'Platform-wide operational overview & metrics' })
   async getOverview(
@@ -143,6 +176,7 @@ export class AdminController {
     return this.adminService.getOverview(range, from, to);
   }
 
+  @RequirePermission(AdminPermission.DASHBOARD_VIEW)
   @Get('attention-summary')
   @ApiOperation({ summary: 'Platform actionable attention counts and badges' })
   async getAttentionSummary() {
@@ -155,6 +189,7 @@ export class AdminController {
     return this.adminService.getCommerceMonitoring(query);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_VIEW)
   @Get('merchants')
   @ApiOperation({
     summary: 'List all platform merchants with store & subscription status',
@@ -165,6 +200,7 @@ export class AdminController {
     return this.adminService.getMerchants(query);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_VIEW)
   @Get('merchants/:id')
   @ApiOperation({
     summary: 'Get full merchant detail, stores, and subscriptions',
@@ -173,16 +209,18 @@ export class AdminController {
     return this.adminService.getMerchantById(id);
   }
 
+  @RequirePermission(AdminPermission.PAYMENTS_VIEW)
   @Get('invoices/:id/pdf')
   @ApiOperation({ summary: 'Download subscription invoice as official PDF' })
   async getInvoicePdf(@Param('id') id: string, @Res() res: any) {
     const pdf = await this.adminService.generateInvoicePdf(id);
     res.header('Content-Type', 'application/pdf');
-    res.header('Content-Disposition', `inline; filename="invoice-${id}.pdf"`);
-    res.header('Cache-Control', 'no-store');
+    res.header('Content-Disposition', `inline; filename="LetzShop-Invoice-${id}.pdf"`);
+    res.header('Cache-Control', 'private, no-store');
     return res.send(pdf);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_SUSPEND)
   @Post('merchants/:id/suspend')
   @ApiOperation({ summary: 'Suspend merchant access with audit logging' })
   async suspendMerchant(
@@ -193,6 +231,7 @@ export class AdminController {
     return this.adminService.suspendMerchant(id, user.userId, body);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_SUSPEND)
   @Post('merchants/:id/reactivate')
   @ApiOperation({ summary: 'Reactivate suspended merchant with audit logging' })
   async reactivateMerchant(
@@ -203,6 +242,7 @@ export class AdminController {
     return this.adminService.reactivateMerchant(id, user.userId, body);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_SUSPEND)
   @Post('merchants/:id/archive')
   @ApiOperation({ summary: 'Archive merchant with data preservation and audit logging' })
   async archiveMerchant(
@@ -213,6 +253,7 @@ export class AdminController {
     return this.adminService.archiveMerchant(id, user.userId, body);
   }
 
+  @RequirePermission(AdminPermission.MERCHANTS_CONTACT)
   @Post('merchants/:id/message')
   @ApiOperation({ summary: 'Send email or prepare WhatsApp message to merchant' })
   async sendMessageToMerchant(
@@ -377,6 +418,7 @@ export class AdminController {
     return this.adminService.reconcilePaymentOrder(id, user.userId);
   }
 
+  @RequirePermission(AdminPermission.USERS_VIEW)
   @Get('users')
   @ApiOperation({
     summary: 'List all platform users across merchants, staff, and customers',
@@ -385,6 +427,7 @@ export class AdminController {
     return this.adminService.getUsers(query);
   }
 
+  @RequirePermission(AdminPermission.USERS_MANAGE)
   @Post('users/:id/toggle-status')
   @ApiOperation({ summary: 'Activate or deactivate a user account with audit logging' })
   async toggleUserStatus(
@@ -393,6 +436,74 @@ export class AdminController {
     @Body() body?: { reason?: string; internalNote?: string },
   ) {
     return this.adminService.toggleUserStatus(id, user.userId, body);
+  }
+
+  // ============================================================================
+  // SUB ADMIN MANAGEMENT
+  // ============================================================================
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Get('sub-admins')
+  @ApiOperation({ summary: 'List delegated platform administrators and pending invitations' })
+  async getSubAdmins(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getSubAdmins({ search, status, page, pageSize });
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins')
+  @ApiOperation({ summary: 'Invite a new delegated platform administrator' })
+  async createSubAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreateSubAdminDto,
+  ) {
+    return this.adminService.createSubAdmin(body, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Put('sub-admins/:id')
+  @ApiOperation({ summary: 'Update delegated administrator permissions and details' })
+  async updateSubAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: UpdateSubAdminDto,
+  ) {
+    return this.adminService.updateSubAdmin(id, body, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/:id/toggle-status')
+  @ApiOperation({ summary: 'Suspend or reactivate a delegated administrator account' })
+  async toggleSubAdminStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body?: { reason?: string },
+  ) {
+    return this.adminService.toggleSubAdminStatus(id, user.userId, body);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/invites/:id/resend')
+  @ApiOperation({ summary: 'Resend invitation email with fresh activation token' })
+  async resendSubAdminInvite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.resendSubAdminInvite(id, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/:id/revoke-sessions')
+  @ApiOperation({ summary: 'Revoke active sessions for a delegated administrator' })
+  async revokeSubAdminSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.revokeSubAdminSessions(id, user.userId);
   }
 
   @Get('analytics')

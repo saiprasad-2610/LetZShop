@@ -10,6 +10,8 @@ interface AdminUser {
   role: string;
   isPlatformAdmin: boolean;
   fullName?: string;
+  isSuperAdmin?: boolean;
+  adminPermissions?: string[];
 }
 interface AdminAuthContextType {
   user: AdminUser | null;

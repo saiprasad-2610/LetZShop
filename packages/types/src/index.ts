@@ -257,6 +257,29 @@ export enum ShippingProviderType {
   SHIPROCKET = 'SHIPROCKET',
 }
 
+export enum AdminPermission {
+  DASHBOARD_VIEW = 'DASHBOARD_VIEW',
+  MERCHANTS_VIEW = 'MERCHANTS_VIEW',
+  MERCHANTS_CONTACT = 'MERCHANTS_CONTACT',
+  MERCHANTS_SUSPEND = 'MERCHANTS_SUSPEND',
+  REVIEWS_VIEW = 'REVIEWS_VIEW',
+  REVIEWS_MODERATE = 'REVIEWS_MODERATE',
+  SUBSCRIPTIONS_VIEW = 'SUBSCRIPTIONS_VIEW',
+  SUBSCRIPTIONS_MANAGE = 'SUBSCRIPTIONS_MANAGE',
+  PAYMENTS_VIEW = 'PAYMENTS_VIEW',
+  PAYMENTS_RECONCILE = 'PAYMENTS_RECONCILE',
+  USERS_VIEW = 'USERS_VIEW',
+  USERS_MANAGE = 'USERS_MANAGE',
+  VERIFICATION_VIEW = 'VERIFICATION_VIEW',
+  VERIFICATION_APPROVE = 'VERIFICATION_APPROVE',
+  BUSINESS_VERIFICATION_VIEW = 'BUSINESS_VERIFICATION_VIEW',
+  BUSINESS_VERIFICATION_APPROVE = 'BUSINESS_VERIFICATION_APPROVE',
+  SETTINGS_VIEW = 'SETTINGS_VIEW',
+  SETTINGS_MANAGE = 'SETTINGS_MANAGE',
+  AUDIT_LOGS_VIEW = 'AUDIT_LOGS_VIEW',
+  SUB_ADMINS_MANAGE = 'SUB_ADMINS_MANAGE',
+}
+
 // ==============================================================================
 // Common Interfaces
 // ==============================================================================
@@ -270,6 +293,8 @@ export interface AuthenticatedUser {
   storeId?: string | null;
   sessionId?: string;
   isPlatformAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  adminPermissions?: string[];
   preferredLocale?: string;
 }
 

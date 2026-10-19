@@ -519,16 +519,115 @@ export interface AdminOperations {
     maxRetries: number;
   }>;
 }
+
 export interface AdminSettings {
+  // Flat / legacy fields
   platformName: string;
   supportEmail: string;
   currency: string;
   timezone: string;
   source: string;
-  moderation: string;
   plansSource: string;
   growthPurchaseEnabled: boolean;
+
+  // Grouped section fields
+  general: {
+    platformName: string;
+    supportEmail: string;
+    supportPhone: string;
+    defaultCurrency: string;
+    defaultTimezone: string;
+    defaultLocale: string;
+  };
+  brand: {
+    platformDisplayName: string;
+    supportEmail: string;
+    supportPhone: string;
+    businessEmail: string;
+    websiteUrl: string;
+    helpCenterUrl: string;
+  };
+  notifications: {
+    emailServiceStatus: 'CONNECTED' | 'SIMULATION_MODE' | 'MISCONFIGURED';
+    notifyMerchantOnAccountSuspension: boolean;
+    notifyAdminOnReviewReport: boolean;
+    notifyMerchantOnFailedSubscription: boolean;
+  };
+  whatsapp: {
+    mode: 'CLOUD_API' | 'DEEP_LINK';
+    defaultTemplateGreeting: string;
+  };
+  commerce: {
+    defaultCurrency: string;
+    subscriptionGracePeriodDays: number;
+    orderNumberPrefix: string;
+    taxInclusivePricing: boolean;
+  };
+  security: {
+    adminSessionTimeoutMinutes: number;
+    subAdminInviteExpiryDays: number;
+    maxFailedLoginAttempts: number;
+    requirePinChangeFirstLogin: boolean;
+    mfaPolicy: string;
+  };
+  moderation: {
+    reviewModerationPolicy: string;
+    autoHideAfterReports: number;
+    policyExplanation: string;
+  };
+  integrations: {
+    razorpay: 'CONNECTED' | 'MISCONFIGURED' | 'NOT_CONFIGURED';
+    smtp: 'CONNECTED' | 'SIMULATION_MODE' | 'MISCONFIGURED';
+    shiprocket: 'CONNECTED' | 'NOT_CONFIGURED';
+    whatsapp: 'CONNECTED' | 'DEEP_LINK_ONLY';
+  };
+  system: {
+    maintenanceMode: boolean;
+    environment: string;
+    apiVersion: string;
+    databaseStatus: string;
+    lastDeployedAt: string;
+  };
 }
+
+export interface AdminSubAdmin {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  role: 'PLATFORM_ADMIN' | 'SUB_ADMIN';
+  isSuperAdmin: boolean;
+  isActive: boolean;
+  adminPermissions: string[];
+  permissions: string[];
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' | 'PENDING_INVITE';
+  inviteId?: string;
+  inviteExpiresAt?: string;
+}
+
+export interface CreateSubAdminDto {
+  fullName: string;
+  email: string;
+  phone?: string;
+  permissions: string[];
+}
+
+export interface UpdateSubAdminDto {
+  fullName?: string;
+  phone?: string;
+  permissions?: string[];
+}
+
+export interface ActivateSubAdminDto {
+  token: string;
+  pin: string;
+  fullName?: string;
+  phone?: string;
+}
+
 export interface AdminTheme {
   id: string;
   name: string;

@@ -15,6 +15,11 @@ import type {
   AdminBusinessVerification,
   PlanHighlightItem,
   AdminPayment,
+  AdminSettings,
+  AdminSubAdmin,
+  CreateSubAdminDto,
+  UpdateSubAdminDto,
+  ActivateSubAdminDto,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -648,6 +653,49 @@ export class SimplyApiClient {
         method: 'POST',
         body: data,
       }),
+    getSettings: () => this.request<AdminSettings>('admin/settings'),
+    updateSettings: (category: string, data: any) =>
+      this.request<AdminSettings>(`admin/settings/${category}`, {
+        method: 'PUT',
+        body: data,
+      }),
+    testSmtpConnection: (targetEmail?: string) =>
+      this.request<{ success: boolean; message: string }>(
+        'admin/settings/test-smtp',
+        { method: 'POST', body: { targetEmail } },
+      ),
+    getSubAdmins: (params?: any) =>
+      this.request<AdminPage<AdminSubAdmin>>('admin/sub-admins', { params }),
+    createSubAdmin: (data: CreateSubAdminDto) =>
+      this.request<{ invite: any; activationLink: string }>(
+        'admin/sub-admins',
+        { method: 'POST', body: data },
+      ),
+    updateSubAdmin: (id: string, data: UpdateSubAdminDto) =>
+      this.request<AdminSubAdmin>(`admin/sub-admins/${id}`, {
+        method: 'PUT',
+        body: data,
+      }),
+    toggleSubAdminStatus: (id: string, data?: { reason?: string }) =>
+      this.request<AdminSubAdmin>(`admin/sub-admins/${id}/toggle-status`, {
+        method: 'POST',
+        body: data,
+      }),
+    resendSubAdminInvite: (inviteId: string) =>
+      this.request<{ success: boolean; activationLink: string }>(
+        `admin/sub-admins/invites/${inviteId}/resend`,
+        { method: 'POST' },
+      ),
+    revokeSubAdminSessions: (id: string) =>
+      this.request<{ success: boolean; revokedCount: number }>(
+        `admin/sub-admins/${id}/revoke-sessions`,
+        { method: 'POST' },
+      ),
+    activateSubAdmin: (data: ActivateSubAdminDto) =>
+      this.request<{ success: boolean; message: string }>(
+        'auth/admin/activate',
+        { method: 'POST', body: data },
+      ),
   };
 
   // --- Merchant Business Verification & Documents ---

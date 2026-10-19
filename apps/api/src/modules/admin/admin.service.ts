@@ -1,5 +1,13 @@
 import { AdminDataService, AdminQuery } from './admin-data.service';
-import { AdminPaymentKpis } from '@simply/api-contracts';
+import {
+  AdminPaymentKpis,
+  AdminSettings,
+  AdminSubAdmin,
+  CreateSubAdminDto,
+  UpdateSubAdminDto,
+} from '@simply/api-contracts';
+import { getBrandConfig } from '@simply/config';
+import * as crypto from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -1365,6 +1373,10 @@ export class AdminService {
           where: { userId, isRevoked: false },
           data: { isRevoked: true },
         });
+        await tx.refreshToken.updateMany({
+          where: { userId, isRevoked: false },
+          data: { isRevoked: true },
+        });
       }
 
       await tx.auditLog.create({
@@ -1448,23 +1460,63 @@ export class AdminService {
           now.getFullYear(),
           now.getMonth(),
           now.getDate(),
+          0,
+          0,
+          0,
+          0,
         );
         where.createdAt = { gte: startOfToday };
       } else if (query.range === 'THIS_MONTH') {
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
         where.createdAt = { gte: startOfMonth };
+      } else if (query.range === 'LAST_MONTH') {
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        where.createdAt = { gte: startOfLastMonth, lte: endOfLastMonth };
       } else if (query.range === '7d') {
         const past7d = new Date(now.getTime() - 7 * 86400000);
         where.createdAt = { gte: past7d };
       } else if (query.range === '30d') {
         const past30d = new Date(now.getTime() - 30 * 86400000);
         where.createdAt = { gte: past30d };
+      } else if (query.range === '90d') {
+        const past90d = new Date(now.getTime() - 90 * 86400000);
+        where.createdAt = { gte: past90d };
+      } else if (
+        query.range === 'CUSTOM' ||
+        (!['TODAY', 'THIS_MONTH', 'LAST_MONTH', '7d', '30d', '90d'].includes(query.range) &&
+          (query.from || query.to))
+      ) {
+        if (!query.from || !query.to) {
+          throw new BadRequestException('Both From Date and To Date are required for custom date range.');
+        }
+        const fromDate = new Date(query.from);
+        const toDate = new Date(query.to);
+        if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+          throw new BadRequestException('Invalid date provided for custom range.');
+        }
+        if (fromDate > toDate) {
+          throw new BadRequestException('From Date must be earlier than or equal to To Date.');
+        }
+        const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 0, 0, 0, 0);
+        const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999);
+        where.createdAt = { gte: start, lte: end };
       }
     } else if (query.from || query.to) {
-      where.createdAt = {
-        gte: query.from ? new Date(query.from) : undefined,
-        lte: query.to ? new Date(query.to) : undefined,
-      };
+      if (!query.from || !query.to) {
+        throw new BadRequestException('Both From Date and To Date are required for custom date range.');
+      }
+      const fromDate = new Date(query.from);
+      const toDate = new Date(query.to);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+        throw new BadRequestException('Invalid date format.');
+      }
+      if (fromDate > toDate) {
+        throw new BadRequestException('From Date must be earlier than or equal to To Date.');
+      }
+      const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 0, 0, 0, 0);
+      const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999);
+      where.createdAt = { gte: start, lte: end };
     }
 
     const invoiceWhere: Prisma.SubscriptionInvoiceWhereInput = {};
@@ -1826,8 +1878,607 @@ export class AdminService {
     };
   }
 
-  public getSafeSettings() {
-    return this.data.settings();
+  public async getSafeSettings(): Promise<AdminSettings> {
+    const brand = getBrandConfig();
+    const settingsRows = await this.prisma.platformSetting.findMany();
+    const settingsMap: Record<string, any> = {};
+    for (const row of settingsRows) {
+      settingsMap[row.key] = row.value;
+    }
+
+    let dbStatus: 'CONNECTED' | 'ERROR' = 'CONNECTED';
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+    } catch {
+      dbStatus = 'ERROR';
+    }
+
+    const isRazorpayConfigured = Boolean(
+      process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET,
+    );
+    const isSmtpConfigured = this.mailService.isConfigured();
+    const isShiprocketConfigured = Boolean(
+      process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD,
+    );
+    const hasWhatsAppCloudApi = Boolean(
+      process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
+    );
+
+    const generalCustom = settingsMap['general'] || {};
+    const brandCustom = settingsMap['brand'] || {};
+    const notificationsCustom = settingsMap['notifications'] || {};
+    const whatsappCustom = settingsMap['whatsapp'] || {};
+    const commerceCustom = settingsMap['commerce'] || {};
+    const securityCustom = settingsMap['security'] || {};
+    const moderationCustom = settingsMap['moderation'] || {};
+    const systemCustom = settingsMap['system'] || {};
+
+    return {
+      platformName: generalCustom.platformName || brand.brandName || 'LetzShop',
+      supportEmail: generalCustom.supportEmail || brand.supportEmail || 'support@letzshop.in',
+      currency: 'INR',
+      timezone: generalCustom.defaultTimezone || brand.timezone || 'Asia/Kolkata',
+      plansSource: 'PostgreSQL Database',
+      growthPurchaseEnabled: false,
+      general: {
+        platformName: generalCustom.platformName || brand.brandName || 'LetzShop',
+        supportEmail: generalCustom.supportEmail || brand.supportEmail || 'support@letzshop.in',
+        supportPhone: generalCustom.supportPhone || '+91 9876543210',
+        defaultCurrency: 'INR',
+        defaultTimezone: generalCustom.defaultTimezone || brand.timezone || 'Asia/Kolkata',
+        defaultLocale: generalCustom.defaultLocale || 'en-IN',
+      },
+      brand: {
+        platformDisplayName: brandCustom.platformDisplayName || 'LetzShop Marketplace',
+        supportEmail: brandCustom.supportEmail || brand.supportEmail || 'support@letzshop.in',
+        supportPhone: brandCustom.supportPhone || '+91 9876543210',
+        businessEmail: brandCustom.businessEmail || 'admin@letzshop.in',
+        websiteUrl: brandCustom.websiteUrl || 'https://letzshop.in',
+        helpCenterUrl: brandCustom.helpCenterUrl || 'https://letzshop.in/help',
+      },
+      notifications: {
+        emailServiceStatus: isSmtpConfigured ? 'CONNECTED' : 'SIMULATION_MODE',
+        notifyMerchantOnAccountSuspension: notificationsCustom.notifyMerchantOnAccountSuspension ?? true,
+        notifyAdminOnReviewReport: notificationsCustom.notifyAdminOnReviewReport ?? true,
+        notifyMerchantOnFailedSubscription: notificationsCustom.notifyMerchantOnFailedSubscription ?? true,
+      },
+      whatsapp: {
+        mode: hasWhatsAppCloudApi ? 'CLOUD_API' : 'DEEP_LINK',
+        defaultTemplateGreeting: whatsappCustom.defaultTemplateGreeting || 'Hello from LetzShop,',
+      },
+      commerce: {
+        defaultCurrency: 'INR',
+        subscriptionGracePeriodDays: Number(commerceCustom.subscriptionGracePeriodDays ?? 3),
+        orderNumberPrefix: commerceCustom.orderNumberPrefix || 'ORD-',
+        taxInclusivePricing: commerceCustom.taxInclusivePricing ?? true,
+      },
+      security: {
+        adminSessionTimeoutMinutes: Number(securityCustom.adminSessionTimeoutMinutes ?? 60),
+        subAdminInviteExpiryDays: Number(securityCustom.subAdminInviteExpiryDays ?? 7),
+        maxFailedLoginAttempts: Number(securityCustom.maxFailedLoginAttempts ?? 5),
+        requirePinChangeFirstLogin: Boolean(securityCustom.requirePinChangeFirstLogin ?? false),
+        mfaPolicy: 'OPTIONAL',
+      },
+      moderation: {
+        reviewModerationPolicy: moderationCustom.reviewModerationPolicy || 'MANUAL_REMOVAL',
+        autoHideAfterReports: Number(moderationCustom.autoHideAfterReports ?? 0),
+        policyExplanation: 'Merchant reports stay visible until an administrator reviews and removes the feedback.',
+      },
+      integrations: {
+        razorpay: isRazorpayConfigured ? 'CONNECTED' : 'MISCONFIGURED',
+        smtp: isSmtpConfigured ? 'CONNECTED' : 'SIMULATION_MODE',
+        shiprocket: isShiprocketConfigured ? 'CONNECTED' : 'NOT_CONFIGURED',
+        whatsapp: hasWhatsAppCloudApi ? 'CONNECTED' : 'DEEP_LINK_ONLY',
+      },
+      system: {
+        maintenanceMode: Boolean(systemCustom.maintenanceMode ?? false),
+        environment: process.env.NODE_ENV || 'development',
+        apiVersion: '1.0.0-rc.4',
+        databaseStatus: dbStatus,
+        lastDeployedAt: new Date().toISOString(),
+      },
+      source: 'Database-backed platform settings with verified environment telemetry',
+    };
+  }
+
+  public async updateSettings(
+    category: string,
+    data: any,
+    actorId: string,
+  ): Promise<AdminSettings> {
+    const validCategories = [
+      'general',
+      'brand',
+      'notifications',
+      'whatsapp',
+      'commerce',
+      'security',
+      'moderation',
+      'system',
+    ];
+    const cat = category.toLowerCase().trim();
+    if (!validCategories.includes(cat)) {
+      throw new BadRequestException(`Invalid settings category "${category}".`);
+    }
+
+    await this.prisma.platformSetting.upsert({
+      where: { key: cat },
+      create: {
+        key: cat,
+        value: data,
+        category: cat,
+        updatedById: actorId,
+      },
+      update: {
+        value: data,
+        updatedById: actorId,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'PLATFORM_SETTINGS_UPDATED',
+        entityType: 'PlatformSetting',
+        entityId: cat,
+        metadata: {
+          category: cat,
+          changes: data,
+        },
+      },
+    });
+
+    return this.getSafeSettings();
+  }
+
+  public async testSmtpConnection(
+    targetEmail: string,
+    actorId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await this.mailService.testSmtpConnection(targetEmail);
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SMTP_CONNECTION_TESTED',
+        entityType: 'System',
+        entityId: 'smtp',
+        metadata: {
+          targetEmail,
+          success: res.success,
+        },
+      },
+    });
+    return res;
+  }
+
+  public async getSubAdmins(query: {
+    search?: string;
+    status?: string;
+    page?: string | number;
+    pageSize?: string | number;
+  }): Promise<{
+    items: AdminSubAdmin[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const page = Math.max(1, Number(query.page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 20));
+    const skip = (page - 1) * pageSize;
+
+    const userWhere: Prisma.UserWhereInput = {
+      role: UserRole.PLATFORM_ADMIN,
+      isSuperAdmin: false,
+      deletedAt: null,
+    };
+
+    if (query.status === 'ACTIVE') {
+      userWhere.isActive = true;
+    } else if (query.status === 'SUSPENDED') {
+      userWhere.isActive = false;
+    }
+
+    if (query.search?.trim()) {
+      const term = query.search.trim();
+      userWhere.OR = [
+        { fullName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    const totalUsers = await this.prisma.user.count({ where: userWhere });
+    const [users, pendingInvites] = await Promise.all([
+      this.prisma.user.findMany({
+        where: userWhere,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          isSuperAdmin: true,
+          adminPermissions: true,
+          createdAt: true,
+          updatedAt: true,
+          sessions: {
+            where: { isRevoked: false },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { createdAt: true },
+          },
+        },
+      }),
+      query.status === 'SUSPENDED' || (page > 1 && totalUsers >= skip)
+        ? []
+        : this.prisma.adminInvite.findMany({
+            where: {
+              acceptedAt: null,
+              ...(query.search?.trim()
+                ? {
+                    OR: [
+                      { fullName: { contains: query.search.trim(), mode: 'insensitive' } },
+                      { email: { contains: query.search.trim(), mode: 'insensitive' } },
+                    ],
+                  }
+                : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+    ]);
+
+    const activeList: AdminSubAdmin[] = users.map((u) => {
+      const perms = Array.isArray(u.adminPermissions) ? (u.adminPermissions as string[]) : [];
+      return {
+        id: u.id,
+        fullName: u.fullName || 'Sub Admin',
+        email: u.email || '—',
+        phone: u.phone,
+        role: 'PLATFORM_ADMIN',
+        isSuperAdmin: Boolean(u.isSuperAdmin),
+        isActive: Boolean(u.isActive),
+        adminPermissions: perms,
+        permissions: perms,
+        status: u.isActive ? 'ACTIVE' : 'SUSPENDED',
+        lastLoginAt: u.sessions[0]?.createdAt.toISOString() || null,
+        createdAt: u.createdAt.toISOString(),
+        updatedAt: u.updatedAt.toISOString(),
+      };
+    });
+
+    const inviteList: AdminSubAdmin[] = pendingInvites.map((inv) => {
+      const perms = Array.isArray(inv.permissions) ? (inv.permissions as string[]) : [];
+      return {
+        id: `invite-${inv.id}`,
+        fullName: inv.fullName,
+        email: inv.email,
+        phone: inv.phone || '',
+        role: 'PLATFORM_ADMIN',
+        isSuperAdmin: false,
+        isActive: false,
+        adminPermissions: perms,
+        permissions: perms,
+        status: 'INVITED',
+        lastLoginAt: null,
+        createdAt: inv.createdAt.toISOString(),
+        updatedAt: inv.createdAt.toISOString(),
+        inviteId: inv.id,
+        inviteExpiresAt: inv.expiresAt.toISOString(),
+      };
+    });
+
+    const allItems = [...inviteList, ...activeList];
+    const total = totalUsers + pendingInvites.length;
+
+    return {
+      items: allItems,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
+  }
+
+  public async createSubAdmin(
+    dto: CreateSubAdminDto,
+    actorId: string,
+  ): Promise<{ inviteId: string; email: string; activationUrl: string }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can invite and configure Sub Admins.');
+    }
+
+    if (!dto.email?.trim() || !dto.email.includes('@')) {
+      throw new BadRequestException('A valid email address is required.');
+    }
+    if (!dto.fullName?.trim()) {
+      throw new BadRequestException('Full name is required.');
+    }
+    if (!Array.isArray(dto.permissions) || dto.permissions.length === 0) {
+      throw new BadRequestException('At least one delegated permission is required.');
+    }
+
+    const normEmail = dto.email.toLowerCase().trim();
+
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normEmail, mode: 'insensitive' },
+        deletedAt: null,
+      },
+    });
+    if (existing && existing.role === UserRole.PLATFORM_ADMIN && existing.isActive) {
+      throw new BadRequestException('An active platform administrator with this email already exists.');
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.adminInvite.deleteMany({
+      where: { email: normEmail, acceptedAt: null },
+    });
+
+    const invite = await this.prisma.adminInvite.create({
+      data: {
+        email: normEmail,
+        fullName: dto.fullName.trim(),
+        phone: dto.phone?.trim() || null,
+        tokenHash,
+        permissions: dto.permissions as any,
+        invitedById: actorId,
+        expiresAt,
+      },
+    });
+
+    const adminBaseUrl = process.env.ADMIN_URL || 'http://localhost:3002';
+    const activationUrl = `${adminBaseUrl}/activate?token=${rawToken}`;
+
+    await this.mailService.sendSubAdminInviteEmail({
+      to: normEmail,
+      fullName: dto.fullName.trim(),
+      inviteUrl: activationUrl,
+      expiresAt,
+      roleName: 'Delegated Administrator',
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_INVITED',
+        entityType: 'AdminInvite',
+        entityId: invite.id,
+        metadata: {
+          email: normEmail,
+          fullName: dto.fullName.trim(),
+          permissions: dto.permissions,
+        },
+      },
+    });
+
+    return {
+      inviteId: invite.id,
+      email: normEmail,
+      activationUrl,
+    };
+  }
+
+  public async updateSubAdmin(
+    id: string,
+    dto: UpdateSubAdminDto,
+    actorId: string,
+  ): Promise<AdminSubAdmin> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can edit Sub Admin permissions.');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target || target.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('Cannot modify permissions of a Super Admin account.');
+    }
+    if (target.id === actorId) {
+      throw new ForbiddenException('Cannot modify your own administrator permissions.');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: {
+        fullName: dto.fullName?.trim() || target.fullName,
+        phone: dto.phone !== undefined ? dto.phone?.trim() || target.phone : target.phone,
+        adminPermissions: dto.permissions ? (dto.permissions as any) : target.adminPermissions,
+      },
+    });
+
+    if (dto.permissions) {
+      await this.prisma.session.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_UPDATED',
+        entityType: 'User',
+        entityId: id,
+        metadata: {
+          updatedFields: dto as any,
+        },
+      },
+    });
+
+    const perms = Array.isArray(updated.adminPermissions) ? (updated.adminPermissions as string[]) : [];
+    return {
+      id: updated.id,
+      fullName: updated.fullName || 'Sub Admin',
+      email: updated.email || '—',
+      phone: updated.phone,
+      role: 'PLATFORM_ADMIN',
+      isSuperAdmin: Boolean(updated.isSuperAdmin),
+      isActive: Boolean(updated.isActive),
+      adminPermissions: perms,
+      permissions: perms,
+      status: updated.isActive ? 'ACTIVE' : 'SUSPENDED',
+      lastLoginAt: null,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
+  }
+
+  public async toggleSubAdminStatus(
+    id: string,
+    actorId: string,
+    body?: { reason?: string },
+  ): Promise<{ id: string; isActive: boolean }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can suspend or reactivate Sub Admins.');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target || target.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('Super Admin account cannot be suspended.');
+    }
+    if (target.id === actorId) {
+      throw new BadRequestException('You cannot suspend your own admin account.');
+    }
+
+    const newActiveState = !target.isActive;
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { isActive: newActiveState },
+    });
+
+    if (!newActiveState) {
+      await this.prisma.session.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: newActiveState ? 'SUB_ADMIN_REACTIVATED' : 'SUB_ADMIN_SUSPENDED',
+        entityType: 'User',
+        entityId: id,
+        metadata: {
+          reason: body?.reason || (newActiveState ? 'Reactivated by Super Admin' : 'Suspended by Super Admin'),
+        },
+      },
+    });
+
+    return { id: updated.id, isActive: updated.isActive };
+  }
+
+  public async resendSubAdminInvite(
+    inviteId: string,
+    actorId: string,
+  ): Promise<{ success: boolean; activationUrl: string }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can manage invites.');
+    }
+
+    const invite = await this.prisma.adminInvite.findUnique({ where: { id: inviteId } });
+    if (!invite) {
+      throw new NotFoundException('Invite not found.');
+    }
+    if (invite.acceptedAt) {
+      throw new BadRequestException('This invitation has already been accepted.');
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.adminInvite.update({
+      where: { id: inviteId },
+      data: { tokenHash, expiresAt },
+    });
+
+    const adminBaseUrl = process.env.ADMIN_URL || 'http://localhost:3002';
+    const activationUrl = `${adminBaseUrl}/activate?token=${rawToken}`;
+
+    await this.mailService.sendSubAdminInviteEmail({
+      to: invite.email,
+      fullName: invite.fullName,
+      inviteUrl: activationUrl,
+      expiresAt,
+      roleName: 'Delegated Administrator',
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_INVITE_RESENT',
+        entityType: 'AdminInvite',
+        entityId: invite.id,
+        metadata: { email: invite.email },
+      },
+    });
+
+    return { success: true, activationUrl };
+  }
+
+  public async revokeSubAdminSessions(
+    id: string,
+    actorId: string,
+  ): Promise<{ success: boolean; count: number }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can revoke sessions.');
+    }
+
+    const [sessions, tokens] = await Promise.all([
+      this.prisma.session.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      }),
+    ]);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_SESSIONS_REVOKED',
+        entityType: 'User',
+        entityId: id,
+        metadata: { revokedSessions: sessions.count, revokedTokens: tokens.count },
+      },
+    });
+
+    return { success: true, count: sessions.count };
   }
 
   public async createPlan(

@@ -908,4 +908,76 @@ export class MailService {
     `;
     return this.sendEmail(ctx.recipientEmail, subject, html);
   }
+
+  public isConfigured(): boolean {
+    return Boolean(this.transporter);
+  }
+
+  public async testSmtpConnection(targetEmail: string): Promise<{ success: boolean; message: string }> {
+    if (!targetEmail || !targetEmail.includes('@')) {
+      throw new Error('Valid target email is required for SMTP test.');
+    }
+    const html = `
+      <div style="font-family: sans-serif; padding: 20px;">
+        <h2>LetzShop SMTP Test</h2>
+        <p>This is a test email sent from LetzShop Platform Administration.</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+      </div>
+    `;
+    const sent = await this.sendEmail(targetEmail, 'LetzShop SMTP Test Connection', html);
+    if (!sent) {
+      return { success: false, message: 'Failed to deliver test email. Check server SMTP configuration.' };
+    }
+    return { success: true, message: `Test email dispatched to ${targetEmail} successfully.` };
+  }
+
+  public async sendSubAdminInviteEmail(params: {
+    to: string;
+    fullName: string;
+    inviteUrl: string;
+    expiresAt: Date;
+    roleName: string;
+  }): Promise<boolean> {
+    const formattedExpiry = new Date(params.expiresAt).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const subject = `You're invited to LetzShop Admin`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="margin-bottom: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">LetzShop Admin</h1>
+            <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">Delegated Administrator Invitation</p>
+          </div>
+          <p style="font-size: 15px; margin: 0 0 16px 0;">Hello <strong>${params.fullName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            You have been invited to join <strong>LetzShop Platform Administration</strong> as <strong>${params.roleName}</strong>.
+          </p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 24px 0;">
+            To set up your account and choose your security PIN, please click the secure button below:
+          </p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${params.inviteUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block;">
+              Activate Account
+            </a>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 24px 0 0 0; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            This invitation link is valid until <strong>${formattedExpiry}</strong>.<br/>
+            If you did not expect this invitation, you can safely ignore this email.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(params.to, subject, html);
+  }
 }
+

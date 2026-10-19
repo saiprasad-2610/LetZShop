@@ -10,17 +10,19 @@ interface NavItem {
   label: string;
   href: string;
   badgeKey?: 'suspendedStores' | 'reviewReports' | 'failedPayments';
+  requiredPermission?: string;
 }
 
 const nav: NavItem[] = [
   { label: 'Dashboard', href: '/' },
-  { label: 'Merchants', href: '/merchants', badgeKey: 'suspendedStores' },
-  { label: 'Reviews & Reports', href: '/reviews', badgeKey: 'reviewReports' },
-  { label: 'Subscriptions', href: '/billing' },
-  { label: 'Payments', href: '/payments', badgeKey: 'failedPayments' },
-  { label: 'Users', href: '/users' },
-  { label: 'Settings', href: '/settings' },
-  { label: 'Audit Logs', href: '/audit-logs' },
+  { label: 'Merchants', href: '/merchants', badgeKey: 'suspendedStores', requiredPermission: 'MERCHANTS_VIEW' },
+  { label: 'Reviews & Reports', href: '/reviews', badgeKey: 'reviewReports', requiredPermission: 'REVIEWS_VIEW' },
+  { label: 'Subscriptions', href: '/billing', requiredPermission: 'SUBSCRIPTIONS_VIEW' },
+  { label: 'Payments', href: '/payments', badgeKey: 'failedPayments', requiredPermission: 'PAYMENTS_VIEW' },
+  { label: 'Users', href: '/users', requiredPermission: 'USERS_VIEW' },
+  { label: 'Sub Admins', href: '/sub-admins', requiredPermission: 'SUB_ADMINS_MANAGE' },
+  { label: 'Settings', href: '/settings', requiredPermission: 'SETTINGS_VIEW' },
+  { label: 'Audit Logs', href: '/audit-logs', requiredPermission: 'AUDIT_LOGS_VIEW' },
 ];
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
@@ -51,9 +53,14 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-xs text-slate-300">
-            {user?.fullName || user?.email || user?.phone || 'Platform Admin'}
-          </span>
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-xs text-slate-200 font-medium">
+              {user?.fullName || user?.email || user?.phone || 'Platform Admin'}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono uppercase">
+              {user?.isSuperAdmin ? 'Super Admin' : 'Delegated Admin'}
+            </span>
+          </div>
           <button
             onClick={() => void logout()}
             className="flex items-center gap-2 rounded-lg bg-admin-primary text-admin-on-primary px-3 py-2 text-xs"
@@ -70,17 +77,23 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
           className={`${open ? 'block' : 'hidden'} fixed inset-y-16 left-0 z-30 w-56 overflow-y-auto border-r bg-admin-surface p-4 md:sticky md:top-16 md:block md:h-[calc(100dvh-4rem)] md:shrink-0`}
         >
           <nav className="space-y-1">
-            {nav.map(({ label, href, badgeKey }) => {
-              const count = badgeKey && attention ? attention[badgeKey] : 0;
-              const isActive =
-                href === '/'
-                  ? router.pathname === '/'
-                  : router.pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
+            {nav
+              .filter((item) => {
+                if (!item.requiredPermission) return true;
+                if (user?.isSuperAdmin) return true;
+                return Boolean(user?.adminPermissions?.includes(item.requiredPermission));
+              })
+              .map(({ label, href, badgeKey }) => {
+                const count = badgeKey && attention ? attention[badgeKey] : 0;
+                const isActive =
+                  href === '/'
+                    ? router.pathname === '/'
+                    : router.pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
                   className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-admin-soft text-admin-accent'

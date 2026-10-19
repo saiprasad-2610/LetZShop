@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from '../decorators';
+import { ROLES_KEY, ADMIN_PERMISSION_KEY } from '../decorators';
 import { AuthenticatedUser, UserRole } from '@simply/types';
 
 @Injectable()
@@ -13,7 +13,12 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredRoles || requiredRoles.length === 0) {
+    const requiredPermission = this.reflector.getAllAndOverride<string>(ADMIN_PERMISSION_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if ((!requiredRoles || requiredRoles.length === 0) && !requiredPermission) {
       return true;
     }
 
@@ -24,13 +29,28 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User authentication required to evaluate role permissions.');
     }
 
-    if (user.isPlatformAdmin || user.role === UserRole.PLATFORM_ADMIN) {
-      return true;
+    const isPlatformAdmin = user.isPlatformAdmin || user.role === UserRole.PLATFORM_ADMIN;
+
+    if (requiredRoles && requiredRoles.length > 0) {
+      const hasRole = isPlatformAdmin ? true : requiredRoles.includes(user.role);
+      if (!hasRole) {
+        throw new ForbiddenException(`Forbidden resource: required roles [${requiredRoles.join(', ')}]`);
+      }
     }
 
-    const hasRole = requiredRoles.includes(user.role);
-    if (!hasRole) {
-      throw new ForbiddenException(`Forbidden resource: required roles [${requiredRoles.join(', ')}]`);
+    if (requiredPermission) {
+      if (user.isSuperAdmin) {
+        return true;
+      }
+      if (!isPlatformAdmin) {
+        throw new ForbiddenException('Platform administrator access required.');
+      }
+      const permissions: string[] = Array.isArray(user.adminPermissions)
+        ? user.adminPermissions
+        : [];
+      if (!permissions.includes(requiredPermission)) {
+        throw new ForbiddenException(`Forbidden resource: required permission [${requiredPermission}]`);
+      }
     }
 
     return true;
