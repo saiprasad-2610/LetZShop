@@ -7,6 +7,7 @@ import {
   UpdateSubAdminDto,
 } from '@simply/api-contracts';
 import { getBrandConfig } from '@simply/config';
+import { AdminPermission } from '@simply/types';
 import * as crypto from 'crypto';
 import {
   Injectable,
@@ -3057,7 +3058,7 @@ export class AdminService {
   public async deleteSubAdmin(
     id: string,
     actorId: string,
-  ): Promise<{ success: boolean; message: string; deleted?: boolean; archived?: boolean }> {
+  ): Promise<{ success: boolean; message: string; deleted?: boolean }> {
     const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
     if (!actor?.isSuperAdmin) {
       throw new ForbiddenException('Only Super Admin can delete Sub Admins.');
@@ -3129,88 +3130,158 @@ export class AdminService {
       throw new BadRequestException('You cannot delete your own account.');
     }
 
-    // Check if target has performed any operational audit events
-    const opAuditCount = await this.prisma.auditLog.count({
+    // Role safety check: Target must be a Sub Admin, not Super Admin and not a regular merchant
+    if (target.role !== UserRole.PLATFORM_ADMIN || target.isSuperAdmin) {
+      throw new BadRequestException('Invalid target: Cannot delete non-sub-admin account through this endpoint.');
+    }
+
+    // Preserve historical audit records by snapshotting immutable actor fields into metadata
+    const existingLogs = await this.prisma.auditLog.findMany({
       where: { actorId: id },
+      select: { id: true, metadata: true },
+    });
+    for (const log of existingLogs) {
+      const prevMeta =
+        typeof log.metadata === 'object' && log.metadata !== null && !Array.isArray(log.metadata)
+          ? (log.metadata as Record<string, any>)
+          : {};
+      await this.prisma.auditLog.update({
+        where: { id: log.id },
+        data: {
+          metadata: {
+            ...prevMeta,
+            actorName: target.fullName,
+            actorEmail: target.email,
+            actorRole: 'SUB_ADMIN',
+            actorIdSnapshot: id,
+          },
+        },
+      });
+    }
+
+    // Atomic transaction: permanently remove operational auth and user records
+    await this.prisma.$transaction(async (tx) => {
+      if (target.email) {
+        await tx.adminInvite.deleteMany({ where: { email: target.email } });
+      }
+      await tx.sellerCredential.deleteMany({ where: { userId: id } });
+      await tx.refreshToken.deleteMany({ where: { userId: id } });
+      await tx.session.deleteMany({ where: { userId: id } });
+      await tx.device.deleteMany({ where: { userId: id } });
+      await tx.otpChallenge.deleteMany({ where: { userId: id } });
+      await tx.tenantMembership.deleteMany({ where: { userId: id } });
+      await tx.user.delete({ where: { id } });
     });
 
-    if (opAuditCount === 0) {
-      // Safe to hard delete: user has no operational history
-      await this.prisma.$transaction(async (tx) => {
-        if (target.email) {
-          await tx.adminInvite.deleteMany({ where: { email: target.email } });
-        }
-        await tx.sellerCredential.deleteMany({ where: { userId: id } });
-        await tx.refreshToken.deleteMany({ where: { userId: id } });
-        await tx.session.deleteMany({ where: { userId: id } });
-        await tx.user.delete({ where: { id } });
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          actorType: 'ADMIN',
-          action: 'SUB_ADMIN_DELETED',
-          entityType: 'User',
-          entityId: id,
-          metadata: {
-            deletedEmail: target.email,
-            deletedName: target.fullName,
-            module: 'Sub Admins',
-            result: 'SUCCESS',
-          },
+    // Write deletion audit event attributed to current Super Admin with target snapshot
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_DELETED',
+        entityType: 'User',
+        entityId: id,
+        metadata: {
+          deletedId: id,
+          deletedEmail: target.email,
+          deletedName: target.fullName,
+          deletedRole: 'SUB_ADMIN',
+          historicalAuditLogsPreserved: existingLogs.length,
+          module: 'Sub Admins',
+          result: 'SUCCESS',
         },
-      });
+      },
+    });
 
-      return {
-        success: true,
-        message: `Sub Admin ${target.fullName || target.email} was permanently deleted.`,
-        deleted: true,
-      };
-    } else {
-      // Historical operational records exist! Protect audit integrity:
-      await this.prisma.user.update({
-        where: { id },
-        data: {
-          isActive: false,
-          isDeactivated: true,
-          adminPermissions: [],
-        } as any,
-      });
+    return {
+      success: true,
+      message: `Sub Admin ${target.fullName || target.email} was permanently deleted.`,
+      deleted: true,
+    };
+  }
 
-      await this.prisma.session.updateMany({
-        where: { userId: id, isRevoked: false },
-        data: { isRevoked: true },
-      });
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: id, isRevoked: false },
-        data: { isRevoked: true },
-      });
-      await this.prisma.sellerCredential.deleteMany({ where: { userId: id } });
+  public async sendMessageToSubAdmin(
+    id: string,
+    actorId: string,
+    dto: { subject: string; message: string; openWhatsApp?: boolean },
+  ): Promise<{ success: boolean; message: string; emailSent: boolean; whatsAppUrl?: string | null }> {
+    if (!dto.subject?.trim()) throw new BadRequestException('Subject is required.');
+    if (!dto.message?.trim()) throw new BadRequestException('Message is required.');
 
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          actorType: 'ADMIN',
-          action: 'SUB_ADMIN_DEACTIVATED_AND_ARCHIVED',
-          entityType: 'User',
-          entityId: id,
-          metadata: {
-            email: target.email,
-            fullName: target.fullName,
-            reason: 'Preserved in database to protect immutable historical audit log accountability',
-            module: 'Sub Admins',
-            result: 'SUCCESS',
-          },
-        },
-      });
-
-      return {
-        success: true,
-        message: `Sub Admin deactivated and archived. Historical audit records preserved for accountability.`,
-        archived: true,
-      };
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      const perms = (actor?.adminPermissions as string[]) || [];
+      if (!perms.includes(AdminPermission.SUB_ADMINS_MANAGE)) {
+        throw new ForbiddenException('Insufficient permissions to contact sub administrators.');
+      }
     }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+        isSuperAdmin: true,
+        adminPermissions: true,
+      },
+    });
+    if (!target) throw new NotFoundException('Sub Admin not found.');
+    if (!target.email) {
+      throw new BadRequestException('Sub Admin does not have a registered email address.');
+    }
+
+    let emailSent = false;
+    try {
+      emailSent = await this.mailService.sendSubAdminMessageEmail(
+        target.email,
+        dto.subject.trim(),
+        dto.message.trim(),
+        target.fullName,
+      );
+    } catch {
+      throw new BadRequestException('Message could not be sent. Please try again.');
+    }
+
+    if (!emailSent) {
+      throw new BadRequestException('Message could not be sent. Please try again.');
+    }
+
+    let whatsAppUrl: string | null = null;
+    if (dto.openWhatsApp && target.phone) {
+      const cleanPhone = target.phone.replace(/[^0-9]/g, '');
+      const fullText = `*${dto.subject.trim()}*\n\n${dto.message.trim()}`;
+      whatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(fullText)}`;
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_CONTACTED',
+        entityType: 'User',
+        entityId: target.id,
+        metadata: {
+          actor: actor?.fullName || actor?.email || actorId,
+          targetSubAdmin: target.fullName,
+          targetEmail: target.email,
+          channel: whatsAppUrl ? 'EMAIL, WHATSAPP' : 'EMAIL',
+          subject: dto.subject.trim(),
+          result: 'SUCCESS',
+          whatsAppStatus: whatsAppUrl ? 'Opened in WhatsApp' : undefined,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Message sent successfully.',
+      emailSent: true,
+      whatsAppUrl,
+    };
   }
 
   public async resendSubAdminInvite(

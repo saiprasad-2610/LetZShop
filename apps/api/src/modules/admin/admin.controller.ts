@@ -574,6 +574,17 @@ export class AdminController {
   }
 
   @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/:id/message')
+  @ApiOperation({ summary: 'Send administrative email and optional WhatsApp message to Sub Admin' })
+  async sendMessageToSubAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { subject: string; message: string; openWhatsApp?: boolean },
+  ) {
+    return this.adminService.sendMessageToSubAdmin(id, user.userId, body);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
   @Post('sub-admins/invites/:id/resend')
   @ApiOperation({ summary: 'Resend invitation email with fresh activation token' })
   async resendSubAdminInvite(

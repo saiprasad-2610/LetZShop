@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -22,6 +22,8 @@ import {
   PackageCheck,
   Eye,
   Calendar,
+  Check,
+  ChevronDown,
 } from 'lucide-react';
 import type {
   AdminOrdersResponse,
@@ -55,12 +57,161 @@ function StatusBadge({ status, category = 'order' }: { status: string; category?
   );
 }
 
+interface StoreOption {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
+function SearchableStoreCombobox({
+  value,
+  onChange,
+  stores,
+}: {
+  value: string;
+  onChange: (storeId: string) => void;
+  stores: StoreOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const selectedStore = stores.find((s) => s.id === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredStores = stores.filter((s) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return s.name.toLowerCase().includes(term) || (s.slug && s.slug.toLowerCase().includes(term));
+  });
+
+  return (
+    <div className="relative w-full sm:w-64" ref={wrapperRef}>
+      <div
+        onClick={() => setOpen(!open)}
+        className={`admin-input text-xs py-2 w-full flex items-center justify-between cursor-pointer select-none ${
+          value ? 'border-admin-accent/60 bg-admin-soft/40' : ''
+        }`}
+      >
+        <div className="flex items-center gap-1.5 truncate">
+          <Store className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+          <span className={selectedStore ? 'text-admin-text font-semibold truncate' : 'text-admin-muted truncate'}>
+            {selectedStore ? selectedStore.name : 'All Stores'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          {value && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+                setSearchTerm('');
+              }}
+              className="p-0.5 rounded hover:bg-admin-raised text-admin-muted hover:text-admin-text"
+              title="Clear store"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          <ChevronDown className="w-3.5 h-3.5 text-admin-muted" />
+        </div>
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-admin-surface border border-admin-border rounded-xl shadow-2xl z-50 p-2 space-y-1.5 text-xs max-w-xs sm:max-w-none">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-admin-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search store name..."
+              className="admin-input pl-8 pr-2 py-1 text-xs w-full"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-admin-muted hover:text-admin-text"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-48 overflow-y-auto space-y-0.5 subtle-scrollbar pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+                setSearchTerm('');
+              }}
+              className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                !value ? 'bg-admin-soft text-admin-accent font-semibold' : 'text-admin-text hover:bg-admin-raised'
+              }`}
+            >
+              <span>All Stores</span>
+              {!value && <Check className="w-3.5 h-3.5 text-admin-accent" />}
+            </button>
+
+            {filteredStores.map((store) => (
+              <button
+                key={store.id}
+                type="button"
+                onClick={() => {
+                  onChange(store.id);
+                  setOpen(false);
+                  setSearchTerm('');
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                  value === store.id ? 'bg-admin-soft text-admin-accent font-semibold' : 'text-admin-text hover:bg-admin-raised'
+                }`}
+              >
+                <div className="truncate">
+                  <div className="truncate font-medium">{store.name}</div>
+                  {store.slug && <div className="text-[10px] text-admin-muted truncate font-mono">{store.slug}</div>}
+                </div>
+                {value === store.id && <Check className="w-3.5 h-3.5 text-admin-accent shrink-0 ml-1" />}
+              </button>
+            ))}
+
+            {filteredStores.length === 0 && (
+              <div className="p-3 text-center text-admin-muted text-xs">
+                No stores match "{searchTerm}"
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const { api } = useAdminAuth();
 
+  // Load actual PostgreSQL stores list for filter
+  const filtersQuery = useAdminQuery<{ stores: Array<{ id: string; name: string; slug: string; tenantId: string }> }>(
+    'admin/reviews/filters',
+  );
+  const stores = filtersQuery.data?.stores || [];
+
   // URL query sync
   const [search, setSearch] = useState('');
+  const [storeId, setStoreId] = useState('');
   const [page, setPage] = useState(1);
   const [range, setRange] = useState<AdminRange>('30d');
   const [fromDate, setFromDate] = useState('');
@@ -79,6 +230,7 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!router.isReady) return;
     if (typeof router.query.search === 'string') setSearch(router.query.search);
+    if (typeof router.query.storeId === 'string') setStoreId(router.query.storeId);
     if (typeof router.query.status === 'string') setStatus(router.query.status);
     if (typeof router.query.range === 'string') setRange(router.query.range as AdminRange);
     if (typeof router.query.sort === 'string') setSort(router.query.sort);
@@ -93,6 +245,7 @@ export default function OrdersPage() {
       sort,
     };
     if (search.trim()) p.search = search.trim();
+    if (storeId) p.storeId = storeId;
     if (status) p.status = status;
     if (paymentStatus) p.paymentStatus = paymentStatus;
     if (paymentMethod) p.paymentMethod = paymentMethod;
@@ -102,7 +255,7 @@ export default function OrdersPage() {
       if (toDate) p.to = toDate;
     }
     return p;
-  }, [page, sort, search, status, paymentStatus, paymentMethod, range, fromDate, toDate]);
+  }, [page, sort, search, storeId, status, paymentStatus, paymentMethod, range, fromDate, toDate]);
 
   const { data, loading, error, reload } = useAdminQuery<AdminOrdersResponse>(
     'admin/orders',
@@ -137,6 +290,7 @@ export default function OrdersPage() {
     status,
     paymentStatus,
     paymentMethod,
+    storeId,
     range !== '30d' ? range : null,
   ].filter(Boolean).length;
 
@@ -144,10 +298,12 @@ export default function OrdersPage() {
     setStatus('');
     setPaymentStatus('');
     setPaymentMethod('');
+    setStoreId('');
     setRange('30d');
     setFromDate('');
     setToDate('');
     setSearch('');
+    setSort('newest');
     setPage(1);
   };
 
@@ -278,6 +434,16 @@ export default function OrdersPage() {
               )}
             </div>
 
+            {/* Store Searchable Combobox in Toolbar */}
+            <SearchableStoreCombobox
+              value={storeId}
+              onChange={(s) => {
+                setStoreId(s);
+                setPage(1);
+              }}
+              stores={stores}
+            />
+
             {/* Filter Toggle Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -329,7 +495,22 @@ export default function OrdersPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                {/* Store Filter */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-admin-muted mb-1 uppercase tracking-wider">
+                    Store
+                  </label>
+                  <SearchableStoreCombobox
+                    value={storeId}
+                    onChange={(s) => {
+                      setStoreId(s);
+                      setPage(1);
+                    }}
+                    stores={stores}
+                  />
+                </div>
+
                 {/* Order Status */}
                 <div>
                   <label className="block text-[11px] font-semibold text-admin-muted mb-1 uppercase tracking-wider">

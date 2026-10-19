@@ -725,9 +725,17 @@ export class SimplyApiClient {
         { method: 'POST', body: data },
       ),
     deleteSubAdmin: (id: string, data?: { reason?: string }) =>
-      this.request<{ success: boolean; mode: 'DELETED' | 'DEACTIVATED'; message: string }>(
+      this.request<{ success: boolean; message: string; deleted?: boolean }>(
         `admin/sub-admins/${id}`,
         { method: 'DELETE', body: data },
+      ),
+    sendMessageToSubAdmin: (
+      id: string,
+      data: { subject: string; message: string; openWhatsApp?: boolean },
+    ) =>
+      this.request<{ success: boolean; message: string; emailSent: boolean; whatsAppUrl?: string | null }>(
+        `admin/sub-admins/${id}/message`,
+        { method: 'POST', body: data },
       ),
     activateSubAdmin: (data: ActivateSubAdminDto) =>
       this.request<{ success: boolean; message: string }>(

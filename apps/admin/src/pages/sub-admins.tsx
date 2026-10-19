@@ -315,6 +315,13 @@ export default function SubAdminsPage() {
   const [deleteAdmin, setDeleteAdmin] = useState<AdminSubAdmin | null>(null);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 
+  // Send message modal
+  const [messageAdmin, setMessageAdmin] = useState<AdminSubAdmin | null>(null);
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [openWhatsApp, setOpenWhatsApp] = useState(false);
+  const [messageModalError, setMessageModalError] = useState<string | null>(null);
+
   // Action status / banner
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<{
@@ -642,17 +649,10 @@ export default function SubAdminsPage() {
   // Handle Delete Confirmation
   const handleDeleteConfirm = async () => {
     if (!deleteAdmin) return;
-    const isInvite = deleteAdmin.id.startsWith('invite-');
-    const expectedConfirm = isInvite ? 'DELETE' : deleteAdmin.email || deleteAdmin.fullName;
-
-    if (
-      deleteConfirmationInput.trim().toUpperCase() !== 'DELETE' &&
-      deleteConfirmationInput.trim() !== deleteAdmin.email &&
-      deleteConfirmationInput.trim() !== deleteAdmin.fullName
-    ) {
+    if (deleteConfirmationInput.trim().toUpperCase() !== 'DELETE') {
       setActionMessage({
         type: 'error',
-        text: `Confirmation mismatch. Please type DELETE or "${expectedConfirm}" to confirm.`,
+        text: 'Confirmation mismatch. Please type DELETE to confirm.',
       });
       return;
     }
@@ -662,7 +662,7 @@ export default function SubAdminsPage() {
       const res = await api.admin.deleteSubAdmin(deleteAdmin.id);
       setActionMessage({
         type: 'success',
-        text: res.message || 'Administrator removed/archived safely.',
+        text: res.message || 'Sub Admin deleted successfully.',
       });
       setDeleteAdmin(null);
       setDeleteConfirmationInput('');
@@ -673,6 +673,43 @@ export default function SubAdminsPage() {
         type: 'error',
         text: err.message || 'Failed to delete sub administrator.',
       });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Send Message
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageAdmin) return;
+    if (!messageSubject.trim() || !messageBody.trim()) {
+      setMessageModalError('Subject and message are required.');
+      return;
+    }
+
+    setActionLoading(true);
+    setMessageModalError(null);
+    try {
+      const res = await api.admin.sendMessageToSubAdmin(messageAdmin.id, {
+        subject: messageSubject.trim(),
+        message: messageBody.trim(),
+        openWhatsApp,
+      });
+
+      setActionMessage({
+        type: 'success',
+        text: 'Message sent successfully.',
+      });
+      setMessageAdmin(null);
+      setMessageSubject('');
+      setMessageBody('');
+      setOpenWhatsApp(false);
+
+      if (openWhatsApp && res.whatsAppUrl) {
+        window.open(res.whatsAppUrl, '_blank');
+      }
+    } catch (err: any) {
+      setMessageModalError(err.message || 'Message could not be sent. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -1147,14 +1184,21 @@ export default function SubAdminsPage() {
                     )}
 
                     {admin.email && (
-                      <a
-                        href={`mailto:${admin.email}`}
-                        onClick={() => setActionMenuState(null)}
-                        className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMenuState(null);
+                          setMessageAdmin(admin);
+                          setMessageSubject('');
+                          setMessageBody('');
+                          setOpenWhatsApp(false);
+                          setMessageModalError(null);
+                        }}
+                        className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2 text-left"
                       >
                         <Mail className="w-3.5 h-3.5 text-admin-muted" />
                         <span>Send Message</span>
-                      </a>
+                      </button>
                     )}
                   </div>
 
@@ -1874,7 +1918,7 @@ export default function SubAdminsPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* DELETE / ARCHIVE CONFIRMATION MODAL */}
+        {/* DELETE CONFIRMATION MODAL */}
         {/* ========================================================================= */}
         {deleteAdmin && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1882,52 +1926,163 @@ export default function SubAdminsPage() {
               <div className="flex items-center gap-2 text-rose-500 pb-3 border-b border-admin-border">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
                 <h3 className="text-base font-bold text-admin-text">
-                  {deleteAdmin.id.startsWith('invite-') ? 'Revoke & Delete Invitation' : 'Delete / Deactivate Administrator'}
+                  {deleteAdmin.id.startsWith('invite-') ? 'Revoke & Delete Invitation' : 'Delete Sub Admin'}
                 </h3>
               </div>
 
-              <p className="text-xs text-admin-muted leading-relaxed">
-                {deleteAdmin.id.startsWith('invite-') ? (
-                  <>
-                    Are you sure you want to delete the pending invitation for <strong>{deleteAdmin.email}</strong>? The invitation token will become permanently invalid.
-                  </>
-                ) : (
-                  <>
-                    You are removing administrator access for <strong>{deleteAdmin.fullName} ({deleteAdmin.email})</strong>.
-                    <br /><br />
-                    <strong>Accountability Rule:</strong> If this administrator has performed sensitive platform actions, the system will safely deactivate access and revoke sessions while preserving historical audit log attribution. If no operational history exists, it will be permanently deleted.
-                  </>
-                )}
-              </p>
+              <div className="space-y-2 text-xs text-admin-muted leading-relaxed">
+                <p>
+                  This permanently removes:
+                </p>
+                <div className="p-3 rounded-xl bg-admin-raised/60 border border-admin-border space-y-0.5 font-medium text-admin-text">
+                  <div className="font-semibold text-sm">{deleteAdmin.fullName || 'Invited Administrator'}</div>
+                  <div className="font-mono text-xs text-admin-muted">{deleteAdmin.email || '—'}</div>
+                </div>
+                <p className="text-[11px] text-admin-muted/90">
+                  Historical audit records will be preserved.
+                </p>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-admin-secondary mb-1">
-                  Type <strong>DELETE</strong> or administrator email to confirm:
+                  Type <strong>DELETE</strong> to confirm:
                 </label>
                 <input
                   type="text"
                   value={deleteConfirmationInput}
                   onChange={(e) => setDeleteConfirmationInput(e.target.value)}
                   placeholder="DELETE"
-                  className="admin-input w-full text-xs"
+                  className="admin-input w-full text-xs font-mono"
+                  autoFocus
                 />
               </div>
 
               <div className="pt-3 border-t border-admin-border flex justify-end gap-2">
                 <button
-                  onClick={() => setDeleteAdmin(null)}
+                  type="button"
+                  onClick={() => {
+                    setDeleteAdmin(null);
+                    setDeleteConfirmationInput('');
+                  }}
                   className="btn-admin-raised text-xs px-4"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleDeleteConfirm}
-                  disabled={actionLoading || !deleteConfirmationInput}
+                  disabled={actionLoading || deleteConfirmationInput.trim().toUpperCase() !== 'DELETE'}
                   className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-colors"
                 >
-                  {actionLoading ? 'Processing…' : 'Confirm Deletion'}
+                  {actionLoading ? 'Deleting…' : 'Delete Permanently'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SEND MESSAGE MODAL */}
+        {/* ========================================================================= */}
+        {messageAdmin && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-admin-border">
+                <div className="flex items-center gap-2 text-admin-accent">
+                  <Mail className="w-5 h-5" />
+                  <h3 className="text-base font-bold text-admin-text">
+                    Send Message to {messageAdmin.fullName || messageAdmin.email}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setMessageAdmin(null)}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {messageModalError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{messageModalError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSendMessage} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={messageAdmin.email || ''}
+                    disabled
+                    className="admin-input w-full text-xs bg-admin-raised/40 text-admin-muted cursor-not-allowed select-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                    Subject <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={messageSubject}
+                    onChange={(e) => setMessageSubject(e.target.value)}
+                    placeholder="e.g. Administrative Update / Operational Inquiry"
+                    className="admin-input w-full text-xs"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                    Message <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={5}
+                    value={messageBody}
+                    onChange={(e) => setMessageBody(e.target.value)}
+                    placeholder="Enter message details for this administrator..."
+                    className="admin-input w-full text-xs resize-none"
+                  />
+                </div>
+
+                {messageAdmin.phone && (
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-admin-text select-none">
+                      <input
+                        type="checkbox"
+                        checked={openWhatsApp}
+                        onChange={(e) => setOpenWhatsApp(e.target.checked)}
+                        className="h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent cursor-pointer"
+                      />
+                      <span>Open WhatsApp after sending email ({messageAdmin.phone})</span>
+                    </label>
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-admin-border flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMessageAdmin(null)}
+                    className="btn-admin-raised text-xs px-4"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading || !messageSubject.trim() || !messageBody.trim()}
+                    className="btn-admin-primary text-xs px-4 flex items-center gap-2 disabled:opacity-40"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{actionLoading ? 'Sending…' : 'Send Email'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -2104,6 +2259,22 @@ export default function SubAdminsPage() {
                     <Lock className="w-3.5 h-3.5" />
                     <span>Permissions</span>
                   </button>
+
+                  {detailData.email && (
+                    <button
+                      onClick={() => {
+                        setMessageAdmin(detailData);
+                        setMessageSubject('');
+                        setMessageBody('');
+                        setOpenWhatsApp(false);
+                        setMessageModalError(null);
+                      }}
+                      className="btn-admin-raised text-xs px-3 flex-1 flex items-center justify-center gap-1.5"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-admin-muted" />
+                      <span>Message</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleRevokeSessions(detailData)}

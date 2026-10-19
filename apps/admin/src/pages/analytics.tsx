@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import {
@@ -19,6 +19,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Percent,
+  Search,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import type {
   AdminAnalytics,
@@ -30,6 +33,157 @@ import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, useAdminQuery } from '../components/AdminUI';
 
 type ChartMetric = 'gmv' | 'orders' | 'subscriptions' | 'merchants';
+
+interface FilterOption {
+  id: string;
+  name: string;
+}
+
+function CompactFilterCombobox({
+  icon: Icon,
+  placeholder,
+  value,
+  onChange,
+  options,
+  widthClass = 'w-full sm:w-[240px]',
+  disabled = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  placeholder: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: FilterOption[];
+  widthClass?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((o) => o.id === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options;
+    const term = searchTerm.toLowerCase();
+    return options.filter((o) => o.name.toLowerCase().includes(term));
+  }, [options, searchTerm]);
+
+  return (
+    <div className={`relative ${widthClass}`} ref={wrapperRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+        className={`admin-input text-xs h-9 py-1 px-2.5 w-full flex items-center justify-between cursor-pointer select-none transition-colors ${
+          value ? 'border-admin-accent/60 bg-admin-soft/40' : ''
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <div className="flex items-center gap-1.5 truncate">
+          <Icon className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+          <span className={selectedOption ? 'text-admin-text font-semibold truncate' : 'text-admin-muted truncate'}>
+            {selectedOption ? selectedOption.name : placeholder}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          {value && !disabled && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+                setSearchTerm('');
+              }}
+              className="p-0.5 rounded hover:bg-admin-raised text-admin-muted hover:text-admin-text"
+              title="Clear selection"
+            >
+              <X className="w-3 h-3" />
+            </span>
+          )}
+          <ChevronDown className="w-3 h-3 text-admin-muted" />
+        </div>
+      </button>
+
+      {open && !disabled && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-admin-surface border border-admin-border rounded-xl shadow-2xl z-50 p-2 space-y-1.5 text-xs min-w-[200px]">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-admin-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Search ${placeholder.toLowerCase()}...`}
+              className="admin-input pl-8 pr-2 py-1 text-xs w-full"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-admin-muted hover:text-admin-text"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-52 overflow-y-auto space-y-0.5 admin-scrollbar">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+                setSearchTerm('');
+              }}
+              className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between hover:bg-admin-raised transition-colors ${
+                !value ? 'bg-admin-soft font-semibold text-admin-accent' : 'text-admin-secondary'
+              }`}
+            >
+              <span className="truncate">{placeholder}</span>
+              {!value && <Check className="w-3 h-3 text-admin-accent shrink-0" />}
+            </button>
+            {filteredOptions.length === 0 ? (
+              <div className="px-2 py-3 text-center text-admin-muted text-[11px]">
+                No matching options
+              </div>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSelected = opt.id === value;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.id);
+                      setOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between hover:bg-admin-raised transition-colors ${
+                      isSelected ? 'bg-admin-soft font-semibold text-admin-accent' : 'text-admin-text'
+                    }`}
+                  >
+                    <span className="truncate">{opt.name}</span>
+                    {isSelected && <Check className="w-3 h-3 text-admin-accent shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AnalyticsPage() {
   const [range, setRange] = useState<AdminRange>('30d');
@@ -65,6 +219,25 @@ export default function AnalyticsPage() {
     'admin/analytics',
     queryParams,
   );
+
+  // Filter stores based on selected merchant
+  const availableStores = useMemo(() => {
+    if (!data?.filterOptions?.stores) return [];
+    if (!selectedMerchant) return data.filterOptions.stores;
+    return data.filterOptions.stores.filter((s) => s.tenantId === selectedMerchant);
+  }, [data?.filterOptions?.stores, selectedMerchant]);
+
+  const handleMerchantChange = (merchantId: string) => {
+    setSelectedMerchant(merchantId);
+    if (selectedStore && merchantId) {
+      const storeStillBelongs = data?.filterOptions?.stores?.some(
+        (s) => s.id === selectedStore && s.tenantId === merchantId
+      );
+      if (!storeStillBelongs) {
+        setSelectedStore('');
+      }
+    }
+  };
 
   const handleApplyCustom = () => {
     if (customFrom && customTo) {
@@ -211,70 +384,57 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Compact Filters Bar */}
+        {/* Compact Filters Bar (Single-line toolbar on desktop) */}
         {data?.filterOptions && (
-          <div className="p-3 rounded-xl border border-admin-border/80 bg-admin-surface/60 flex flex-wrap items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 text-admin-muted font-semibold uppercase text-[10px] tracking-wider">
+          <div className="p-2.5 sm:p-3 rounded-xl border border-admin-border/80 bg-admin-surface/70 flex flex-wrap items-center gap-2.5 text-xs">
+            <div className="flex items-center gap-1.5 text-admin-muted font-semibold uppercase text-[10px] tracking-wider shrink-0 pr-1">
               <Filter className="w-3.5 h-3.5" />
               <span>Filters:</span>
             </div>
 
-            {/* Merchant Filter */}
-            <select
+            {/* Merchant Filter: 220–260px */}
+            <CompactFilterCombobox
+              icon={Building2}
+              placeholder="All Merchants"
               value={selectedMerchant}
-              onChange={(e) => setSelectedMerchant(e.target.value)}
-              className="admin-input text-xs py-1"
-              aria-label="Filter by merchant"
-            >
-              <option value="">All Merchants</option>
-              {data.filterOptions.merchants.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleMerchantChange}
+              options={data.filterOptions.merchants}
+              widthClass="w-full sm:w-[240px]"
+            />
 
-            {/* Store Filter */}
-            <select
+            {/* Store Filter: 220–260px (Cascades from Merchant) */}
+            <CompactFilterCombobox
+              icon={Store}
+              placeholder="All Stores"
               value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              className="admin-input text-xs py-1"
-              aria-label="Filter by store"
-            >
-              <option value="">All Stores</option>
-              {data.filterOptions.stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedStore}
+              options={availableStores}
+              widthClass="w-full sm:w-[240px]"
+            />
 
-            {/* Plan Filter */}
-            <select
+            {/* Plan Filter: 180–220px */}
+            <CompactFilterCombobox
+              icon={CreditCard}
+              placeholder="All Plans"
               value={selectedPlan}
-              onChange={(e) => setSelectedPlan(e.target.value)}
-              className="admin-input text-xs py-1"
-              aria-label="Filter by subscription plan"
-            >
-              <option value="">All Plans</option>
-              {data.filterOptions.plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedPlan}
+              options={data.filterOptions.plans}
+              widthClass="w-full sm:w-[200px]"
+            />
 
             {(selectedMerchant || selectedStore || selectedPlan) && (
               <button
+                type="button"
                 onClick={() => {
                   setSelectedMerchant('');
                   setSelectedStore('');
                   setSelectedPlan('');
                 }}
-                className="text-admin-muted hover:text-admin-accent flex items-center gap-1 font-semibold ml-auto"
+                className="text-admin-muted hover:text-admin-accent flex items-center gap-1 font-semibold sm:ml-auto px-2 py-1 rounded hover:bg-admin-raised transition-colors"
+                title="Clear all filters"
               >
                 <X className="w-3 h-3" />
-                <span>Clear filters</span>
+                <span>Clear</span>
               </button>
             )}
           </div>
@@ -418,9 +578,15 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Interactive Chart Area */}
-          {!hasPoints ? (
-            <div className="h-64 flex items-center justify-center text-sm text-admin-muted">
-              No activity in this date range.
+          {!hasPoints || !currentMetricValues.some((v) => (v || 0) > 0) ? (
+            <div className="h-64 flex flex-col items-center justify-center text-sm text-admin-muted border border-dashed border-admin-border/70 rounded-xl bg-admin-raised/20 p-6 text-center space-y-2">
+              <AlertCircle className="w-7 h-7 text-admin-muted/60" />
+              <div className="font-semibold text-admin-text">
+                No {activeMetric === 'gmv' ? 'GMV' : activeMetric.charAt(0).toUpperCase() + activeMetric.slice(1)} recorded for this period
+              </div>
+              <p className="text-xs text-admin-muted max-w-sm">
+                There are zero recorded events in the selected range. Try switching to a broader timeframe (e.g. 90D or 12M) or clearing active filters.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -434,51 +600,65 @@ export default function AnalyticsPage() {
                     {activeMetric === 'merchants' && 'New Merchant Onboardings'}
                   </span>
                   {hoveredIndex !== null && points[hoveredIndex] && (
-                    <span className="font-bold text-admin-accent tabular-nums bg-admin-soft px-2 py-0.5 rounded-md">
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md animate-in fade-in duration-100">
                       {points[hoveredIndex].date}: {formatMetricValue(currentMetricValues[hoveredIndex])}
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-admin-muted font-mono">
-                  Bucketing: {data?.performanceChart?.interval ? (data.performanceChart.interval.charAt(0).toUpperCase() + data.performanceChart.interval.slice(1) + 'ly') : 'Daily'}
-                </span>
+                <div className="flex items-center gap-3 text-[11px] text-admin-muted font-mono">
+                  <span>Peak: {formatMetricValue(maxMetricValue)}</span>
+                  <span>Interval: {data?.performanceChart?.interval ? (data.performanceChart.interval.charAt(0).toUpperCase() + data.performanceChart.interval.slice(1) + 'ly') : 'Daily'}</span>
+                </div>
               </div>
 
-              {/* Responsive SVG Bar/Line Chart */}
-              <div className="h-56 w-full flex items-end gap-1.5 pt-4 pb-2 px-1 overflow-x-auto admin-scrollbar">
-                {points.map((p: AdminAnalyticsPerformanceSeries, idx: number) => {
-                  const val = currentMetricValues[idx];
-                  const heightPercent = Math.max((val / maxMetricValue) * 100, 2);
-                  const isHovered = hoveredIndex === idx;
+              {/* Chart Plot Container with Visible High-Contrast Marks */}
+              <div className="h-60 w-full flex flex-col pt-3 pb-2 px-1 relative">
+                {/* Background scale gridlines */}
+                <div className="absolute inset-x-1 top-3 bottom-7 flex flex-col justify-between pointer-events-none opacity-25">
+                  <div className="border-b border-dashed border-admin-border w-full" />
+                  <div className="border-b border-dashed border-admin-border w-full" />
+                  <div className="border-b border-dashed border-admin-border w-full" />
+                </div>
 
-                  return (
-                    <div
-                      key={p.date}
-                      className="flex-1 min-w-[20px] max-w-[48px] h-full flex flex-col justify-end items-center group cursor-pointer"
-                      onMouseEnter={() => setHoveredIndex(idx)}
-                      onMouseLeave={() => setHoveredIndex(null)}
-                    >
-                      {/* Bar Fill */}
-                      <div className="w-full flex items-end justify-center h-full">
-                        <div
-                          className={`w-full rounded-t-md transition-all duration-150 ${
-                            isHovered
-                              ? 'bg-admin-accent ring-2 ring-admin-accent/40'
-                              : val > 0
-                              ? 'bg-admin-accent/80 hover:bg-admin-accent'
-                              : 'bg-admin-raised/80'
-                          }`}
-                          style={{ height: `${heightPercent}%` }}
-                        />
-                      </div>
+                {/* Bars track */}
+                <div className="flex-1 w-full flex items-end gap-1 sm:gap-1.5 overflow-x-auto admin-scrollbar relative z-10">
+                  {points.map((p: AdminAnalyticsPerformanceSeries, idx: number) => {
+                    const val = currentMetricValues[idx] || 0;
+                    // Ensure non-zero values have minimum visible height (at least 10% of chart height)
+                    const heightPercent = val > 0 ? Math.max(Math.round((val / maxMetricValue) * 100), 10) : 0;
+                    const isHovered = hoveredIndex === idx;
 
-                      {/* X-axis Date Label (truncated) */}
-                      <div className="text-[10px] text-admin-muted truncate w-full text-center mt-1.5 font-mono">
-                        {p.date.slice(5)}
+                    return (
+                      <div
+                        key={p.date}
+                        className="flex-1 min-w-[14px] sm:min-w-[18px] max-w-[48px] h-full flex flex-col justify-end items-center group cursor-pointer"
+                        onMouseEnter={() => setHoveredIndex(idx)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      >
+                        {/* Bar Track & Fill */}
+                        <div className="flex-1 w-full min-h-0 relative flex items-end justify-center">
+                          {val > 0 ? (
+                            <div
+                              className={`w-full rounded-t-sm transition-all duration-150 ${
+                                isHovered
+                                  ? 'bg-emerald-400 dark:bg-emerald-300 ring-2 ring-emerald-400/50 shadow-md'
+                                  : 'bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 shadow-xs border-t border-emerald-400/40'
+                              }`}
+                              style={{ height: `${heightPercent}%` }}
+                            />
+                          ) : (
+                            <div className="w-full h-0.5 bg-admin-border/50 rounded-full" />
+                          )}
+                        </div>
+
+                        {/* X-axis Date Label (truncated) */}
+                        <div className="text-[10px] text-admin-muted truncate w-full text-center mt-1.5 font-mono select-none">
+                          {p.date.slice(5)}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

@@ -1123,14 +1123,44 @@ export class AdminDataService {
 
     // Build unified series for Platform Performance chart
     const dateMap = new Map<string, any>();
+    if (from && endCutoff) {
+      const cur = new Date(from);
+      cur.setHours(0, 0, 0, 0);
+      const end = new Date(endCutoff);
+      let iterations = 0;
+      while (cur <= end && iterations < 370) {
+        iterations++;
+        const y = cur.getFullYear();
+        const m = String(cur.getMonth() + 1).padStart(2, '0');
+        const d = String(cur.getDate()).padStart(2, '0');
+        const dStr = interval === 'month' ? `${y}-${m}` : `${y}-${m}-${d}`;
+        if (!dateMap.has(dStr)) {
+          dateMap.set(dStr, {
+            date: dStr,
+            gmvPaise: 0,
+            ordersCount: 0,
+            subscriptionRevenuePaise: 0,
+            merchantsCount: 0,
+          });
+        }
+        if (interval === 'month') {
+          cur.setMonth(cur.getMonth() + 1);
+        } else {
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    }
     for (const r of rawOrderTrends) {
-      dateMap.set(r.date, {
+      const existing = dateMap.get(r.date) || {
         date: r.date,
-        gmvPaise: Math.round(r.gmvPaise || 0),
-        ordersCount: r.count || 0,
+        gmvPaise: 0,
+        ordersCount: 0,
         subscriptionRevenuePaise: 0,
         merchantsCount: 0,
-      });
+      };
+      existing.gmvPaise = Math.round(r.gmvPaise || 0);
+      existing.ordersCount = r.count || 0;
+      dateMap.set(r.date, existing);
     }
     for (const r of rawSubTrends) {
       const existing = dateMap.get(r.date) || {
