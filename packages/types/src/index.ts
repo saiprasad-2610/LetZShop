@@ -43,6 +43,15 @@ export enum SubscriptionStatus {
   EXPIRED = 'EXPIRED',
 }
 
+export interface PlanHighlight {
+  id: string;
+  planId: string;
+  text: string;
+  sortOrder: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export enum ProductMode {
   SELL_ONLINE = 'SELL_ONLINE',
   ENQUIRY_ONLY = 'ENQUIRY_ONLY',
@@ -60,6 +69,38 @@ export enum VariantStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
   DISCONTINUED = 'DISCONTINUED',
+}
+
+export enum BusinessType {
+  SOLE_PROPRIETORSHIP = 'SOLE_PROPRIETORSHIP',
+  PARTNERSHIP = 'PARTNERSHIP',
+  LLP = 'LLP',
+  PRIVATE_LIMITED = 'PRIVATE_LIMITED',
+  PUBLIC_LIMITED = 'PUBLIC_LIMITED',
+  OTHER = 'OTHER',
+}
+
+export enum BusinessVerificationStatus {
+  INCOMPLETE = 'INCOMPLETE',
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  VERIFIED = 'VERIFIED',
+  NEEDS_CHANGES = 'NEEDS_CHANGES',
+}
+
+export enum MerchantDocumentType {
+  PAN = 'PAN',
+  BUSINESS_REGISTRATION = 'BUSINESS_REGISTRATION',
+  OWNER_ID = 'OWNER_ID',
+  UDYAM = 'UDYAM',
+  GST_CERTIFICATE = 'GST_CERTIFICATE',
+  OTHER = 'OTHER',
+}
+
+export enum MerchantDocumentStatus {
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+  REUPLOAD_REQUIRED = 'REUPLOAD_REQUIRED',
 }
 
 export enum OptionType {
@@ -216,6 +257,34 @@ export enum ShippingProviderType {
   SHIPROCKET = 'SHIPROCKET',
 }
 
+export enum AdminPermission {
+  DASHBOARD_VIEW = 'DASHBOARD_VIEW',
+  MERCHANTS_VIEW = 'MERCHANTS_VIEW',
+  MERCHANTS_CONTACT = 'MERCHANTS_CONTACT',
+  MERCHANTS_SUSPEND = 'MERCHANTS_SUSPEND',
+  REVIEWS_VIEW = 'REVIEWS_VIEW',
+  REVIEWS_MODERATE = 'REVIEWS_MODERATE',
+  SUBSCRIPTIONS_VIEW = 'SUBSCRIPTIONS_VIEW',
+  SUBSCRIPTIONS_MANAGE = 'SUBSCRIPTIONS_MANAGE',
+  PAYMENTS_VIEW = 'PAYMENTS_VIEW',
+  PAYMENTS_RECONCILE = 'PAYMENTS_RECONCILE',
+  USERS_VIEW = 'USERS_VIEW',
+  USERS_MANAGE = 'USERS_MANAGE',
+  VERIFICATION_VIEW = 'VERIFICATION_VIEW',
+  VERIFICATION_APPROVE = 'VERIFICATION_APPROVE',
+  BUSINESS_VERIFICATION_VIEW = 'BUSINESS_VERIFICATION_VIEW',
+  BUSINESS_VERIFICATION_APPROVE = 'BUSINESS_VERIFICATION_APPROVE',
+  SETTINGS_VIEW = 'SETTINGS_VIEW',
+  SETTINGS_MANAGE = 'SETTINGS_MANAGE',
+  AUDIT_LOGS_VIEW = 'AUDIT_LOGS_VIEW',
+  SUB_ADMINS_MANAGE = 'SUB_ADMINS_MANAGE',
+  THEMES_VIEW = 'THEMES_VIEW',
+  THEMES_MANAGE = 'THEMES_MANAGE',
+  ANALYTICS_VIEW = 'ANALYTICS_VIEW',
+  ORDERS_VIEW = 'ORDERS_VIEW',
+  ORDERS_MANAGE = 'ORDERS_MANAGE',
+}
+
 // ==============================================================================
 // Common Interfaces
 // ==============================================================================
@@ -224,11 +293,16 @@ export interface AuthenticatedUser {
   userId: string;
   phone: string;
   email?: string | null;
+  fullName?: string | null;
   role: UserRole;
   tenantId?: string | null;
   storeId?: string | null;
   sessionId?: string;
   isPlatformAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  adminPermissions?: string[];
+  mustChangePassword?: boolean;
+  isDeactivated?: boolean;
   preferredLocale?: string;
 }
 

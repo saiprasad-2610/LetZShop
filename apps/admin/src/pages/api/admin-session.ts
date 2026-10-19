@@ -51,7 +51,7 @@ export default async function handler(
     if (!token) return res.status(401).json({ message: 'Please log in.' });
     const response = await backend('admin/session', token);
     const json = await response.json();
-    if ([401, 403].includes(response.status))
+    if (response.status === 401)
       res.setHeader('Set-Cookie', sessionCookie('', 0));
     return res.status(response.status).json(json.data || json);
   } catch {

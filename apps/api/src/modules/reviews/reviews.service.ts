@@ -314,11 +314,27 @@ export class ReviewsService {
    */
   async getAdminReviews(query: Parameters<ReviewModerationService['getReviews']>[0]) { return this.moderation.getReviews(query); }
 
+  async getAdminReviewSummary() { return this.moderation.getSummary(); }
+
   async getAdminReviewFilters() { return this.moderation.getFilters(); }
 
-  async moderateReview(reviewId:string,moderator:{userId:string;fullName:string},action:'REMOVE'|'RESTORE',reason?:string) { return this.moderation.moderate(reviewId,moderator.userId,action,reason); }
+  async getAdminReviewTimeline(reviewId: string) { return this.moderation.getReviewTimeline(reviewId); }
 
-  async updateReviewReport(reportId:string,actorId:string,status:'UNDER_REVIEW'|'DISMISSED',note?:string) { return this.moderation.updateReport(reportId,actorId,status,note); }
+  async moderateReview(
+    reviewId: string,
+    moderator: { userId: string; fullName: string },
+    action: 'REMOVE' | 'RESTORE',
+    reason?: string,
+    opts?: import('./review-moderation.service').ModerateReviewOptions,
+  ) {
+    return this.moderation.moderate(reviewId, moderator.userId, action, reason, opts);
+  }
+
+  async updateReviewReport(reportId: string, actorId: string, status: 'UNDER_REVIEW' | 'DISMISSED', note?: string) { return this.moderation.updateReport(reportId, actorId, status, note); }
+
+  async recordWhatsAppOpened(reviewId: string, actorId: string, recipientType: 'MERCHANT' | 'BUYER', phone?: string) {
+    return this.moderation.recordWhatsAppOpened(reviewId, actorId, recipientType, phone);
+  }
 
   /**
    * Seller Portal: View reviews for their store's products with filtering, search, metrics, and pagination.
@@ -609,27 +625,44 @@ export class ReviewsService {
       `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
     );
 
-    // Send moderation request email to letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and admin
+    // Check platform setting for notifyAdminOnReviewReport
+    let shouldNotifyAdmin = true;
     try {
-      await this.mailService.sendReviewReportModerationEmail({
-        storeName: review.store.name,
-        storeId: review.store.id,
-        productName: review.product.name,
-        productId: review.productId,
-        orderNumber: review.order.orderNumber,
-        reviewId: review.id,
-        reviewerName: review.reviewerName,
-        rating: review.rating,
-        title: review.title,
-        body: review.body,
-        reason,
-        details,
-        merchantIdentifier: user?.phone || user?.userId || 'Merchant',
+      const notifSetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'notifications' },
       });
-    } catch (mailErr: any) {
-      this.logger.error(
-        `Failed to send review report moderation email for review ${reviewId}: ${mailErr?.message || mailErr}`
-      );
+      if (notifSetting?.value && typeof notifSetting.value === 'object') {
+        shouldNotifyAdmin = (notifSetting.value as any).notifyAdminOnReviewReport ?? true;
+      }
+    } catch {
+      // Default to true if setting query fails
+    }
+
+    if (shouldNotifyAdmin) {
+      // Send moderation request email to letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and admin
+      try {
+        await this.mailService.sendReviewReportModerationEmail({
+          storeName: review.store.name,
+          storeId: review.store.id,
+          productName: review.product.name,
+          productId: review.productId,
+          orderNumber: review.order.orderNumber,
+          reviewId: review.id,
+          reviewerName: review.reviewerName,
+          rating: review.rating,
+          title: review.title,
+          body: review.body,
+          reason,
+          details,
+          merchantIdentifier: user?.phone || user?.userId || 'Merchant',
+        });
+      } catch (mailErr: any) {
+        this.logger.error(
+          `Failed to send review report moderation email for review ${reviewId}: ${mailErr?.message || mailErr}`
+        );
+      }
+    } else {
+      this.logger.log(`[NOTIFICATIONS] notifyAdminOnReviewReport disabled; email alert skipped for review ${reviewId}`);
     }
 
     return {

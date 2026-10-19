@@ -75,6 +75,23 @@ export class CatalogService {
       throw new BadRequestException('A maximum of 3 images is allowed per product.');
     }
 
+    // Enforce subscription plan maxProducts limit if defined
+    const activeSub = await this.prisma.subscription.findFirst({
+      where: { tenantId: tenant.tenantId, status: { in: ['ACTIVE', 'TRIALING'] } },
+      orderBy: { createdAt: 'desc' },
+      include: { plan: true },
+    });
+    if (activeSub?.plan?.maxProducts && activeSub.plan.maxProducts > 0) {
+      const currentProductCount = await this.prisma.product.count({
+        where: { tenantId: tenant.tenantId, deletedAt: null },
+      });
+      if (currentProductCount >= activeSub.plan.maxProducts) {
+        throw new BadRequestException(
+          `Product limit reached. Your ${activeSub.plan.name} plan allows up to ${activeSub.plan.maxProducts} products. Please upgrade your plan to add more products.`,
+        );
+      }
+    }
+
     // Derive unique slug within store
     let baseSlug = normalizeSlug(dto.slug || dto.name);
     if (!baseSlug) baseSlug = 'product';

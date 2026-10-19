@@ -2,6 +2,8 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Logger,
@@ -175,6 +177,17 @@ export class AuthService {
       include: { credentials: true },
     });
 
+    if (existingUser && (!existingUser.isActive || existingUser.deletedAt)) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const isNewUser = !existingUser || !existingUser.credentials.some(c => c.credentialType === CredentialType.PIN);
 
     // Issue ephemeral verification token (valid for 15 minutes)
@@ -248,6 +261,17 @@ export class AuthService {
         },
       },
     });
+
+    if (user && (!user.isActive || user.deletedAt)) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
 
     if (!user) {
       user = await this.prisma.user.create({
@@ -403,6 +427,17 @@ export class AuthService {
       throw new UnauthorizedException('No account found for this mobile number. Please register first.');
     }
 
+    if (!user.isActive || user.deletedAt) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const pinCredential = user.credentials[0];
     if (!pinCredential || !pinCredential.pinHash) {
       throw new UnauthorizedException('PIN is not configured for this account. Please verify via OTP and set up your PIN.');
@@ -547,11 +582,53 @@ export class AuthService {
     });
 
     if (!admin) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: cleanEmail,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            identifier: rawId,
+            reason: 'User not found or not an administrator',
+            result: 'FAILED',
+            module: 'Authentication',
+          },
+        },
+      });
       throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
 
-    if (!admin.isActive) {
-      throw new UnauthorizedException('Administrator account has been deactivated.');
+    if (!admin.isActive || (admin as any).isDeactivated) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: admin.id,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            email: admin.email,
+            reason: (admin as any).isDeactivated ? 'Administrator account deactivated' : 'Administrator account suspended',
+            result: 'DENIED',
+            module: 'Authentication',
+          },
+        },
+      });
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: (admin as any).isDeactivated ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_SUSPENDED',
+          message: (admin as any).isDeactivated
+            ? 'Administrator account has been permanently deactivated.'
+            : 'Administrator account has been suspended.',
+        },
+        HttpStatus.FORBIDDEN
+      );
     }
 
     // Verify secret
@@ -563,25 +640,76 @@ export class AuthService {
 
     if (!isValid) {
       if (pinCred) {
+        const securitySetting = await this.prisma.platformSetting.findUnique({
+          where: { key: 'security' },
+        });
+        const maxAttempts = Number((securitySetting?.value as any)?.maxFailedLoginAttempts ?? 5);
         const failed = await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { failedPinAttempts: { increment: 1 } } });
-        if (failed.failedPinAttempts >= 5) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
+        if (failed.failedPinAttempts >= maxAttempts) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
       }
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: admin.id,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            email: admin.email,
+            reason: 'Incorrect password',
+            result: 'FAILED',
+            module: 'Authentication',
+          },
+        },
+      });
       throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
     await this.prisma.sellerCredential.update({ where: { id: pinCred!.id }, data: { failedPinAttempts: 0, lockedUntil: null } });
 
+    // Update lastLoginAt
+    await this.prisma.user.update({
+      where: { id: admin.id },
+      data: { lastLoginAt: new Date() } as any,
+    });
+
     const tokens = await this.createSessionAndIssueTokens(admin, undefined, undefined, userAgent, ipAddress);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: admin.id,
+        actorType: 'ADMIN',
+        action: 'ADMIN_LOGIN',
+        entityType: 'User',
+        entityId: admin.id,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        metadata: {
+          email: admin.email,
+          fullName: admin.fullName,
+          role: admin.isSuperAdmin ? 'SUPER_ADMIN' : 'SUB_ADMIN',
+          result: 'SUCCESS',
+          module: 'Authentication',
+        },
+      },
+    });
 
     return {
       user: {
         userId: admin.id,
         phone: admin.phone,
         email: admin.email,
+        fullName: admin.fullName || undefined,
         role: admin.role as any,
         tenantId: null,
         storeId: null,
         sessionId: tokens.sessionId,
         isPlatformAdmin: true,
+        isSuperAdmin: admin.isSuperAdmin,
+        adminPermissions: Array.isArray(admin.adminPermissions) ? (admin.adminPermissions as string[]) : [],
+        mustChangePassword: Boolean((admin as any).mustChangePassword),
+        isDeactivated: Boolean((admin as any).isDeactivated),
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -593,6 +721,92 @@ export class AuthService {
       },
     };
   }
+
+  public async changeAdminPassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string },
+    userAgent?: string,
+    ipAddress?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { credentials: true },
+    });
+    if (!user || user.deletedAt) {
+      throw new NotFoundException('Administrator account not found.');
+    }
+    if (!user.isActive || (user as any).isDeactivated) {
+      throw new ForbiddenException('Administrator account is not active.');
+    }
+
+    const newPass = (dto.newPassword || '').trim();
+    if (newPass.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters long.');
+    }
+    if (!/[A-Za-z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+      throw new BadRequestException('Password must contain both letters and numbers.');
+    }
+
+    const pinCred = user.credentials?.find((c) => c.credentialType === CredentialType.PIN);
+    if (dto.currentPassword && pinCred?.pinHash) {
+      const isCurrentValid = this.verifyPin(dto.currentPassword, pinCred.pinHash);
+      if (!isCurrentValid) {
+        throw new BadRequestException('Current password does not match.');
+      }
+    }
+
+    const newPinHash = this.hashPin(newPass);
+
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash: newPinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash: newPinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        mustChangePassword: false,
+      } as any,
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorType: 'ADMIN',
+        action: 'ADMIN_PASSWORD_CHANGED',
+        entityType: 'User',
+        entityId: user.id,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        metadata: {
+          email: user.email,
+          module: 'Security',
+          result: 'SUCCESS',
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully. You may continue to the admin dashboard.',
+    };
+  }
+
 
   // ============================================================================
   // SESSION & TOKEN HELPERS
@@ -608,7 +822,14 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
     const sessionToken = crypto.randomBytes(32).toString('hex');
     const sessionHash = this.hashCode(sessionToken);
-    const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    let sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default for merchants/buyers
+    if (user.role === 'PLATFORM_ADMIN' || user.isSuperAdmin) {
+      const securitySetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'security' },
+      });
+      const timeoutMinutes = Number((securitySetting?.value as any)?.adminSessionTimeoutMinutes ?? 60);
+      sessionExpiry = new Date(Date.now() + timeoutMinutes * 60 * 1000);
+    }
 
     const session = await this.prisma.session.create({
       data: {
@@ -842,6 +1063,17 @@ export class AuthService {
       throw new UnauthorizedException('Underlying session has been revoked. Please log in again.');
     }
 
+    if (!tokenRecord.user.isActive || tokenRecord.user.deletedAt) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact LetzShop Support.',
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const newRefreshTokenPlain = crypto.randomBytes(40).toString('hex');
     const newRefreshHash = this.hashCode(newRefreshTokenPlain);
     const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -956,23 +1188,188 @@ export class AuthService {
         throw new UnauthorizedException('Session is no longer valid or has been revoked.');
       }
 
-      if (session.userId !== payload.sub || !session.user.isActive || session.user.deletedAt) {
-        throw new UnauthorizedException('Account is no longer active.');
+      if (
+        session.userId !== payload.sub ||
+        !session.user.isActive ||
+        (session.user as any).isDeactivated ||
+        session.user.deletedAt
+      ) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            code: (session.user as any).isDeactivated ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_SUSPENDED',
+            message: (session.user as any).isDeactivated
+              ? 'Administrator account has been permanently deactivated.'
+              : 'Your account has been suspended. Please contact LetzShop Support.',
+          },
+          HttpStatus.FORBIDDEN
+        );
       }
       const isPlatformAdmin = session.user.isSuperAdmin || session.user.role === UserRole.PLATFORM_ADMIN;
 
       return {
         userId: payload.sub,
         phone: payload.phone,
+        email: session.user.email || undefined,
+        fullName: session.user.fullName || undefined,
         role: payload.role === UserRole.PLATFORM_ADMIN && !isPlatformAdmin ? session.user.role : payload.role,
         tenantId: payload.tenantId,
         storeId: payload.storeId,
         sessionId: payload.sessionId,
         isPlatformAdmin,
+        isSuperAdmin: session.user.isSuperAdmin,
+        adminPermissions: Array.isArray(session.user.adminPermissions)
+          ? (session.user.adminPermissions as string[])
+          : [],
+        mustChangePassword: Boolean((session.user as any).mustChangePassword),
+        isDeactivated: Boolean((session.user as any).isDeactivated),
       };
     } catch (err: any) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
       throw new UnauthorizedException(err.message || 'Invalid authentication token.');
     }
+  }
+
+  public async activateSubAdmin(
+    data: { token: string; pin: string; fullName?: string; phone?: string },
+    userAgent?: string,
+    ipAddress?: string
+  ): Promise<{
+    user: AuthenticatedUser;
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  }> {
+    if (!data.token?.trim()) {
+      throw new BadRequestException('Activation token is required.');
+    }
+    if (!/^\d{6}$/.test(data.pin)) {
+      throw new BadRequestException('PIN must be exactly 6 numeric digits.');
+    }
+
+    const tokenHash = this.hashCode(data.token.trim());
+    const invite = await this.prisma.adminInvite.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid activation link.');
+    }
+    if (invite.acceptedAt) {
+      throw new BadRequestException('This invitation has already been accepted. Please log in.');
+    }
+    if (invite.expiresAt < new Date()) {
+      throw new BadRequestException('This invitation has expired. Please request a new invite.');
+    }
+
+    const pinHash = this.hashPin(data.pin);
+
+    // Check if user with this email or phone exists
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: invite.email, mode: 'insensitive' } },
+          ...(invite.phone ? [{ phone: invite.phone }] : []),
+          ...(data.phone ? [{ phone: data.phone }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
+
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: invite.permissions as any,
+          fullName: data.fullName?.trim() || invite.fullName || user.fullName,
+        },
+      });
+    } else {
+      const userPhone = data.phone?.trim() || invite.phone || `+9199${Math.floor(10000000 + Math.random() * 90000000)}`;
+      user = await this.prisma.user.create({
+        data: {
+          email: invite.email.toLowerCase().trim(),
+          phone: userPhone,
+          fullName: data.fullName?.trim() || invite.fullName,
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: invite.permissions as any,
+        },
+      });
+    }
+
+    // Set credential PIN
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    // Mark invite as accepted
+    await this.prisma.adminInvite.update({
+      where: { id: invite.id },
+      data: { acceptedAt: new Date() },
+    });
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: 'SUB_ADMIN_ACTIVATED',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: {
+          email: user.email,
+          inviteId: invite.id,
+        },
+      },
+    });
+
+    const tokens = await this.createSessionAndIssueTokens(user, undefined, undefined, userAgent, ipAddress);
+
+    return {
+      user: {
+        userId: user.id,
+        phone: user.phone,
+        email: user.email,
+        role: user.role as any,
+        tenantId: null,
+        storeId: null,
+        sessionId: tokens.sessionId,
+        isPlatformAdmin: true,
+        isSuperAdmin: false,
+        adminPermissions: Array.isArray(user.adminPermissions) ? (user.adminPermissions as string[]) : [],
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: 900,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: 900,
+      },
+    };
   }
 
   // ============================================================================

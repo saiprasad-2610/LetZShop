@@ -92,3 +92,50 @@ select {
     @apply hover:bg-admin-raised;
   }
 }
+
+/* Subtle, accessible internal scrollbars for Admin tables & cards */
+.admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+
+[data-admin-theme='dark'] .admin-scrollbar {
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+.admin-scrollbar:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+[data-admin-theme='dark'] .admin-scrollbar:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+  transition: background-color 0.15s ease-in-out;
+}
+
+[data-admin-theme='dark'] .admin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.2);
+}
+
+.admin-scrollbar:hover::-webkit-scrollbar-thumb,
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.5);
+}
+
+[data-admin-theme='dark'] .admin-scrollbar:hover::-webkit-scrollbar-thumb,
+[data-admin-theme='dark'] .admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.4);
+}

@@ -12,15 +12,36 @@ export default async function handler(
 ) {
   res.setHeader('Cache-Control', 'no-store');
   if (!allowMutation(req, res)) return;
-  const token = req.cookies[ADMIN_COOKIE];
-  if (!token) return res.status(401).json({ message: 'Please log in.' });
-  const parts = req.query.path as string[];
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  const token = req.cookies[ADMIN_COOKIE] || bearerToken;
+  let parts = req.query.path as string[];
+
+  // Support backward compatibility if frontend calls auth/admin/change-password
   if (
-    !parts?.length ||
-    parts[0] !== 'admin' ||
-    parts.some((p) => !p || p === '.' || p === '..' || /[\\/]/.test(p))
-  )
-    return res.status(404).end();
+    parts?.length === 3 &&
+    parts[0] === 'auth' &&
+    parts[1] === 'admin' &&
+    parts[2] === 'change-password'
+  ) {
+    parts = ['admin', 'change-password'];
+  }
+
+  const isPublicAuth =
+    parts?.length === 3 &&
+    parts[0] === 'auth' &&
+    parts[1] === 'admin' &&
+    parts[2] === 'activate';
+
+  if (!isPublicAuth) {
+    if (!token) return res.status(401).json({ message: 'Please log in.' });
+    if (
+      !parts?.length ||
+      parts[0] !== 'admin' ||
+      parts.some((p) => !p || p === '.' || p === '..' || /[\\/]/.test(p))
+    )
+      return res.status(404).end();
+  }
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(req.query))
     if (key !== 'path' && typeof value === 'string') query.set(key, value);
@@ -36,9 +57,36 @@ export default async function handler(
           : JSON.stringify(req.body),
       },
     );
-    if ([401, 403].includes(response.status))
+    if (response.status === 401)
       res.setHeader('Set-Cookie', sessionCookie('', 0));
-    return res.status(response.status).json(await response.json());
+
+    const contentType = response.headers.get('content-type') || '';
+    const isBinary =
+      contentType.includes('application/pdf') ||
+      contentType.startsWith('image/') ||
+      contentType.includes('application/octet-stream');
+
+    if (isBinary) {
+      res.setHeader('Content-Type', contentType);
+      const disposition = response.headers.get('content-disposition');
+      if (disposition) res.setHeader('Content-Disposition', disposition);
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      const etag = response.headers.get('etag');
+      if (etag) res.setHeader('ETag', etag);
+      res.setHeader('Cache-Control', 'private, no-store');
+
+      const arrayBuffer = await response.arrayBuffer();
+      return res.status(response.status).send(Buffer.from(arrayBuffer));
+    }
+
+    if (contentType.includes('application/json')) {
+      return res.status(response.status).json(await response.json());
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    if (contentType) res.setHeader('Content-Type', contentType);
+    return res.status(response.status).send(Buffer.from(arrayBuffer));
   } catch {
     return res
       .status(503)

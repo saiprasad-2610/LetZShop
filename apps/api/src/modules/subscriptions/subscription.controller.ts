@@ -11,7 +11,9 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  Res,
 } from '@nestjs/common';
+import { generateInvoicePdfBuffer } from '../admin/invoice-pdf.util';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -43,6 +45,87 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Get subscription status for current authenticated merchant' })
   async getCurrentSubscription(@CurrentTenant() tenant: TenantContext) {
     return this.subscriptionService.getTenantSubscription(tenant.tenantId);
+  }
+
+  @UseGuards(TenantGuard)
+  @Get('invoices/:id/pdf')
+  @ApiOperation({ summary: 'Download merchant own subscription invoice PDF' })
+  async getInvoicePdf(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string,
+    @Res() res: any
+  ) {
+    const invoice = await this.prisma.subscriptionInvoice.findFirst({
+      where: { id, tenantId: tenant.tenantId },
+      include: {
+        tenant: {
+          include: {
+            memberships: {
+              where: { role: 'SELLER_OWNER', isActive: true },
+              include: { user: true },
+            },
+            stores: { where: { deletedAt: null }, take: 1 },
+          },
+        },
+        subscription: { include: { plan: true } },
+        payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+
+    if (!invoice) throw new NotFoundException('Invoice not found.');
+
+    const owner = invoice.tenant.memberships[0]?.user;
+    const store = invoice.tenant.stores[0];
+    const payment = invoice.payments[0];
+
+    const formatDate = (d: Date | string | null | undefined) => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    };
+
+    const formatDateTime = (d: Date | string | null | undefined) => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const amountInRupees = (invoice.amountPaise / 100).toFixed(2);
+    const startStr = formatDate(invoice.subscription?.currentPeriodStart);
+    const endStr = formatDate(invoice.subscription?.currentPeriodEnd);
+
+    const pdf = generateInvoicePdfBuffer({
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      tenantName: invoice.tenant.name,
+      tenantSlug: store?.slug || invoice.tenant.slug,
+      ownerName: owner?.fullName || 'Merchant Seller',
+      ownerPhone: owner?.phone || store?.supportPhone || store?.whatsappNumber || 'Not provided',
+      ownerEmail: owner?.email || store?.supportEmail || 'Not provided',
+      invoiceDate: formatDate(invoice.createdAt),
+      billingPeriod: `${startStr} – ${endStr}`,
+      billingPeriodShort: `${startStr} – ${endStr}`,
+      currency: invoice.currency || 'INR',
+      paymentMethod: payment?.paymentMethod || 'RAZORPAY',
+      paymentReference: payment?.providerPaymentId || 'N/A',
+      paidAtDate: formatDateTime(invoice.paidAt || payment?.createdAt),
+      paymentStatus: payment?.status || invoice.status,
+      planName: invoice.subscription?.plan?.name || 'Launch',
+      formattedAmount: `INR ${amountInRupees}`,
+    });
+
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', `inline; filename="invoice-${id}.pdf"`);
+    res.header('Cache-Control', 'no-store');
+    return res.send(pdf);
   }
 
   @UseGuards(TenantGuard)

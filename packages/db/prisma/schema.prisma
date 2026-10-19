@@ -236,6 +236,11 @@ model User {
   isSuperAdmin   Boolean            @default(false)
   isActive       Boolean            @default(true)
   preferredLocale String            @default("en-IN") @map("preferred_locale")
+  adminPermissions Json?            @default("[]") @map("admin_permissions")
+  mustChangePassword Boolean        @default(false) @map("must_change_password")
+  isDeactivated  Boolean            @default(false) @map("is_deactivated")
+  activatedAt    DateTime?          @map("activated_at")
+  lastLoginAt    DateTime?          @map("last_login_at")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   deletedAt      DateTime?          @map("deleted_at")
@@ -383,7 +388,14 @@ model Tenant {
   enquiries             Enquiry[]
   auditLogs             AuditLog[]
   dataSubjectRequests   DataSubjectRequest[]
-  mediaAssets           MediaAsset[]
+  mediaAssets               MediaAsset[]
+  businessType              String?                 @map("business_type") // SOLE_PROPRIETORSHIP, PARTNERSHIP, LLP, PRIVATE_LIMITED, PUBLIC_LIMITED, OTHER
+  gstRegistered             Boolean?                @default(false) @map("gst_registered")
+  gstin                     String?
+  panNumber                 String?                 @map("pan_number")
+  udyamNumber               String?                 @map("udyam_number")
+  businessVerificationStatus String                 @default("INCOMPLETE") @map("business_verification_status") // INCOMPLETE, PENDING_REVIEW, VERIFIED, NEEDS_CHANGES
+  documents                 MerchantDocument[]
 
   @@map("tenants")
 }
@@ -624,8 +636,23 @@ model Plan {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   subscriptions Subscription[]
+  highlights    PlanHighlight[]
 
   @@map("plans")
+}
+
+model PlanHighlight {
+  id        String   @id @default(uuid())
+  planId    String   @map("plan_id")
+  text      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, sortOrder])
+  @@map("plan_highlights")
 }
 
 model Subscription {
@@ -1564,4 +1591,79 @@ model ReviewReport {
   @@index([status, createdAt])
   // The migration adds a partial unique index allowing only one open report per review.
   @@map("review_reports")
+}
+
+// ==============================================================================
+// BUSINESS VERIFICATION & MERCHANT DOCUMENTS
+// ==============================================================================
+
+enum MerchantDocumentType {
+  PAN
+  BUSINESS_REGISTRATION
+  OWNER_ID
+  UDYAM
+  GST_CERTIFICATE
+  OTHER
+}
+
+enum MerchantDocumentStatus {
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  REUPLOAD_REQUIRED
+}
+
+model MerchantDocument {
+  id                   String                 @id @default(uuid())
+  tenantId             String                 @map("tenant_id")
+  type                 MerchantDocumentType
+  documentNumberMasked String?                @map("document_number_masked")
+  storageKey           String                 @map("storage_key")
+  originalFilename     String                 @map("original_filename")
+  mimeType             String                 @map("mime_type")
+  fileSizeBytes        Int                    @map("file_size_bytes")
+  status               MerchantDocumentStatus @default(PENDING_REVIEW)
+  isCurrent            Boolean                @default(true) @map("is_current")
+  rejectionReason      String?                @map("rejection_reason")
+  adminNote            String?                @map("admin_note")
+  uploadedAt           DateTime               @default(now()) @map("uploaded_at")
+  reviewedAt           DateTime?              @map("reviewed_at")
+  reviewedById         String?                @map("reviewed_by_id")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@map("merchant_documents")
+}
+
+// ==============================================================================
+// PLATFORM SETTINGS & SUB ADMIN INVITES
+// ==============================================================================
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  category    String   @default("general")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by_id")
+
+  @@map("platform_settings")
+}
+
+model AdminInvite {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  fullName    String    @map("full_name")
+  phone       String?
+  tokenHash   String    @unique @map("token_hash")
+  permissions Json      @default("[]")
+  invitedById String    @map("invited_by_id")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("admin_invites")
 }

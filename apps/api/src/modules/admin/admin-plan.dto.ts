@@ -9,6 +9,7 @@ import {
   Max,
   Min,
   Matches,
+  IsArray,
 } from 'class-validator';
 
 export class CreateAdminPlanDto {
@@ -26,5 +27,6 @@ export class CreateAdminPlanDto {
   @IsOptional() @IsInt() @Min(0) @Max(2147483647) maxStorageMb?: number;
   @IsOptional() @IsBoolean() customDomainAllowed?: boolean;
   @IsOptional() @IsBoolean() isPublic?: boolean;
+  @IsOptional() @IsArray() highlights?: any[];
 }
 export class UpdateAdminPlanDto extends PartialType(CreateAdminPlanDto) {}

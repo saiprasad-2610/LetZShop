@@ -1,11 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { PrismaClient, StoreStatus, SubscriptionStatus, Store, Subscription } from '@prisma/client';
 import {
+  DomainException,
   StoreNotFoundException,
   StoreNotLiveException,
+  StoreSuspendedException,
   StoreSubscriptionRequiredException,
   StoreSubscriptionExpiredException,
 } from '../../common/exceptions/domain.exceptions';
+import { ErrorCode } from '@simply/api-contracts';
 import { AuthenticatedUser } from '@simply/types';
 
 export interface StoreVisibilityResult {
@@ -52,28 +55,31 @@ export class SubscriptionVisibilityService {
       throw new StoreNotFoundException(`Store "${storeSlugOrId}" not found.`);
     }
 
-    if (store.status === StoreStatus.SUSPENDED) {
-      throw new StoreNotLiveException('This store has been suspended by platform administration.');
+    if (store.status === StoreStatus.SUSPENDED || store.tenant.status === 'SUSPENDED') {
+      throw new StoreSuspendedException('This service has been suspended by platform administration.');
     }
 
-    if (store.status === StoreStatus.ARCHIVED) {
+    if (store.status === StoreStatus.ARCHIVED || store.tenant.status === 'ARCHIVED') {
       throw new StoreNotLiveException('This store has been archived.');
     }
 
     const latestSubscription = store.tenant.subscriptions[0] || null;
 
-    // Check 1: Private Seller Preview
-    // A merchant is allowed to preview their store inside Seller PWA or with preview secret WITHOUT paying
-    const isOwner =
+    // Check 1: Private Seller / Admin Preview
+    // A merchant owner or platform admin is allowed to preview their store, or with matching previewSecret UUID
+    const isOwnerOrAdmin = Boolean(
       options?.authenticatedUser &&
       (options.authenticatedUser.isPlatformAdmin ||
-        options.authenticatedUser.tenantId === store.tenantId);
+        options.authenticatedUser.tenantId === store.tenantId)
+    );
 
-    const isSecretMatch =
+    const isSecretMatch = Boolean(
       options?.previewSecret &&
-      (options.previewSecret === store.previewSecret || options.previewSecret === 'true');
+      store.previewSecret &&
+      options.previewSecret === store.previewSecret
+    );
 
-    if (isOwner || isSecretMatch) {
+    if (isOwnerOrAdmin || isSecretMatch) {
       return {
         store,
         subscription: latestSubscription,
@@ -105,8 +111,22 @@ export class SubscriptionVisibilityService {
       );
     }
 
-    // Check period end expiry
-    if (now > latestSubscription.currentPeriodEnd) {
+    // Check period end expiry with grace period from platform settings
+    let gracePeriodMs = 0;
+    try {
+      const commerceSetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'commerce' },
+      });
+      const graceDays = Number((commerceSetting?.value as any)?.subscriptionGracePeriodDays ?? 0);
+      if (graceDays > 0) {
+        gracePeriodMs = graceDays * 24 * 60 * 60 * 1000;
+      }
+    } catch {
+      // Fallback: gracePeriodMs stays 0
+    }
+
+    const effectiveEnd = new Date(latestSubscription.currentPeriodEnd.getTime() + gracePeriodMs);
+    if (now > effectiveEnd) {
       throw new StoreSubscriptionExpiredException(
         'Store subscription validity period has ended. Please renew to restore public access.'
       );
@@ -114,8 +134,10 @@ export class SubscriptionVisibilityService {
 
     // Check store status
     if (store.status !== StoreStatus.LIVE || !store.isPubliclyAccessible) {
-      throw new StoreNotLiveException(
-        'Store is currently configured in private preview mode by the seller.'
+      throw new DomainException(
+        ErrorCode.STORE_PRIVATE,
+        'Store is currently configured in private preview mode by the seller.',
+        HttpStatus.FORBIDDEN
       );
     }
 

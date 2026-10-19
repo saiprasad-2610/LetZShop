@@ -112,6 +112,58 @@ export class MailService {
   }
 
   /**
+   * Platform Admin email notification to Merchant
+   */
+  public async sendAdminMerchantEmail(
+    to: string,
+    subject: string,
+    messageText: string,
+    merchantName?: string,
+  ): Promise<boolean> {
+    const formattedHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 32px;">
+          <h2 style="color: #0f172a; margin-top: 0;">LetzShop Platform Notice</h2>
+          <div style="color: #475569; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${messageText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">This email was sent by the LetzShop Platform Administration team regarding ${merchantName || 'your merchant account'}.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, formattedHtml);
+  }
+
+  /**
+   * Platform Admin email notification to Sub Admin
+   */
+  public async sendSubAdminMessageEmail(
+    to: string,
+    subject: string,
+    messageText: string,
+    subAdminName?: string,
+  ): Promise<boolean> {
+    const formattedHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 32px;">
+          <h2 style="color: #0f172a; margin-top: 0;">Notice for Administrator${subAdminName ? ' ' + subAdminName.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</h2>
+          <div style="color: #475569; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${messageText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">This communication was dispatched via LetzShop Platform Administration.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, formattedHtml);
+  }
+
+  /**
    * Order Placed Email to Buyer (Order Confirmation)
    */
   public async sendOrderPlacedEmail(ctx: OrderEmailContext): Promise<boolean> {
@@ -777,4 +829,253 @@ export class MailService {
     await Promise.allSettled(sendPromises);
     return true;
   }
+
+  /**
+   * Buyer notification when their review is removed following moderation.
+   * Never exposes merchant complaint text or admin internal notes.
+   */
+  public async sendReviewRemovedBuyerEmail(ctx: {
+    recipientEmail: string;
+    buyerName: string;
+    productName: string;
+    storeName: string;
+    buyerFacingReason: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `Notice regarding your review for ${ctx.productName} at ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Moderation Notice</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.buyerName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            Your review for <strong>${ctx.productName}</strong> at <strong>${ctx.storeName}</strong> has been removed following a LetzShop moderation review.
+          </p>
+          <div style="background: #f1f5f9; border-left: 4px solid #64748b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: #1e293b;">
+            <strong>Reason:</strong> ${ctx.buyerFacingReason}
+          </div>
+          <p style="font-size: 13px; color: #64748b; margin: 0;">
+            If you believe this was incorrect, please contact LetzShop Support.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
+
+  /**
+   * Merchant notification regarding review moderation outcome.
+   * Result: 'Review removed' or 'Complaint dismissed'.
+   */
+  public async sendReviewModeratedMerchantEmail(ctx: {
+    recipientEmail: string;
+    storeName: string;
+    productName: string;
+    orderNumber: string;
+    result: 'Review removed' | 'Complaint dismissed';
+    safeReason: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `[Review Moderation] ${ctx.result} for Order #${ctx.orderNumber} - ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Moderation Decision</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.storeName}</strong> Team,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            The reported review for <strong>${ctx.productName}</strong> (Order #${ctx.orderNumber}) has been reviewed by LetzShop platform administrators.
+          </p>
+          <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: #1e293b;">
+            <p style="margin: 0 0 6px 0;"><strong>Result:</strong> ${ctx.result}</p>
+            <p style="margin: 0; color: #475569;"><strong>Notes / Status:</strong> ${ctx.safeReason}</p>
+          </div>
+          <p style="font-size: 13px; color: #64748b; margin: 0;">
+            Thank you for helping maintain quality feedback on LetzShop.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
+
+  /**
+   * Merchant notification when a review is restored.
+   */
+  public async sendReviewRestoredMerchantEmail(ctx: {
+    recipientEmail: string;
+    storeName: string;
+    productName: string;
+    orderNumber: string;
+  }): Promise<boolean> {
+    if (!ctx.recipientEmail || !ctx.recipientEmail.includes('@')) return false;
+    const subject = `[Review Moderation] Review restored for Order #${ctx.orderNumber} - ${ctx.storeName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px; color: #0f172a;">Review Status Update</h2>
+          <p style="font-size: 14px; margin: 0 0 12px 0;">Hello <strong>${ctx.storeName}</strong> Team,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            A previously removed customer review for <strong>${ctx.productName}</strong> (Order #${ctx.orderNumber}) has been restored to active visibility.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(ctx.recipientEmail, subject, html);
+  }
+
+  public isConfigured(): boolean {
+    return Boolean(this.transporter);
+  }
+
+  public async testSmtpConnection(targetEmail: string): Promise<{ success: boolean; message: string }> {
+    if (!targetEmail || !targetEmail.includes('@')) {
+      throw new Error('Valid target email is required for SMTP test.');
+    }
+    const html = `
+      <div style="font-family: sans-serif; padding: 20px;">
+        <h2>LetzShop SMTP Test</h2>
+        <p>This is a test email sent from LetzShop Platform Administration.</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+      </div>
+    `;
+    const sent = await this.sendEmail(targetEmail, 'LetzShop SMTP Test Connection', html);
+    if (!sent) {
+      return { success: false, message: 'Failed to deliver test email. Check server SMTP configuration.' };
+    }
+    return { success: true, message: `Test email dispatched to ${targetEmail} successfully.` };
+  }
+
+  public async sendSubAdminInviteEmail(params: {
+    to: string;
+    fullName: string;
+    inviteUrl: string;
+    expiresAt: Date;
+    roleName: string;
+  }): Promise<boolean> {
+    const formattedExpiry = new Date(params.expiresAt).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const subject = `You're invited to LetzShop Admin`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="margin-bottom: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">LetzShop Admin</h1>
+            <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">Delegated Administrator Invitation</p>
+          </div>
+          <p style="font-size: 15px; margin: 0 0 16px 0;">Hello <strong>${params.fullName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
+            You have been invited to join <strong>LetzShop Platform Administration</strong> as <strong>${params.roleName}</strong>.
+          </p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 24px 0;">
+            To set up your account and choose your security PIN, please click the secure button below:
+          </p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${params.inviteUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block;">
+              Activate Account
+            </a>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 24px 0 0 0; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            This invitation link is valid until <strong>${formattedExpiry}</strong>.<br/>
+            If you did not expect this invitation, you can safely ignore this email.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(params.to, subject, html);
+  }
+
+  public async sendSubAdminCredentialsEmail(params: {
+    to: string;
+    fullName: string;
+    adminLoginUrl: string;
+    temporaryPassword: string;
+    permissions: string[];
+    roleName?: string;
+    isReset?: boolean;
+  }): Promise<boolean> {
+    const role = params.roleName || 'Sub Admin';
+    const actionDesc = params.isReset
+      ? 'Your temporary administrator password has been reset by the Super Admin.'
+      : `You have been granted access to LetzShop Admin as a <strong>${role}</strong>.`;
+
+    const formattedPermissions = params.permissions && params.permissions.length > 0
+      ? params.permissions.map(p => p.replace(/_/g, ' ')).join(', ')
+      : 'Standard delegated authorities';
+
+    const subject = params.isReset
+      ? 'Your LetzShop Admin Temporary Password Reset'
+      : 'Your LetzShop Admin Access';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="margin-bottom: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">LetzShop Admin</h1>
+            <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">Administrator Credentials</p>
+          </div>
+          <p style="font-size: 15px; margin: 0 0 16px 0;">Hello <strong>${params.fullName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
+            ${actionDesc}
+          </p>
+
+          <div style="background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Login Credentials</p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>Login URL:</strong> <a href="${params.adminLoginUrl}" style="color: #2563eb; text-decoration: underline;">${params.adminLoginUrl}</a></p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>Email:</strong> ${params.to}</p>
+            <p style="margin: 0 0 0 0; font-size: 14px; color: #1e293b;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background: #ffffff; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 700; letter-spacing: 0.5px;">${params.temporaryPassword}</span></p>
+          </div>
+
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #1e40af;">
+              <strong>Security Notice:</strong> For security, you will be asked to create a new password after your first login before accessing administrative features.
+            </p>
+          </div>
+
+          <p style="font-size: 13px; line-height: 1.5; color: #64748b; margin: 0 0 20px 0;">
+            <strong>Granted Permissions:</strong><br/>
+            ${formattedPermissions}
+          </p>
+
+          <div style="text-align: center; margin: 28px 0 16px 0;">
+            <a href="${params.adminLoginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block;">
+              Log in to Admin Portal
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 24px 0 0 0; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            — LetzShop Platform Administration
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(params.to, subject, html);
+  }
 }
+
+

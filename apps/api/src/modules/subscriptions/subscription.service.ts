@@ -22,10 +22,48 @@ export class SubscriptionService {
   }
 
   public async getAvailablePlans() {
-    return this.prisma.plan.findMany({
-      where: { isPublic: true },
-      orderBy: { pricePaise: 'asc' },
+    const plans = await this.prisma.plan.findMany({
+      include: {
+        highlights: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
+
+    const planAvailability = (p: any) => {
+      const codeUpper = (p.code || '').toUpperCase();
+      const isComingSoon = codeUpper.includes('GROWTH');
+      const isContact = codeUpper.includes('CUSTOM') || p.pricePaise <= 0;
+      const purchasable = Boolean(p.isPublic && !isComingSoon && !isContact);
+
+      return {
+        purchasable,
+        isComingSoon,
+        availability: isComingSoon
+          ? 'COMING_SOON'
+          : isContact
+            ? 'CONTACT'
+            : p.isPublic
+              ? 'PURCHASABLE'
+              : 'HIDDEN',
+      };
+    };
+
+    // Canonical sort: Numeric prices ascending, Contact/Custom placed strictly last
+    const sorted = [...plans].sort((a, b) => {
+      const isCustomA = (a.code || '').toUpperCase().includes('CUSTOM') || a.pricePaise <= 0;
+      const isCustomB = (b.code || '').toUpperCase().includes('CUSTOM') || b.pricePaise <= 0;
+      if (isCustomA && !isCustomB) return 1;
+      if (!isCustomA && isCustomB) return -1;
+      return a.pricePaise - b.pricePaise;
+    });
+
+    return sorted
+      .filter((p) => p.isPublic || (p.code || '').toUpperCase().includes('CUSTOM') || (p.code || '').toUpperCase().includes('GROWTH'))
+      .map((p) => ({
+        ...p,
+        ...planAvailability(p),
+      }));
   }
 
   /**

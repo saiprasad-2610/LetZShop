@@ -38,6 +38,14 @@ export class StoreNotLiveException extends DomainException {
   }
 }
 
+export class StoreSuspendedException extends DomainException {
+  constructor(
+    message = 'This service has been suspended by platform administration.'
+  ) {
+    super(ErrorCode.STORE_SUSPENDED, message, HttpStatus.FORBIDDEN);
+  }
+}
+
 export class StoreSubscriptionRequiredException extends DomainException {
   constructor(
     message = 'Store is currently unavailable as it requires an active paid subscription.'

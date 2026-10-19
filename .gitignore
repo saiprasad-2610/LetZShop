@@ -45,6 +45,7 @@ packages/db/src/generated/
 
 # Uploads, Local Media Storage & Artifacts
 media-storage/
+private-documents/
 media-restore-test/
 data/media/
 scratch/

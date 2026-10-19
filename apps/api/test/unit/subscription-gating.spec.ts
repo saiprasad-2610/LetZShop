@@ -5,6 +5,7 @@ import { PrismaClient, StoreStatus, SubscriptionStatus } from '@prisma/client';
 import {
   StoreNotFoundException,
   StoreNotLiveException,
+  StoreSuspendedException,
   StoreSubscriptionRequiredException,
   StoreSubscriptionExpiredException,
 } from '../../src/common/exceptions/domain.exceptions';
@@ -193,7 +194,7 @@ describe('Subscription-Gated Store Visibility (Unit Tests)', () => {
     mockPrisma.store.findFirst.mockResolvedValue(suspendedStore);
 
     await expect(visibilityService.evaluateVisibility('aurelia')).rejects.toThrow(
-      StoreNotLiveException
+      StoreSuspendedException
     );
   });
 

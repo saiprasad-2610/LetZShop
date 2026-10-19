@@ -4,26 +4,29 @@
  */
 
 export function getStorefrontUrl(): string {
+  // 1. Explicit build/runtime environment variable
   if (process.env.NEXT_PUBLIC_STOREFRONT_URL && process.env.NEXT_PUBLIC_STOREFRONT_URL.trim() !== '') {
     return process.env.NEXT_PUBLIC_STOREFRONT_URL.trim().replace(/\/+$/, '');
   }
 
+  // 2. Client-side dynamic origin resolution
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
-    if (host.includes('onrender.com')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
+    // Local development origins
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
+      return 'http://localhost:3000';
     }
-    if (host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
+    // Production LetzShop domain
+    if (host === 'admin.letzshop.store' || host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
       return 'https://letzshop.store';
     }
-    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
-    }
   }
 
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
-    return 'https://simply-e-commerce-frontend.onrender.com';
+  // 3. Fallback for production cloud builds
+  if (process.env.RENDER === 'true') {
+    return 'https://letzshop.store';
   }
 
+  // 4. Fallback for local development
   return 'http://localhost:3000';
 }

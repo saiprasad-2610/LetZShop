@@ -191,6 +191,7 @@ describe('Product Options, Variants & Media Automated Test Suite', () => {
     it('2. Excessive combination count (> 100) is rejected by service safety limit', async () => {
       const mockPrisma: any = {
         product: { findFirst: jest.fn().mockResolvedValue(null) },
+        subscription: { findFirst: jest.fn().mockResolvedValue(null) },
         $transaction: jest.fn(async (cb) => cb({
           product: { create: jest.fn().mockResolvedValue({ id: 'p1', name: 'Test', mode: ProductMode.SELL_ONLINE }) },
         })),

@@ -28,11 +28,18 @@ describe('Platform administrator authentication', () => {
   let service: AuthService, db: any;
   beforeEach(() => {
     db = {
-      user: { findFirst: jest.fn().mockResolvedValue(admin) },
+      user: {
+        findFirst: jest.fn().mockResolvedValue(admin),
+        update: jest.fn().mockResolvedValue(admin),
+      },
       sellerCredential: {
         update: jest.fn().mockResolvedValue({ failedPinAttempts: 1 }),
       },
+      platformSetting: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       session: { findUnique: jest.fn() },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     service = new AuthService(
       db,
@@ -82,7 +89,7 @@ describe('Platform administrator authentication', () => {
     expect(db.user.findFirst).toHaveBeenCalledTimes(1);
   });
   it('rejects inactive or locked accounts', async () => {
-    db.user.findFirst.mockResolvedValue({ ...admin, isActive: false });
+    db.user.findFirst.mockResolvedValue({ ...admin, isActive: false, isDeactivated: true });
     await expect(service.loginAdmin(admin.email, password)).rejects.toThrow(
       'deactivated',
     );
@@ -124,7 +131,7 @@ describe('Platform administrator authentication', () => {
       user: { ...admin, isActive: false },
     });
     await expect(service.validateAccessToken('test-token')).rejects.toThrow(
-      'no longer active',
+      'suspended',
     );
   });
 });

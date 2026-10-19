@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import type { AdminAttentionSummary } from '@simply/api-contracts';
 
 // A merchant is a business (Tenant), not an extra Store profile or customer.
 // Match a genuine seller owner; a platform admin membership must not create a merchant.
@@ -21,7 +22,7 @@ const pendingWhere: Prisma.ReviewReportWhereInput = {
 export class AdminDashboardService {
   constructor(private readonly db: PrismaClient) {}
 
-  async read(from: Date | null, range: string) {
+  async read(from: Date | null, range: string, to: Date | null = null) {
     // One snapshot prevents cards, lists and charts from disagreeing during writes.
     return this.db.$transaction(
       async (tx) => {
@@ -153,7 +154,7 @@ export class AdminDashboardService {
               store: { select: { name: true } },
             },
           }),
-          this.charts(tx, from),
+          this.charts(tx, from, to),
           tx.reviewReport.count({ where: { status: 'PENDING' } }),
           tx.reviewReport.count({ where: { status: 'UNDER_REVIEW' } }),
           tx.reviewReport.count({
@@ -210,6 +211,18 @@ export class AdminDashboardService {
           recentOrders,
           charts,
           attention: { failedSubscriptionPayments },
+          attentionSummary: {
+            total:
+              pendingOnlyReports +
+              underReviewReports +
+              suspendedStores +
+              failedSubscriptionPayments,
+            reviewReports: pendingOnlyReports + underReviewReports,
+            pendingReviewReports: pendingOnlyReports,
+            underReviewReports,
+            suspendedStores,
+            failedPayments: failedSubscriptionPayments,
+          },
           reviewModeration: {
             pendingOnlyReports,
             underReviewReports,
@@ -262,21 +275,72 @@ export class AdminDashboardService {
     );
   }
 
-  private async charts(tx: Prisma.TransactionClient, from: Date | null) {
+  async getAttentionSummary(
+    tx?: Prisma.TransactionClient,
+  ): Promise<AdminAttentionSummary> {
+    const client = tx ?? this.db;
+    const [
+      pendingOnlyReports,
+      underReviewReports,
+      suspendedStores,
+      failedPayments,
+    ] = await Promise.all([
+      client.reviewReport.count({ where: { status: 'PENDING' } }),
+      client.reviewReport.count({ where: { status: 'UNDER_REVIEW' } }),
+      client.store.count({ where: { deletedAt: null, status: 'SUSPENDED' } }),
+      client.subscriptionPayment.count({ where: { status: 'FAILED' } }),
+    ]);
+    const reviewReports = pendingOnlyReports + underReviewReports;
+    const total = reviewReports + suspendedStores + failedPayments;
+    return {
+      total,
+      reviewReports,
+      pendingReviewReports: pendingOnlyReports,
+      underReviewReports,
+      suspendedStores,
+      failedPayments,
+    };
+  }
+
+  private async charts(
+    tx: Prisma.TransactionClient,
+    from: Date | null,
+    to: Date | null = null,
+  ) {
     const merchantDate = from
-      ? Prisma.sql`AND t.created_at >= ${from}`
+      ? to
+        ? Prisma.sql`AND t.created_at >= ${from} AND t.created_at <= ${to}`
+        : Prisma.sql`AND t.created_at >= ${from}`
+      : to
+      ? Prisma.sql`AND t.created_at <= ${to}`
       : Prisma.empty;
     const orderDate = from
-      ? Prisma.sql`WHERE created_at >= ${from}`
+      ? to
+        ? Prisma.sql`WHERE created_at >= ${from} AND created_at <= ${to}`
+        : Prisma.sql`WHERE created_at >= ${from}`
+      : to
+      ? Prisma.sql`WHERE created_at <= ${to}`
       : Prisma.empty;
     const paymentDate = from
-      ? Prisma.sql`AND COALESCE(i.paid_at,p.created_at) >= ${from}`
+      ? to
+        ? Prisma.sql`AND COALESCE(i.paid_at,p.created_at) >= ${from} AND COALESCE(i.paid_at,p.created_at) <= ${to}`
+        : Prisma.sql`AND COALESCE(i.paid_at,p.created_at) >= ${from}`
+      : to
+      ? Prisma.sql`AND COALESCE(i.paid_at,p.created_at) <= ${to}`
       : Prisma.empty;
     const reportDate = from
-      ? Prisma.sql`WHERE created_at >= ${from}`
+      ? to
+        ? Prisma.sql`WHERE created_at >= ${from} AND created_at <= ${to}`
+        : Prisma.sql`WHERE created_at >= ${from}`
+      : to
+      ? Prisma.sql`WHERE created_at <= ${to}`
       : Prisma.empty;
     const resolvedDate = from
-      ? Prisma.sql`AND resolved_at >= ${from}`
+      ? to
+        ? Prisma.sql`AND resolved_at >= ${from} AND resolved_at <= ${to}`
+        : Prisma.sql`AND resolved_at >= ${from}`
+      : to
+      ? Prisma.sql`AND resolved_at <= ${to}`
       : Prisma.empty;
     const [
       merchantGrowth,

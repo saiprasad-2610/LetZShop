@@ -6,8 +6,26 @@ import type {
   AdminPlan,
   AdminUser,
   AdminOrder,
+  AdminOrdersResponse,
+  AdminOrderDetail,
   AdminOperations,
   AdminAnalytics,
+  AdminCommunicationLog,
+  AdminReviewsSummary,
+  AdminReviewTimelineEvent,
+  AdminSubscriptionKpi,
+  AdminBusinessVerification,
+  PlanHighlightItem,
+  AdminPayment,
+  AdminSettings,
+  AdminSubAdmin,
+  CreateSubAdminDto,
+  UpdateSubAdminDto,
+  ActivateSubAdminDto,
+  AdminAudit,
+  AdminAuditPageResult,
+  AdminChangePasswordDto,
+  AdminResetTempPasswordDto,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -179,8 +197,16 @@ export class SimplyApiClient {
       throw err;
     }
 
+    const isUnrefreshableRoute =
+      path.startsWith('auth/session/refresh') ||
+      path.startsWith('auth/otp') ||
+      path.startsWith('auth/pin') ||
+      path.startsWith('auth/register') ||
+      path.startsWith('auth/admin/login') ||
+      path.startsWith('auth/admin/activate');
+
     // Auto-refresh token if 401 Unauthorized occurs on a protected route and refreshToken is present
-    if (res.status === 401 && !_isRetry && this.refreshToken && !path.startsWith('auth/')) {
+    if (res.status === 401 && !_isRetry && this.refreshToken && !isUnrefreshableRoute) {
       const refreshed = await this.refreshAccessToken();
       if (refreshed) {
         return this.request<T>(path, { ...options, _isRetry: true });
@@ -191,7 +217,7 @@ export class SimplyApiClient {
 
     if (!res.ok || json.success === false) {
       if (res.status === 401) {
-        if (!path.startsWith('auth/')) {
+        if (!this.refreshToken && !isUnrefreshableRoute) {
           this.onSessionExpired?.();
         }
         this.onAuthFailure?.();
@@ -483,17 +509,79 @@ export class SimplyApiClient {
       });
     },
     getMerchant: (id: string) => this.request<AdminMerchantDetail>(`admin/merchants/${id}`),
-    suspendMerchant: (id: string, reason: string) =>
+    suspendMerchant: (
+      id: string,
+      data:
+        | string
+        | {
+            reason: string;
+            internalNote?: string;
+            merchantMessage?: string;
+            notifyEmail?: boolean;
+            notifyWhatsApp?: boolean;
+            storeId?: string;
+          },
+    ) =>
       this.request(`admin/merchants/${id}/suspend`, {
         method: 'POST',
-        body: { reason },
+        body: typeof data === 'string' ? { reason: data } : data,
       }),
-    reactivateMerchant: (id: string, reason: string) =>
+    reactivateMerchant: (
+      id: string,
+      data?:
+        | string
+        | {
+            reason?: string;
+            merchantMessage?: string;
+            notifyEmail?: boolean;
+            notifyWhatsApp?: boolean;
+            storeId?: string;
+          },
+    ) =>
       this.request(`admin/merchants/${id}/reactivate`, {
         method: 'POST',
-        body: { reason },
+        body: typeof data === 'string' ? { reason: data } : (data || {}),
       }),
+    archiveMerchant: (
+      id: string,
+      data?: {
+        reason?: string;
+        internalNote?: string;
+        merchantMessage?: string;
+        notifyEmail?: boolean;
+        notifyWhatsApp?: boolean;
+      },
+    ) =>
+      this.request(`admin/merchants/${id}/archive`, {
+        method: 'POST',
+        body: data || {},
+      }),
+    sendMessageToMerchant: (
+      id: string,
+      data: {
+        channels: Array<'EMAIL' | 'WHATSAPP'>;
+        subject: string;
+        message: string;
+      },
+    ) =>
+      this.request<{
+        success: boolean;
+        emailSent: boolean;
+        whatsAppUrl: string | null;
+        status: string;
+      }>(`admin/merchants/${id}/message`, {
+        method: 'POST',
+        body: data,
+      }),
+    getMerchantCommunicationHistory: (id: string) =>
+      this.request<AdminCommunicationLog[]>(
+        `admin/merchants/${id}/communication-history`,
+      ),
     getCommerce: () => this.request<AdminPage<AdminOrder>>('admin/commerce'),
+    getOrders: (params?: any) =>
+      this.request<AdminOrdersResponse>('admin/orders', { params }),
+    getOrderDetail: (id: string) =>
+      this.request<AdminOrderDetail>(`admin/orders/${id}`),
     getOperations: () => this.request<AdminOperations>('admin/operations'),
     retryOutbox: (id: string) =>
       this.request(`admin/operations/retry-outbox/${id}`, { method: 'POST' }),
@@ -501,13 +589,32 @@ export class SimplyApiClient {
       this.request(`admin/operations/reconcile-payment/${paymentOrderId}`, {
         method: 'POST',
       }),
+    reconcileSubscriptionPayment: (paymentId: string) =>
+      this.request<{
+        success: boolean;
+        payment: AdminPayment;
+        status: string;
+        message: string;
+      }>(`admin/payments/${paymentId}/reconcile`, {
+        method: 'POST',
+      }),
     getUsers: (search?: string, role?: string) =>
       this.request<AdminPage<AdminUser>>('admin/users', {
         params: { search, role },
       }),
-    toggleUserStatus: (userId: string) =>
-      this.request(`admin/users/${userId}/toggle-status`, { method: 'POST' }),
-    getAnalytics: () => this.request<AdminAnalytics>('admin/analytics'),
+    toggleUserStatus: (
+      userId: string,
+      data?: { reason: string; internalNote?: string },
+    ) =>
+      this.request<{ id: string; isActive: boolean }>(
+        `admin/users/${userId}/toggle-status`,
+        {
+          method: 'POST',
+          body: data || { reason: 'Status updated by administrator' },
+        },
+      ),
+    getAnalytics: (params?: any) =>
+      this.request<AdminAnalytics>('admin/analytics', { params }),
     getPlans: () => this.request<AdminPlan[]>('admin/plans'),
     createPlan: (data: {
       name: string;
@@ -520,6 +627,7 @@ export class SimplyApiClient {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      highlights?: PlanHighlightItem[];
     }) => this.request('admin/plans', { method: 'POST', body: data }),
     updatePlan: (
       id: string,
@@ -539,6 +647,138 @@ export class SimplyApiClient {
         `admin/plans/${id}`,
         { method: 'DELETE' },
       ),
+    changeSubscriptionPlan: (id: string, body: { planId: string; reason?: string }) =>
+      this.request(`admin/subscriptions/${id}/plan`, { method: 'PATCH', body }),
+    extendSubscriptionExpiry: (id: string, body: { currentPeriodEnd: string; reason?: string }) =>
+      this.request(`admin/subscriptions/${id}/expiry`, { method: 'PATCH', body }),
+    cancelSubscription: (id: string, body: { reason: string }) =>
+      this.request(`admin/subscriptions/${id}/cancel`, { method: 'POST', body }),
+    getSubscriptionDetail: (id: string) =>
+      this.request(`admin/subscriptions/${id}`),
+    getSubscriptionKpis: () =>
+      this.request<AdminSubscriptionKpi>('admin/subscriptions/kpis'),
+    getMerchantVerification: (id: string) =>
+      this.request<AdminBusinessVerification>(`admin/merchants/${id}/verification`),
+    reviewMerchantDocument: (
+      tenantId: string,
+      docId: string,
+      data: {
+        status: 'VERIFIED' | 'REJECTED';
+        rejectionReason?: string;
+        adminNote?: string;
+      },
+    ) =>
+      this.request(`admin/merchants/${tenantId}/documents/${docId}/review`, {
+        method: 'POST',
+        body: data,
+      }),
+    getSettings: () => this.request<AdminSettings>('admin/settings'),
+    updateSettings: (category: string, data: any) =>
+      this.request<AdminSettings>(`admin/settings/${category}`, {
+        method: 'PUT',
+        body: data,
+      }),
+    testSmtpConnection: (targetEmail?: string) =>
+      this.request<{ success: boolean; message: string }>(
+        'admin/settings/test-smtp',
+        { method: 'POST', body: { targetEmail } },
+      ),
+    getSubAdmins: (params?: any) =>
+      this.request<AdminPage<AdminSubAdmin>>('admin/sub-admins', { params }),
+    getSubAdminDetail: (id: string) =>
+      this.request<AdminSubAdmin & { auditActions: AdminAudit[]; sessions: any[]; inviteHistory?: any[] }>(
+        `admin/sub-admins/${id}`,
+      ),
+    createSubAdmin: (data: CreateSubAdminDto) =>
+      this.request<{ subAdmin: AdminSubAdmin; activationUrl?: string; temporaryPasswordGenerated?: boolean }>(
+        'admin/sub-admins',
+        { method: 'POST', body: data },
+      ),
+    updateSubAdmin: (id: string, data: UpdateSubAdminDto) =>
+      this.request<AdminSubAdmin>(`admin/sub-admins/${id}`, {
+        method: 'PUT',
+        body: data,
+      }),
+    toggleSubAdminStatus: (id: string, data?: { reason?: string }) =>
+      this.request<AdminSubAdmin>(`admin/sub-admins/${id}/toggle-status`, {
+        method: 'POST',
+        body: data,
+      }),
+    resetSubAdminTempPassword: (id: string, data?: AdminResetTempPasswordDto) =>
+      this.request<{ success: boolean; message: string; temporaryPassword?: string }>(
+        `admin/sub-admins/${id}/reset-temp-password`,
+        { method: 'POST', body: data },
+      ),
+    resendSubAdminInvite: (inviteId: string) =>
+      this.request<{ success: boolean; activationUrl: string }>(
+        `admin/sub-admins/invites/${inviteId}/resend`,
+        { method: 'POST' },
+      ),
+    revokeSubAdminSessions: (id: string) =>
+      this.request<{ success: boolean; revokedCount: number }>(
+        `admin/sub-admins/${id}/revoke-sessions`,
+        { method: 'POST' },
+      ),
+    deactivateSubAdmin: (id: string, data?: { reason?: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        `admin/sub-admins/${id}/deactivate`,
+        { method: 'POST', body: data },
+      ),
+    deleteSubAdmin: (id: string, data?: { reason?: string }) =>
+      this.request<{ success: boolean; message: string; deleted?: boolean }>(
+        `admin/sub-admins/${id}`,
+        { method: 'DELETE', body: data },
+      ),
+    sendMessageToSubAdmin: (
+      id: string,
+      data: { subject: string; message: string; openWhatsApp?: boolean },
+    ) =>
+      this.request<{ success: boolean; message: string; emailSent: boolean; whatsAppUrl?: string | null }>(
+        `admin/sub-admins/${id}/message`,
+        { method: 'POST', body: data },
+      ),
+    activateSubAdmin: (data: ActivateSubAdminDto) =>
+      this.request<{ success: boolean; message: string }>(
+        'auth/admin/activate',
+        { method: 'POST', body: data },
+      ),
+    changePassword: (data: AdminChangePasswordDto) =>
+      this.request<{ success: boolean; message: string }>(
+        'admin/change-password',
+        { method: 'POST', body: data },
+      ),
+    getAuditLogs: (params?: any) =>
+      this.request<AdminAuditPageResult>('admin/audit-logs', { params }),
+    getAuditLogDetail: (id: string) =>
+      this.request<AdminAudit>(`admin/audit-logs/${id}`),
+  };
+
+  // --- Merchant Business Verification & Documents ---
+  public verification = {
+    getVerification: () =>
+      this.request<AdminBusinessVerification>('seller/verification'),
+    updateProfile: (data: {
+      businessType?: string;
+      gstRegistered?: boolean;
+      gstin?: string;
+      panNumber?: string;
+      udyamNumber?: string;
+    }) =>
+      this.request('seller/verification/profile', {
+        method: 'PATCH',
+        body: data,
+      }),
+    uploadDocument: (data: {
+      type: string;
+      documentNumber?: string;
+      filename: string;
+      mimeType: string;
+      base64Data: string;
+    }) =>
+      this.request('seller/verification/documents', {
+        method: 'POST',
+        body: data,
+      }),
   };
 
   // --- Buyer Payments (Merchant Razorpay Checkout) ---
@@ -686,7 +926,24 @@ export class SimplyApiClient {
       }),
     getAdminReviews: (params?: { page?: number; limit?: number; status?: string; search?: string; storeId?: string }) =>
       this.request('admin/reviews', { params }),
-    moderateAdminReview: (id: string, data: { status: 'ACTIVE' | 'REMOVED'; reason?: string }) =>
+    getAdminReviewSummary: () =>
+      this.request<AdminReviewsSummary>('admin/reviews/summary'),
+    getAdminReviewTimeline: (id: string) =>
+      this.request<AdminReviewTimelineEvent[]>(`admin/reviews/${id}/timeline`),
+    moderateAdminReview: (
+      id: string,
+      data: {
+        status: 'ACTIVE' | 'REMOVED';
+        reason?: string;
+        internalNote?: string;
+        buyerFacingMessage?: string;
+        merchantFacingMessage?: string;
+        notifyBuyerEmail?: boolean;
+        notifyMerchantEmail?: boolean;
+        notifyBuyerWhatsApp?: boolean;
+        notifyMerchantWhatsApp?: boolean;
+      },
+    ) =>
       this.request(`admin/reviews/${id}/moderate`, {
         method: 'PATCH',
         body: data,

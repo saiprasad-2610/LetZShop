@@ -5,6 +5,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config, { dev }) => {
+    if (dev && config.cache && typeof config.cache === 'object') {
+      config.cache.compression = false;
+    }
+    return config;
+  },
   async rewrites() {
     return [
       {
@@ -12,17 +18,6 @@ const nextConfig = {
         destination: 'http://localhost:4000/:path*',
       },
     ];
-  },
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.cache = false;
-    }
-    return config;
-  },
-  swcMinify: false,
-  experimental: {
-    cpus: 1,
-    workerThreads: false,
   },
 };
 

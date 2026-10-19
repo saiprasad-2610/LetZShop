@@ -26,6 +26,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { SellerModule } from './modules/seller/seller.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { VerificationModule } from './modules/verification/verification.module';
 
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -76,6 +77,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     SellerModule,
     NotificationsModule,
     ReviewsModule,
+    VerificationModule,
   ],
   providers: [
     {

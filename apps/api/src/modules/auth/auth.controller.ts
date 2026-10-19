@@ -90,6 +90,19 @@ export class AuthController {
   }
 
   @Public()
+  @Post('admin/activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Activate Sub Admin account via invite token and set PIN' })
+  async activateSubAdmin(
+    @Body() dto: { token: string; pin: string; fullName?: string; phone?: string },
+    @Req() req: any
+  ) {
+    const userAgent = req.headers?.['user-agent'];
+    const ipAddress = req.ip || req.headers?.['x-forwarded-for'];
+    return this.authService.activateSubAdmin(dto, userAgent, ipAddress);
+  }
+
+  @Public()
   @Post('session/refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token and obtain new short-lived access token' })

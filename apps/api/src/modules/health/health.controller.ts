@@ -19,15 +19,79 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Liveness probe - checks API process status' })
-  getLiveness() {
-    const brand = getBrandConfig();
+  async getLiveness() {
+    let platformName = 'LetzShop';
+    let supportEmail = 'support@letzshop.in';
+    let supportPhone = '+91 9876543210';
+    let defaultTimezone = 'Asia/Kolkata';
+    let defaultLocale = 'en-IN';
+    let defaultCurrency = 'INR';
+
+    try {
+      const setting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'general' },
+      });
+      if (setting?.value && typeof setting.value === 'object') {
+        const val = setting.value as any;
+        if (val.platformName) platformName = val.platformName;
+        if (val.supportEmail) supportEmail = val.supportEmail;
+        if (val.supportPhone) supportPhone = val.supportPhone;
+        if (val.defaultTimezone) defaultTimezone = val.defaultTimezone;
+        if (val.defaultLocale) defaultLocale = val.defaultLocale;
+      }
+    } catch {
+      // Fallback
+    }
+
     return {
       status: 'UP',
-      brand: brand.brandName,
+      brand: platformName,
+      platformName,
+      supportEmail,
+      supportPhone,
+      defaultTimezone,
+      defaultLocale,
+      defaultCurrency,
       uptimeSeconds: process.uptime(),
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
       memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    };
+  }
+
+  @Get('platform')
+  @ApiOperation({ summary: 'Public platform configuration (safe branding, support contact, and regional defaults)' })
+  async getPlatformConfig() {
+    let platformName = 'LetzShop';
+    let supportEmail = 'support@letzshop.in';
+    let supportPhone = '+91 9876543210';
+    let defaultTimezone = 'Asia/Kolkata';
+    let defaultLocale = 'en-IN';
+    let defaultCurrency = 'INR';
+
+    try {
+      const setting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'general' },
+      });
+      if (setting?.value && typeof setting.value === 'object') {
+        const val = setting.value as any;
+        if (val.platformName) platformName = val.platformName;
+        if (val.supportEmail) supportEmail = val.supportEmail;
+        if (val.supportPhone) supportPhone = val.supportPhone;
+        if (val.defaultTimezone) defaultTimezone = val.defaultTimezone;
+        if (val.defaultLocale) defaultLocale = val.defaultLocale;
+      }
+    } catch {
+      // Fallback
+    }
+
+    return {
+      platformName,
+      supportEmail,
+      supportPhone,
+      defaultTimezone,
+      defaultLocale,
+      defaultCurrency,
     };
   }
 
