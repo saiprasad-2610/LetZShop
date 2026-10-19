@@ -2122,6 +2122,7 @@ export class AdminService {
     const isRazorpayConfigured = Boolean(
       process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET,
     );
+    const razorpayEnv = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_live') ? 'LIVE' : 'TEST';
     const isSmtpConfigured = this.mailService.isConfigured();
     const isShiprocketConfigured = Boolean(
       process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD,
@@ -2129,6 +2130,25 @@ export class AdminService {
     const hasWhatsAppCloudApi = Boolean(
       process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
     );
+
+    let activeSubAdmins = 0;
+    let pendingInvites = 0;
+    let suspendedSubAdmins = 0;
+    try {
+      [activeSubAdmins, pendingInvites, suspendedSubAdmins] = await Promise.all([
+        this.prisma.user.count({
+          where: { role: UserRole.PLATFORM_ADMIN, isSuperAdmin: false, isActive: true, deletedAt: null },
+        }),
+        this.prisma.adminInvite.count({
+          where: { acceptedAt: null, expiresAt: { gt: new Date() } },
+        }),
+        this.prisma.user.count({
+          where: { role: UserRole.PLATFORM_ADMIN, isSuperAdmin: false, isActive: false, deletedAt: null },
+        }),
+      ]);
+    } catch {
+      // Graceful fallback
+    }
 
     const generalCustom = settingsMap['general'] || {};
     const brandCustom = settingsMap['brand'] || {};
@@ -2193,9 +2213,17 @@ export class AdminService {
       },
       integrations: {
         razorpay: isRazorpayConfigured ? 'CONNECTED' : 'MISCONFIGURED',
+        razorpayEnvironment: isRazorpayConfigured ? razorpayEnv : 'NOT_CONFIGURED',
         smtp: isSmtpConfigured ? 'CONNECTED' : 'SIMULATION_MODE',
+        smtpHost: process.env.SMTP_HOST || 'smtp.ethereal.email',
+        smtpSenderEmail: process.env.SMTP_FROM || 'noreply@letzshop.in',
         shiprocket: isShiprocketConfigured ? 'CONNECTED' : 'NOT_CONFIGURED',
         whatsapp: hasWhatsAppCloudApi ? 'CONNECTED' : 'DEEP_LINK_ONLY',
+      },
+      adminDelegation: {
+        activeSubAdmins,
+        pendingInvites,
+        suspendedSubAdmins,
       },
       system: {
         maintenanceMode: Boolean(systemCustom.maintenanceMode ?? false),
@@ -2252,6 +2280,8 @@ export class AdminService {
       select: { fullName: true, email: true, role: true },
     });
 
+    const changedKeys = typeof data === 'object' && data !== null ? Object.keys(data) : [];
+
     await this.prisma.auditLog.create({
       data: {
         actorId,
@@ -2261,12 +2291,14 @@ export class AdminService {
         entityId: cat,
         metadata: {
           category: cat,
+          section: cat,
           module: 'Settings',
           targetName: `${cat.toUpperCase()} Settings`,
           result: 'SUCCESS',
           actorName: actor?.fullName || 'Administrator',
           actorEmail: actor?.email || null,
           actorRole: actor?.role || 'PLATFORM_ADMIN',
+          changedFields: changedKeys,
           beforeValue: oldValue,
           afterValue: data,
           changes: data,

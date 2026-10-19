@@ -605,9 +605,17 @@ export interface AdminSettings {
   };
   integrations: {
     razorpay: 'CONNECTED' | 'MISCONFIGURED' | 'NOT_CONFIGURED';
+    razorpayEnvironment?: 'TEST' | 'LIVE' | 'NOT_CONFIGURED';
     smtp: 'CONNECTED' | 'SIMULATION_MODE' | 'MISCONFIGURED';
+    smtpHost?: string;
+    smtpSenderEmail?: string;
     shiprocket: 'CONNECTED' | 'NOT_CONFIGURED';
     whatsapp: 'CONNECTED' | 'DEEP_LINK_ONLY';
+  };
+  adminDelegation?: {
+    activeSubAdmins: number;
+    pendingInvites: number;
+    suspendedSubAdmins: number;
   };
   system: {
     maintenanceMode: boolean;
