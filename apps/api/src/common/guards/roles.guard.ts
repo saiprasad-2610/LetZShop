@@ -1,11 +1,15 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { PrismaClient } from '@prisma/client';
 import { ROLES_KEY, ADMIN_PERMISSION_KEY } from '../decorators';
 import { AuthenticatedUser, UserRole } from '@simply/types';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    @Optional() private prisma?: PrismaClient
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
@@ -49,6 +53,33 @@ export class RolesGuard implements CanActivate {
         ? user.adminPermissions
         : [];
       if (!permissions.includes(requiredPermission)) {
+        if (this.prisma) {
+          this.prisma.auditLog
+            .create({
+              data: {
+                actorId: user.userId,
+                actorType: 'ADMIN',
+                action: 'ADMIN_ACTION_UNAUTHORIZED',
+                entityType: 'Permission',
+                entityId: requiredPermission,
+                ipAddress:
+                  (request.headers?.['x-forwarded-for'] as string) ||
+                  request.ip ||
+                  null,
+                userAgent: (request.headers?.['user-agent'] as string) || null,
+                metadata: {
+                  requiredPermission,
+                  grantedPermissions: permissions,
+                  endpoint: request.url,
+                  method: request.method,
+                  module: 'Permissions',
+                  result: 'DENIED',
+                  reason: `Administrator denied access: missing required permission ${requiredPermission}`,
+                },
+              },
+            })
+            .catch(() => {});
+        }
         throw new ForbiddenException(`Forbidden resource: required permission [${requiredPermission}]`);
       }
     }

@@ -265,6 +265,7 @@ export class AdminService {
   public async generateInvoicePdf(
     invoiceId: string,
     merchantTenantId?: string,
+    actorId?: string,
   ): Promise<Buffer> {
     const invoice = await this.prisma.subscriptionInvoice.findUnique({
       where: { id: invoiceId },
@@ -325,6 +326,26 @@ export class AdminService {
     const amountInRupees = (invoice.amountPaise / 100).toFixed(2);
     const startStr = formatDate(invoice.subscription?.currentPeriodStart);
     const endStr = formatDate(invoice.subscription?.currentPeriodEnd);
+
+    if (actorId) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'INVOICE_DOWNLOADED',
+          entityType: 'Invoice',
+          entityId: invoice.id,
+          tenantId: invoice.tenantId,
+          metadata: {
+            invoiceNumber: invoice.invoiceNumber,
+            amountPaise: invoice.amountPaise,
+            currency: invoice.currency,
+            module: 'Payments',
+            result: 'SUCCESS',
+          },
+        },
+      });
+    }
 
     return generateInvoicePdfBuffer({
       invoiceNumber: invoice.invoiceNumber,
@@ -747,7 +768,9 @@ export class AdminService {
       if (!owner.phone) {
         throw new BadRequestException('No phone number available for this merchant owner.');
       }
-      const fullText = `*${dto.subject.trim()}*\n\n${dto.message.trim()}`;
+      const settings = await this.getSafeSettings();
+      const greeting = settings.whatsapp.defaultTemplateGreeting || 'Hello from LetzShop,';
+      const fullText = `${greeting}\n\n*${dto.subject.trim()}*\n\n${dto.message.trim()}`;
       const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(owner.phone, fullText);
       whatsAppUrl = wa.url;
       whatsAppStatus = 'Opened in WhatsApp';
@@ -872,7 +895,10 @@ export class AdminService {
 
     const finalNoticeText = merchantMessage?.trim() || defaultMsg;
 
-    if (notifyEmail && result.owner?.email) {
+    const settings = await this.getSafeSettings();
+    const allowSuspensionNotifs = settings.notifications.notifyMerchantOnAccountSuspension ?? true;
+
+    if (notifyEmail && allowSuspensionNotifs && result.owner?.email) {
       try {
         emailSent = await this.mailService.sendAdminMerchantEmail(
           result.owner.email,
@@ -884,15 +910,20 @@ export class AdminService {
       } catch (err: any) {
         emailStatus = `Failed: ${err.message || 'SMTP error'}`;
       }
+    } else if (notifyEmail && !allowSuspensionNotifs) {
+      emailStatus = 'Suppressed by platform notification policy';
     }
 
-    if (notifyWhatsApp && result.owner?.phone) {
+    if (notifyWhatsApp && allowSuspensionNotifs && result.owner?.phone) {
+      const greeting = settings.whatsapp.defaultTemplateGreeting || 'Hello from LetzShop,';
       const wa = this.whatsAppService.generateAdminMerchantWhatsAppMessage(
         result.owner.phone,
-        `*Store Suspension Notice — ${result.tenant.name}*\n\n${finalNoticeText}`,
+        `${greeting}\n\n*Store Suspension Notice — ${result.tenant.name}*\n\n${finalNoticeText}`,
       );
       whatsAppUrl = wa.url;
       whatsAppStatus = 'Opened in WhatsApp';
+    } else if (notifyWhatsApp && !allowSuspensionNotifs) {
+      whatsAppStatus = 'Suppressed by platform notification policy';
     }
 
     await this.prisma.auditLog.create({
@@ -3022,9 +3053,39 @@ export class AdminService {
       throw new NotFoundException('Sub Admin not found.');
     }
     if (target.isSuperAdmin) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUB_ADMIN_DELETE_BLOCKED',
+          entityType: 'User',
+          entityId: target.id,
+          metadata: {
+            targetEmail: target.email,
+            reason: 'Security invariant violation: Cannot delete a Super Admin account.',
+            result: 'FAILED',
+            module: 'Sub Admins',
+          },
+        },
+      });
       throw new ForbiddenException('Last Super Admin protection: Cannot delete a Super Admin account.');
     }
     if (target.id === actorId) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUB_ADMIN_DELETE_BLOCKED',
+          entityType: 'User',
+          entityId: target.id,
+          metadata: {
+            targetEmail: target.email,
+            reason: 'Self-deletion invariant: Administrator cannot delete their own account.',
+            result: 'FAILED',
+            module: 'Sub Admins',
+          },
+        },
+      });
       throw new BadRequestException('You cannot delete your own account.');
     }
 
@@ -3035,10 +3096,15 @@ export class AdminService {
 
     if (opAuditCount === 0) {
       // Safe to hard delete: user has no operational history
-      await this.prisma.sellerCredential.deleteMany({ where: { userId: id } });
-      await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
-      await this.prisma.session.deleteMany({ where: { userId: id } });
-      await this.prisma.user.delete({ where: { id } });
+      await this.prisma.$transaction(async (tx) => {
+        if (target.email) {
+          await tx.adminInvite.deleteMany({ where: { email: target.email } });
+        }
+        await tx.sellerCredential.deleteMany({ where: { userId: id } });
+        await tx.refreshToken.deleteMany({ where: { userId: id } });
+        await tx.session.deleteMany({ where: { userId: id } });
+        await tx.user.delete({ where: { id } });
+      });
 
       await this.prisma.auditLog.create({
         data: {
@@ -3127,7 +3193,9 @@ export class AdminService {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const settings = await this.getSafeSettings();
+    const expiryDays = Number(settings.security.subAdminInviteExpiryDays ?? 7);
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
     await this.prisma.adminInvite.update({
       where: { id: actualId },

@@ -111,8 +111,22 @@ export class SubscriptionVisibilityService {
       );
     }
 
-    // Check period end expiry
-    if (now > latestSubscription.currentPeriodEnd) {
+    // Check period end expiry with grace period from platform settings
+    let gracePeriodMs = 0;
+    try {
+      const commerceSetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'commerce' },
+      });
+      const graceDays = Number((commerceSetting?.value as any)?.subscriptionGracePeriodDays ?? 0);
+      if (graceDays > 0) {
+        gracePeriodMs = graceDays * 24 * 60 * 60 * 1000;
+      }
+    } catch {
+      // Fallback: gracePeriodMs stays 0
+    }
+
+    const effectiveEnd = new Date(latestSubscription.currentPeriodEnd.getTime() + gracePeriodMs);
+    if (now > effectiveEnd) {
       throw new StoreSubscriptionExpiredException(
         'Store subscription validity period has ended. Please renew to restore public access.'
       );

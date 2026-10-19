@@ -244,8 +244,12 @@ export class AdminController {
   @RequirePermission(AdminPermission.PAYMENTS_VIEW)
   @Get('invoices/:id/pdf')
   @ApiOperation({ summary: 'Download subscription invoice as official PDF' })
-  async getInvoicePdf(@Param('id') id: string, @Res() res: any) {
-    const pdf = await this.adminService.generateInvoicePdf(id);
+  async getInvoicePdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Res() res: any,
+  ) {
+    const pdf = await this.adminService.generateInvoicePdf(id, undefined, user?.userId);
     res.header('Content-Type', 'application/pdf');
     res.header('Content-Disposition', `inline; filename="LetzShop-Invoice-${id}.pdf"`);
     res.header('Cache-Control', 'private, no-store');

@@ -230,7 +230,7 @@ export default function Settings() {
     { key: 'future-features', label: 'Feature Availability', icon: ToggleRight },
   ];
 
-  const renderBadge = (type: 'functional' | 'readonly' | 'future') => {
+  const renderBadge = (type: 'functional' | 'readonly' | 'future' | 'invariant') => {
     if (type === 'functional') {
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -244,6 +244,14 @@ export default function Settings() {
         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
           Read-Only
+        </span>
+      );
+    }
+    if (type === 'invariant') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+          Mandatory Invariant
         </span>
       );
     }
@@ -375,10 +383,10 @@ export default function Settings() {
                     <div>
                       <h2 className="text-lg font-bold text-admin-text">General Settings</h2>
                       <p className="text-xs text-admin-muted mt-0.5">
-                        Core platform branding and regional defaults applied across administrative and merchant modules.
+                        Core platform branding and regional defaults. Persisted in PostgreSQL; runtime storefront consumption coming soon.
                       </p>
                     </div>
-                    {renderBadge('functional')}
+                    {renderBadge('future')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -387,7 +395,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Platform Name
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -405,7 +413,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Support Email
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="email"
@@ -423,7 +431,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Support Phone
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -441,7 +449,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Default Timezone
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -462,7 +470,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Default Locale
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -519,10 +527,10 @@ export default function Settings() {
                     <div>
                       <h2 className="text-lg font-bold text-admin-text">Brand & Support Configuration</h2>
                       <p className="text-xs text-admin-muted mt-0.5">
-                        Public-facing identities, contact information, and support URLs displayed in notifications and invoices.
+                        Public-facing identities and contact URLs. Persisted in PostgreSQL; frontend brand provider wiring in upcoming release.
                       </p>
                     </div>
-                    {renderBadge('functional')}
+                    {renderBadge('future')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -531,7 +539,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Platform Display Name
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -551,7 +559,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Public Support Email
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="email"
@@ -568,7 +576,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Public Support Phone
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="text"
@@ -585,7 +593,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Business / Legal Email
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="email"
@@ -602,7 +610,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Official Website URL
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="url"
@@ -619,7 +627,7 @@ export default function Settings() {
                         <label className="text-xs font-semibold text-admin-text">
                           Help Center URL
                         </label>
-                        {renderBadge('functional')}
+                        {renderBadge('future')}
                       </div>
                       <input
                         type="url"
@@ -737,7 +745,7 @@ export default function Settings() {
                           <span className="text-sm font-semibold text-admin-text">
                             Notify merchant on failed subscription charge
                           </span>
-                          {renderBadge('functional')}
+                          {renderBadge('future')}
                         </div>
                         <div className="text-xs text-admin-muted mt-0.5">
                           Warns merchants regarding invoice renewal failures during the subscription grace period.
@@ -762,7 +770,7 @@ export default function Settings() {
                           <span className="text-sm font-semibold text-admin-text">
                             Notify administrators on business verification submissions
                           </span>
-                          {renderBadge('functional')}
+                          {renderBadge('future')}
                         </div>
                         <div className="text-xs text-admin-muted mt-0.5">
                           Alerts compliance team when merchants upload GST, PAN, or identity documents for verification.
@@ -941,10 +949,10 @@ export default function Settings() {
                             <span className="text-sm font-semibold text-admin-text">
                               Display tax-inclusive product pricing
                             </span>
-                            {renderBadge('functional')}
+                            {renderBadge('future')}
                           </div>
                           <div className="text-xs text-admin-muted mt-0.5">
-                            Standard GST-inclusive pricing shown to retail buyers on all storefronts.
+                            Coming Soon / Not Yet Enforced: Tax calculation engine planned for upcoming release. Setting is stored in PostgreSQL.
                           </div>
                         </div>
                       </label>
@@ -1063,30 +1071,25 @@ export default function Settings() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="flex items-center gap-3 p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 cursor-pointer">
+                      <div className="flex items-start gap-3 p-3.5 rounded-lg border border-purple-500/30 bg-purple-500/5">
                         <input
                           type="checkbox"
-                          checked={securityForm.requirePinChangeFirstLogin}
-                          onChange={(e) =>
-                            setSecurityForm({
-                              ...securityForm,
-                              requirePinChangeFirstLogin: e.target.checked,
-                            })
-                          }
-                          className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                          checked={true}
+                          disabled
+                          className="mt-1 rounded border-purple-300 text-purple-600 focus:ring-purple-500 opacity-80 cursor-not-allowed"
                         />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold text-admin-text">
                               Require password change on initial delegated administrator login
                             </span>
-                            {renderBadge('functional')}
+                            {renderBadge('invariant')}
                           </div>
                           <div className="text-xs text-admin-muted mt-0.5">
-                            Mandates that invited sub-admins set a new personal password upon initial login with temporary credentials.
+                            Mandatory Security Invariant: Temporary sub-admin credentials unconditionally require a password change on first login. This security rule cannot be disabled by platform configuration.
                           </div>
                         </div>
-                      </label>
+                      </div>
                     </div>
                   </div>
 
@@ -1342,7 +1345,7 @@ export default function Settings() {
                         Platform deployment state, database health check, and emergency maintenance controls.
                       </p>
                     </div>
-                    {renderBadge('functional')}
+                    {renderBadge('readonly')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -1406,10 +1409,10 @@ export default function Settings() {
                           <span className="text-sm font-bold text-rose-700 dark:text-rose-400">
                             Enable Platform Maintenance Mode
                           </span>
-                          {renderBadge('functional')}
+                          {renderBadge('future')}
                         </div>
                         <div className="text-xs text-admin-muted mt-0.5">
-                          When enabled, store visitors and merchants see a scheduled maintenance notice. Platform administrators retain full dashboard access.
+                          Coming Soon / Not Yet Enforced: Database persistence active; edge middleware gateway enforcement scheduled for next platform release.
                         </div>
                       </div>
                     </label>

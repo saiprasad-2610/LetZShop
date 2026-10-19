@@ -625,27 +625,44 @@ export class ReviewsService {
       `[MERCHANT_REVIEW_REPORT] Review ID ${reviewId} reported by merchant ${user?.phone || user?.userId} (Store: ${review.store.name}). Reason: "${reason}". Details: "${details || 'N/A'}"`
     );
 
-    // Send moderation request email to letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and admin
+    // Check platform setting for notifyAdminOnReviewReport
+    let shouldNotifyAdmin = true;
     try {
-      await this.mailService.sendReviewReportModerationEmail({
-        storeName: review.store.name,
-        storeId: review.store.id,
-        productName: review.product.name,
-        productId: review.productId,
-        orderNumber: review.order.orderNumber,
-        reviewId: review.id,
-        reviewerName: review.reviewerName,
-        rating: review.rating,
-        title: review.title,
-        body: review.body,
-        reason,
-        details,
-        merchantIdentifier: user?.phone || user?.userId || 'Merchant',
+      const notifSetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'notifications' },
       });
-    } catch (mailErr: any) {
-      this.logger.error(
-        `Failed to send review report moderation email for review ${reviewId}: ${mailErr?.message || mailErr}`
-      );
+      if (notifSetting?.value && typeof notifSetting.value === 'object') {
+        shouldNotifyAdmin = (notifSetting.value as any).notifyAdminOnReviewReport ?? true;
+      }
+    } catch {
+      // Default to true if setting query fails
+    }
+
+    if (shouldNotifyAdmin) {
+      // Send moderation request email to letzshop@aikyamaisystems.com, business@aikyamaisystems.com, and admin
+      try {
+        await this.mailService.sendReviewReportModerationEmail({
+          storeName: review.store.name,
+          storeId: review.store.id,
+          productName: review.product.name,
+          productId: review.productId,
+          orderNumber: review.order.orderNumber,
+          reviewId: review.id,
+          reviewerName: review.reviewerName,
+          rating: review.rating,
+          title: review.title,
+          body: review.body,
+          reason,
+          details,
+          merchantIdentifier: user?.phone || user?.userId || 'Merchant',
+        });
+      } catch (mailErr: any) {
+        this.logger.error(
+          `Failed to send review report moderation email for review ${reviewId}: ${mailErr?.message || mailErr}`
+        );
+      }
+    } else {
+      this.logger.log(`[NOTIFICATIONS] notifyAdminOnReviewReport disabled; email alert skipped for review ${reviewId}`);
     }
 
     return {

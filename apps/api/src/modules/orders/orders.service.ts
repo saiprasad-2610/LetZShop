@@ -425,10 +425,18 @@ export class OrdersService {
       const isZeroAmount = totalPaise === 0;
       const initialPaymentStatus = isZeroAmount ? PaymentStatus.PAID : PaymentStatus.PENDING;
 
-      // Generate Order Number: ORD-YYYYMMDD-XXXX
+      // Generate Order Number: {orderNumberPrefix}-YYYYMMDD-XXXX
       const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
-      const orderNumber = `ORD-${datePrefix}-${randomSuffix}`;
+      let prefix = 'ORD-';
+      try {
+        const commerceSetting = await tx.platformSetting.findUnique({ where: { key: 'commerce' } });
+        const configuredPrefix = (commerceSetting?.value as any)?.orderNumberPrefix?.trim();
+        if (configuredPrefix) {
+          prefix = configuredPrefix.endsWith('-') ? configuredPrefix : `${configuredPrefix}-`;
+        }
+      } catch {}
+      const orderNumber = `${prefix}${datePrefix}-${randomSuffix}`;
       const trackingToken = crypto.randomBytes(16).toString('hex');
       const reviewToken = crypto.randomBytes(16).toString('hex');
 

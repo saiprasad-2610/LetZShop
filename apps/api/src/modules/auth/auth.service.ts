@@ -640,8 +640,12 @@ export class AuthService {
 
     if (!isValid) {
       if (pinCred) {
+        const securitySetting = await this.prisma.platformSetting.findUnique({
+          where: { key: 'security' },
+        });
+        const maxAttempts = Number((securitySetting?.value as any)?.maxFailedLoginAttempts ?? 5);
         const failed = await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { failedPinAttempts: { increment: 1 } } });
-        if (failed.failedPinAttempts >= 5) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
+        if (failed.failedPinAttempts >= maxAttempts) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
       }
       await this.prisma.auditLog.create({
         data: {
@@ -818,7 +822,14 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
     const sessionToken = crypto.randomBytes(32).toString('hex');
     const sessionHash = this.hashCode(sessionToken);
-    const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    let sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default for merchants/buyers
+    if (user.role === 'PLATFORM_ADMIN' || user.isSuperAdmin) {
+      const securitySetting = await this.prisma.platformSetting.findUnique({
+        where: { key: 'security' },
+      });
+      const timeoutMinutes = Number((securitySetting?.value as any)?.adminSessionTimeoutMinutes ?? 60);
+      sessionExpiry = new Date(Date.now() + timeoutMinutes * 60 * 1000);
+    }
 
     const session = await this.prisma.session.create({
       data: {

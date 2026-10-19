@@ -779,11 +779,13 @@ export class ReviewModerationService {
         if (review.status !== 'ACTIVE')
           throw new ConflictException('Only active reviews can be reported.');
         const open = await tx.reviewReport.findFirst({
-          where: { reviewId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
+          where: actorId
+            ? { reviewId, reportedById: actorId, status: { in: ['PENDING', 'UNDER_REVIEW'] } }
+            : { reviewId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
         });
         if (open)
           throw new ConflictException(
-            'This review is already pending admin moderation.',
+            'You have already submitted a pending moderation report for this review.',
           );
         const report = await tx.reviewReport.create({
           data: {
@@ -804,6 +806,49 @@ export class ReviewModerationService {
             metadata: { reviewId, reason: reason.trim() },
           },
         });
+
+        // Enforce Moderation Policy: AUTO_HIDE_ON_REPORTS threshold check
+        try {
+          const modSetting = await tx.platformSetting.findUnique({
+            where: { key: 'moderation' },
+          });
+          const modVal = (modSetting?.value as any) || {};
+          const policy = modVal.reviewModerationPolicy || 'MANUAL_REMOVAL';
+          const autoHideThreshold = Number(modVal.autoHideAfterReports ?? 0);
+
+          if (policy === 'AUTO_HIDE_ON_REPORTS' && autoHideThreshold > 0) {
+            const qualifyingReportsCount = await tx.reviewReport.count({
+              where: { reviewId },
+            });
+            if (qualifyingReportsCount >= autoHideThreshold) {
+              await tx.productReview.update({
+                where: { id: reviewId },
+                data: { status: 'REMOVED' },
+              });
+              await tx.auditLog.create({
+                data: {
+                  actorId: actorId || null,
+                  tenantId,
+                  storeId,
+                  action: 'REVIEW_AUTO_HIDDEN',
+                  entityType: 'ProductReview',
+                  entityId: reviewId,
+                  metadata: {
+                    reason: `Auto-hidden by moderation policy (${qualifyingReportsCount} reports >= threshold ${autoHideThreshold})`,
+                    policy,
+                    autoHideThreshold,
+                    qualifyingReportsCount,
+                    module: 'Reviews',
+                    result: 'SUCCESS',
+                  },
+                },
+              });
+            }
+          }
+        } catch (policyErr) {
+          // Graceful fallback: do not fail report creation if policy check errors
+        }
+
         return report;
       });
     } catch (error: any) {
