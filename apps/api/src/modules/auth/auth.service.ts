@@ -2,6 +2,8 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Logger,
@@ -580,15 +582,50 @@ export class AuthService {
     });
 
     if (!admin) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: cleanEmail,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            identifier: rawId,
+            reason: 'User not found or not an administrator',
+            result: 'FAILED',
+            module: 'Authentication',
+          },
+        },
+      });
       throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
 
-    if (!admin.isActive) {
+    if (!admin.isActive || (admin as any).isDeactivated) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: admin.id,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            email: admin.email,
+            reason: (admin as any).isDeactivated ? 'Administrator account deactivated' : 'Administrator account suspended',
+            result: 'DENIED',
+            module: 'Authentication',
+          },
+        },
+      });
       throw new HttpException(
         {
           statusCode: HttpStatus.FORBIDDEN,
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Administrator account has been deactivated.',
+          code: (admin as any).isDeactivated ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_SUSPENDED',
+          message: (admin as any).isDeactivated
+            ? 'Administrator account has been permanently deactivated.'
+            : 'Administrator account has been suspended.',
         },
         HttpStatus.FORBIDDEN
       );
@@ -606,17 +643,60 @@ export class AuthService {
         const failed = await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { failedPinAttempts: { increment: 1 } } });
         if (failed.failedPinAttempts >= 5) await this.prisma.sellerCredential.update({ where: { id: pinCred.id }, data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } });
       }
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          actorType: 'ADMIN',
+          action: 'ADMIN_LOGIN_FAILED',
+          entityType: 'User',
+          entityId: admin.id,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          metadata: {
+            email: admin.email,
+            reason: 'Incorrect password',
+            result: 'FAILED',
+            module: 'Authentication',
+          },
+        },
+      });
       throw new UnauthorizedException('Invalid administrator credentials provided.');
     }
     await this.prisma.sellerCredential.update({ where: { id: pinCred!.id }, data: { failedPinAttempts: 0, lockedUntil: null } });
 
+    // Update lastLoginAt
+    await this.prisma.user.update({
+      where: { id: admin.id },
+      data: { lastLoginAt: new Date() } as any,
+    });
+
     const tokens = await this.createSessionAndIssueTokens(admin, undefined, undefined, userAgent, ipAddress);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: admin.id,
+        actorType: 'ADMIN',
+        action: 'ADMIN_LOGIN',
+        entityType: 'User',
+        entityId: admin.id,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        metadata: {
+          email: admin.email,
+          fullName: admin.fullName,
+          role: admin.isSuperAdmin ? 'SUPER_ADMIN' : 'SUB_ADMIN',
+          result: 'SUCCESS',
+          module: 'Authentication',
+        },
+      },
+    });
 
     return {
       user: {
         userId: admin.id,
         phone: admin.phone,
         email: admin.email,
+        fullName: admin.fullName || undefined,
         role: admin.role as any,
         tenantId: null,
         storeId: null,
@@ -624,6 +704,8 @@ export class AuthService {
         isPlatformAdmin: true,
         isSuperAdmin: admin.isSuperAdmin,
         adminPermissions: Array.isArray(admin.adminPermissions) ? (admin.adminPermissions as string[]) : [],
+        mustChangePassword: Boolean((admin as any).mustChangePassword),
+        isDeactivated: Boolean((admin as any).isDeactivated),
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -635,6 +717,92 @@ export class AuthService {
       },
     };
   }
+
+  public async changeAdminPassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string },
+    userAgent?: string,
+    ipAddress?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { credentials: true },
+    });
+    if (!user || user.deletedAt) {
+      throw new NotFoundException('Administrator account not found.');
+    }
+    if (!user.isActive || (user as any).isDeactivated) {
+      throw new ForbiddenException('Administrator account is not active.');
+    }
+
+    const newPass = (dto.newPassword || '').trim();
+    if (newPass.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters long.');
+    }
+    if (!/[A-Za-z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+      throw new BadRequestException('Password must contain both letters and numbers.');
+    }
+
+    const pinCred = user.credentials?.find((c) => c.credentialType === CredentialType.PIN);
+    if (dto.currentPassword && pinCred?.pinHash) {
+      const isCurrentValid = this.verifyPin(dto.currentPassword, pinCred.pinHash);
+      if (!isCurrentValid) {
+        throw new BadRequestException('Current password does not match.');
+      }
+    }
+
+    const newPinHash = this.hashPin(newPass);
+
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash: newPinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash: newPinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        mustChangePassword: false,
+      } as any,
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorType: 'ADMIN',
+        action: 'ADMIN_PASSWORD_CHANGED',
+        entityType: 'User',
+        entityId: user.id,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        metadata: {
+          email: user.email,
+          module: 'Security',
+          result: 'SUCCESS',
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully. You may continue to the admin dashboard.',
+    };
+  }
+
 
   // ============================================================================
   // SESSION & TOKEN HELPERS
@@ -1009,12 +1177,19 @@ export class AuthService {
         throw new UnauthorizedException('Session is no longer valid or has been revoked.');
       }
 
-      if (session.userId !== payload.sub || !session.user.isActive || session.user.deletedAt) {
+      if (
+        session.userId !== payload.sub ||
+        !session.user.isActive ||
+        (session.user as any).isDeactivated ||
+        session.user.deletedAt
+      ) {
         throw new HttpException(
           {
             statusCode: HttpStatus.FORBIDDEN,
-            code: 'ACCOUNT_SUSPENDED',
-            message: 'Your account has been suspended. Please contact LetzShop Support.',
+            code: (session.user as any).isDeactivated ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_SUSPENDED',
+            message: (session.user as any).isDeactivated
+              ? 'Administrator account has been permanently deactivated.'
+              : 'Your account has been suspended. Please contact LetzShop Support.',
           },
           HttpStatus.FORBIDDEN
         );
@@ -1024,6 +1199,8 @@ export class AuthService {
       return {
         userId: payload.sub,
         phone: payload.phone,
+        email: session.user.email || undefined,
+        fullName: session.user.fullName || undefined,
         role: payload.role === UserRole.PLATFORM_ADMIN && !isPlatformAdmin ? session.user.role : payload.role,
         tenantId: payload.tenantId,
         storeId: payload.storeId,
@@ -1033,6 +1210,8 @@ export class AuthService {
         adminPermissions: Array.isArray(session.user.adminPermissions)
           ? (session.user.adminPermissions as string[])
           : [],
+        mustChangePassword: Boolean((session.user as any).mustChangePassword),
+        isDeactivated: Boolean((session.user as any).isDeactivated),
       };
     } catch (err: any) {
       if (err instanceof HttpException) {

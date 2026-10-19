@@ -20,6 +20,10 @@ import type {
   CreateSubAdminDto,
   UpdateSubAdminDto,
   ActivateSubAdminDto,
+  AdminAudit,
+  AdminAuditPageResult,
+  AdminChangePasswordDto,
+  AdminResetTempPasswordDto,
 } from './admin';
 // ==============================================================================
 // Simply E-Commerce: Unified Type-Safe REST API Client
@@ -666,8 +670,12 @@ export class SimplyApiClient {
       ),
     getSubAdmins: (params?: any) =>
       this.request<AdminPage<AdminSubAdmin>>('admin/sub-admins', { params }),
+    getSubAdminDetail: (id: string) =>
+      this.request<AdminSubAdmin & { auditActions: AdminAudit[]; sessions: any[]; inviteHistory?: any[] }>(
+        `admin/sub-admins/${id}`,
+      ),
     createSubAdmin: (data: CreateSubAdminDto) =>
-      this.request<{ invite: any; activationLink: string }>(
+      this.request<{ subAdmin: AdminSubAdmin; activationUrl?: string; temporaryPasswordGenerated?: boolean }>(
         'admin/sub-admins',
         { method: 'POST', body: data },
       ),
@@ -681,8 +689,13 @@ export class SimplyApiClient {
         method: 'POST',
         body: data,
       }),
+    resetSubAdminTempPassword: (id: string, data?: AdminResetTempPasswordDto) =>
+      this.request<{ success: boolean; message: string; temporaryPassword?: string }>(
+        `admin/sub-admins/${id}/reset-temp-password`,
+        { method: 'POST', body: data },
+      ),
     resendSubAdminInvite: (inviteId: string) =>
-      this.request<{ success: boolean; activationLink: string }>(
+      this.request<{ success: boolean; activationUrl: string }>(
         `admin/sub-admins/invites/${inviteId}/resend`,
         { method: 'POST' },
       ),
@@ -691,11 +704,30 @@ export class SimplyApiClient {
         `admin/sub-admins/${id}/revoke-sessions`,
         { method: 'POST' },
       ),
+    deactivateSubAdmin: (id: string, data?: { reason?: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        `admin/sub-admins/${id}/deactivate`,
+        { method: 'POST', body: data },
+      ),
+    deleteSubAdmin: (id: string, data?: { reason?: string }) =>
+      this.request<{ success: boolean; mode: 'DELETED' | 'DEACTIVATED'; message: string }>(
+        `admin/sub-admins/${id}`,
+        { method: 'DELETE', body: data },
+      ),
     activateSubAdmin: (data: ActivateSubAdminDto) =>
       this.request<{ success: boolean; message: string }>(
         'auth/admin/activate',
         { method: 'POST', body: data },
       ),
+    changePassword: (data: AdminChangePasswordDto) =>
+      this.request<{ success: boolean; message: string }>(
+        'auth/admin/change-password',
+        { method: 'POST', body: data },
+      ),
+    getAuditLogs: (params?: any) =>
+      this.request<AdminAuditPageResult>('admin/audit-logs', { params }),
+    getAuditLogDetail: (id: string) =>
+      this.request<AdminAudit>(`admin/audit-logs/${id}`),
   };
 
   // --- Merchant Business Verification & Documents ---

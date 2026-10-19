@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
   Res,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -134,9 +135,40 @@ export class AdminController {
 
   @RequirePermission(AdminPermission.AUDIT_LOGS_VIEW)
   @Get('audit-logs')
-  getAuditLogs(@Query('search') search?: string, @Query('page') page?: string) {
-    return this.adminService.getAuditLogs({ search, page });
+  @ApiOperation({ summary: 'Paginated platform audit trail with filters and KPIs' })
+  getAuditLogs(
+    @Query('search') search?: string,
+    @Query('actorId') actorId?: string,
+    @Query('actorRole') actorRole?: string,
+    @Query('module') module?: string,
+    @Query('action') action?: string,
+    @Query('result') result?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getAuditLogs({
+      search,
+      actorId,
+      actorRole,
+      module,
+      action,
+      result,
+      dateFrom,
+      dateTo,
+      page,
+      pageSize,
+    });
   }
+
+  @RequirePermission(AdminPermission.AUDIT_LOGS_VIEW)
+  @Get('audit-logs/:id')
+  @ApiOperation({ summary: 'Get single audit event details' })
+  getAuditLogDetail(@Param('id') id: string) {
+    return this.adminService.getAuditLogDetail(id);
+  }
+
 
   @RequirePermission(AdminPermission.SETTINGS_VIEW)
   @Get('settings')
@@ -448,15 +480,24 @@ export class AdminController {
   async getSubAdmins(
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('permission') permission?: string,
+    @Query('sort') sort?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    return this.adminService.getSubAdmins({ search, status, page, pageSize });
+    return this.adminService.getSubAdmins({ search, status, permission, sort, page, pageSize });
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Get('sub-admins/:id')
+  @ApiOperation({ summary: 'Get full details of a delegated platform administrator' })
+  async getSubAdminDetail(@Param('id') id: string) {
+    return this.adminService.getSubAdminDetail(id);
   }
 
   @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
   @Post('sub-admins')
-  @ApiOperation({ summary: 'Invite a new delegated platform administrator' })
+  @ApiOperation({ summary: 'Create and dispatch credentials for a new delegated administrator' })
   async createSubAdmin(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: CreateSubAdminDto,
@@ -487,6 +528,38 @@ export class AdminController {
   }
 
   @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/:id/reset-temp-password')
+  @ApiOperation({ summary: 'Regenerate temporary credentials and dispatch email' })
+  async resetSubAdminTempPassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body?: { temporaryPassword?: string },
+  ) {
+    return this.adminService.resetSubAdminTempPassword(id, user.userId, body);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Post('sub-admins/:id/deactivate')
+  @ApiOperation({ summary: 'Permanently deactivate administrator access' })
+  async deactivateSubAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body?: { reason?: string },
+  ) {
+    return this.adminService.deactivateSubAdmin(id, user.userId, body);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
+  @Delete('sub-admins/:id')
+  @ApiOperation({ summary: 'Delete unused sub admin or archive if historical audit logs exist' })
+  async deleteSubAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.deleteSubAdmin(id, user.userId);
+  }
+
+  @RequirePermission(AdminPermission.SUB_ADMINS_MANAGE)
   @Post('sub-admins/invites/:id/resend')
   @ApiOperation({ summary: 'Resend invitation email with fresh activation token' })
   async resendSubAdminInvite(
@@ -505,6 +578,19 @@ export class AdminController {
   ) {
     return this.adminService.revokeSubAdminSessions(id, user.userId);
   }
+
+  @Post('change-password')
+  @ApiOperation({ summary: 'Change administrator password (first-login requirement or routine reset)' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { currentPassword?: string; newPassword: string },
+    @Req() req: any,
+  ) {
+    const userAgent = req.headers?.['user-agent'];
+    const ipAddress = req.ip || req.headers?.['x-forwarded-for'];
+    return this.adminService.changePassword(user.userId, body, userAgent, ipAddress);
+  }
+
 
   @Get('analytics')
   @ApiOperation({

@@ -278,6 +278,11 @@ export enum AdminPermission {
   SETTINGS_MANAGE = 'SETTINGS_MANAGE',
   AUDIT_LOGS_VIEW = 'AUDIT_LOGS_VIEW',
   SUB_ADMINS_MANAGE = 'SUB_ADMINS_MANAGE',
+  THEMES_VIEW = 'THEMES_VIEW',
+  THEMES_MANAGE = 'THEMES_MANAGE',
+  ANALYTICS_VIEW = 'ANALYTICS_VIEW',
+  ORDERS_VIEW = 'ORDERS_VIEW',
+  ORDERS_MANAGE = 'ORDERS_MANAGE',
 }
 
 // ==============================================================================
@@ -288,6 +293,7 @@ export interface AuthenticatedUser {
   userId: string;
   phone: string;
   email?: string | null;
+  fullName?: string | null;
   role: UserRole;
   tenantId?: string | null;
   storeId?: string | null;
@@ -295,6 +301,8 @@ export interface AuthenticatedUser {
   isPlatformAdmin?: boolean;
   isSuperAdmin?: boolean;
   adminPermissions?: string[];
+  mustChangePassword?: boolean;
+  isDeactivated?: boolean;
   preferredLocale?: string;
 }
 

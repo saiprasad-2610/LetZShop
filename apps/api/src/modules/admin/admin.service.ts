@@ -22,6 +22,7 @@ import {
   StoreStatus,
   UserRole,
   SubscriptionStatus,
+  CredentialType,
 } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
 import { planAvailability } from '../subscriptions/plan-policy';
@@ -1811,72 +1812,266 @@ export class AdminService {
     };
   }
 
-  public async getAuditLogs(query: { search?: string; page?: string }) {
-    const page = Math.max(
-      1,
-      Math.min(100000, parseInt(query.page || '1', 10) || 1),
-    );
-    const where: Prisma.AuditLogWhereInput = query.search
-      ? {
-          OR: [
-            { action: { contains: query.search, mode: 'insensitive' } },
-            { entityId: { contains: query.search } },
-            { actorId: { contains: query.search } },
-          ],
-        }
-      : {};
-    const [total, rows] = await Promise.all([
+  public async getAuditLogs(query: {
+    search?: string;
+    actorId?: string;
+    actorRole?: string;
+    module?: string;
+    action?: string;
+    result?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: string | number;
+    pageSize?: string | number;
+  }): Promise<{
+    kpis: {
+      actionsToday: number;
+      adminActions: number;
+      securityEvents: number;
+      failedActions: number;
+    };
+    items: any[];
+    data: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    pagination: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const page = Math.max(1, Number(query.page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 25));
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.AuditLogWhereInput = {};
+
+    if (query.search?.trim()) {
+      const term = query.search.trim();
+      where.OR = [
+        { action: { contains: term, mode: 'insensitive' } },
+        { entityId: { contains: term } },
+        { entityType: { contains: term, mode: 'insensitive' } },
+        { actorId: { contains: term } },
+      ];
+    }
+
+    if (query.actorId) {
+      where.actorId = query.actorId;
+    }
+
+    if (query.action) {
+      where.action = { contains: query.action, mode: 'insensitive' };
+    }
+
+    if (query.dateFrom || query.dateTo) {
+      where.createdAt = {};
+      if (query.dateFrom) {
+        where.createdAt.gte = new Date(query.dateFrom);
+      }
+      if (query.dateTo) {
+        const to = new Date(query.dateTo);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [total, rows, actionsToday, adminActions, securityEvents, failedActions] = await Promise.all([
       this.prisma.auditLog.count({ where }),
       this.prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * 20,
-        take: 20,
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.auditLog.count({
+        where: { createdAt: { gte: todayStart } },
+      }),
+      this.prisma.auditLog.count({
+        where: { actorType: 'ADMIN' },
+      }),
+      this.prisma.auditLog.count({
+        where: {
+          OR: [
+            { action: { startsWith: 'ADMIN_' } },
+            { action: { startsWith: 'SUB_ADMIN_' } },
+            { action: { contains: 'PASSWORD' } },
+            { action: { contains: 'SESSION' } },
+            { action: { contains: 'LOGIN' } },
+          ],
+        },
+      }),
+      this.prisma.auditLog.count({
+        where: {
+          OR: [
+            { action: { contains: 'FAILED' } },
+            { action: { contains: 'DENIED' } },
+          ],
+        },
       }),
     ]);
+
+    const actorIds = Array.from(
+      new Set(rows.map((r) => r.actorId).filter((id): id is string => Boolean(id))),
+    );
+
     const actors = await this.prisma.user.findMany({
-      where: {
-        id: {
-          in: rows
-            .map((r) => r.actorId)
-            .filter((id): id is string => Boolean(id)),
-        },
+      where: { id: { in: actorIds } },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isSuperAdmin: true,
       },
-      select: { id: true, fullName: true },
     });
-    // Only known administrative reason/status metadata is shown, never arbitrary gateway/auth payloads.
+
+    const actorMap = new Map(actors.map((a) => [a.id, a]));
+
     const items = rows.map((row) => {
       const meta =
-        row.metadata &&
-        typeof row.metadata === 'object' &&
-        !Array.isArray(row.metadata)
-          ? row.metadata
+        row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, any>)
           : {};
+
+      const actor = row.actorId ? actorMap.get(row.actorId) : null;
+      const inferredRole = actor
+        ? actor.isSuperAdmin
+          ? 'Super Admin'
+          : actor.role === 'PLATFORM_ADMIN'
+          ? 'Sub Admin'
+          : 'Seller'
+        : row.actorType === 'ADMIN'
+        ? 'Platform Admin'
+        : row.actorType || 'System';
+
+      const inferredModule =
+        meta.module ||
+        (row.action.startsWith('ADMIN_') || row.action.startsWith('SUB_ADMIN_')
+          ? 'Sub Admins'
+          : row.action.includes('SETTING')
+          ? 'Settings'
+          : row.action.includes('MERCHANT') || row.action.includes('TENANT')
+          ? 'Merchants'
+          : row.action.includes('REVIEW')
+          ? 'Reviews'
+          : row.action.includes('SUBSCRIPTION')
+          ? 'Subscriptions'
+          : row.action.includes('PAYMENT') || row.action.includes('INVOICE')
+          ? 'Payments'
+          : row.action.includes('VERIFICATION')
+          ? 'Business Verification'
+          : row.entityType || 'System');
+
+      const inferredResult = meta.result || (row.action.includes('FAILED') ? 'FAILED' : 'SUCCESS');
+
       return {
         id: row.id,
         actorId: row.actorId,
-        actorName:
-          actors.find((a) => a.id === row.actorId)?.fullName || row.actorType,
+        actorName: actor?.fullName || meta.fullName || (row.actorType === 'ADMIN' ? 'Administrator' : 'System'),
+        actorEmail: actor?.email || meta.email || null,
+        actorRole: inferredRole,
         action: row.action,
+        module: inferredModule,
+        result: inferredResult,
         entityType: row.entityType,
         entityId: row.entityId,
-        createdAt: row.createdAt,
-        reason: typeof meta?.reason === 'string' ? meta.reason : null,
-        previousStatus:
-          typeof meta.previousStatus === 'string'
-            ? meta.previousStatus
-            : undefined,
+        targetName: meta.targetName || meta.storeName || meta.fullName || meta.email || row.entityId || null,
+        ipAddress: row.ipAddress || meta.ipAddress || null,
+        userAgent: row.userAgent || meta.userAgent || null,
+        requestId: row.requestId || null,
+        reason: typeof meta.reason === 'string' ? meta.reason : null,
+        previousStatus: typeof meta.previousStatus === 'string' ? meta.previousStatus : undefined,
         status: typeof meta.status === 'string' ? meta.status : undefined,
+        beforeValue: meta.beforeValue || meta.oldValue || null,
+        afterValue: meta.afterValue || meta.newValue || meta.changes || null,
+        metadata: meta,
+        createdAt: row.createdAt.toISOString(),
       };
     });
+
+    const totalPages = Math.ceil(total / pageSize) || 1;
+
     return {
+      kpis: {
+        actionsToday,
+        adminActions,
+        securityEvents,
+        failedActions,
+      },
       items,
+      data: items,
       total,
       page,
-      pageSize: 20,
-      totalPages: Math.ceil(total / 20),
+      pageSize,
+      totalPages,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
     };
   }
+
+  public async getAuditLogDetail(id: string) {
+    const row = await this.prisma.auditLog.findUnique({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException('Audit event not found.');
+    }
+
+    let actor: any = null;
+    if (row.actorId) {
+      actor = await this.prisma.user.findUnique({
+        where: { id: row.actorId },
+        select: { id: true, fullName: true, email: true, role: true, isSuperAdmin: true },
+      });
+    }
+
+    const meta =
+      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, any>)
+        : {};
+
+    const inferredRole = actor
+      ? actor.isSuperAdmin
+        ? 'Super Admin'
+        : actor.role === 'PLATFORM_ADMIN'
+        ? 'Sub Admin'
+        : 'Seller'
+      : row.actorType || 'System';
+
+    return {
+      id: row.id,
+      actorId: row.actorId,
+      actorName: actor?.fullName || meta.fullName || 'Administrator',
+      actorEmail: actor?.email || meta.email || null,
+      actorRole: inferredRole,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      targetName: meta.targetName || meta.fullName || meta.email || row.entityId || null,
+      module: meta.module || row.entityType,
+      result: meta.result || (row.action.includes('FAILED') ? 'FAILED' : 'SUCCESS'),
+      ipAddress: row.ipAddress || meta.ipAddress || null,
+      userAgent: row.userAgent || meta.userAgent || null,
+      requestId: row.requestId || null,
+      reason: meta.reason || null,
+      metadata: meta,
+      beforeValue: meta.beforeValue || meta.oldValue || null,
+      afterValue: meta.afterValue || meta.newValue || meta.changes || null,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
 
   public async getSafeSettings(): Promise<AdminSettings> {
     const brand = getBrandConfig();
@@ -1941,6 +2136,7 @@ export class AdminService {
         notifyMerchantOnAccountSuspension: notificationsCustom.notifyMerchantOnAccountSuspension ?? true,
         notifyAdminOnReviewReport: notificationsCustom.notifyAdminOnReviewReport ?? true,
         notifyMerchantOnFailedSubscription: notificationsCustom.notifyMerchantOnFailedSubscription ?? true,
+        notifyAdminOnBusinessVerification: notificationsCustom.notifyAdminOnBusinessVerification ?? true,
       },
       whatsapp: {
         mode: hasWhatsAppCloudApi ? 'CLOUD_API' : 'DEEP_LINK',
@@ -2001,6 +2197,11 @@ export class AdminService {
       throw new BadRequestException(`Invalid settings category "${category}".`);
     }
 
+    const existing = await this.prisma.platformSetting.findUnique({
+      where: { key: cat },
+    });
+    const oldValue = existing ? existing.value : null;
+
     await this.prisma.platformSetting.upsert({
       where: { key: cat },
       create: {
@@ -2015,6 +2216,11 @@ export class AdminService {
       },
     });
 
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorId },
+      select: { fullName: true, email: true, role: true },
+    });
+
     await this.prisma.auditLog.create({
       data: {
         actorId,
@@ -2024,6 +2230,14 @@ export class AdminService {
         entityId: cat,
         metadata: {
           category: cat,
+          module: 'Settings',
+          targetName: `${cat.toUpperCase()} Settings`,
+          result: 'SUCCESS',
+          actorName: actor?.fullName || 'Administrator',
+          actorEmail: actor?.email || null,
+          actorRole: actor?.role || 'PLATFORM_ADMIN',
+          beforeValue: oldValue,
+          afterValue: data,
           changes: data,
         },
       },
@@ -2056,14 +2270,23 @@ export class AdminService {
   public async getSubAdmins(query: {
     search?: string;
     status?: string;
+    permission?: string;
+    sort?: string;
     page?: string | number;
     pageSize?: string | number;
   }): Promise<{
     items: AdminSubAdmin[];
+    data: AdminSubAdmin[];
     total: number;
     page: number;
     pageSize: number;
     totalPages: number;
+    pagination: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    };
   }> {
     const page = Math.max(1, Number(query.page) || 1);
     const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 20));
@@ -2075,10 +2298,15 @@ export class AdminService {
       deletedAt: null,
     };
 
-    if (query.status === 'ACTIVE') {
+    const statusUpper = (query.status || 'ALL').toUpperCase().trim();
+    if (statusUpper === 'ACTIVE') {
       userWhere.isActive = true;
-    } else if (query.status === 'SUSPENDED') {
+      (userWhere as any).isDeactivated = false;
+    } else if (statusUpper === 'SUSPENDED') {
       userWhere.isActive = false;
+      (userWhere as any).isDeactivated = false;
+    } else if (statusUpper === 'DEACTIVATED') {
+      (userWhere as any).isDeactivated = true;
     }
 
     if (query.search?.trim()) {
@@ -2090,35 +2318,54 @@ export class AdminService {
       ];
     }
 
-    const totalUsers = await this.prisma.user.count({ where: userWhere });
-    const [users, pendingInvites] = await Promise.all([
-      this.prisma.user.findMany({
-        where: userWhere,
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          phone: true,
-          role: true,
-          isActive: true,
-          isSuperAdmin: true,
-          adminPermissions: true,
-          createdAt: true,
-          updatedAt: true,
-          sessions: {
-            where: { isRevoked: false },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: { createdAt: true },
-          },
-        },
-      }),
-      query.status === 'SUSPENDED' || (page > 1 && totalUsers >= skip)
-        ? []
-        : this.prisma.adminInvite.findMany({
+    // Sort order
+    let orderBy: Prisma.UserOrderByWithRelationInput = { createdAt: 'desc' };
+    const sortUpper = (query.sort || 'NEWEST').toUpperCase().trim();
+    if (sortUpper === 'OLDEST') {
+      orderBy = { createdAt: 'asc' };
+    } else if (sortUpper === 'NAME_ASC') {
+      orderBy = { fullName: 'asc' };
+    } else if (sortUpper === 'LAST_LOGIN') {
+      orderBy = { lastLoginAt: 'desc' } as any;
+    }
+
+    const includeInvites = statusUpper === 'ALL' || statusUpper === 'INVITED' || statusUpper === 'PENDING_INVITE';
+    const isOnlyInvites = statusUpper === 'INVITED' || statusUpper === 'PENDING_INVITE';
+
+    const [totalUsers, users, pendingInvites] = await Promise.all([
+      isOnlyInvites ? Promise.resolve(0) : this.prisma.user.count({ where: userWhere }),
+      isOnlyInvites
+        ? Promise.resolve([])
+        : this.prisma.user.findMany({
+            where: userWhere,
+            skip,
+            take: pageSize,
+            orderBy,
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              role: true,
+              isActive: true,
+              isSuperAdmin: true,
+              adminPermissions: true,
+              mustChangePassword: true,
+              isDeactivated: true,
+              activatedAt: true,
+              lastLoginAt: true,
+              createdAt: true,
+              updatedAt: true,
+              sessions: {
+                where: { isRevoked: false },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { createdAt: true },
+              },
+            },
+          }),
+      includeInvites
+        ? this.prisma.adminInvite.findMany({
             where: {
               acceptedAt: null,
               ...(query.search?.trim()
@@ -2126,16 +2373,22 @@ export class AdminService {
                     OR: [
                       { fullName: { contains: query.search.trim(), mode: 'insensitive' } },
                       { email: { contains: query.search.trim(), mode: 'insensitive' } },
+                      { phone: { contains: query.search.trim(), mode: 'insensitive' } },
                     ],
                   }
                 : {}),
             },
             orderBy: { createdAt: 'desc' },
-          }),
+          })
+        : Promise.resolve([]),
     ]);
 
-    const activeList: AdminSubAdmin[] = users.map((u) => {
+    let activeList: AdminSubAdmin[] = users.map((u) => {
       const perms = Array.isArray(u.adminPermissions) ? (u.adminPermissions as string[]) : [];
+      let status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' = u.isActive ? 'ACTIVE' : 'SUSPENDED';
+      if ((u as any).isDeactivated) {
+        status = 'SUSPENDED';
+      }
       return {
         id: u.id,
         fullName: u.fullName || 'Sub Admin',
@@ -2144,16 +2397,19 @@ export class AdminService {
         role: 'PLATFORM_ADMIN',
         isSuperAdmin: Boolean(u.isSuperAdmin),
         isActive: Boolean(u.isActive),
+        isDeactivated: Boolean((u as any).isDeactivated),
+        mustChangePassword: Boolean((u as any).mustChangePassword),
         adminPermissions: perms,
         permissions: perms,
-        status: u.isActive ? 'ACTIVE' : 'SUSPENDED',
-        lastLoginAt: u.sessions[0]?.createdAt.toISOString() || null,
+        status,
+        lastLoginAt: (u as any).lastLoginAt ? new Date((u as any).lastLoginAt).toISOString() : u.sessions[0]?.createdAt.toISOString() || null,
+        activatedAt: (u as any).activatedAt ? new Date((u as any).activatedAt).toISOString() : null,
         createdAt: u.createdAt.toISOString(),
         updatedAt: u.updatedAt.toISOString(),
       };
     });
 
-    const inviteList: AdminSubAdmin[] = pendingInvites.map((inv) => {
+    let inviteList: AdminSubAdmin[] = pendingInvites.map((inv) => {
       const perms = Array.isArray(inv.permissions) ? (inv.permissions as string[]) : [];
       return {
         id: `invite-${inv.id}`,
@@ -2163,10 +2419,13 @@ export class AdminService {
         role: 'PLATFORM_ADMIN',
         isSuperAdmin: false,
         isActive: false,
+        isDeactivated: false,
+        mustChangePassword: true,
         adminPermissions: perms,
         permissions: perms,
         status: 'INVITED',
         lastLoginAt: null,
+        activatedAt: null,
         createdAt: inv.createdAt.toISOString(),
         updatedAt: inv.createdAt.toISOString(),
         inviteId: inv.id,
@@ -2174,25 +2433,125 @@ export class AdminService {
       };
     });
 
-    const allItems = [...inviteList, ...activeList];
-    const total = totalUsers + pendingInvites.length;
+    // Optional permission filter in memory if specified
+    if (query.permission?.trim()) {
+      const p = query.permission.trim();
+      activeList = activeList.filter((a) => a.permissions?.includes(p));
+      inviteList = inviteList.filter((a) => a.permissions?.includes(p));
+    }
+
+    const allItems = isOnlyInvites ? inviteList : [...inviteList, ...activeList];
+    const total = totalUsers + (includeInvites ? pendingInvites.length : 0);
+    const totalPages = Math.ceil(total / pageSize) || 1;
 
     return {
       items: allItems,
+      data: allItems,
       total,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize) || 1,
+      totalPages,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+    };
+  }
+
+  public async getSubAdminDetail(id: string) {
+    if (id.startsWith('invite-')) {
+      const inviteId = id.slice(7);
+      const invite = await this.prisma.adminInvite.findUnique({
+        where: { id: inviteId },
+      });
+      if (!invite) throw new NotFoundException('Invitation not found.');
+      const perms = Array.isArray(invite.permissions) ? (invite.permissions as string[]) : [];
+      return {
+        id: `invite-${invite.id}`,
+        fullName: invite.fullName,
+        email: invite.email,
+        phone: invite.phone || null,
+        role: 'PLATFORM_ADMIN',
+        isSuperAdmin: false,
+        isActive: false,
+        isDeactivated: false,
+        status: 'INVITED',
+        permissions: perms,
+        adminPermissions: perms,
+        createdAt: invite.createdAt.toISOString(),
+        activatedAt: null,
+        lastLoginAt: null,
+        sessions: { total: 0, active: 0, lastSeen: null },
+        recentActions: [],
+        inviteId: invite.id,
+        inviteExpiresAt: invite.expiresAt.toISOString(),
+      };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        sessions: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+      },
+    });
+
+    if (!user || user.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+
+    const recentActions = await this.prisma.auditLog.findMany({
+      where: { actorId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const perms = Array.isArray(user.adminPermissions) ? (user.adminPermissions as string[]) : [];
+    const activeSessions = user.sessions.filter((s) => !s.isRevoked && s.expiresAt > new Date());
+
+    return {
+      id: user.id,
+      fullName: user.fullName || 'Sub Admin',
+      email: user.email || '—',
+      phone: user.phone || null,
+      role: 'PLATFORM_ADMIN',
+      isSuperAdmin: Boolean(user.isSuperAdmin),
+      isActive: Boolean(user.isActive),
+      isDeactivated: Boolean((user as any).isDeactivated),
+      mustChangePassword: Boolean((user as any).mustChangePassword),
+      status: (user as any).isDeactivated ? 'DEACTIVATED' : user.isActive ? 'ACTIVE' : 'SUSPENDED',
+      permissions: perms,
+      adminPermissions: perms,
+      createdAt: user.createdAt.toISOString(),
+      activatedAt: (user as any).activatedAt ? new Date((user as any).activatedAt).toISOString() : null,
+      lastLoginAt: (user as any).lastLoginAt ? new Date((user as any).lastLoginAt).toISOString() : user.sessions[0]?.createdAt.toISOString() || null,
+      sessions: {
+        total: user.sessions.length,
+        active: activeSessions.length,
+        lastSeen: user.sessions[0]?.createdAt.toISOString() || null,
+      },
+      recentActions: recentActions.map((a) => ({
+        id: a.id,
+        action: a.action,
+        entityType: a.entityType,
+        entityId: a.entityId,
+        createdAt: a.createdAt.toISOString(),
+        metadata: a.metadata,
+      })),
     };
   }
 
   public async createSubAdmin(
     dto: CreateSubAdminDto,
     actorId: string,
-  ): Promise<{ inviteId: string; email: string; activationUrl: string }> {
+  ): Promise<{ id: string; email: string; fullName: string; mustChangePassword: boolean; message: string }> {
     const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
     if (!actor?.isSuperAdmin) {
-      throw new ForbiddenException('Only Super Admin can invite and configure Sub Admins.');
+      throw new ForbiddenException('Only Super Admin can create and configure Sub Admins.');
     }
 
     if (!dto.email?.trim() || !dto.email.includes('@')) {
@@ -2207,66 +2566,130 @@ export class AdminService {
 
     const normEmail = dto.email.toLowerCase().trim();
 
+    // Check if an active platform admin with this email already exists
     const existing = await this.prisma.user.findFirst({
       where: {
         email: { equals: normEmail, mode: 'insensitive' },
         deletedAt: null,
       },
     });
-    if (existing && existing.role === UserRole.PLATFORM_ADMIN && existing.isActive) {
+    if (existing && existing.role === UserRole.PLATFORM_ADMIN && existing.isActive && !(existing as any).isDeactivated) {
       throw new BadRequestException('An active platform administrator with this email already exists.');
     }
 
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    // Determine temporary password
+    let tempPass = dto.temporaryPassword?.trim();
+    if (!tempPass) {
+      // Auto-generate strong temporary password
+      tempPass = `Adm!${crypto.randomBytes(4).toString('hex')}${Math.floor(10 + Math.random() * 90)}`;
+    }
 
-    await this.prisma.adminInvite.deleteMany({
-      where: { email: normEmail, acceptedAt: null },
-    });
+    if (tempPass.length < 8) {
+      throw new BadRequestException('Temporary password must be at least 8 characters long.');
+    }
 
-    const invite = await this.prisma.adminInvite.create({
-      data: {
-        email: normEmail,
-        fullName: dto.fullName.trim(),
-        phone: dto.phone?.trim() || null,
-        tokenHash,
-        permissions: dto.permissions as any,
-        invitedById: actorId,
-        expiresAt,
+    // Hash password with scrypt (salt:hash)
+    const salt = crypto.randomBytes(16).toString('hex');
+    const pinHash = `${salt}:${crypto.scryptSync(tempPass, salt, 64).toString('hex')}`;
+
+    let user: any;
+    const userPhone = dto.phone?.trim() || (existing ? existing.phone : `+9199${Math.floor(10000000 + Math.random() * 90000000)}`);
+
+    if (existing) {
+      user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          fullName: dto.fullName.trim(),
+          phone: userPhone,
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: dto.permissions as any,
+          mustChangePassword: true,
+          isDeactivated: false,
+          activatedAt: new Date(),
+        } as any,
+      });
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          email: normEmail,
+          fullName: dto.fullName.trim(),
+          phone: userPhone,
+          role: UserRole.PLATFORM_ADMIN,
+          isSuperAdmin: false,
+          isActive: true,
+          adminPermissions: dto.permissions as any,
+          mustChangePassword: true,
+          isDeactivated: false,
+          activatedAt: new Date(),
+        } as any,
+      });
+    }
+
+    // Upsert credential
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash,
+        failedPinAttempts: 0,
       },
     });
 
-    const adminBaseUrl = process.env.ADMIN_URL || 'http://localhost:3002';
-    const activationUrl = `${adminBaseUrl}/activate?token=${rawToken}`;
-
-    await this.mailService.sendSubAdminInviteEmail({
-      to: normEmail,
-      fullName: dto.fullName.trim(),
-      inviteUrl: activationUrl,
-      expiresAt,
-      roleName: 'Delegated Administrator',
+    // Remove any pending adminInvite for this email
+    await this.prisma.adminInvite.deleteMany({
+      where: { email: normEmail },
     });
 
+    const adminBaseUrl = process.env.ADMIN_URL || 'http://localhost:3002';
+    const adminLoginUrl = `${adminBaseUrl}/login`;
+
+    // Deliver credentials via existing MailService
+    await this.mailService.sendSubAdminCredentialsEmail({
+      to: normEmail,
+      fullName: dto.fullName.trim(),
+      adminLoginUrl,
+      temporaryPassword: tempPass,
+      permissions: dto.permissions,
+      roleName: 'Sub Admin',
+    });
+
+    // Audit log: NEVER store plaintext password
     await this.prisma.auditLog.create({
       data: {
         actorId,
         actorType: 'ADMIN',
-        action: 'SUB_ADMIN_INVITED',
-        entityType: 'AdminInvite',
-        entityId: invite.id,
+        action: 'SUB_ADMIN_CREATED',
+        entityType: 'User',
+        entityId: user.id,
         metadata: {
           email: normEmail,
           fullName: dto.fullName.trim(),
           permissions: dto.permissions,
+          module: 'Sub Admins',
+          result: 'SUCCESS',
         },
       },
     });
 
     return {
-      inviteId: invite.id,
+      id: user.id,
       email: normEmail,
-      activationUrl,
+      fullName: user.fullName || dto.fullName.trim(),
+      mustChangePassword: true,
+      message: 'Sub Admin created successfully. Login credentials dispatched via email.',
     };
   }
 
@@ -2320,6 +2743,8 @@ export class AdminService {
         entityId: id,
         metadata: {
           updatedFields: dto as any,
+          module: 'Sub Admins',
+          result: 'SUCCESS',
         },
       },
     });
@@ -2333,10 +2758,12 @@ export class AdminService {
       role: 'PLATFORM_ADMIN',
       isSuperAdmin: Boolean(updated.isSuperAdmin),
       isActive: Boolean(updated.isActive),
+      isDeactivated: Boolean((updated as any).isDeactivated),
+      mustChangePassword: Boolean((updated as any).mustChangePassword),
       adminPermissions: perms,
       permissions: perms,
-      status: updated.isActive ? 'ACTIVE' : 'SUSPENDED',
-      lastLoginAt: null,
+      status: (updated as any).isDeactivated ? 'DEACTIVATED' : updated.isActive ? 'ACTIVE' : 'SUSPENDED',
+      lastLoginAt: (updated as any).lastLoginAt ? new Date((updated as any).lastLoginAt).toISOString() : null,
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
@@ -2389,11 +2816,295 @@ export class AdminService {
         entityId: id,
         metadata: {
           reason: body?.reason || (newActiveState ? 'Reactivated by Super Admin' : 'Suspended by Super Admin'),
+          module: 'Sub Admins',
+          result: 'SUCCESS',
         },
       },
     });
 
     return { id: updated.id, isActive: updated.isActive };
+  }
+
+  public async resetSubAdminTempPassword(
+    id: string,
+    actorId: string,
+    dto?: { temporaryPassword?: string },
+  ): Promise<{ success: boolean; message: string }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can reset Sub Admin credentials.');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target || target.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('Cannot reset credentials of a Super Admin through this endpoint.');
+    }
+
+    let newTemp = dto?.temporaryPassword?.trim();
+    if (!newTemp) {
+      newTemp = `Adm!${crypto.randomBytes(4).toString('hex')}${Math.floor(10 + Math.random() * 90)}`;
+    }
+    if (newTemp.length < 8) {
+      throw new BadRequestException('Temporary password must be at least 8 characters long.');
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const pinHash = `${salt}:${crypto.scryptSync(newTemp, salt, 64).toString('hex')}`;
+
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: target.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: target.id,
+        credentialType: CredentialType.PIN,
+        pinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: target.id },
+      data: { mustChangePassword: true } as any,
+    });
+
+    // Revoke all existing sessions for this sub admin immediately
+    await this.prisma.session.updateMany({
+      where: { userId: target.id, isRevoked: false },
+      data: { isRevoked: true },
+    });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: target.id, isRevoked: false },
+      data: { isRevoked: true },
+    });
+
+    const adminBaseUrl = process.env.ADMIN_URL || 'http://localhost:3002';
+    const adminLoginUrl = `${adminBaseUrl}/login`;
+    const perms = Array.isArray(target.adminPermissions) ? (target.adminPermissions as string[]) : [];
+
+    await this.mailService.sendSubAdminCredentialsEmail({
+      to: target.email || '',
+      fullName: target.fullName || 'Administrator',
+      adminLoginUrl,
+      temporaryPassword: newTemp,
+      permissions: perms,
+      roleName: 'Sub Admin',
+      isReset: true,
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_TEMP_PASSWORD_RESET',
+        entityType: 'User',
+        entityId: target.id,
+        metadata: {
+          email: target.email,
+          module: 'Sub Admins',
+          result: 'SUCCESS',
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Temporary password regenerated and emailed to ${target.email}.`,
+    };
+  }
+
+  public async deactivateSubAdmin(
+    id: string,
+    actorId: string,
+    body?: { reason?: string },
+  ): Promise<{ success: boolean; message: string }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can deactivate Sub Admins.');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target || target.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('Super Admin account cannot be deactivated.');
+    }
+    if (target.id === actorId) {
+      throw new BadRequestException('You cannot deactivate your own admin account.');
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        isActive: false,
+        isDeactivated: true,
+      } as any,
+    });
+
+    await this.prisma.session.updateMany({
+      where: { userId: id, isRevoked: false },
+      data: { isRevoked: true },
+    });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: id, isRevoked: false },
+      data: { isRevoked: true },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actorType: 'ADMIN',
+        action: 'SUB_ADMIN_DEACTIVATED',
+        entityType: 'User',
+        entityId: id,
+        metadata: {
+          reason: body?.reason || 'Deactivated by Super Admin',
+          module: 'Sub Admins',
+          result: 'SUCCESS',
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Sub Admin access permanently revoked/deactivated.',
+    };
+  }
+
+  public async deleteSubAdmin(
+    id: string,
+    actorId: string,
+  ): Promise<{ success: boolean; message: string; deleted?: boolean; archived?: boolean }> {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can delete Sub Admins.');
+    }
+
+    if (id.startsWith('invite-')) {
+      const inviteId = id.slice(7);
+      const invite = await this.prisma.adminInvite.findUnique({ where: { id: inviteId } });
+      if (!invite) throw new NotFoundException('Invitation not found.');
+
+      await this.prisma.adminInvite.delete({ where: { id: inviteId } });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUB_ADMIN_INVITE_REVOKED',
+          entityType: 'AdminInvite',
+          entityId: inviteId,
+          metadata: {
+            email: invite.email,
+            module: 'Sub Admins',
+            result: 'SUCCESS',
+          },
+        },
+      });
+
+      return { success: true, message: 'Unused invitation deleted successfully.', deleted: true };
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target || target.deletedAt) {
+      throw new NotFoundException('Sub Admin not found.');
+    }
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('Last Super Admin protection: Cannot delete a Super Admin account.');
+    }
+    if (target.id === actorId) {
+      throw new BadRequestException('You cannot delete your own account.');
+    }
+
+    // Check if target has performed any operational audit events
+    const opAuditCount = await this.prisma.auditLog.count({
+      where: { actorId: id },
+    });
+
+    if (opAuditCount === 0) {
+      // Safe to hard delete: user has no operational history
+      await this.prisma.sellerCredential.deleteMany({ where: { userId: id } });
+      await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+      await this.prisma.session.deleteMany({ where: { userId: id } });
+      await this.prisma.user.delete({ where: { id } });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUB_ADMIN_DELETED',
+          entityType: 'User',
+          entityId: id,
+          metadata: {
+            deletedEmail: target.email,
+            deletedName: target.fullName,
+            module: 'Sub Admins',
+            result: 'SUCCESS',
+          },
+        },
+      });
+
+      return {
+        success: true,
+        message: `Sub Admin ${target.fullName || target.email} was permanently deleted.`,
+        deleted: true,
+      };
+    } else {
+      // Historical operational records exist! Protect audit integrity:
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          isActive: false,
+          isDeactivated: true,
+          adminPermissions: [],
+        } as any,
+      });
+
+      await this.prisma.session.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+      await this.prisma.sellerCredential.deleteMany({ where: { userId: id } });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          actorType: 'ADMIN',
+          action: 'SUB_ADMIN_DEACTIVATED_AND_ARCHIVED',
+          entityType: 'User',
+          entityId: id,
+          metadata: {
+            email: target.email,
+            fullName: target.fullName,
+            reason: 'Preserved in database to protect immutable historical audit log accountability',
+            module: 'Sub Admins',
+            result: 'SUCCESS',
+          },
+        },
+      });
+
+      return {
+        success: true,
+        message: `Sub Admin deactivated and archived. Historical audit records preserved for accountability.`,
+        archived: true,
+      };
+    }
   }
 
   public async resendSubAdminInvite(
@@ -2405,7 +3116,8 @@ export class AdminService {
       throw new ForbiddenException('Only Super Admin can manage invites.');
     }
 
-    const invite = await this.prisma.adminInvite.findUnique({ where: { id: inviteId } });
+    const actualId = inviteId.startsWith('invite-') ? inviteId.slice(7) : inviteId;
+    const invite = await this.prisma.adminInvite.findUnique({ where: { id: actualId } });
     if (!invite) {
       throw new NotFoundException('Invite not found.');
     }
@@ -2418,7 +3130,7 @@ export class AdminService {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await this.prisma.adminInvite.update({
-      where: { id: inviteId },
+      where: { id: actualId },
       data: { tokenHash, expiresAt },
     });
 
@@ -2440,7 +3152,7 @@ export class AdminService {
         action: 'SUB_ADMIN_INVITE_RESENT',
         entityType: 'AdminInvite',
         entityId: invite.id,
-        metadata: { email: invite.email },
+        metadata: { email: invite.email, module: 'Sub Admins', result: 'SUCCESS' },
       },
     });
 
@@ -2474,12 +3186,107 @@ export class AdminService {
         action: 'SUB_ADMIN_SESSIONS_REVOKED',
         entityType: 'User',
         entityId: id,
-        metadata: { revokedSessions: sessions.count, revokedTokens: tokens.count },
+        metadata: {
+          revokedSessions: sessions.count,
+          revokedTokens: tokens.count,
+          module: 'Sub Admins',
+          result: 'SUCCESS',
+        },
       },
     });
 
     return { success: true, count: sessions.count };
   }
+
+  public async changePassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string },
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { credentials: true },
+    });
+    if (!user || user.deletedAt) {
+      throw new NotFoundException('Administrator account not found.');
+    }
+    if (!user.isActive || (user as any).isDeactivated) {
+      throw new ForbiddenException('Administrator account is not active.');
+    }
+
+    const newPass = (dto.newPassword || '').trim();
+    if (newPass.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters long.');
+    }
+    if (!/[A-Za-z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+      throw new BadRequestException('Password must contain both letters and numbers.');
+    }
+
+    const pinCred = user.credentials?.find((c) => c.credentialType === CredentialType.PIN);
+    if (dto.currentPassword && pinCred?.pinHash) {
+      const parts = pinCred.pinHash.split(':');
+      if (parts.length === 2) {
+        const [salt, origHash] = parts;
+        const compHash = crypto.scryptSync(dto.currentPassword, salt, 64).toString('hex');
+        const isMatch = crypto.timingSafeEqual(Buffer.from(compHash, 'hex'), Buffer.from(origHash, 'hex'));
+        if (!isMatch) {
+          throw new BadRequestException('Current password does not match.');
+        }
+      }
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const pinHash = `${salt}:${crypto.scryptSync(newPass, salt, 64).toString('hex')}`;
+
+    await this.prisma.sellerCredential.upsert({
+      where: {
+        userId_credentialType: {
+          userId: user.id,
+          credentialType: CredentialType.PIN,
+        },
+      },
+      update: {
+        pinHash,
+        failedPinAttempts: 0,
+        lockedUntil: null,
+      },
+      create: {
+        userId: user.id,
+        credentialType: CredentialType.PIN,
+        pinHash,
+        failedPinAttempts: 0,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { mustChangePassword: false } as any,
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorType: 'ADMIN',
+        action: 'ADMIN_PASSWORD_CHANGED',
+        entityType: 'User',
+        entityId: user.id,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        metadata: {
+          email: user.email,
+          module: 'Security',
+          result: 'SUCCESS',
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully. You may continue to the admin dashboard.',
+    };
+  }
+
 
   public async createPlan(
     data: {

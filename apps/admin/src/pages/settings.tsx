@@ -11,12 +11,19 @@ import {
   SlidersHorizontal,
   Layers,
   Cpu,
+  RotateCw,
   Users,
   CheckCircle2,
   AlertTriangle,
   Send,
   Save,
-  RotateCw,
+  Palette,
+  Truck,
+  BarChart3,
+  ToggleRight,
+  Sparkles,
+  Globe,
+  Info,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback, useAdminQuery } from '../components/AdminUI';
@@ -32,7 +39,12 @@ type TabKey =
   | 'moderation'
   | 'integrations'
   | 'system'
-  | 'sub-admins';
+  | 'sub-admins'
+  // Future architecture tabs
+  | 'future-themes'
+  | 'future-orders'
+  | 'future-analytics'
+  | 'future-features';
 
 export default function Settings() {
   const { api } = useAdminAuth();
@@ -62,6 +74,7 @@ export default function Settings() {
     notifyMerchantOnAccountSuspension: true,
     notifyAdminOnReviewReport: true,
     notifyMerchantOnFailedSubscription: true,
+    notifyAdminOnBusinessVerification: true,
   });
 
   const [whatsappForm, setWhatsappForm] = useState({
@@ -78,7 +91,7 @@ export default function Settings() {
     adminSessionTimeoutMinutes: 60,
     subAdminInviteExpiryDays: 7,
     maxFailedLoginAttempts: 5,
-    requirePinChangeFirstLogin: false,
+    requirePinChangeFirstLogin: true,
   });
 
   const [moderationForm, setModerationForm] = useState({
@@ -128,6 +141,8 @@ export default function Settings() {
           data.notifications.notifyAdminOnReviewReport,
         notifyMerchantOnFailedSubscription:
           data.notifications.notifyMerchantOnFailedSubscription,
+        notifyAdminOnBusinessVerification:
+          data.notifications.notifyAdminOnBusinessVerification ?? true,
       });
       setWhatsappForm({
         defaultTemplateGreeting:
@@ -145,7 +160,7 @@ export default function Settings() {
         subAdminInviteExpiryDays: data.security.subAdminInviteExpiryDays,
         maxFailedLoginAttempts: data.security.maxFailedLoginAttempts,
         requirePinChangeFirstLogin:
-          data.security.requirePinChangeFirstLogin,
+          data.security.requirePinChangeFirstLogin ?? true,
       });
       setModerationForm({
         reviewModerationPolicy:
@@ -164,7 +179,7 @@ export default function Settings() {
       await api.admin.updateSettings(category, payload);
       setSaveStatus({
         tab: category,
-        success: `${category.toUpperCase()} settings saved successfully.`,
+        success: `${category.toUpperCase()} settings saved and recorded in Audit Log.`,
       });
       reload();
       setTimeout(() => setSaveStatus({}), 4000);
@@ -195,7 +210,7 @@ export default function Settings() {
     }
   };
 
-  const tabs: { key: TabKey; label: string; icon: any }[] = [
+  const operationalTabs: { key: TabKey; label: string; icon: any }[] = [
     { key: 'general', label: 'General', icon: Sliders },
     { key: 'brand', label: 'Brand & Support', icon: Shield },
     { key: 'notifications', label: 'Notifications', icon: Bell },
@@ -208,6 +223,38 @@ export default function Settings() {
     { key: 'sub-admins', label: 'Sub Admins', icon: Users },
   ];
 
+  const futureTabs: { key: TabKey; label: string; icon: any }[] = [
+    { key: 'future-themes', label: 'Themes & Storefronts', icon: Palette },
+    { key: 'future-orders', label: 'Orders & Fulfillment', icon: Truck },
+    { key: 'future-analytics', label: 'Analytics & Insights', icon: BarChart3 },
+    { key: 'future-features', label: 'Feature Availability', icon: ToggleRight },
+  ];
+
+  const renderBadge = (type: 'functional' | 'readonly' | 'future') => {
+    if (type === 'functional') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          Functional
+        </span>
+      );
+    }
+    if (type === 'readonly') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+          Read-Only
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        Coming Soon
+      </span>
+    );
+  };
+
   return (
     <AdminLayout>
       <Head>
@@ -215,13 +262,20 @@ export default function Settings() {
       </Head>
 
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-admin-text">
-            Platform Settings
-          </h1>
-          <p className="text-sm text-admin-muted mt-1">
-            Production-grade configuration for marketplace operations, security policies, and integrations.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-admin-text">
+              Platform Settings
+            </h1>
+            <p className="text-sm text-admin-muted mt-1">
+              Production configuration for marketplace operations, security policies, and future platform controls.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {renderBadge('functional')}
+            {renderBadge('readonly')}
+            {renderBadge('future')}
+          </div>
         </div>
 
         <Feedback error={error} loading={loading} />
@@ -229,36 +283,69 @@ export default function Settings() {
         {data && (
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Tabs Sidebar */}
-            <aside className="lg:w-64 shrink-0">
-              <nav className="flex flex-row lg:flex-col overflow-x-auto gap-1 border rounded-xl p-1.5 bg-admin-surface border-admin-border">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => {
-                        if (tab.key === 'sub-admins') {
-                          // Allow switching to Sub Admins tab or opening sub-admins page
-                        }
-                        setActiveTab(tab.key);
-                      }}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left whitespace-nowrap ${
-                        isActive
-                          ? 'bg-admin-soft text-admin-accent font-semibold'
-                          : 'text-admin-secondary hover:bg-admin-raised hover:text-admin-text'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+            <aside className="lg:w-64 shrink-0 space-y-4">
+              <div className="border rounded-xl p-2 bg-admin-surface border-admin-border space-y-3">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-admin-muted px-2.5 py-1 tracking-wider">
+                    Operational Controls
+                  </div>
+                  <nav className="flex flex-row lg:flex-col overflow-x-auto gap-0.5">
+                    {operationalTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          onClick={() => setActiveTab(tab.key)}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left whitespace-nowrap ${
+                            isActive
+                              ? 'bg-admin-soft text-admin-accent font-semibold shadow-xs'
+                              : 'text-admin-secondary hover:bg-admin-raised hover:text-admin-text'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
 
-              <div className="mt-4 p-3 rounded-lg border border-admin-border bg-admin-surface/50 text-xs text-admin-muted space-y-1 hidden lg:block">
-                <div className="font-semibold text-admin-text">Configuration Source</div>
-                <div className="break-words">{data.source}</div>
+                <div className="pt-2 border-t border-admin-border">
+                  <div className="text-[10px] uppercase font-bold text-admin-muted px-2.5 py-1 tracking-wider flex items-center justify-between">
+                    <span>Future Controls</span>
+                    <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded">
+                      Planned
+                    </span>
+                  </div>
+                  <nav className="flex flex-row lg:flex-col overflow-x-auto gap-0.5">
+                    {futureTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          onClick={() => setActiveTab(tab.key)}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left whitespace-nowrap ${
+                            isActive
+                              ? 'bg-admin-soft text-admin-accent font-semibold shadow-xs'
+                              : 'text-admin-secondary hover:bg-admin-raised hover:text-admin-text'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 shrink-0 text-admin-muted" />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg border border-admin-border bg-admin-surface/50 text-xs text-admin-muted space-y-1.5 hidden lg:block">
+                <div className="font-semibold text-admin-text text-[11px]">Audit Enforcement</div>
+                <p className="text-[11px] leading-relaxed">
+                  Every change to functional settings is committed to PostgreSQL and logged in Audit Logs with pre- and post-values.
+                </p>
               </div>
             </aside>
 
@@ -284,18 +371,24 @@ export default function Settings() {
               {/* 1. GENERAL TAB */}
               {activeTab === 'general' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">General Settings</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Core platform branding and regional defaults applied across administrative and merchant modules.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">General Settings</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Core platform branding and regional defaults applied across administrative and merchant modules.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Platform Name
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Platform Name
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={generalForm.platformName}
@@ -306,10 +399,14 @@ export default function Settings() {
                         placeholder="LetzShop"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Support Email
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Support Email
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="email"
                         value={generalForm.supportEmail}
@@ -320,10 +417,14 @@ export default function Settings() {
                         placeholder="support@letzshop.in"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Support Phone
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Support Phone
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={generalForm.supportPhone}
@@ -334,10 +435,14 @@ export default function Settings() {
                         placeholder="+91 9876543210"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Default Timezone
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Default Timezone
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={generalForm.defaultTimezone}
@@ -351,10 +456,14 @@ export default function Settings() {
                         placeholder="Asia/Kolkata"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Default Locale
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Default Locale
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={generalForm.defaultLocale}
@@ -365,10 +474,14 @@ export default function Settings() {
                         placeholder="en-IN"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Currency (Read-only)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Default Currency
+                        </label>
+                        {renderBadge('readonly')}
+                      </div>
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
@@ -377,9 +490,12 @@ export default function Settings() {
                           className="admin-input w-full text-sm bg-admin-surface/70 cursor-not-allowed opacity-80"
                         />
                         <span className="text-[10px] uppercase font-bold px-2 py-1 bg-admin-raised border rounded text-admin-muted shrink-0">
-                          System default
+                          System Default
                         </span>
                       </div>
+                      <p className="text-[11px] text-admin-muted mt-1">
+                        System base currency is fixed to INR for Razorpay and tax reporting.
+                      </p>
                     </div>
                   </div>
 
@@ -399,18 +515,24 @@ export default function Settings() {
               {/* 2. BRAND & SUPPORT TAB */}
               {activeTab === 'brand' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">Brand & Support Configuration</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Public-facing identities, contact information, and support URLs displayed in notifications and invoices.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Brand & Support Configuration</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Public-facing identities, contact information, and support URLs displayed in notifications and invoices.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Platform Display Name
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Platform Display Name
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={brandForm.platformDisplayName}
@@ -423,10 +545,14 @@ export default function Settings() {
                         className="admin-input w-full text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Public Support Email
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Public Support Email
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="email"
                         value={brandForm.supportEmail}
@@ -436,10 +562,14 @@ export default function Settings() {
                         className="admin-input w-full text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Public Support Phone
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Public Support Phone
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={brandForm.supportPhone}
@@ -449,10 +579,14 @@ export default function Settings() {
                         className="admin-input w-full text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Business / Legal Email
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Business / Legal Email
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="email"
                         value={brandForm.businessEmail}
@@ -462,10 +596,14 @@ export default function Settings() {
                         className="admin-input w-full text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Official Website URL
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Official Website URL
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="url"
                         value={brandForm.websiteUrl}
@@ -475,10 +613,14 @@ export default function Settings() {
                         className="admin-input w-full text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Help Center URL
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Help Center URL
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="url"
                         value={brandForm.helpCenterUrl}
@@ -506,22 +648,25 @@ export default function Settings() {
               {/* 3. NOTIFICATIONS TAB */}
               {activeTab === 'notifications' && (
                 <div className="admin-panel space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
                     <div>
                       <h2 className="text-lg font-bold text-admin-text">Notification Channels & Automated Alerts</h2>
                       <p className="text-xs text-admin-muted mt-0.5">
                         Configure transactional notification triggers sent to merchants and platform administrators.
                       </p>
                     </div>
-                    <span
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
-                        data.notifications.emailServiceStatus === 'CONNECTED'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                      }`}
-                    >
-                      SMTP: {data.notifications.emailServiceStatus}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
+                          data.notifications.emailServiceStatus === 'CONNECTED'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                        }`}
+                      >
+                        SMTP: {data.notifications.emailServiceStatus}
+                      </span>
+                      {renderBadge('functional')}
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -537,11 +682,14 @@ export default function Settings() {
                         }
                         className="mt-1 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
                       />
-                      <div>
-                        <div className="text-sm font-semibold text-admin-text">
-                          Send email notification on merchant account suspension
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-admin-text">
+                            Send email notification on merchant account suspension
+                          </span>
+                          {renderBadge('functional')}
                         </div>
-                        <div className="text-xs text-admin-muted">
+                        <div className="text-xs text-admin-muted mt-0.5">
                           Automatically notifies the merchant owner with support contact details when an administrator suspends their login.
                         </div>
                       </div>
@@ -559,11 +707,14 @@ export default function Settings() {
                         }
                         className="mt-1 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
                       />
-                      <div>
-                        <div className="text-sm font-semibold text-admin-text">
-                          Alert administrators on new product review report
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-admin-text">
+                            Alert administrators on new product review report
+                          </span>
+                          {renderBadge('functional')}
                         </div>
-                        <div className="text-xs text-admin-muted">
+                        <div className="text-xs text-admin-muted mt-0.5">
                           Pushes attention badge alerts and system notifications when buyers or merchants flag abusive reviews.
                         </div>
                       </div>
@@ -581,12 +732,40 @@ export default function Settings() {
                         }
                         className="mt-1 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
                       />
-                      <div>
-                        <div className="text-sm font-semibold text-admin-text">
-                          Notify merchant on failed subscription charge
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-admin-text">
+                            Notify merchant on failed subscription charge
+                          </span>
+                          {renderBadge('functional')}
                         </div>
-                        <div className="text-xs text-admin-muted">
+                        <div className="text-xs text-admin-muted mt-0.5">
                           Warns merchants regarding invoice renewal failures during the subscription grace period.
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notifForm.notifyAdminOnBusinessVerification}
+                        onChange={(e) =>
+                          setNotifForm({
+                            ...notifForm,
+                            notifyAdminOnBusinessVerification: e.target.checked,
+                          })
+                        }
+                        className="mt-1 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-admin-text">
+                            Notify administrators on business verification submissions
+                          </span>
+                          {renderBadge('functional')}
+                        </div>
+                        <div className="text-xs text-admin-muted mt-0.5">
+                          Alerts compliance team when merchants upload GST, PAN, or identity documents for verification.
                         </div>
                       </div>
                     </label>
@@ -608,16 +787,19 @@ export default function Settings() {
               {/* 4. WHATSAPP TAB */}
               {activeTab === 'whatsapp' && (
                 <div className="admin-panel space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
                     <div>
                       <h2 className="text-lg font-bold text-admin-text">WhatsApp Integration</h2>
                       <p className="text-xs text-admin-muted mt-0.5">
                         Operational messaging configuration for customer & merchant WhatsApp communication.
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30">
-                      Mode: {data.whatsapp.mode === 'CLOUD_API' ? 'Cloud API' : 'Deep-Link Only'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30">
+                        Mode: {data.whatsapp.mode === 'CLOUD_API' ? 'Cloud API' : 'Deep-Link Only'}
+                      </span>
+                      {renderBadge('readonly')}
+                    </div>
                   </div>
 
                   <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-800 dark:text-amber-200">
@@ -625,9 +807,12 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-admin-text mb-1">
-                      Default Template Greeting
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-admin-text">
+                        Default Template Greeting
+                      </label>
+                      {renderBadge('functional')}
+                    </div>
                     <input
                       type="text"
                       value={whatsappForm.defaultTemplateGreeting}
@@ -661,18 +846,24 @@ export default function Settings() {
               {/* 5. COMMERCE TAB */}
               {activeTab === 'commerce' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">Commerce & Billing Policies</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Global marketplace commerce rules, invoice numbering standards, and subscription grace limits.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Commerce & Billing Policies</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Global marketplace commerce rules, invoice numbering standards, and subscription grace limits.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Subscription Grace Period (Days)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Subscription Grace Period (Days)
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="number"
                         min="0"
@@ -692,9 +883,12 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Order Number Prefix
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Order Number Prefix
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="text"
                         value={commerceForm.orderNumberPrefix}
@@ -711,6 +905,24 @@ export default function Settings() {
                       </p>
                     </div>
 
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Default Currency
+                        </label>
+                        {renderBadge('readonly')}
+                      </div>
+                      <input
+                        type="text"
+                        readOnly
+                        value={data.commerce.defaultCurrency}
+                        className="admin-input w-full text-sm bg-admin-surface/70 cursor-not-allowed opacity-80"
+                      />
+                      <p className="text-[11px] text-admin-muted mt-1">
+                        Fixed to Indian Rupee (INR) for payment processing.
+                      </p>
+                    </div>
+
                     <div className="sm:col-span-2">
                       <label className="flex items-center gap-3 p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 cursor-pointer">
                         <input
@@ -724,11 +936,14 @@ export default function Settings() {
                           }
                           className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
                         />
-                        <div>
-                          <div className="text-sm font-semibold text-admin-text">
-                            Display tax-inclusive product pricing
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-admin-text">
+                              Display tax-inclusive product pricing
+                            </span>
+                            {renderBadge('functional')}
                           </div>
-                          <div className="text-xs text-admin-muted">
+                          <div className="text-xs text-admin-muted mt-0.5">
                             Standard GST-inclusive pricing shown to retail buyers on all storefronts.
                           </div>
                         </div>
@@ -752,18 +967,24 @@ export default function Settings() {
               {/* 6. SECURITY TAB */}
               {activeTab === 'security' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">Platform Security Controls</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Session lifetime, delegated administrator invite policies, and rate-limiting rules.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Platform Security Controls</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Session lifetime, delegated administrator invite policies, and rate-limiting rules.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Admin Session Timeout (Minutes)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Admin Session Timeout (Minutes)
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="number"
                         min="15"
@@ -780,9 +1001,12 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Sub Admin Invite Expiration (Days)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Sub Admin Invite Expiration (Days)
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="number"
                         min="1"
@@ -799,9 +1023,12 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Max Failed PIN Login Attempts
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Max Failed Login Attempts
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="number"
                         min="3"
@@ -818,15 +1045,21 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        MFA Policy
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          MFA Policy
+                        </label>
+                        {renderBadge('readonly')}
+                      </div>
                       <input
                         type="text"
                         readOnly
                         value={data.security.mfaPolicy}
                         className="admin-input w-full text-sm bg-admin-surface/70 cursor-not-allowed opacity-80"
                       />
+                      <p className="text-[11px] text-admin-muted mt-1">
+                        Multi-factor authentication status configured via production environment.
+                      </p>
                     </div>
 
                     <div className="sm:col-span-2">
@@ -842,12 +1075,15 @@ export default function Settings() {
                           }
                           className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
                         />
-                        <div>
-                          <div className="text-sm font-semibold text-admin-text">
-                            Require PIN change on initial delegated administrator login
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-admin-text">
+                              Require password change on initial delegated administrator login
+                            </span>
+                            {renderBadge('functional')}
                           </div>
-                          <div className="text-xs text-admin-muted">
-                            Mandates that invited sub-admins set a new personal 6-digit PIN upon initial activation.
+                          <div className="text-xs text-admin-muted mt-0.5">
+                            Mandates that invited sub-admins set a new personal password upon initial login with temporary credentials.
                           </div>
                         </div>
                       </label>
@@ -870,11 +1106,14 @@ export default function Settings() {
               {/* 7. MODERATION TAB */}
               {activeTab === 'moderation' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">Review Moderation Policy</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Operational policy governing customer reviews, merchant moderation requests, and automated takedowns.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Review Moderation Policy</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Operational policy governing customer reviews, merchant moderation requests, and automated takedowns.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="p-3.5 rounded-lg border border-admin-border bg-admin-surface/50 text-xs text-admin-secondary space-y-1">
@@ -884,9 +1123,12 @@ export default function Settings() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Moderation Action Policy
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Moderation Action Policy
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <select
                         value={moderationForm.reviewModerationPolicy}
                         onChange={(e) =>
@@ -907,9 +1149,12 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-admin-text mb-1">
-                        Auto-Hide Threshold (Report Count)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-text">
+                          Auto-Hide Threshold (Report Count)
+                        </label>
+                        {renderBadge('functional')}
+                      </div>
                       <input
                         type="number"
                         min="0"
@@ -948,11 +1193,14 @@ export default function Settings() {
               {/* 8. INTEGRATIONS TAB */}
               {activeTab === 'integrations' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">Third-Party Gateway & Service Health</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Live connection status for payment processing, mail delivery, and logistics integrations.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Third-Party Gateway & Service Health</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Live connection status for payment processing, mail delivery, and logistics integrations.
+                      </p>
+                    </div>
+                    {renderBadge('readonly')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -960,15 +1208,18 @@ export default function Settings() {
                     <div className="p-4 rounded-xl border border-admin-border bg-admin-surface space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-admin-text">Razorpay Gateway</span>
-                        <span
-                          className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
-                            data.integrations.razorpay === 'CONNECTED'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
-                          }`}
-                        >
-                          {data.integrations.razorpay}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
+                              data.integrations.razorpay === 'CONNECTED'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                            }`}
+                          >
+                            {data.integrations.razorpay}
+                          </span>
+                          {renderBadge('readonly')}
+                        </div>
                       </div>
                       <p className="text-xs text-admin-muted">
                         Processes marketplace subscriptions and online checkout payments. Secret keys are securely stored in the production environment.
@@ -979,15 +1230,18 @@ export default function Settings() {
                     <div className="p-4 rounded-xl border border-admin-border bg-admin-surface space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-admin-text">SMTP Email Service</span>
-                        <span
-                          className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
-                            data.integrations.smtp === 'CONNECTED'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                          }`}
-                        >
-                          {data.integrations.smtp}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
+                              data.integrations.smtp === 'CONNECTED'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                            }`}
+                          >
+                            {data.integrations.smtp}
+                          </span>
+                          {renderBadge('readonly')}
+                        </div>
                       </div>
                       <p className="text-xs text-admin-muted">
                         Delivers administrative invitations, suspension notices, and billing receipts.
@@ -998,9 +1252,12 @@ export default function Settings() {
                     <div className="p-4 rounded-xl border border-admin-border bg-admin-surface space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-admin-text">Shiprocket Logistics</span>
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30">
-                          {data.integrations.shiprocket}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30">
+                            {data.integrations.shiprocket}
+                          </span>
+                          {renderBadge('readonly')}
+                        </div>
                       </div>
                       <p className="text-xs text-admin-muted">
                         Automated fulfillment and tracking number synchronisation for merchant shipments.
@@ -1011,9 +1268,12 @@ export default function Settings() {
                     <div className="p-4 rounded-xl border border-admin-border bg-admin-surface space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-admin-text">WhatsApp Provider</span>
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                          {data.integrations.whatsapp}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                            {data.integrations.whatsapp}
+                          </span>
+                          {renderBadge('readonly')}
+                        </div>
                       </div>
                       <p className="text-xs text-admin-muted">
                         Deep-link routing to wa.me with pre-formatted merchant context messages.
@@ -1023,11 +1283,14 @@ export default function Settings() {
 
                   {/* SMTP Connection Tester */}
                   <div className="pt-4 border-t border-admin-border space-y-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-admin-text">Test SMTP Mail Connection</h3>
-                      <p className="text-xs text-admin-muted">
-                        Send a diagnostic ping through the configured mail service to verify operational delivery.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-admin-text">Test SMTP Mail Connection</h3>
+                        <p className="text-xs text-admin-muted">
+                          Send a diagnostic ping through the configured mail service to verify operational delivery.
+                        </p>
+                      </div>
+                      {renderBadge('functional')}
                     </div>
 
                     <form onSubmit={handleTestSmtp} className="flex gap-2 max-w-md">
@@ -1072,16 +1335,22 @@ export default function Settings() {
               {/* 9. SYSTEM TAB */}
               {activeTab === 'system' && (
                 <div className="admin-panel space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-admin-text">System Operations & Diagnostic Telemetry</h2>
-                    <p className="text-xs text-admin-muted mt-0.5">
-                      Platform deployment state, database health check, and emergency maintenance controls.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">System Operations & Diagnostic Telemetry</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Platform deployment state, database health check, and emergency maintenance controls.
+                      </p>
+                    </div>
+                    {renderBadge('functional')}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 space-y-1">
-                      <div className="text-xs font-semibold text-admin-muted">Database Connection</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-admin-muted">Database Connection</span>
+                        {renderBadge('readonly')}
+                      </div>
                       <div className="flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         {data.system.databaseStatus}
@@ -1089,21 +1358,30 @@ export default function Settings() {
                     </div>
 
                     <div className="p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 space-y-1">
-                      <div className="text-xs font-semibold text-admin-muted">Runtime Environment</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-admin-muted">Runtime Environment</span>
+                        {renderBadge('readonly')}
+                      </div>
                       <div className="text-sm font-bold text-admin-text uppercase">
                         {data.system.environment}
                       </div>
                     </div>
 
                     <div className="p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 space-y-1">
-                      <div className="text-xs font-semibold text-admin-muted">API Build Version</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-admin-muted">API Build Version</span>
+                        {renderBadge('readonly')}
+                      </div>
                       <div className="text-sm font-bold font-mono text-admin-text">
                         {data.system.apiVersion}
                       </div>
                     </div>
 
                     <div className="p-3.5 rounded-lg border border-admin-border bg-admin-surface/60 space-y-1">
-                      <div className="text-xs font-semibold text-admin-muted">Last System Check</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-admin-muted">Last System Check</span>
+                        {renderBadge('readonly')}
+                      </div>
                       <div className="text-xs font-mono text-admin-text">
                         {new Date(data.system.lastDeployedAt).toLocaleString()}
                       </div>
@@ -1123,11 +1401,14 @@ export default function Settings() {
                         }
                         className="mt-1 rounded border-rose-300 text-rose-600 focus:ring-rose-500"
                       />
-                      <div>
-                        <div className="text-sm font-bold text-rose-700 dark:text-rose-400">
-                          Enable Platform Maintenance Mode
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-rose-700 dark:text-rose-400">
+                            Enable Platform Maintenance Mode
+                          </span>
+                          {renderBadge('functional')}
                         </div>
-                        <div className="text-xs text-admin-muted">
+                        <div className="text-xs text-admin-muted mt-0.5">
                           When enabled, store visitors and merchants see a scheduled maintenance notice. Platform administrators retain full dashboard access.
                         </div>
                       </div>
@@ -1150,7 +1431,7 @@ export default function Settings() {
               {/* 10. SUB ADMINS TAB */}
               {activeTab === 'sub-admins' && (
                 <div className="admin-panel space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-admin-border">
                     <div>
                       <h2 className="text-lg font-bold text-admin-text">Delegated Administrator Management</h2>
                       <p className="text-xs text-admin-muted mt-0.5">
@@ -1172,18 +1453,232 @@ export default function Settings() {
                     </div>
                     <ul className="text-xs text-admin-secondary space-y-2 list-disc list-inside">
                       <li>
-                        <strong>No Plaintext Permanent Passwords:</strong> Super Admin triggers a cryptographically signed invitation email with a one-time activation token.
+                        <strong>Initial Temporary Credentials:</strong> Super Admin creates sub-admins with strong temporary passwords delivered securely via email.
                       </li>
                       <li>
-                        <strong>Mandatory Self-Onboarding:</strong> Invited administrators set their own secure 6-digit PIN on the activation link.
+                        <strong>Forced First-Login Password Change:</strong> Sub-admins are automatically redirected to <code>/change-password</code> upon first entry.
                       </li>
                       <li>
-                        <strong>Server-Side Permission Guards:</strong> Every administrative API checks granular permissions before executing mutations.
+                        <strong>Server-Side Permission Guards:</strong> Every administrative API enforces domain permissions (e.g. <code>REVIEWS_MODERATE</code>, <code>PAYMENTS_RECONCILE</code>) dynamically on every request.
                       </li>
                       <li>
-                        <strong>Super Admin Protection:</strong> Sub-admins cannot elevate their own permissions or modify Super Admin accounts.
+                        <strong>Session Isolation:</strong> Suspending or revoking a sub-admin invalidates only their sessions, keeping Super Admin and merchant logins completely unaffected.
                       </li>
                     </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* 11. FUTURE: THEMES & STOREFRONTS */}
+              {activeTab === 'future-themes' && (
+                <div className="admin-panel space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Themes & Storefront Controls (Planned)</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Centralized theme catalog management, tier restrictions, and global storefront styling presets.
+                      </p>
+                    </div>
+                    {renderBadge('future')}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-3">
+                    <Info className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-sm mb-1">Architecture Preview — Next Milestone</div>
+                      <p className="leading-relaxed">
+                        Theme controls will be fully unlocked in the upcoming milestone. No fake interactive toggles are rendered now. The permission keys <code>THEMES_VIEW</code> and <code>THEMES_MANAGE</code> are already active in the permission system.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Theme Catalog Management</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Super Admin will be able to enable or disable themes globally, preview active merchant storefronts, and reorder catalog visibility.
+                      </p>
+                      <div className="text-[11px] font-mono text-admin-muted pt-1">
+                        Status: Backend schema prepared
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Plan-Tier Theme Entitlements</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Restrict premium themes (e.g., Luxury Boutique, High-Volume Grocery) to GROWTH or PRO subscription plans with graceful fallbacks.
+                      </p>
+                      <div className="text-[11px] font-mono text-admin-muted pt-1">
+                        Status: Non-breaking migration safety designed
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 12. FUTURE: ORDERS & FULFILLMENT */}
+              {activeTab === 'future-orders' && (
+                <div className="admin-panel space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Orders & Logistics Governance (Planned)</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Platform-wide order policies, dispute mediation workflows, and fulfillment SLA standards.
+                      </p>
+                    </div>
+                    {renderBadge('future')}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-3">
+                    <Info className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-sm mb-1">Architecture Preview — Next Milestone</div>
+                      <p className="leading-relaxed">
+                        Platform-wide order visibility and dispute controls will be introduced in the next milestone with <code>ORDERS_VIEW</code> and <code>ORDERS_MANAGE</code> permissions.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Cancellation & Return Windows</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Enforce marketplace-level cancellation windows (e.g. 2 hours post-order) and merchant return acceptance SLAs.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Logistics Provider Routing</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Dynamic fallback routing between Shiprocket, Delhivery, and merchant self-delivery based on pincode serviceability.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 13. FUTURE: ANALYTICS & INSIGHTS */}
+              {activeTab === 'future-analytics' && (
+                <div className="admin-panel space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Analytics & Reporting Policies (Planned)</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Marketplace GMV aggregates, merchant analytics tiering, and data export governance.
+                      </p>
+                    </div>
+                    {renderBadge('future')}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-3">
+                    <Info className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-sm mb-1">Architecture Preview — Next Milestone</div>
+                      <p className="leading-relaxed">
+                        Platform analytics and merchant metrics governance are planned under <code>ANALYTICS_VIEW</code>. No demo data is used; true aggregation queries will power these charts.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Platform Aggregation Retention</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Define automated rollup intervals for marketplace GMV, average order values, and conversion funnel analytics.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Merchant Data Export Controls</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Gate CSV/Excel customer report downloads and tax ledger exports based on plan subscription levels.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 14. FUTURE: FEATURE AVAILABILITY */}
+              {activeTab === 'future-features' && (
+                <div className="admin-panel space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-admin-border">
+                    <div>
+                      <h2 className="text-lg font-bold text-admin-text">Merchant Feature Availability & Limits (Planned)</h2>
+                      <p className="text-xs text-admin-muted mt-0.5">
+                        Global feature flags, catalog quotas, custom domain SSL provisioning, and AI capabilities.
+                      </p>
+                    </div>
+                    {renderBadge('future')}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-3">
+                    <Info className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-sm mb-1">Architecture Preview — Coming Soon</div>
+                      <p className="leading-relaxed">
+                        Feature flags and tier quotas will be governed here. Each control will map directly to database-backed rules with backend enforcement and audit logging.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Product & Media Upload Limits</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Define SKU limits (e.g., 50 for Starter, 500 for Growth, Unlimited for Enterprise) and maximum image upload sizes.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">Custom Domain Provisioning</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Automated CNAME verification and SSL certificate issuance via Cloudflare for merchant branded domains.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">AI Catalog Description Generator</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Enable or disable AI product title and description generation per merchant tier with monthly token quotas.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-admin-border bg-admin-surface/50 opacity-80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-admin-text">WhatsApp Marketing Broadcasts</span>
+                        {renderBadge('future')}
+                      </div>
+                      <p className="text-xs text-admin-muted leading-relaxed">
+                        Allow verified merchants to send promotional campaign templates via the WhatsApp Business Cloud API.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

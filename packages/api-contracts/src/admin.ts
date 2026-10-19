@@ -406,13 +406,40 @@ export interface AdminAudit {
   id: string;
   actorId: string | null;
   actorName: string;
+  actorRole?: string;
+  actorEmail?: string | null;
   action: string;
+  module?: string;
   entityType: string;
   entityId: string | null;
+  targetName?: string | null;
+  result?: 'SUCCESS' | 'DENIED' | 'FAILED';
   createdAt: string;
   reason: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  requestId?: string | null;
+  metadata?: Record<string, any> | null;
   previousStatus?: string;
   status?: string;
+  beforeValue?: any;
+  afterValue?: any;
+}
+
+export interface AdminAuditKpis {
+  actionsToday: number;
+  adminActions: number;
+  securityEvents: number;
+  failedActions: number;
+}
+
+export interface AdminAuditPageResult {
+  items: AdminAudit[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  kpis: AdminAuditKpis;
 }
 export interface AdminCharts {
   merchantGrowth: Array<{ date: string; count: number }>;
@@ -552,6 +579,7 @@ export interface AdminSettings {
     notifyMerchantOnAccountSuspension: boolean;
     notifyAdminOnReviewReport: boolean;
     notifyMerchantOnFailedSubscription: boolean;
+    notifyAdminOnBusinessVerification?: boolean;
   };
   whatsapp: {
     mode: 'CLOUD_API' | 'DEEP_LINK';
@@ -601,17 +629,23 @@ export interface AdminSubAdmin {
   adminPermissions: string[];
   permissions: string[];
   lastLoginAt: string | null;
+  activatedAt?: string | null;
+  mustChangePassword?: boolean;
+  isDeactivated?: boolean;
   createdAt: string;
   updatedAt: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' | 'PENDING_INVITE';
+  status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' | 'PENDING_INVITE' | 'DEACTIVATED';
   inviteId?: string;
   inviteExpiresAt?: string;
+  recentActionsCount?: number;
 }
 
 export interface CreateSubAdminDto {
   fullName: string;
   email: string;
   phone?: string;
+  temporaryPassword?: string;
+  forcePasswordChange?: boolean;
   permissions: string[];
 }
 
@@ -619,6 +653,8 @@ export interface UpdateSubAdminDto {
   fullName?: string;
   phone?: string;
   permissions?: string[];
+  isActive?: boolean;
+  isDeactivated?: boolean;
 }
 
 export interface ActivateSubAdminDto {
@@ -626,6 +662,15 @@ export interface ActivateSubAdminDto {
   pin: string;
   fullName?: string;
   phone?: string;
+}
+
+export interface AdminChangePasswordDto {
+  currentPassword?: string;
+  newPassword: string;
+}
+
+export interface AdminResetTempPasswordDto {
+  temporaryPassword?: string;
 }
 
 export interface AdminTheme {

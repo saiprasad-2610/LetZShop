@@ -1,6 +1,6 @@
-import type { AdminSubAdmin, CreateSubAdminDto } from '@simply/api-contracts';
+import type { AdminSubAdmin, CreateSubAdminDto, UpdateSubAdminDto } from '@simply/api-contracts';
 import { AdminPermission } from '@simply/types';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import {
   Users,
@@ -19,31 +19,67 @@ import {
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Mail,
+  Phone,
+  Calendar,
+  Clock,
+  Activity,
+  Check,
+  Trash2,
+  Power,
+  RefreshCw,
+  ExternalLink,
+  Copy,
+  ChevronDown,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Feedback } from '../components/AdminUI';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
-const ALL_PERMISSIONS: { key: AdminPermission; label: string; category: string }[] = [
-  { key: AdminPermission.DASHBOARD_VIEW, label: 'Dashboard View', category: 'General' },
+interface PermissionMeta {
+  key: AdminPermission;
+  label: string;
+  category: string;
+}
+
+const ALL_PERMISSION_METAS: PermissionMeta[] = [
+  // Dashboard & General
+  { key: AdminPermission.DASHBOARD_VIEW, label: 'View Dashboard', category: 'General' },
+  // Merchants
   { key: AdminPermission.MERCHANTS_VIEW, label: 'View Merchants', category: 'Merchants' },
   { key: AdminPermission.MERCHANTS_CONTACT, label: 'Contact Merchants', category: 'Merchants' },
   { key: AdminPermission.MERCHANTS_SUSPEND, label: 'Suspend / Reactivate Merchants', category: 'Merchants' },
-  { key: AdminPermission.REVIEWS_VIEW, label: 'View Reviews & Reports', category: 'Moderation' },
-  { key: AdminPermission.REVIEWS_MODERATE, label: 'Moderate Reviews', category: 'Moderation' },
-  { key: AdminPermission.SUBSCRIPTIONS_VIEW, label: 'View Subscriptions', category: 'Finance' },
-  { key: AdminPermission.SUBSCRIPTIONS_MANAGE, label: 'Manage Subscriptions', category: 'Finance' },
-  { key: AdminPermission.PAYMENTS_VIEW, label: 'View Payments', category: 'Finance' },
-  { key: AdminPermission.PAYMENTS_RECONCILE, label: 'Reconcile Payments', category: 'Finance' },
+  // Reviews & Moderation
+  { key: AdminPermission.REVIEWS_VIEW, label: 'View Reviews & Reports', category: 'Reviews' },
+  { key: AdminPermission.REVIEWS_MODERATE, label: 'Moderate Reviews', category: 'Reviews' },
+  // Subscriptions & Finance
+  { key: AdminPermission.SUBSCRIPTIONS_VIEW, label: 'View Subscriptions', category: 'Subscriptions' },
+  { key: AdminPermission.SUBSCRIPTIONS_MANAGE, label: 'Manage Subscriptions', category: 'Subscriptions' },
+  { key: AdminPermission.PAYMENTS_VIEW, label: 'View Payments', category: 'Payments' },
+  { key: AdminPermission.PAYMENTS_RECONCILE, label: 'Reconcile Payments', category: 'Payments' },
+  // Users
   { key: AdminPermission.USERS_VIEW, label: 'View Users', category: 'Users' },
   { key: AdminPermission.USERS_MANAGE, label: 'Manage Users', category: 'Users' },
-  { key: AdminPermission.BUSINESS_VERIFICATION_VIEW as any || AdminPermission.VERIFICATION_VIEW, label: 'View Verifications', category: 'Verifications' },
-  { key: AdminPermission.BUSINESS_VERIFICATION_APPROVE as any || AdminPermission.VERIFICATION_APPROVE, label: 'Approve Verifications', category: 'Verifications' },
+  // Business Verification
+  { key: AdminPermission.BUSINESS_VERIFICATION_VIEW, label: 'View Verifications', category: 'Business Verification' },
+  { key: AdminPermission.BUSINESS_VERIFICATION_APPROVE, label: 'Approve / Reject Verifications', category: 'Business Verification' },
+  // Settings
   { key: AdminPermission.SETTINGS_VIEW, label: 'View Platform Settings', category: 'Settings' },
   { key: AdminPermission.SETTINGS_MANAGE, label: 'Modify Platform Settings', category: 'Settings' },
-  { key: AdminPermission.SUB_ADMINS_MANAGE, label: 'Manage Sub Admins', category: 'Delegation' },
-  { key: AdminPermission.AUDIT_LOGS_VIEW, label: 'View Audit Logs', category: 'Audit' },
+  // Delegation
+  { key: AdminPermission.SUB_ADMINS_MANAGE, label: 'Manage Sub Admins', category: 'Sub Admins' },
+  // Audit
+  { key: AdminPermission.AUDIT_LOGS_VIEW, label: 'View Audit Logs', category: 'Audit Logs' },
+  // Future Capabilities (Themes, Orders, Analytics)
+  { key: AdminPermission.THEMES_VIEW, label: 'View Themes', category: 'Themes' },
+  { key: AdminPermission.THEMES_MANAGE, label: 'Manage Themes', category: 'Themes' },
+  { key: AdminPermission.ANALYTICS_VIEW, label: 'View Analytics', category: 'Analytics' },
+  { key: AdminPermission.ORDERS_VIEW, label: 'View Orders', category: 'Orders' },
+  { key: AdminPermission.ORDERS_MANAGE, label: 'Manage Orders', category: 'Orders' },
 ];
+
+const CATEGORIES = Array.from(new Set(ALL_PERMISSION_METAS.map((p) => p.category)));
 
 const PRESETS: Record<string, { label: string; permissions: AdminPermission[] }> = {
   SUPPORT_ADMIN: {
@@ -92,122 +128,203 @@ export default function SubAdminsPage() {
   const [items, setItems] = useState<AdminSubAdmin[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'INVITED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'PENDING_INVITE' | 'DEACTIVATED'>('ALL');
+  const [permissionFilter, setPermissionFilter] = useState<string>('ALL');
+  const [sortFilter, setSortFilter] = useState<'NEWEST' | 'OLDEST' | 'NAME_ASC' | 'LAST_LOGIN'>('NEWEST');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal states
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState<AdminSubAdmin | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Detail drawer state
+  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
+  const [detailData, setDetailData] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  // Create form state
-  const [createForm, setCreateForm] = useState<CreateSubAdminDto>({
+  // Interactive permissions modal / popover
+  const [permissionsModalAdmin, setPermissionsModalAdmin] = useState<AdminSubAdmin | null>(null);
+
+  // Create Sub Admin modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<{
+    fullName: string;
+    email: string;
+    phone: string;
+    temporaryPassword: string;
+    permissions: AdminPermission[];
+    forcePasswordChange: boolean;
+  }>({
     fullName: '',
     email: '',
     phone: '',
-    permissions: [...PRESETS.SUPPORT_ADMIN.permissions],
+    temporaryPassword: '',
+    permissions: [AdminPermission.DASHBOARD_VIEW, AdminPermission.MERCHANTS_VIEW],
+    forcePasswordChange: true,
   });
-  const [selectedPreset, setSelectedPreset] = useState<string>('SUPPORT_ADMIN');
+  const [createdCredentialsAlert, setCreatedCredentialsAlert] = useState<{
+    email: string;
+    tempPass: string;
+  } | null>(null);
 
-  const fetchSubAdmins = async () => {
+  // Edit permissions modal
+  const [editAdmin, setEditAdmin] = useState<AdminSubAdmin | null>(null);
+  const [editPermissions, setEditPermissions] = useState<AdminPermission[]>([]);
+
+  // Reset temporary password modal
+  const [resetTempAdmin, setResetTempAdmin] = useState<AdminSubAdmin | null>(null);
+  const [resetTempPassword, setResetTempPassword] = useState('');
+
+  // Delete / Archive confirmation modal
+  const [deleteAdmin, setDeleteAdmin] = useState<AdminSubAdmin | null>(null);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
+
+  // Action status / banner
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  // Row dropdown menus
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.action-menu-container')) {
+        setOpenActionMenuId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const loadSubAdmins = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.admin.getSubAdmins({
-        page,
-        limit: pageSize,
         search: search.trim() || undefined,
-        status: statusFilter,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        permission: permissionFilter === 'ALL' ? undefined : permissionFilter,
+        sort: sortFilter,
+        page,
+        pageSize,
       });
-      setItems(res.items);
-      setTotal(res.total);
+      setItems(res.items || (res as any).data || []);
+      setTotal(res.total ?? (res.items?.length || 0));
     } catch (err: any) {
-      setError(err.message || 'Failed to load sub admins list.');
+      setError(err.message || 'Failed to load platform administrators.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSubAdmins();
-  }, [page, statusFilter]);
+    loadSubAdmins();
+  }, [page, pageSize, statusFilter, permissionFilter, sortFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchSubAdmins();
+    loadSubAdmins();
   };
 
-  const handleApplyPreset = (presetKey: string) => {
-    setSelectedPreset(presetKey);
-    if (PRESETS[presetKey]) {
-      setCreateForm((prev) => ({
-        ...prev,
-        permissions: [...PRESETS[presetKey].permissions],
-      }));
+  const generateSecurePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    let pass = 'Adm!';
+    for (let i = 0; i < 8; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    pass += Math.floor(10 + Math.random() * 89);
+    return pass;
+  };
+
+  // Open detail drawer
+  const openDetailDrawer = async (adminId: string) => {
+    setSelectedAdminId(adminId);
+    setDetailLoading(true);
+    try {
+      const data = await api.admin.getSubAdminDetail(adminId);
+      setDetailData(data);
+    } catch (err: any) {
+      setActionMessage({
+        type: 'error',
+        text: err.message || 'Failed to load administrator details.',
+      });
+    } finally {
+      setDetailLoading(false);
     }
   };
 
-  const togglePermission = (perm: AdminPermission, isEditing = false) => {
-    if (isEditing && editingAdmin) {
-      const perms = editingAdmin.permissions.includes(perm)
-        ? editingAdmin.permissions.filter((p) => p !== perm)
-        : [...editingAdmin.permissions, perm];
-      setEditingAdmin({ ...editingAdmin, permissions: perms });
-    } else {
-      setSelectedPreset('CUSTOM');
-      const perms = createForm.permissions.includes(perm)
-        ? createForm.permissions.filter((p) => p !== perm)
-        : [...createForm.permissions, perm];
-      setCreateForm({ ...createForm, permissions: perms });
-    }
+  const closeDetailDrawer = () => {
+    setSelectedAdminId(null);
+    setDetailData(null);
   };
 
-  const handleCreateSubAdmin = async (e: React.FormEvent) => {
+  // Handle Sub Admin Creation
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     setActionMessage(null);
     try {
-      const res = await api.admin.createSubAdmin(createForm);
-      setShowCreateModal(false);
+      const tempPass = createForm.temporaryPassword.trim() || generateSecurePassword();
+      const res = await api.admin.createSubAdmin({
+        fullName: createForm.fullName.trim(),
+        email: createForm.email.trim(),
+        phone: createForm.phone.trim() || undefined,
+        temporaryPassword: tempPass,
+        forcePasswordChange: true,
+        permissions: createForm.permissions,
+      });
+
+      setCreatedCredentialsAlert({
+        email: createForm.email.trim(),
+        tempPass,
+      });
+
       setActionMessage({
         type: 'success',
-        text: `Invitation created for ${createForm.email}. An activation link has been sent.`,
+        text: `Sub Admin created successfully! Login details emailed to ${createForm.email}.`,
       });
+      setShowCreateModal(false);
       setCreateForm({
         fullName: '',
         email: '',
         phone: '',
-        permissions: [...PRESETS.SUPPORT_ADMIN.permissions],
+        temporaryPassword: '',
+        permissions: [AdminPermission.DASHBOARD_VIEW, AdminPermission.MERCHANTS_VIEW],
+        forcePasswordChange: true,
       });
-      fetchSubAdmins();
+      loadSubAdmins();
     } catch (err: any) {
       setActionMessage({
         type: 'error',
-        text: err.message || 'Failed to create sub admin.',
+        text: err.message || 'Failed to create sub administrator.',
       });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleUpdatePermissions = async () => {
-    if (!editingAdmin) return;
+  // Handle Edit Permissions
+  const handleSavePermissions = async () => {
+    if (!editAdmin) return;
     setActionLoading(true);
     try {
-      await api.admin.updateSubAdmin(editingAdmin.id, {
-        permissions: editingAdmin.permissions,
+      await api.admin.updateSubAdmin(editAdmin.id, {
+        permissions: editPermissions,
       });
-      setEditingAdmin(null);
       setActionMessage({
         type: 'success',
-        text: `Permissions updated for ${editingAdmin.fullName || editingAdmin.email}.`,
+        text: `Permissions for ${editAdmin.fullName} updated and enforced immediately.`,
       });
-      fetchSubAdmins();
+      setEditAdmin(null);
+      loadSubAdmins();
+      if (selectedAdminId === editAdmin.id) {
+        openDetailDrawer(editAdmin.id);
+      }
     } catch (err: any) {
       setActionMessage({
         type: 'error',
@@ -218,46 +335,139 @@ export default function SubAdminsPage() {
     }
   };
 
+  // Handle Toggle Suspend / Reactivate
   const handleToggleStatus = async (admin: AdminSubAdmin) => {
-    const isSuspending = admin.status === 'ACTIVE';
-    const confirmText = isSuspending
-      ? `Are you sure you want to suspend ${admin.fullName || admin.email}? Active sessions will be terminated immediately.`
-      : `Reactivate ${admin.fullName || admin.email}?`;
-    if (!window.confirm(confirmText)) return;
-
     setActionLoading(true);
     try {
-      await api.admin.toggleSubAdminStatus(admin.id, {
-        reason: isSuspending ? 'Suspended by Super Admin' : 'Reactivated by Super Admin',
+      const res = await api.admin.toggleSubAdminStatus(admin.id, {
+        reason: admin.isActive ? 'Suspended by Super Admin' : 'Reactivated by Super Admin',
       });
       setActionMessage({
         type: 'success',
-        text: `${admin.fullName || admin.email} has been ${isSuspending ? 'suspended' : 'reactivated'}.`,
+        text: res.isActive
+          ? `Administrator ${admin.fullName} reactivated successfully.`
+          : `Administrator ${admin.fullName} suspended. Active sessions revoked.`,
       });
-      fetchSubAdmins();
+      loadSubAdmins();
+      if (selectedAdminId === admin.id) {
+        openDetailDrawer(admin.id);
+      }
     } catch (err: any) {
       setActionMessage({
         type: 'error',
-        text: err.message || 'Failed to update account status.',
+        text: err.message || 'Failed to toggle administrator status.',
       });
     } finally {
       setActionLoading(false);
     }
   };
 
+  // Handle Reset Temporary Password
+  const handleResetTempPassword = async () => {
+    if (!resetTempAdmin) return;
+    setActionLoading(true);
+    try {
+      const temp = resetTempPassword.trim() || generateSecurePassword();
+      await api.admin.resetSubAdminTempPassword(resetTempAdmin.id, {
+        temporaryPassword: temp,
+      });
+      setActionMessage({
+        type: 'success',
+        text: `New temporary password generated and delivered to ${resetTempAdmin.email}.`,
+      });
+      setResetTempAdmin(null);
+      setResetTempPassword('');
+      loadSubAdmins();
+    } catch (err: any) {
+      setActionMessage({
+        type: 'error',
+        text: err.message || 'Failed to reset temporary password.',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Revoke Sessions
   const handleRevokeSessions = async (admin: AdminSubAdmin) => {
-    if (!window.confirm(`Revoke all active sessions for ${admin.fullName || admin.email}?`)) return;
     setActionLoading(true);
     try {
       const res = await api.admin.revokeSubAdminSessions(admin.id);
       setActionMessage({
         type: 'success',
-        text: `Revoked ${res.revokedCount} active session(s) for ${admin.fullName || admin.email}.`,
+        text: `Revoked ${res.revokedCount} active session(s) for ${admin.fullName || admin.email}. Super Admin and seller sessions untouched.`,
       });
+      if (selectedAdminId === admin.id) {
+        openDetailDrawer(admin.id);
+      }
     } catch (err: any) {
       setActionMessage({
         type: 'error',
         text: err.message || 'Failed to revoke sessions.',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Deactivate
+  const handleDeactivate = async (admin: AdminSubAdmin) => {
+    setActionLoading(true);
+    try {
+      await api.admin.deactivateSubAdmin(admin.id, {
+        reason: 'Administrator access revoked by Super Admin',
+      });
+      setActionMessage({
+        type: 'success',
+        text: `Access permanently revoked/deactivated for ${admin.fullName}. Sessions cleared.`,
+      });
+      loadSubAdmins();
+      if (selectedAdminId === admin.id) {
+        openDetailDrawer(admin.id);
+      }
+    } catch (err: any) {
+      setActionMessage({
+        type: 'error',
+        text: err.message || 'Failed to deactivate administrator.',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Delete Confirmation
+  const handleDeleteConfirm = async () => {
+    if (!deleteAdmin) return;
+    const isInvite = deleteAdmin.id.startsWith('invite-');
+    const expectedConfirm = isInvite ? 'DELETE' : deleteAdmin.email || deleteAdmin.fullName;
+
+    if (
+      deleteConfirmationInput.trim().toUpperCase() !== 'DELETE' &&
+      deleteConfirmationInput.trim() !== deleteAdmin.email &&
+      deleteConfirmationInput.trim() !== deleteAdmin.fullName
+    ) {
+      setActionMessage({
+        type: 'error',
+        text: `Confirmation mismatch. Please type DELETE or "${expectedConfirm}" to confirm.`,
+      });
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await api.admin.deleteSubAdmin(deleteAdmin.id);
+      setActionMessage({
+        type: 'success',
+        text: res.message || 'Administrator removed/archived safely.',
+      });
+      setDeleteAdmin(null);
+      setDeleteConfirmationInput('');
+      closeDetailDrawer();
+      loadSubAdmins();
+    } catch (err: any) {
+      setActionMessage({
+        type: 'error',
+        text: err.message || 'Failed to delete sub administrator.',
       });
     } finally {
       setActionLoading(false);
@@ -270,8 +480,8 @@ export default function SubAdminsPage() {
       const res = await api.admin.resendSubAdminInvite(inviteId);
       setActionMessage({
         type: 'success',
-        text: res.activationLink
-          ? `Invitation resent. Link: ${res.activationLink}`
+        text: res.activationUrl
+          ? `Invitation resent. Link: ${res.activationUrl}`
           : 'Invitation resent successfully.',
       });
     } catch (err: any) {
@@ -289,10 +499,10 @@ export default function SubAdminsPage() {
   return (
     <AdminLayout>
       <Head>
-        <title>Sub Admins — LetzShop Admin</title>
+        <title>Sub Admin Management — LetzShop Admin</title>
       </Head>
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -300,7 +510,7 @@ export default function SubAdminsPage() {
               Sub Admin Management
             </h1>
             <p className="text-sm text-admin-muted mt-1">
-              Delegate administrative operational tasks with fine-grained access permissions and secure onboarding.
+              Delegate operational authorities with granular permissions, temporary credentials, and session lifecycle control.
             </p>
           </div>
           {currentUser?.isSuperAdmin && (
@@ -331,7 +541,7 @@ export default function SubAdminsPage() {
             ) : (
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
             )}
-            <span className="flex-1">{actionMessage.text}</span>
+            <span className="flex-1 font-medium">{actionMessage.text}</span>
             <button
               onClick={() => setActionMessage(null)}
               className="text-admin-muted hover:text-admin-text p-1"
@@ -341,9 +551,43 @@ export default function SubAdminsPage() {
           </div>
         )}
 
-        {/* Filter & Search Bar */}
-        <div className="admin-panel space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        {/* Temporary Credentials Banner (Shown only once after creation) */}
+        {createdCredentialsAlert && (
+          <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 text-admin-text text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> Initial Temporary Credentials Created
+              </span>
+              <button
+                onClick={() => setCreatedCredentialsAlert(null)}
+                className="text-admin-muted hover:text-admin-text"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-admin-muted leading-relaxed">
+              Login details have been dispatched to <strong>{createdCredentialsAlert.email}</strong>. For your immediate reference:
+            </p>
+            <div className="flex items-center gap-2 bg-admin-surface p-2.5 rounded-lg border border-admin-border font-mono text-[11px] select-all">
+              <span>Temp Password: <strong>{createdCredentialsAlert.tempPass}</strong></span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(createdCredentialsAlert.tempPass);
+                  setActionMessage({ type: 'success', text: 'Temporary password copied to clipboard.' });
+                }}
+                className="ml-auto p-1 text-admin-muted hover:text-admin-accent"
+                title="Copy password"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Compact Toolbar: Search + Status + Permission + Sort + PageSize */}
+        <div className="admin-panel p-3.5 space-y-3">
+          <div className="flex flex-col lg:flex-row gap-2.5 items-stretch lg:items-center justify-between">
+            {/* Search Input */}
             <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1 max-w-md">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-admin-muted" />
@@ -351,7 +595,7 @@ export default function SubAdminsPage() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, email, or user ID..."
+                  placeholder="Search admin by name, email, phone..."
                   className="admin-input w-full pl-9 text-xs"
                 />
               </div>
@@ -360,74 +604,147 @@ export default function SubAdminsPage() {
               </button>
             </form>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              {(['ALL', 'ACTIVE', 'SUSPENDED', 'INVITED'] as const).map((st) => (
-                <button
-                  key={st}
-                  onClick={() => {
-                    setStatusFilter(st);
+            {/* Filter Dropdowns */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {/* Status Filter */}
+              <div className="flex items-center gap-1 bg-admin-surface border border-admin-border rounded-lg px-2 py-1">
+                <span className="text-admin-muted text-[11px]">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as any);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    statusFilter === st
-                      ? 'bg-admin-soft text-admin-accent border border-admin-accent/30'
-                      : 'text-admin-secondary hover:bg-admin-raised hover:text-admin-text border border-transparent'
-                  }`}
+                  className="bg-transparent text-xs font-semibold text-admin-text focus:outline-none cursor-pointer"
                 >
-                  {st === 'ALL'
-                    ? 'All Admins'
-                    : st === 'ACTIVE'
-                    ? 'Active'
-                    : st === 'SUSPENDED'
-                    ? 'Suspended'
-                    : 'Pending Invite'}
-                </button>
-              ))}
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="PENDING_INVITE">Pending Invite</option>
+                  <option value="DEACTIVATED">Deactivated</option>
+                </select>
+              </div>
+
+              {/* Permission Filter */}
+              <div className="flex items-center gap-1 bg-admin-surface border border-admin-border rounded-lg px-2 py-1">
+                <span className="text-admin-muted text-[11px]">Permission:</span>
+                <select
+                  value={permissionFilter}
+                  onChange={(e) => {
+                    setPermissionFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent text-xs font-semibold text-admin-text focus:outline-none cursor-pointer max-w-[130px] truncate"
+                >
+                  <option value="ALL">All Permissions</option>
+                  {ALL_PERMISSION_METAS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sort Filter */}
+              <div className="flex items-center gap-1 bg-admin-surface border border-admin-border rounded-lg px-2 py-1">
+                <span className="text-admin-muted text-[11px]">Sort:</span>
+                <select
+                  value={sortFilter}
+                  onChange={(e) => {
+                    setSortFilter(e.target.value as any);
+                    setPage(1);
+                  }}
+                  className="bg-transparent text-xs font-semibold text-admin-text focus:outline-none cursor-pointer"
+                >
+                  <option value="NEWEST">Newest</option>
+                  <option value="OLDEST">Oldest</option>
+                  <option value="NAME_ASC">Name A–Z</option>
+                  <option value="LAST_LOGIN">Last Login</option>
+                </select>
+              </div>
+
+              {/* Page Size */}
+              <div className="flex items-center gap-1 bg-admin-surface border border-admin-border rounded-lg px-2 py-1">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="bg-transparent text-xs font-semibold text-admin-text focus:outline-none cursor-pointer"
+                >
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => loadSubAdmins()}
+                className="btn-admin-raised p-2"
+                title="Refresh list"
+              >
+                <RotateCw className="w-3.5 h-3.5 text-admin-muted" />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Table / List */}
+        {/* Feedback / Error */}
         <Feedback error={error || undefined} loading={loading} />
 
+        {/* Sub Admin Table with Fixed Height, Internal Scrolling, Sticky Header */}
         {!loading && items.length === 0 && (
           <div className="admin-panel text-center py-12 text-admin-muted space-y-2">
             <Shield className="w-8 h-8 mx-auto text-admin-muted/60" />
             <div className="text-sm font-semibold text-admin-text">No administrators found</div>
-            <p className="text-xs">Adjust your search query or status filter.</p>
+            <p className="text-xs">Adjust your search query or filter options.</p>
           </div>
         )}
 
         {!loading && items.length > 0 && (
-          <div className="admin-panel p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-admin-surface/80 border-b border-admin-border text-admin-muted uppercase tracking-wider text-[11px]">
+          <div className="admin-panel p-0 overflow-hidden flex flex-col border border-admin-border">
+            {/* Scrollable Container with Controlled Height */}
+            <div className="overflow-y-auto overflow-x-auto max-h-[580px] subtle-scrollbar relative">
+              <table className="w-full text-left text-xs border-collapse">
+                {/* Sticky Header */}
+                <thead className="bg-admin-surface/95 backdrop-blur-md sticky top-0 z-10 border-b border-admin-border text-admin-muted uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Administrator</th>
-                    <th className="px-4 py-3 font-semibold">Role & Status</th>
-                    <th className="px-4 py-3 font-semibold">Granted Permissions</th>
-                    <th className="px-4 py-3 font-semibold">Activity</th>
+                    <th className="px-4 py-3 font-semibold">Role / Status</th>
+                    <th className="px-4 py-3 font-semibold">Permissions</th>
+                    <th className="px-4 py-3 font-semibold">Last Login</th>
+                    <th className="px-4 py-3 font-semibold">Created</th>
                     <th className="px-4 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-admin-border">
                   {items.map((admin) => {
                     const isSuper = admin.isSuperAdmin;
+                    const isInvite = admin.id.startsWith('invite-');
+                    const perms = admin.permissions || admin.adminPermissions || [];
+                    const displayPerms = perms.slice(0, 3);
+                    const remainingCount = perms.length - 3;
+
                     return (
                       <tr key={admin.id} className="hover:bg-admin-raised/40 transition-colors">
+                        {/* 1. Administrator Cell (Name, Email, Phone) */}
                         <td className="px-4 py-3.5">
                           <div className="font-semibold text-admin-text text-sm">
-                            {admin.fullName || 'Invited Administrator'}
+                            {admin.fullName || (isInvite ? 'Invited Administrator' : 'Sub Admin')}
                           </div>
                           <div className="text-admin-muted font-mono text-[11px]">
-                            {admin.email || admin.phone || 'No email provided'}
+                            {admin.email || '—'}
                           </div>
-                          <div className="text-[10px] text-admin-muted/70 font-mono mt-0.5">
-                            ID: {admin.id.slice(0, 14)}…
-                          </div>
+                          {admin.phone && (
+                            <div className="text-[11px] text-admin-muted/80 flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3 shrink-0" />
+                              <span>{admin.phone}</span>
+                            </div>
+                          )}
                         </td>
 
+                        {/* 2. Role / Status */}
                         <td className="px-4 py-3.5">
                           <div className="flex flex-col gap-1 items-start">
                             <span
@@ -445,107 +762,235 @@ export default function SubAdminsPage() {
                                 admin.status === 'ACTIVE'
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                                   : admin.status === 'SUSPENDED'
-                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                  ? (admin as any).isDeactivated
+                                    ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
                                   : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                               }`}
                             >
                               {admin.status === 'ACTIVE'
                                 ? 'Active'
                                 : admin.status === 'SUSPENDED'
-                                ? 'Suspended'
+                                ? (admin as any).isDeactivated
+                                  ? 'Deactivated'
+                                  : 'Suspended'
                                 : 'Pending Invite'}
                             </span>
                           </div>
                         </td>
 
+                        {/* 3. Granted Permissions with Interactive "+N more" */}
                         <td className="px-4 py-3.5 max-w-xs">
-                          {isSuper ? (
-                            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">
-                              Unrestricted Full Access
-                            </span>
-                          ) : admin.permissions.length === 0 ? (
-                            <span className="text-admin-muted italic text-[11px]">
-                              No permissions granted
-                            </span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {admin.permissions.slice(0, 3).map((p) => (
-                                <span
-                                  key={p}
-                                  className="px-1.5 py-0.5 bg-admin-surface border border-admin-border rounded text-[10px] text-admin-secondary font-mono"
-                                >
-                                  {p.replace(/_/g, ' ')}
-                                </span>
-                              ))}
-                              {admin.permissions.length > 3 && (
-                                <span className="px-1.5 py-0.5 bg-admin-soft text-admin-accent rounded text-[10px] font-bold">
-                                  +{admin.permissions.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {displayPerms.map((p) => (
+                              <span
+                                key={p}
+                                className="px-2 py-0.5 rounded bg-admin-raised border border-admin-border text-[10px] text-admin-secondary font-mono"
+                              >
+                                {p.replace(/_/g, ' ')}
+                              </span>
+                            ))}
 
-                        <td className="px-4 py-3.5 text-[11px] text-admin-muted">
-                          <div>
-                            Created:{' '}
-                            <span className="text-admin-text">
-                              {new Date(admin.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div>
-                            Last login:{' '}
-                            <span className="text-admin-text">
-                              {admin.lastLoginAt
-                                ? new Date(admin.lastLoginAt).toLocaleDateString()
-                                : 'Never'}
-                            </span>
+                            {remainingCount > 0 ? (
+                              <button
+                                onClick={() => setPermissionsModalAdmin(admin)}
+                                className="px-2 py-0.5 rounded bg-admin-soft text-admin-accent hover:bg-admin-soft/80 border border-admin-accent/30 text-[10px] font-bold cursor-pointer transition-colors"
+                              >
+                                +{remainingCount} more
+                              </button>
+                            ) : perms.length > 0 ? (
+                              <button
+                                onClick={() => setPermissionsModalAdmin(admin)}
+                                className="text-[10px] text-admin-accent hover:underline ml-1"
+                              >
+                                View All
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-admin-muted italic">None</span>
+                            )}
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5 text-right">
-                          {isSuper ? (
-                            <span className="text-[11px] text-admin-muted italic">Protected</span>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1.5">
-                              {admin.inviteId ? (
-                                <button
-                                  onClick={() => handleResendInvite(admin.inviteId!)}
-                                  className="btn-admin-raised text-[11px] py-1 px-2.5 flex items-center gap-1"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  Resend
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => setEditingAdmin(admin)}
-                                    className="btn-admin-raised text-[11px] py-1 px-2.5 flex items-center gap-1"
-                                  >
-                                    <KeyRound className="w-3 h-3" />
-                                    Permissions
-                                  </button>
-                                  <button
-                                    onClick={() => handleToggleStatus(admin)}
-                                    className={`text-[11px] py-1 px-2.5 rounded-lg font-semibold border transition-colors ${
-                                      admin.status === 'ACTIVE'
-                                        ? 'border-rose-500/30 text-rose-600 hover:bg-rose-500/10'
-                                        : 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10'
-                                    }`}
-                                  >
-                                    {admin.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
-                                  </button>
-                                  <button
-                                    onClick={() => handleRevokeSessions(admin)}
-                                    title="Revoke active sessions"
-                                    className="p-1 rounded text-admin-muted hover:text-admin-text hover:bg-admin-raised"
-                                  >
-                                    <ShieldAlert className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
+                        {/* 4. Last Login */}
+                        <td className="px-4 py-3.5 text-admin-muted text-[11px] whitespace-nowrap">
+                          {admin.lastLoginAt ? (
+                            <div className="flex items-center gap-1 text-admin-text">
+                              <Clock className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                              <span>{new Date(admin.lastLoginAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             </div>
+                          ) : (
+                            <span className="italic text-admin-muted">Never</span>
                           )}
+                        </td>
+
+                        {/* 5. Created */}
+                        <td className="px-4 py-3.5 text-admin-muted text-[11px] whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                            <span>{new Date(admin.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                        </td>
+
+                        {/* 6. Actions (⋮ Menu) */}
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          <div className="relative inline-block text-left action-menu-container">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === admin.id ? null : admin.id);
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-admin-raised text-admin-muted hover:text-admin-text transition-colors"
+                              title="Actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {openActionMenuId === admin.id && (
+                              <div className="absolute right-0 mt-1 w-52 rounded-xl bg-admin-surface border border-admin-border shadow-xl z-30 py-1.5 text-left text-xs divide-y divide-admin-border/50">
+                                {/* State-dependent menu items */}
+                                <div className="py-1">
+                                  <button
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      openDetailDrawer(admin.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-admin-muted" />
+                                    <span>View Details</span>
+                                  </button>
+
+                                  {currentUser?.isSuperAdmin && !isSuper && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        setEditAdmin(admin);
+                                        setEditPermissions(perms as AdminPermission[]);
+                                      }}
+                                      className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                    >
+                                      <Lock className="w-3.5 h-3.5 text-admin-muted" />
+                                      <span>Edit Permissions</span>
+                                    </button>
+                                  )}
+
+                                  {admin.email && (
+                                    <a
+                                      href={`mailto:${admin.email}`}
+                                      className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                    >
+                                      <Mail className="w-3.5 h-3.5 text-admin-muted" />
+                                      <span>Send Message</span>
+                                    </a>
+                                  )}
+                                </div>
+
+                                {currentUser?.isSuperAdmin && !isSuper && (
+                                  <div className="py-1">
+                                    {isInvite ? (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            handleResendInvite(admin.inviteId || admin.id);
+                                          }}
+                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                        >
+                                          <Send className="w-3.5 h-3.5 text-admin-accent" />
+                                          <span>Resend Invite</span>
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            setDeleteAdmin(admin);
+                                            setDeleteConfirmationInput('');
+                                          }}
+                                          className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                          <span>Revoke / Delete Invite</span>
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            setResetTempAdmin(admin);
+                                            setResetTempPassword('');
+                                          }}
+                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                        >
+                                          <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                                          <span>Reset Temp Password</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            handleRevokeSessions(admin);
+                                          }}
+                                          className="w-full px-3 py-1.5 hover:bg-admin-raised text-admin-text flex items-center gap-2"
+                                        >
+                                          <RefreshCw className="w-3.5 h-3.5 text-admin-muted" />
+                                          <span>Revoke Sessions</span>
+                                        </button>
+
+                                        {admin.status === 'ACTIVE' ? (
+                                          <button
+                                            onClick={() => {
+                                              setOpenActionMenuId(null);
+                                              handleToggleStatus(admin);
+                                            }}
+                                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                                          >
+                                            <Power className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Suspend Access</span>
+                                          </button>
+                                        ) : admin.status === 'SUSPENDED' && !(admin as any).isDeactivated ? (
+                                          <button
+                                            onClick={() => {
+                                              setOpenActionMenuId(null);
+                                              handleToggleStatus(admin);
+                                            }}
+                                            className="w-full px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
+                                          >
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                            <span>Reactivate Access</span>
+                                          </button>
+                                        ) : null}
+
+                                        {!(admin as any).isDeactivated && (
+                                          <button
+                                            onClick={() => {
+                                              setOpenActionMenuId(null);
+                                              handleDeactivate(admin);
+                                            }}
+                                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                                          >
+                                            <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Deactivate / Revoke</span>
+                                          </button>
+                                        )}
+
+                                        <button
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            setDeleteAdmin(admin);
+                                            setDeleteConfirmationInput('');
+                                          }}
+                                          className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                          <span>Delete Sub Admin</span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -554,27 +999,28 @@ export default function SubAdminsPage() {
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="p-3 border-t border-admin-border flex items-center justify-between text-xs text-admin-muted">
+            {/* Pagination Footer Outside Scrolling Body */}
+            <div className="p-3.5 border-t border-admin-border bg-admin-surface/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-admin-muted">
               <div>
-                Showing {(page - 1) * pageSize + 1} to{' '}
-                {Math.min(page * pageSize, total)} of {total} administrators
+                Showing <strong>{items.length}</strong> of <strong>{total}</strong> administrators
               </div>
               <div className="flex items-center gap-2">
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                   className="btn-admin-raised p-1.5 disabled:opacity-40"
+                  title="Previous page"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="font-semibold text-admin-text">
+                <span className="font-semibold text-admin-text px-2">
                   Page {page} of {totalPages}
                 </span>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage(page + 1)}
                   className="btn-admin-raised p-1.5 disabled:opacity-40"
+                  title="Next page"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -583,153 +1029,264 @@ export default function SubAdminsPage() {
           </div>
         )}
 
-        {/* Modal: Create Sub Admin */}
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-4 border-b border-admin-border flex items-center justify-between">
+        {/* ========================================================================= */}
+        {/* VIEW ALL PERMISSIONS MODAL (Interactive +N More Popover) */}
+        {/* ========================================================================= */}
+        {permissionsModalAdmin && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-admin-border">
                 <div>
-                  <h2 className="text-base font-bold text-admin-text">Create Delegated Administrator</h2>
-                  <p className="text-xs text-admin-muted">
-                    An activation invitation will be emailed. No permanent passwords are required.
+                  <h3 className="text-base font-bold text-admin-text">
+                    Granted Authorities: {permissionsModalAdmin.fullName}
+                  </h3>
+                  <p className="text-xs text-admin-muted mt-0.5">
+                    Platform permissions grouped by functional area.
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="p-1 text-admin-muted hover:text-admin-text rounded-lg"
+                  onClick={() => setPermissionsModalAdmin(null)}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateSubAdmin} className="p-4 space-y-4 overflow-y-auto flex-1">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-admin-text mb-1">
-                      Full Name *
-                    </label>
+              {/* Grouped Checklist */}
+              <div className="overflow-y-auto space-y-4 flex-1 pr-1 subtle-scrollbar">
+                {CATEGORIES.map((category) => {
+                  const catPerms = ALL_PERMISSION_METAS.filter((p) => p.category === category);
+                  const adminPerms = permissionsModalAdmin.permissions || permissionsModalAdmin.adminPermissions || [];
+                  return (
+                    <div key={category} className="rounded-xl border border-admin-border/60 bg-admin-raised/30 p-3 space-y-2">
+                      <div className="text-xs font-bold text-admin-text uppercase tracking-wider text-[11px] flex items-center justify-between">
+                        <span>{category}</span>
+                        <span className="text-[10px] text-admin-muted font-normal">
+                          {catPerms.filter((p) => adminPerms.includes(p.key)).length} of {catPerms.length} granted
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {catPerms.map((perm) => {
+                          const isGranted = adminPerms.includes(perm.key);
+                          return (
+                            <div
+                              key={perm.key}
+                              className={`flex items-center gap-2 p-2 rounded-lg border text-xs ${
+                                isGranted
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+                                  : 'bg-admin-surface/50 border-admin-border/40 text-admin-muted'
+                              }`}
+                            >
+                              {isGranted ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 font-bold" />
+                              ) : (
+                                <X className="w-3.5 h-3.5 text-admin-muted/60 shrink-0" />
+                              )}
+                              <span className="truncate">{perm.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-3 border-t border-admin-border flex justify-end">
+                <button
+                  onClick={() => setPermissionsModalAdmin(null)}
+                  className="btn-admin-raised text-xs px-4"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* CREATE SUB ADMIN MODAL */}
+        {/* ========================================================================= */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-admin-border">
+                <div>
+                  <h3 className="text-lg font-bold text-admin-text">Create Delegated Administrator</h3>
+                  <p className="text-xs text-admin-muted mt-0.5">
+                    Configure initial temporary credentials and fine-grained module access.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1 subtle-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="block text-xs font-semibold text-admin-secondary">
+                    Full Name *
                     <input
                       type="text"
                       required
                       value={createForm.fullName}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, fullName: e.target.value })
-                      }
+                      onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
                       placeholder="e.g. Rahul Sharma"
-                      className="admin-input w-full text-xs"
+                      className="admin-input w-full mt-1 text-xs"
                     />
-                  </div>
+                  </label>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-admin-text mb-1">
-                      Email Address *
-                    </label>
+                  <label className="block text-xs font-semibold text-admin-secondary">
+                    Email Address *
                     <input
                       type="email"
                       required
                       value={createForm.email}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, email: e.target.value })
-                      }
-                      placeholder="rahul@letzshop.in"
-                      className="admin-input w-full text-xs"
+                      onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                      placeholder="subadmin@company.com"
+                      className="admin-input w-full mt-1 text-xs"
                     />
-                  </div>
+                  </label>
+                </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-admin-text mb-1">
-                      Phone Number (Optional)
-                    </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="block text-xs font-semibold text-admin-secondary">
+                    Phone (Optional)
                     <input
-                      type="tel"
-                      value={createForm.phone || ''}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, phone: e.target.value })
-                      }
+                      type="text"
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                       placeholder="+91 9876543210"
-                      className="admin-input w-full text-xs"
+                      className="admin-input w-full mt-1 text-xs"
                     />
+                  </label>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-admin-secondary">
+                      Temporary Password *
+                    </label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        required
+                        value={createForm.temporaryPassword}
+                        onChange={(e) => setCreateForm({ ...createForm, temporaryPassword: e.target.value })}
+                        placeholder="Click Generate or enter password"
+                        className="admin-input flex-1 text-xs font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pass = generateSecurePassword();
+                          setCreateForm({ ...createForm, temporaryPassword: pass });
+                        }}
+                        className="btn-admin-raised text-[11px] whitespace-nowrap px-2.5 flex items-center gap-1"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Generate</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Presets */}
-                <div className="pt-2 border-t border-admin-border">
-                  <label className="block text-xs font-semibold text-admin-text mb-2">
-                    Permission Preset
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {Object.entries(PRESETS).map(([key, val]) => (
+                {/* Force Password Change Indicator */}
+                <div className="rounded-xl bg-blue-500/10 border border-blue-500/30 p-3 flex items-start gap-2.5 text-xs text-blue-700 dark:text-blue-300">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-blue-500 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Force Password Change on First Login:</span>
+                    <p className="text-[11px] text-blue-600/90 dark:text-blue-300/90 mt-0.5 leading-relaxed">
+                      Required for temporary credentials. The Sub Admin will be redirected to create a new password immediately upon logging in with this temporary password.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Role Presets */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-admin-secondary">Quick-Pick Permission Presets:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(PRESETS).map(([key, preset]) => (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => handleApplyPreset(key)}
-                        className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center ${
-                          selectedPreset === key
-                            ? 'bg-admin-soft text-admin-accent border-admin-accent'
-                            : 'border-admin-border text-admin-secondary hover:bg-admin-raised'
-                        }`}
+                        onClick={() => setCreateForm({ ...createForm, permissions: preset.permissions })}
+                        className="px-2.5 py-1 rounded-lg bg-admin-raised border border-admin-border text-admin-text hover:border-admin-accent hover:text-admin-accent text-[11px] transition-colors"
                       >
-                        {val.label}
+                        {preset.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Granular Permissions List */}
-                <div className="pt-2 border-t border-admin-border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-admin-text">
-                      Granular Delegated Permissions ({createForm.permissions.length} selected)
-                    </label>
-                    <span className="text-[11px] text-admin-muted font-mono">
-                      Preset: {selectedPreset}
-                    </span>
+                {/* Granular Permission Checklist */}
+                <div className="space-y-3 pt-2 border-t border-admin-border">
+                  <div className="flex items-center justify-between text-xs font-semibold text-admin-secondary">
+                    <span>Granular Authorities:</span>
+                    <span className="text-[11px] text-admin-accent">{createForm.permissions.length} selected</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-1 border rounded-lg bg-admin-surface/50">
-                    {ALL_PERMISSIONS.map((perm) => {
-                      const checked = createForm.permissions.includes(perm.key);
+                  <div className="space-y-3">
+                    {CATEGORIES.map((category) => {
+                      const catPerms = ALL_PERMISSION_METAS.filter((p) => p.category === category);
                       return (
-                        <label
-                          key={perm.key}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                            checked
-                              ? 'bg-admin-soft/40 border-admin-accent/40 text-admin-text'
-                              : 'border-admin-border/50 text-admin-muted hover:bg-admin-raised'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => togglePermission(perm.key, false)}
-                            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
-                          />
-                          <span className="truncate">{perm.label}</span>
-                        </label>
+                        <div key={category} className="rounded-xl border border-admin-border/60 bg-admin-raised/20 p-2.5">
+                          <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider mb-2">
+                            {category}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {catPerms.map((perm) => {
+                              const checked = createForm.permissions.includes(perm.key);
+                              return (
+                                <label
+                                  key={perm.key}
+                                  className="flex items-center gap-2 cursor-pointer hover:bg-admin-raised/40 p-1.5 rounded-lg transition-colors"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setCreateForm({
+                                          ...createForm,
+                                          permissions: [...createForm.permissions, perm.key],
+                                        });
+                                      } else {
+                                        setCreateForm({
+                                          ...createForm,
+                                          permissions: createForm.permissions.filter((k) => k !== perm.key),
+                                        });
+                                      }
+                                    }}
+                                    className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                                  />
+                                  <span className="text-[11px] text-admin-text">{perm.label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-admin-surface/70 border border-admin-border text-[11px] text-admin-muted space-y-1">
-                  <strong>Security Note:</strong> Sub-admins cannot elevate their own permissions or manage Super Admin accounts. Permissions are cryptographically verified on every API request.
-                </div>
-
-                <div className="pt-3 border-t border-admin-border flex justify-end gap-2">
+                <div className="pt-4 border-t border-admin-border flex items-center justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="btn-admin-raised text-xs"
+                    className="btn-admin-raised text-xs px-4"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={actionLoading}
-                    className="btn-admin-primary flex items-center gap-1.5 text-xs"
+                    disabled={actionLoading || createForm.permissions.length === 0}
+                    className="btn-admin-primary text-xs px-4 flex items-center gap-2"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    {actionLoading ? 'Creating...' : 'Send Invitation'}
+                    <span>{actionLoading ? 'Creating…' : 'Create & Send Login Details'}</span>
                   </button>
                 </div>
               </form>
@@ -737,71 +1294,420 @@ export default function SubAdminsPage() {
           </div>
         )}
 
-        {/* Modal: Edit Permissions */}
-        {editingAdmin && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-4 border-b border-admin-border flex items-center justify-between">
+        {/* ========================================================================= */}
+        {/* EDIT PERMISSIONS MODAL */}
+        {/* ========================================================================= */}
+        {editAdmin && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-admin-border">
                 <div>
-                  <h2 className="text-base font-bold text-admin-text">
-                    Edit Permissions: {editingAdmin.fullName || editingAdmin.email}
-                  </h2>
-                  <p className="text-xs text-admin-muted">
-                    Update fine-grained permissions for this delegated administrator.
+                  <h3 className="text-base font-bold text-admin-text">
+                    Edit Permissions: {editAdmin.fullName}
+                  </h3>
+                  <p className="text-xs text-admin-muted mt-0.5">
+                    Modifications will be enforced server-side immediately and active sessions refreshed.
                   </p>
                 </div>
                 <button
-                  onClick={() => setEditingAdmin(null)}
-                  className="p-1 text-admin-muted hover:text-admin-text rounded-lg"
+                  onClick={() => setEditAdmin(null)}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-4 space-y-4 overflow-y-auto flex-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto p-1 border rounded-lg bg-admin-surface/50">
-                  {ALL_PERMISSIONS.map((perm) => {
-                    const checked = editingAdmin.permissions.includes(perm.key);
-                    return (
-                      <label
-                        key={perm.key}
-                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                          checked
-                            ? 'bg-admin-soft/40 border-admin-accent/40 text-admin-text'
-                            : 'border-admin-border/50 text-admin-muted hover:bg-admin-raised'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => togglePermission(perm.key, true)}
-                          className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
-                        />
-                        <span className="truncate">{perm.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+              {/* Granular Permission Checklist */}
+              <div className="overflow-y-auto space-y-3 flex-1 pr-1 subtle-scrollbar">
+                {CATEGORIES.map((category) => {
+                  const catPerms = ALL_PERMISSION_METAS.filter((p) => p.category === category);
+                  return (
+                    <div key={category} className="rounded-xl border border-admin-border/60 bg-admin-raised/20 p-3">
+                      <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider mb-2">
+                        {category}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {catPerms.map((perm) => {
+                          const checked = editPermissions.includes(perm.key);
+                          return (
+                            <label
+                              key={perm.key}
+                              className="flex items-center gap-2 cursor-pointer hover:bg-admin-raised/40 p-1.5 rounded-lg transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditPermissions([...editPermissions, perm.key]);
+                                  } else {
+                                    setEditPermissions(editPermissions.filter((k) => k !== perm.key));
+                                  }
+                                }}
+                                className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                              />
+                              <span className="text-[11px] text-admin-text">{perm.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-admin-border">
+              <div className="pt-3 border-t border-admin-border flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setEditPermissions([])}
+                  className="text-xs text-rose-500 hover:underline"
+                >
+                  Revoke All Authorities
+                </button>
+
+                <div className="flex gap-2">
                   <button
-                    type="button"
-                    onClick={() => setEditingAdmin(null)}
-                    className="btn-admin-raised text-xs"
+                    onClick={() => setEditAdmin(null)}
+                    className="btn-admin-raised text-xs px-4"
                   >
                     Cancel
                   </button>
                   <button
-                    type="button"
+                    onClick={handleSavePermissions}
                     disabled={actionLoading}
-                    onClick={handleUpdatePermissions}
-                    className="btn-admin-primary flex items-center gap-1.5 text-xs"
+                    className="btn-admin-primary text-xs px-4"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {actionLoading ? 'Saving...' : 'Save Permissions'}
+                    {actionLoading ? 'Saving…' : 'Save & Enforce'}
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* RESET TEMPORARY PASSWORD MODAL */}
+        {/* ========================================================================= */}
+        {resetTempAdmin && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-admin-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-admin-border">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <KeyRound className="w-5 h-5" />
+                  <h3 className="text-base font-bold text-admin-text">Regenerate Temp Password</h3>
+                </div>
+                <button
+                  onClick={() => setResetTempAdmin(null)}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-admin-muted leading-relaxed">
+                Generating a new temporary password for <strong>{resetTempAdmin.fullName || resetTempAdmin.email}</strong> will immediately invalidate previous credentials, revoke existing active sessions, and dispatch fresh login instructions via email.
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                  New Temporary Password
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={resetTempPassword}
+                    onChange={(e) => setResetTempPassword(e.target.value)}
+                    placeholder="Auto-generated if left empty"
+                    className="admin-input flex-1 text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setResetTempPassword(generateSecurePassword())}
+                    className="btn-admin-raised text-[11px] px-2.5"
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-admin-border flex justify-end gap-2">
+                <button
+                  onClick={() => setResetTempAdmin(null)}
+                  className="btn-admin-raised text-xs px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResetTempPassword}
+                  disabled={actionLoading}
+                  className="btn-admin-primary text-xs px-4"
+                >
+                  {actionLoading ? 'Regenerating…' : 'Reset & Send Email'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* DELETE / ARCHIVE CONFIRMATION MODAL */}
+        {/* ========================================================================= */}
+        {deleteAdmin && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-admin-surface border border-rose-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center gap-2 text-rose-500 pb-3 border-b border-admin-border">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="text-base font-bold text-admin-text">
+                  {deleteAdmin.id.startsWith('invite-') ? 'Revoke & Delete Invitation' : 'Delete / Deactivate Administrator'}
+                </h3>
+              </div>
+
+              <p className="text-xs text-admin-muted leading-relaxed">
+                {deleteAdmin.id.startsWith('invite-') ? (
+                  <>
+                    Are you sure you want to delete the pending invitation for <strong>{deleteAdmin.email}</strong>? The invitation token will become permanently invalid.
+                  </>
+                ) : (
+                  <>
+                    You are removing administrator access for <strong>{deleteAdmin.fullName} ({deleteAdmin.email})</strong>.
+                    <br /><br />
+                    <strong>Accountability Rule:</strong> If this administrator has performed sensitive platform actions, the system will safely deactivate access and revoke sessions while preserving historical audit log attribution. If no operational history exists, it will be permanently deleted.
+                  </>
+                )}
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                  Type <strong>DELETE</strong> or administrator email to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmationInput}
+                  onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+                  placeholder="DELETE"
+                  className="admin-input w-full text-xs"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-admin-border flex justify-end gap-2">
+                <button
+                  onClick={() => setDeleteAdmin(null)}
+                  className="btn-admin-raised text-xs px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={actionLoading || !deleteConfirmationInput}
+                  className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-colors"
+                >
+                  {actionLoading ? 'Processing…' : 'Confirm Deletion'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW SUB ADMIN DETAILS SLIDE-OVER DRAWER */}
+        {/* ========================================================================= */}
+        {selectedAdminId && (
+          <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-sm flex justify-end">
+            <div className="w-full max-w-md bg-admin-surface border-l border-admin-border h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+              {/* Drawer Header */}
+              <div className="p-4 border-b border-admin-border flex items-center justify-between bg-admin-surface/90">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-admin-accent" />
+                  <h3 className="text-base font-bold text-admin-text">Administrator Details</h3>
+                </div>
+                <button
+                  onClick={closeDetailDrawer}
+                  className="p-1 rounded-lg text-admin-muted hover:text-admin-text"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5 subtle-scrollbar">
+                {detailLoading ? (
+                  <div className="py-12 text-center text-xs text-admin-muted">
+                    Loading administrator profile…
+                  </div>
+                ) : detailData ? (
+                  <>
+                    {/* Identity Card */}
+                    <div className="p-4 rounded-xl bg-admin-raised/40 border border-admin-border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-bold text-admin-text">{detailData.fullName}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            detailData.status === 'ACTIVE'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : detailData.status === 'SUSPENDED'
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                          }`}
+                        >
+                          {detailData.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-admin-muted font-mono">{detailData.email}</div>
+                      {detailData.phone && (
+                        <div className="text-xs text-admin-muted flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>{detailData.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Operational Telemetry */}
+                    <div className="space-y-2 text-xs">
+                      <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider">
+                        Operational Telemetry
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-3 rounded-lg border border-admin-border bg-admin-surface">
+                          <span className="text-admin-muted text-[10px]">Created Date</span>
+                          <div className="font-semibold text-admin-text mt-0.5">
+                            {new Date(detailData.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg border border-admin-border bg-admin-surface">
+                          <span className="text-admin-muted text-[10px]">Activated At</span>
+                          <div className="font-semibold text-admin-text mt-0.5">
+                            {detailData.activatedAt
+                              ? new Date(detailData.activatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : 'Pending'}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg border border-admin-border bg-admin-surface">
+                          <span className="text-admin-muted text-[10px]">Last Login</span>
+                          <div className="font-semibold text-admin-text mt-0.5">
+                            {detailData.lastLoginAt
+                              ? new Date(detailData.lastLoginAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                              : 'Never'}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg border border-admin-border bg-admin-surface">
+                          <span className="text-admin-muted text-[10px]">Active Sessions</span>
+                          <div className="font-semibold text-admin-text mt-0.5">
+                            {detailData.sessions?.active ?? 0} active
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Permissions Summary */}
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-admin-muted uppercase tracking-wider">
+                          Granted Authorities ({detailData.permissions?.length || 0})
+                        </span>
+                        {currentUser?.isSuperAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditAdmin(detailData);
+                              setEditPermissions(detailData.permissions || []);
+                            }}
+                            className="text-[11px] text-admin-accent hover:underline font-semibold"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-admin-border bg-admin-surface max-h-36 overflow-y-auto subtle-scrollbar">
+                        {detailData.permissions && detailData.permissions.length > 0 ? (
+                          detailData.permissions.map((p: string) => (
+                            <span
+                              key={p}
+                              className="px-2 py-0.5 rounded bg-admin-raised border border-admin-border text-[10px] font-mono text-admin-secondary"
+                            >
+                              {p.replace(/_/g, ' ')}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-admin-muted italic text-[11px]">No active permissions granted</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Admin Actions */}
+                    <div className="space-y-2 text-xs">
+                      <div className="text-[11px] font-bold text-admin-muted uppercase tracking-wider">
+                        Recent Operational Audit Events
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto subtle-scrollbar">
+                        {detailData.recentActions && detailData.recentActions.length > 0 ? (
+                          detailData.recentActions.map((act: any) => (
+                            <div
+                              key={act.id}
+                              className="p-2 rounded-lg border border-admin-border bg-admin-surface text-[11px] flex items-center justify-between"
+                            >
+                              <div>
+                                <span className="font-semibold text-admin-text">{act.action}</span>
+                                <div className="text-[10px] text-admin-muted font-mono">{act.entityType} ({act.entityId?.slice(0, 8)})</div>
+                              </div>
+                              <span className="text-[10px] text-admin-muted">
+                                {new Date(act.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-admin-muted italic text-[11px] border border-admin-border rounded-lg bg-admin-surface">
+                            No operational actions recorded yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
+              {/* Drawer Footer Actions */}
+              {detailData && currentUser?.isSuperAdmin && !detailData.isSuperAdmin && (
+                <div className="p-4 border-t border-admin-border bg-admin-surface/90 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      setEditAdmin(detailData);
+                      setEditPermissions(detailData.permissions || []);
+                    }}
+                    className="btn-admin-raised text-xs px-3 flex-1 flex items-center justify-center gap-1.5"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Permissions</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleRevokeSessions(detailData)}
+                    className="btn-admin-raised text-xs px-3 flex-1 flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Revoke</span>
+                  </button>
+
+                  {detailData.status === 'ACTIVE' ? (
+                    <button
+                      onClick={() => handleToggleStatus(detailData)}
+                      className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-500/20 flex-1 flex items-center justify-center gap-1.5"
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>Suspend</span>
+                    </button>
+                  ) : detailData.status === 'SUSPENDED' && !detailData.isDeactivated ? (
+                    <button
+                      onClick={() => handleToggleStatus(detailData)}
+                      className="px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 flex-1 flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Reactivate</span>
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         )}

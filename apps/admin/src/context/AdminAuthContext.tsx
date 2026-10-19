@@ -12,12 +12,15 @@ interface AdminUser {
   fullName?: string;
   isSuperAdmin?: boolean;
   adminPermissions?: string[];
+  mustChangePassword?: boolean;
+  isDeactivated?: boolean;
 }
 interface AdminAuthContextType {
   user: AdminUser | null;
   loading: boolean;
   login: (identifier: string, secret: string) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<AdminUser | null>>;
   api: typeof api;
 }
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(
@@ -56,8 +59,15 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
   useEffect(() => {
     if (!loading) {
-      if (!user && router.pathname !== '/login') void router.replace('/login');
-      else if (user && router.pathname === '/login') void router.replace('/');
+      if (!user && router.pathname !== '/login') {
+        void router.replace('/login');
+      } else if (user) {
+        if (user.mustChangePassword && router.pathname !== '/change-password') {
+          void router.replace('/change-password');
+        } else if (!user.mustChangePassword && (router.pathname === '/login' || router.pathname === '/change-password')) {
+          void router.replace('/');
+        }
+      }
     }
   }, [user, loading, router.pathname]);
   const login = async (identifier: string, secret: string) => {
@@ -70,7 +80,11 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!response.ok)
       throw new Error(data.error?.message || data.message || 'Login failed.');
     setUser(data.user);
-    await router.replace('/');
+    if (data.user?.mustChangePassword) {
+      await router.replace('/change-password');
+    } else {
+      await router.replace('/');
+    }
   };
   const logout = async () => {
     try {
@@ -84,9 +98,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await router.replace('/login');
     }
   };
-  const showPage = router.pathname === '/login' || (!loading && user);
+  const showPage = router.pathname === '/login' || router.pathname === '/change-password' || (!loading && user);
   return (
-    <AdminAuthContext.Provider value={{ user, loading, login, logout, api }}>
+    <AdminAuthContext.Provider value={{ user, loading, login, logout, setUser, api }}>
       {showPage ? (
         children
       ) : (

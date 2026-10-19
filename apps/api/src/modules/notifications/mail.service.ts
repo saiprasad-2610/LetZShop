@@ -979,5 +979,77 @@ export class MailService {
     `;
     return this.sendEmail(params.to, subject, html);
   }
+
+  public async sendSubAdminCredentialsEmail(params: {
+    to: string;
+    fullName: string;
+    adminLoginUrl: string;
+    temporaryPassword: string;
+    permissions: string[];
+    roleName?: string;
+    isReset?: boolean;
+  }): Promise<boolean> {
+    const role = params.roleName || 'Sub Admin';
+    const actionDesc = params.isReset
+      ? 'Your temporary administrator password has been reset by the Super Admin.'
+      : `You have been granted access to LetzShop Admin as a <strong>${role}</strong>.`;
+
+    const formattedPermissions = params.permissions && params.permissions.length > 0
+      ? params.permissions.map(p => p.replace(/_/g, ' ')).join(', ')
+      : 'Standard delegated authorities';
+
+    const subject = params.isReset
+      ? 'Your LetzShop Admin Temporary Password Reset'
+      : 'Your LetzShop Admin Access';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="margin-bottom: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">LetzShop Admin</h1>
+            <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">Administrator Credentials</p>
+          </div>
+          <p style="font-size: 15px; margin: 0 0 16px 0;">Hello <strong>${params.fullName}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
+            ${actionDesc}
+          </p>
+
+          <div style="background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Login Credentials</p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>Login URL:</strong> <a href="${params.adminLoginUrl}" style="color: #2563eb; text-decoration: underline;">${params.adminLoginUrl}</a></p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>Email:</strong> ${params.to}</p>
+            <p style="margin: 0 0 0 0; font-size: 14px; color: #1e293b;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background: #ffffff; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 700; letter-spacing: 0.5px;">${params.temporaryPassword}</span></p>
+          </div>
+
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #1e40af;">
+              <strong>Security Notice:</strong> For security, you will be asked to create a new password after your first login before accessing administrative features.
+            </p>
+          </div>
+
+          <p style="font-size: 13px; line-height: 1.5; color: #64748b; margin: 0 0 20px 0;">
+            <strong>Granted Permissions:</strong><br/>
+            ${formattedPermissions}
+          </p>
+
+          <div style="text-align: center; margin: 28px 0 16px 0;">
+            <a href="${params.adminLoginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block;">
+              Log in to Admin Portal
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 24px 0 0 0; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            — LetzShop Platform Administration
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(params.to, subject, html);
+  }
 }
+
 
