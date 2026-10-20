@@ -134,18 +134,20 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
           </div>
 
           {/* ======================================================== */}
-          {/* RIGHT COLUMN: Rich HeroCommerceScene Visual (~55% width)  */}
+          {/* RIGHT COLUMN: Contained HeroCommerceScene (~56% width)   */}
           {/* ======================================================== */}
-          <div className="lg:col-span-7 xl:col-span-7 relative mt-6 lg:mt-0">
-            <div className="relative w-full h-[530px] sm:h-[590px] md:h-[620px] lg:h-[600px] xl:h-[640px] select-none flex items-center justify-center">
+          <div className="lg:col-span-7 xl:col-span-7 relative mt-8 lg:mt-0 flex items-center justify-center lg:justify-end">
+            <div
+              data-testid="hero-commerce-scene"
+              className="hero-scene relative w-full max-w-[850px] aspect-[1.25/1] min-h-[500px] sm:min-h-[560px] md:min-h-[600px] select-none"
+            >
               
               {/* ---------------------------------------------------- */}
-              {/* AMBIENT PHYSICAL SCENE ELEMENTS (Botanicals & Desk)  */}
+              {/* AMBIENT SCENE BACKGROUND                             */}
               {/* ---------------------------------------------------- */}
               {/* Indoor Plant Leaves (Background behind laptop) */}
-              <div className="hidden lg:block absolute top-0 left-6 xl:left-8 w-44 h-48 pointer-events-none -z-0 opacity-45">
+              <div className="hidden lg:block absolute top-2 left-6 w-36 h-40 pointer-events-none -z-0 opacity-40">
                 <svg viewBox="0 0 160 160" className="w-full h-full text-emerald-700/60" fill="currentColor">
-                  {/* Stem and aesthetic leaves */}
                   <path d="M40 140 Q 60 70 120 20" stroke="#047857" strokeWidth="3" fill="none" />
                   <ellipse cx="65" cy="85" rx="22" ry="34" transform="rotate(-35 65 85)" fill="#059669" opacity="0.75" />
                   <ellipse cx="95" cy="55" rx="20" ry="30" transform="rotate(25 95 55)" fill="#10B981" opacity="0.7" />
@@ -154,30 +156,19 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                 </svg>
               </div>
 
-              {/* Notebook with pen in lower-left foreground */}
-              <div className="hidden lg:flex absolute -bottom-3 -left-4 xl:-left-6 w-36 h-20 bg-stone-100 rounded-lg border border-stone-300 shadow-md p-2 -rotate-6 pointer-events-none z-30 opacity-70">
-                <div className="w-full h-full border border-stone-200 rounded flex flex-col justify-around px-1.5 py-1">
-                  <div className="w-3/4 h-1 bg-stone-300 rounded" />
-                  <div className="w-1/2 h-1 bg-stone-300 rounded" />
-                  <div className="w-2/3 h-1 bg-stone-300 rounded" />
-                </div>
-                {/* Brass Pen */}
-                <div className="absolute -top-2 right-4 w-1.5 h-24 bg-gradient-to-b from-amber-600 via-amber-400 to-amber-700 rounded-full shadow-sm rotate-12" />
-              </div>
-
-              {/* Wooden craft block on lower-right foreground */}
-              <div className="hidden xl:flex absolute bottom-4 -right-4 w-28 h-20 bg-stone-200/80 rounded-xl border border-stone-300/90 shadow-sm items-center justify-center p-2 text-center pointer-events-none z-10 opacity-75">
-                <span className="text-[9px] font-bold text-stone-600 uppercase tracking-widest leading-tight">
-                  Good Products<br />Brighter Businesses
-                </span>
-              </div>
+              {/* Table Desk Plane across lower scene */}
+              <div className="hidden sm:block absolute bottom-2 inset-x-0 h-36 bg-gradient-to-t from-stone-200/50 via-stone-100/25 to-transparent border-t border-stone-200/40 pointer-events-none rounded-xl" />
 
               {/* ---------------------------------------------------- */}
               {/* LAYER 1 (BACK): Merchant Dashboard Panel             */}
+              {/* Proportions: 78-82% width, top: 3%, right: 1%        */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute top-2 right-2 sm:right-6 lg:right-4 xl:right-6 w-[88%] sm:w-[84%] lg:w-[86%] xl:w-[88%] bg-white rounded-2xl border border-blue-100 shadow-[0_20px_45px_-10px_rgba(30,58,138,0.14)] overflow-hidden z-10 transition-all">
+              <div
+                data-testid="hero-dashboard-layer"
+                className="absolute top-[3%] right-[1%] w-[80%] bg-white rounded-2xl border border-blue-100 shadow-[0_20px_45px_-10px_rgba(30,58,138,0.12)] overflow-hidden z-10 transition-all"
+              >
                 {/* Dashboard Top Header Bar */}
-                <div className="h-10 border-b border-slate-100 px-3.5 flex items-center justify-between bg-slate-50/80">
+                <div className="h-9 sm:h-10 border-b border-slate-100 px-3.5 flex items-center justify-between bg-slate-50/80">
                   <div className="flex items-center gap-2.5">
                     <LetZshopLogo size="sm" iconOnly />
                     <span className="font-extrabold text-xs text-slate-800">LetZshop</span>
@@ -185,7 +176,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-400 w-36">
+                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-400 w-32 md:w-36">
                       <Search className="w-2.5 h-2.5 text-slate-400" />
                       <span>Search orders...</span>
                     </div>
@@ -268,12 +259,15 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                 </div>
               </div>
 
-              {/* Annotation 1: Pointing to Dashboard */}
-              <div className="hidden sm:flex items-center gap-1.5 absolute -top-4 left-6 sm:left-12 z-20">
+              {/* Annotation 1: Pointing to Dashboard (Inside scene bounds) */}
+              <div
+                data-testid="hero-annot-dash"
+                className="hidden sm:flex items-center gap-1.5 absolute top-[0%] left-[6%] sm:left-[10%] z-20 pointer-events-none"
+              >
                 <span className="text-xs font-bold text-slate-600 italic tracking-tight font-sans">
                   {t('landing.heroAnnotationDashboard')}
                 </span>
-                <svg className="w-8 h-8 text-orange-500" viewBox="0 0 40 40" fill="none">
+                <svg className="w-7 h-7 text-orange-500" viewBox="0 0 40 40" fill="none">
                   <path d="M5 10 C 15 8, 28 12, 32 25" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
                   <path d="M28 25 L 33 26 L 31 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -281,8 +275,12 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
 
               {/* ---------------------------------------------------- */}
               {/* LAYER 2 (MIDDLE): Dominant Laptop Storefront Shell   */}
+              {/* Proportions: 88-92% width, left: 2%, top: 36%        */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute bottom-6 left-0 sm:left-4 lg:left-0 xl:left-2 w-[92%] sm:w-[88%] lg:w-[90%] xl:w-[92%] z-20 transition-transform duration-300">
+              <div
+                data-testid="hero-laptop-layer"
+                className="absolute top-[36%] left-[2%] w-[90%] z-20 transition-transform duration-300"
+              >
                 {/* Contact Shadow Underneath Laptop */}
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[92%] h-7 bg-slate-900/35 blur-xl -z-10 rounded-full" />
 
@@ -295,10 +293,16 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   </div>
 
                   {/* Laptop Screen Area: The Live Storefront */}
-                  <div className="bg-white rounded-t-lg overflow-hidden border border-slate-800">
+                  <div
+                    data-testid="hero-storefront-screen"
+                    className="bg-white rounded-t-lg overflow-hidden border border-slate-800"
+                  >
                     
                     {/* Storefront Navigation Bar */}
-                    <div className="h-9 bg-white border-b border-slate-100 px-3 sm:px-4 flex items-center justify-between">
+                    <div
+                      data-testid="hero-storefront-nav"
+                      className="h-9 bg-white border-b border-slate-100 px-3 sm:px-4 flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3 sm:gap-6">
                         <span className="font-serif font-black text-xs sm:text-sm text-slate-900 tracking-tight">
                           Everyday Goods
@@ -404,32 +408,36 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
 
               {/* ---------------------------------------------------- */}
               {/* LAYER 3 (FRONT RIGHT): Matching Mobile Storefront    */}
+              {/* Proportions: 22-25% width, right: 2%, bottom: 5%     */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute -bottom-1 right-2 sm:right-6 md:right-10 lg:right-6 xl:right-14 w-[155px] sm:w-[185px] md:w-[195px] z-30 shadow-[0_28px_55px_-10px_rgba(0,0,0,0.55)] rounded-[32px] p-1.5 bg-slate-950 border-2 border-slate-700/80 transition-transform duration-300 hover:scale-[1.02]">
+              <div
+                data-testid="hero-phone-layer"
+                className="absolute bottom-[5%] right-[2%] w-[23%] sm:w-[22%] md:w-[21%] lg:w-[22%] xl:w-[22%] max-w-[185px] z-30 shadow-[0_28px_55px_-10px_rgba(0,0,0,0.55)] rounded-[28px] p-1.5 bg-slate-950 border-2 border-slate-700/80 transition-transform duration-300 hover:scale-[1.02]"
+              >
                 {/* Phone Speaker / Dynamic Island */}
                 <div className="flex items-center justify-center pb-1">
-                  <div className="w-12 h-2.5 bg-black rounded-full" />
+                  <div className="w-10 sm:w-12 h-2 bg-black rounded-full" />
                 </div>
 
                 {/* Mobile Storefront Screen */}
-                <div className="w-full bg-white rounded-[22px] overflow-hidden border border-slate-200">
+                <div className="w-full bg-white rounded-[20px] overflow-hidden border border-slate-200">
                   {/* Mobile Store Navbar */}
-                  <div className="h-7 bg-white border-b border-slate-100 px-2 flex items-center justify-between text-[9px]">
+                  <div className="h-6 sm:h-7 bg-white border-b border-slate-100 px-2 flex items-center justify-between text-[9px]">
                     <div className="flex items-center gap-1">
-                      <div className="w-3 h-2 flex flex-col justify-between">
+                      <div className="w-2.5 h-1.5 flex flex-col justify-between">
                         <span className="w-full h-0.5 bg-slate-700 rounded" />
                         <span className="w-full h-0.5 bg-slate-700 rounded" />
                       </div>
-                      <span className="font-extrabold text-[9px] text-slate-900">Everyday</span>
+                      <span className="font-extrabold text-[8px] sm:text-[9px] text-slate-900">Everyday</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <ShoppingBag className="w-2.5 h-2.5 text-slate-800" />
+                      <ShoppingBag className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-slate-800" />
                       <span className="w-3 h-3 rounded-full bg-orange-500 text-white flex items-center justify-center text-[7px] font-bold">3</span>
                     </div>
                   </div>
 
                   {/* Mobile Store Banner */}
-                  <div className="relative h-16 bg-stone-900 overflow-hidden flex items-center p-2">
+                  <div className="relative h-14 sm:h-16 bg-stone-900 overflow-hidden flex items-center p-2">
                     <img
                       src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=400&auto=format&fit=crop&q=80"
                       alt="Mobile Banner"
@@ -445,14 +453,14 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   </div>
 
                   {/* Mobile Product Cards */}
-                  <div className="p-1.5 bg-slate-50 space-y-1">
+                  <div className="p-1 sm:p-1.5 bg-slate-50 space-y-1">
                     <span className="text-[8px] font-bold text-slate-800 block">Best Sellers</span>
                     <div className="grid grid-cols-2 gap-1">
                       <div className="bg-white rounded p-1 border border-slate-100 space-y-0.5">
                         <img
                           src="https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&auto=format&fit=crop&q=80"
                           alt="Diffuser"
-                          className="w-full h-10 object-cover rounded"
+                          className="w-full h-9 sm:h-10 object-cover rounded"
                         />
                         <div className="text-[7px] font-bold text-slate-800 truncate">Diffuser</div>
                         <div className="text-[7px] font-black text-slate-900">₹1,290</div>
@@ -462,7 +470,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                         <img
                           src="https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=200&auto=format&fit=crop&q=80"
                           alt="Dripper"
-                          className="w-full h-10 object-cover rounded"
+                          className="w-full h-9 sm:h-10 object-cover rounded"
                         />
                         <div className="text-[7px] font-bold text-slate-800 truncate">Dripper</div>
                         <div className="text-[7px] font-black text-slate-900">₹1,450</div>
@@ -477,14 +485,17 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                 </div>
               </div>
 
-              {/* Annotation 2: Pointing to Phone */}
-              <div className="hidden xl:flex flex-col items-center text-center absolute top-1/2 -translate-y-1/2 right-0 z-40 pointer-events-none">
-                <span className="text-[11px] font-bold text-slate-600 italic tracking-tight font-sans leading-tight">
+              {/* Annotation 2: Positioned safely to the top of phone, strictly outside laptop UI */}
+              <div
+                data-testid="hero-annot-device"
+                className="hidden xl:flex flex-col items-center text-center absolute top-[23%] right-[2%] z-40 pointer-events-none"
+              >
+                <span className="text-[11px] font-bold text-slate-600 italic tracking-tight font-sans leading-tight bg-white/80 backdrop-blur-xs px-2 py-0.5 rounded-full shadow-2xs border border-slate-200/60">
                   {t('landing.heroAnnotationDevice')}
                 </span>
-                <svg className="w-7 h-7 text-orange-500 mt-1" viewBox="0 0 30 30" fill="none">
-                  <path d="M22 6 C16 12, 10 16, 6 20" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
-                  <path d="M5 14 L 5 21 L 12 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <svg className="w-5 h-7 text-orange-500 mt-0.5" viewBox="0 0 24 32" fill="none">
+                  <path d="M12 2 C12 12, 15 20, 18 26" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
+                  <path d="M11 23 L 18 27 L 21 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
 

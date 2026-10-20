@@ -69,19 +69,22 @@ export const Screen2Problem: React.FC = () => {
           </div>
 
           {/* ======================================================== */}
-          {/* RIGHT COLUMN: MerchantChaosScene Visual (~60% width)     */}
+          {/* RIGHT COLUMN: Contained MerchantChaosScene Visual (~60%) */}
           {/* ======================================================== */}
           <div className="lg:col-span-7 relative">
             
-            {/* DESKTOP & TABLET VIEWPORT (>= 640px) */}
-            <div className="hidden sm:flex relative w-full min-h-[580px] sm:min-h-[640px] md:min-h-[680px] select-none items-end justify-center pb-4 sm:pb-6">
+            {/* DESKTOP VIEWPORT (>= 1024px) */}
+            <div
+              data-testid="merchant-chaos-scene"
+              className="merchant-chaos-scene hidden lg:block relative w-full max-w-[900px] aspect-[1.3/1] min-h-[580px] select-none mx-auto"
+            >
               
               {/* Desk surface ambient table plane across the bottom */}
-              <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-stone-200/60 via-stone-100/30 to-transparent border-t border-stone-200/50 pointer-events-none rounded-2xl" />
+              <div className="absolute bottom-0 inset-x-0 h-44 bg-gradient-to-t from-stone-200/60 via-stone-100/30 to-transparent border-t border-stone-200/50 pointer-events-none rounded-2xl" />
 
               {/* Ambient Peripheral Scene Objects matching Reference 4 */}
               {/* Plant leaves in upper-left background */}
-              <div className="hidden lg:block absolute top-2 left-0 w-36 h-40 pointer-events-none -z-0 opacity-40">
+              <div className="absolute top-2 left-0 w-32 h-36 pointer-events-none -z-0 opacity-40">
                 <svg viewBox="0 0 140 140" className="w-full h-full text-emerald-800" fill="currentColor">
                   <path d="M20 120 Q 50 60 100 20" stroke="#047857" strokeWidth="2.5" fill="none" />
                   <ellipse cx="50" cy="70" rx="18" ry="28" transform="rotate(-30 50 70)" fill="#059669" opacity="0.75" />
@@ -90,32 +93,33 @@ export const Screen2Problem: React.FC = () => {
                 </svg>
               </div>
 
-              {/* Cardboard Packaging Box on left periphery */}
-              <div className="hidden xl:block absolute bottom-10 -left-6 w-20 h-16 bg-amber-200/70 rounded border border-amber-300 shadow-sm opacity-60 blur-[0.3px] pointer-events-none -rotate-6">
-                <div className="w-full h-3 bg-amber-300/80 mt-6" />
-              </div>
-
               {/* White Ceramic Coffee Mug on right desk edge with LetZshop logo */}
-              <div className="hidden xl:flex absolute bottom-6 right-0 items-center pointer-events-none z-30 opacity-80">
-                <div className="w-12 h-14 bg-white rounded-b-2xl border-t-2 border-stone-300 relative shadow-md p-1.5 flex flex-col items-center justify-center">
-                  <LetZshopLogo size="sm" iconOnly className="h-4" />
+              <div className="hidden xl:flex absolute bottom-6 right-1 items-center pointer-events-none z-30 opacity-80">
+                <div className="w-11 h-13 bg-white rounded-b-2xl border-t-2 border-stone-300 relative shadow-md p-1.5 flex flex-col items-center justify-center">
+                  <LetZshopLogo size="sm" iconOnly className="h-3.5" />
                   <span className="text-[7px] font-bold text-slate-700 font-sans tracking-tight">LetZshop</span>
-                  <div className="absolute top-2 -right-3 w-3.5 h-6 border-2 border-stone-300 rounded-r-full" />
+                  <div className="absolute top-2 -right-2.5 w-3 h-5 border-2 border-stone-300 rounded-r-full" />
                 </div>
               </div>
 
               {/* ---------------------------------------------------- */}
               {/* CENTRAL LAPTOP: Resting in lower-center on the desk  */}
-              {/* Rendered first so overlapping cards sit on top       */}
+              {/* Width: 74% of scene, bottom: 7%, centered            */}
               {/* ---------------------------------------------------- */}
-              <div className="relative w-[340px] sm:w-[440px] md:w-[500px] lg:w-[480px] xl:w-[540px] bg-slate-900 rounded-2xl p-2.5 sm:p-3 shadow-[0_32px_70px_-15px_rgba(15,23,42,0.45)] border border-slate-700/80 z-10 transition-transform duration-300 mb-2">
+              <div
+                data-testid="problem-laptop"
+                className="absolute bottom-[7%] left-1/2 -translate-x-1/2 w-[74%] max-w-[560px] bg-slate-900 rounded-2xl p-2.5 sm:p-3 shadow-[0_32px_70px_-15px_rgba(15,23,42,0.45)] border border-slate-700/80 z-10 transition-transform duration-300"
+              >
                 {/* Camera dot */}
                 <div className="flex justify-center pb-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-700 ring-1 ring-slate-600/50" />
                 </div>
 
-                {/* Screen showing full merchant dashboard matching Reference 4 */}
-                <div className="w-full bg-white rounded-lg overflow-hidden border border-slate-200 relative p-2 sm:p-2.5 flex flex-col justify-between">
+                {/* Screen showing full merchant dashboard */}
+                <div
+                  data-testid="problem-laptop-screen"
+                  className="w-full bg-white rounded-lg overflow-hidden border border-slate-200 relative p-2 sm:p-2.5 flex flex-col justify-between"
+                >
                   {/* Top Bar of Central Screen */}
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
                     <div className="flex items-center gap-1.5">
@@ -197,18 +201,22 @@ export const Screen2Problem: React.FC = () => {
 
               {/* ---------------------------------------------------- */}
               {/* CARD 1 (TOP LEFT): WhatsApp Orders                   */}
+              {/* Position: top: 2%, left: 2%, width: 42%              */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute top-2 sm:top-4 left-0 sm:left-2 md:left-4 lg:-left-2 xl:left-2 w-[255px] sm:w-[290px] md:w-[325px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(34,197,94,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 sm:p-4 space-y-2 z-20 -rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]">
+              <div
+                data-testid="problem-card-whatsapp"
+                className="absolute top-[2%] left-[2%] w-[42%] max-w-[315px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(34,197,94,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 space-y-1.5 z-20 -rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-green-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <MessageCircle className="w-4 h-4 fill-white" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-[13px] truncate">
+                      <h4 className="font-extrabold text-slate-900 text-xs truncate">
                         {t('landing.problemCardWhatsapp')}
                       </h4>
-                      <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">
+                      <p className="text-[9px] text-slate-400 truncate">
                         {t('landing.problemCardWhatsappSub')}
                       </p>
                     </div>
@@ -216,72 +224,63 @@ export const Screen2Problem: React.FC = () => {
                   <span className="text-slate-300 font-mono text-xs">•••</span>
                 </div>
 
-                {/* Chat items list matching Reference 4 */}
-                <div className="space-y-1.5 pt-1 text-[10px]">
-                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                {/* Chat items list */}
+                <div className="space-y-1 pt-0.5 text-[9px]">
+                  <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-slate-300 text-slate-700 text-[8px] font-bold flex items-center justify-center">PM</span>
-                        <span className="font-bold text-slate-800 text-[10px] truncate">Priya Mehta</span>
-                        <span className="text-[8px] text-slate-400 ml-auto">11:24 AM</span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-700 text-[7px] font-bold flex items-center justify-center">PM</span>
+                        <span className="font-bold text-slate-800 text-[9px] truncate">Priya Mehta</span>
+                        <span className="text-[7px] text-slate-400 ml-auto">11:24 AM</span>
                       </div>
-                      <span className="text-slate-500 truncate block text-[9px] pl-5">Hi! Do you have this in stock?</span>
+                      <span className="text-slate-500 truncate block text-[8px] pl-4">Hi! Do you have this in stock?</span>
                     </div>
-                    <span className="w-4 h-4 rounded-full bg-green-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0 ml-1">3</span>
+                    <span className="w-3.5 h-3.5 rounded-full bg-green-500 text-white text-[8px] font-bold flex items-center justify-center shrink-0 ml-1">3</span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 text-[8px] font-bold flex items-center justify-center">RS</span>
-                        <span className="font-bold text-slate-800 text-[10px] truncate">Rohit Sharma</span>
-                        <span className="text-[8px] text-slate-400 ml-auto">10:48 AM</span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-blue-200 text-blue-800 text-[7px] font-bold flex items-center justify-center">RS</span>
+                        <span className="font-bold text-slate-800 text-[9px] truncate">Rohit Sharma</span>
+                        <span className="text-[7px] text-slate-400 ml-auto">10:48 AM</span>
                       </div>
-                      <span className="text-slate-500 truncate block text-[9px] pl-5">How much for 2 pieces?</span>
+                      <span className="text-slate-500 truncate block text-[8px] pl-4">How much for 2 pieces?</span>
                     </div>
-                    <span className="w-4 h-4 rounded-full bg-green-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0 ml-1">1</span>
+                    <span className="w-3.5 h-3.5 rounded-full bg-green-500 text-white text-[8px] font-bold flex items-center justify-center shrink-0 ml-1">1</span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 hidden sm:flex items-center justify-between">
+                  <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 hidden xl:flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-purple-200 text-purple-800 text-[8px] font-bold flex items-center justify-center">SK</span>
-                        <span className="font-bold text-slate-800 text-[10px] truncate">Sneha Kapoor</span>
-                        <span className="text-[8px] text-slate-400 ml-auto">9:12 AM</span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-purple-200 text-purple-800 text-[7px] font-bold flex items-center justify-center">SK</span>
+                        <span className="font-bold text-slate-800 text-[9px] truncate">Sneha Kapoor</span>
                       </div>
-                      <span className="text-slate-500 truncate block text-[9px] pl-5">Can you share payment details?</span>
+                      <span className="text-slate-500 truncate block text-[8px] pl-4">Can you share payment details?</span>
                     </div>
-                    <span className="w-4 h-4 rounded-full bg-green-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0 ml-1">4</span>
-                  </div>
-
-                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 hidden md:flex items-center justify-between">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 text-[8px] font-bold flex items-center justify-center">#</span>
-                        <span className="font-bold text-slate-800 text-[10px] truncate">+91 98765 43210</span>
-                        <span className="text-[8px] text-slate-400 ml-auto">Yesterday</span>
-                      </div>
-                      <span className="text-slate-500 truncate block text-[9px] pl-5">I've placed the order 👍</span>
-                    </div>
-                    <span className="w-4 h-4 rounded-full bg-green-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0 ml-1">2</span>
+                    <span className="w-3.5 h-3.5 rounded-full bg-green-500 text-white text-[8px] font-bold flex items-center justify-center shrink-0 ml-1">4</span>
                   </div>
                 </div>
               </div>
 
               {/* ---------------------------------------------------- */}
               {/* CARD 2 (TOP RIGHT): Payment Screenshots              */}
+              {/* Position: top: 2%, right: 2%, width: 40%             */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute top-2 sm:top-4 right-0 sm:right-2 md:right-4 lg:-right-2 xl:right-2 w-[245px] sm:w-[275px] md:w-[310px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(99,102,241,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 sm:p-4 space-y-2 z-20 rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]">
+              <div
+                data-testid="problem-card-payment"
+                className="absolute top-[2%] right-[2%] w-[40%] max-w-[295px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(99,102,241,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 space-y-1.5 z-20 rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <ImageIcon className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <ImageIcon className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-[13px] truncate">
+                      <h4 className="font-extrabold text-slate-900 text-xs truncate">
                         {t('landing.problemCardPayment')}
                       </h4>
-                      <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">
+                      <p className="text-[9px] text-slate-400 truncate">
                         {t('landing.problemCardPaymentSub')}
                       </p>
                     </div>
@@ -289,35 +288,40 @@ export const Screen2Problem: React.FC = () => {
                   <span className="text-slate-300 font-mono text-xs">•••</span>
                 </div>
 
-                {/* Screenshot Box matching Reference 4 */}
-                <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-100 text-center space-y-1.5">
-                  <div className="inline-block px-2.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[9px]">
+                {/* Screenshot Box */}
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-center space-y-1">
+                  <div className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[8px]">
                     Paytm / UPI
                   </div>
-                  <div className="text-lg sm:text-xl font-black text-slate-900">₹1,299</div>
-                  <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  <div className="text-base sm:text-lg font-black text-slate-900">₹1,299</div>
+                  <span className="inline-block text-[8px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     Payment Successful ✓
                   </span>
-                  <div className="text-[9px] text-slate-600 bg-white p-1.5 rounded-lg border border-slate-200/80 shadow-2xs mt-1">
-                    "Please confirm this payment 🙏" <span className="text-slate-400 text-[8px]">11:24 AM</span>
+                  <div className="text-[8px] text-slate-600 bg-white p-1 rounded border border-slate-200/80 shadow-2xs mt-0.5">
+                    "Please confirm payment 🙏" <span className="text-slate-400 text-[7px]">11:24 AM</span>
                   </div>
                 </div>
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* CARD 3 (MID LEFT): Stock Sheets (Overlaps Laptop)    */}
+              {/* CARD 3 (LOWER LEFT): Stock Sheets (Outward/Downward) */}
+              {/* Position: bottom: 1%, left: -3%, width: 35%          */}
+              {/* Slightly overlaps laptop bezel, preserves screen     */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute bottom-16 sm:bottom-20 -left-3 sm:-left-1 md:left-1 lg:-left-4 xl:left-0 w-[255px] sm:w-[290px] md:w-[325px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_22px_45px_-10px_rgba(16,185,129,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 sm:p-4 space-y-2 z-20 rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]">
+              <div
+                data-testid="problem-card-stock"
+                className="absolute bottom-[1%] left-[-2%] sm:left-[-3%] lg:left-[-3.5%] w-[35%] max-w-[265px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_22px_45px_-10px_rgba(16,185,129,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-2.5 sm:p-3 space-y-1.5 z-20 rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <FileSpreadsheet className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-[13px] truncate">
+                      <h4 className="font-extrabold text-slate-900 text-xs truncate">
                         {t('landing.problemCardStock')}
                       </h4>
-                      <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">
+                      <p className="text-[9px] text-slate-400 truncate">
                         {t('landing.problemCardStockSub')}
                       </p>
                     </div>
@@ -326,42 +330,36 @@ export const Screen2Problem: React.FC = () => {
                 </div>
 
                 {/* Mini Stock Sheet Table */}
-                <div className="rounded-lg border border-slate-100 overflow-hidden text-[9px]">
-                  <div className="grid grid-cols-4 bg-slate-100/90 font-bold text-slate-600 px-2 py-1">
+                <div className="rounded-lg border border-slate-100 overflow-hidden text-[8px]">
+                  <div className="grid grid-cols-4 bg-slate-100/90 font-bold text-slate-600 px-1.5 py-0.5">
                     <span>Product</span>
                     <span>SKU</span>
                     <span>Stock</span>
                     <span className="text-right">Update</span>
                   </div>
                   <div className="divide-y divide-slate-100 bg-white">
-                    <div className="grid grid-cols-4 px-2 py-1 items-center">
+                    <div className="grid grid-cols-4 px-1.5 py-0.5 items-center">
                       <span className="truncate font-medium text-slate-800">Perfume</span>
-                      <span className="text-slate-400 font-mono text-[8px]">PF-001</span>
-                      <span className="text-rose-600 font-bold bg-rose-50 px-1 rounded inline-block text-center w-6">12</span>
+                      <span className="text-slate-400 font-mono text-[7px]">PF-001</span>
+                      <span className="text-rose-600 font-bold bg-rose-50 px-1 rounded inline-block text-center w-5">12</span>
                       <span className="text-right text-blue-600">✎</span>
                     </div>
-                    <div className="grid grid-cols-4 px-2 py-1 items-center bg-rose-50/50">
+                    <div className="grid grid-cols-4 px-1.5 py-0.5 items-center bg-rose-50/50">
                       <span className="truncate font-bold text-rose-700">Moisturizer</span>
-                      <span className="text-slate-400 font-mono text-[8px]">MO-002</span>
-                      <span className="text-white font-black bg-rose-600 px-1 rounded inline-block text-center w-6">0</span>
+                      <span className="text-slate-400 font-mono text-[7px]">MO-002</span>
+                      <span className="text-white font-black bg-rose-600 px-1 rounded inline-block text-center w-5">0</span>
                       <span className="text-right text-blue-600">✎</span>
                     </div>
-                    <div className="grid grid-cols-4 px-2 py-1 items-center">
+                    <div className="grid grid-cols-4 px-1.5 py-0.5 items-center">
                       <span className="truncate font-medium text-slate-800">Vitamin C</span>
-                      <span className="text-slate-400 font-mono text-[8px]">VC-003</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-1 rounded inline-block text-center w-6">27</span>
+                      <span className="text-slate-400 font-mono text-[7px]">VC-003</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-1 rounded inline-block text-center w-5">27</span>
                       <span className="text-right text-blue-600">✎</span>
                     </div>
-                    <div className="grid grid-cols-4 px-2 py-1 items-center">
-                      <span className="truncate font-medium text-slate-800">Night Cream</span>
-                      <span className="text-slate-400 font-mono text-[8px]">NC-004</span>
-                      <span className="text-rose-600 font-bold bg-rose-50 px-1 rounded inline-block text-center w-6">5</span>
-                      <span className="text-right text-blue-600">✎</span>
-                    </div>
-                    <div className="grid grid-cols-4 px-2 py-1 items-center">
+                    <div className="grid grid-cols-4 px-1.5 py-0.5 items-center">
                       <span className="truncate font-medium text-slate-800">Sunscreen</span>
-                      <span className="text-slate-400 font-mono text-[8px]">SS-005</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-1 rounded inline-block text-center w-6">18</span>
+                      <span className="text-slate-400 font-mono text-[7px]">SS-005</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-1 rounded inline-block text-center w-5">18</span>
                       <span className="text-right text-blue-600">✎</span>
                     </div>
                   </div>
@@ -369,19 +367,24 @@ export const Screen2Problem: React.FC = () => {
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* CARD 4 (MID RIGHT): Courier Portals (Overlaps Laptop)*/}
+              {/* CARD 4 (LOWER RIGHT): Courier Portals                */}
+              {/* Position: bottom: 1%, right: -3%, width: 35%         */}
+              {/* Slightly overlaps laptop bezel, preserves screen     */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute bottom-16 sm:bottom-20 -right-3 sm:-right-1 md:right-1 lg:-right-4 xl:right-0 w-[255px] sm:w-[290px] md:w-[325px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_22px_45px_-10px_rgba(249,115,22,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-3 sm:p-4 space-y-2 z-20 -rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]">
+              <div
+                data-testid="problem-card-courier"
+                className="absolute bottom-[1%] right-[-2%] sm:right-[-3%] lg:right-[-3.5%] w-[35%] max-w-[265px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_22px_45px_-10px_rgba(249,115,22,0.22),0_10px_20px_-5px_rgba(0,0,0,0.06)] p-2.5 sm:p-3 space-y-1.5 z-20 -rotate-2 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02]"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <Truck className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Truck className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-[13px] truncate">
+                      <h4 className="font-extrabold text-slate-900 text-xs truncate">
                         {t('landing.problemCardShipping')}
                       </h4>
-                      <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">
+                      <p className="text-[9px] text-slate-400 truncate">
                         {t('landing.problemCardShippingSub')}
                       </p>
                     </div>
@@ -389,34 +392,28 @@ export const Screen2Problem: React.FC = () => {
                   <span className="text-slate-300 font-mono text-xs">•••</span>
                 </div>
 
-                {/* Logistics Tabs & Orders matching Reference 4 */}
-                <div className="space-y-1.5 pt-0.5">
-                  <div className="flex items-center gap-1 text-[8px] font-bold">
-                    <span className="px-2 py-0.5 rounded bg-blue-600 text-white">Delhivery</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Blue Dart</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">DTDC</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Amazon</span>
+                {/* Logistics Tabs & Orders */}
+                <div className="space-y-1 pt-0.5">
+                  <div className="flex items-center gap-1 text-[7px] font-bold">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white">Delhivery</span>
+                    <span className="px-1 py-0.5 rounded bg-slate-100 text-slate-600">Blue Dart</span>
+                    <span className="px-1 py-0.5 rounded bg-slate-100 text-slate-600">DTDC</span>
                   </div>
 
-                  <div className="space-y-1 text-[9px]">
-                    <div className="p-1.5 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div className="space-y-1 text-[8px]">
+                    <div className="p-1 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
                       <span className="font-mono text-slate-600">#DLV123456</span>
-                      <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-bold text-[8px]">In Transit</span>
+                      <span className="text-blue-700 bg-blue-50 px-1 py-0.5 rounded font-bold text-[7px]">In Transit</span>
                       <ExternalLink className="w-2.5 h-2.5 text-blue-600" />
                     </div>
-                    <div className="p-1.5 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
+                    <div className="p-1 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
                       <span className="font-mono text-slate-600">#BLD789012</span>
-                      <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold text-[8px]">Picked Up</span>
+                      <span className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded font-bold text-[7px]">Picked Up</span>
                       <ExternalLink className="w-2.5 h-2.5 text-blue-600" />
                     </div>
-                    <div className="p-1.5 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
+                    <div className="p-1 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
                       <span className="font-mono text-slate-600">#DTDC341299</span>
-                      <span className="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded font-bold text-[8px]">Delayed</span>
-                      <ExternalLink className="w-2.5 h-2.5 text-blue-600" />
-                    </div>
-                    <div className="p-1.5 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
-                      <span className="font-mono text-slate-600">#AMZ556677</span>
-                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded font-bold text-[8px]">Booked</span>
+                      <span className="text-rose-700 bg-rose-50 px-1 py-0.5 rounded font-bold text-[7px]">Delayed</span>
                       <ExternalLink className="w-2.5 h-2.5 text-blue-600" />
                     </div>
                   </div>
@@ -424,55 +421,51 @@ export const Screen2Problem: React.FC = () => {
               </div>
 
               {/* ======================================================== */}
-              {/* PROMINENT ORANGE CONNECTOR ARROWS & CHAOS COIL (z-30)    */}
+              {/* PROMINENT ORANGE CONNECTOR ARROWS & CHAOS COIL (z-15)    */}
               {/* ======================================================== */}
-              <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
-                <svg className="w-full h-full" viewBox="0 0 640 580" fill="none">
+              <div className="absolute inset-0 pointer-events-none z-15 flex items-center justify-center">
+                <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none">
                   {/* Top-Left Arrow: WhatsApp Orders -> Laptop Center */}
                   <path
-                    d="M 210 170 C 260 200, 290 240, 305 310"
+                    d="M 36 24 Q 42 34 46 48"
                     stroke="#F97316"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.2 0.8"
                     strokeLinecap="round"
                   />
-                  <polygon points="305,310 297,302 308,303" fill="#F97316" />
 
                   {/* Top-Right Arrow: Payment Screenshots -> Laptop Center */}
                   <path
-                    d="M 440 170 C 390 200, 360 240, 345 310"
+                    d="M 64 24 Q 58 34 54 48"
                     stroke="#F97316"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.2 0.8"
                     strokeLinecap="round"
                   />
-                  <polygon points="345,310 342,303 353,302" fill="#F97316" />
 
                   {/* Mid-Left Arrow: Stock Sheets -> Laptop */}
                   <path
-                    d="M 180 370 C 230 360, 265 340, 285 330"
+                    d="M 33 66 Q 37 62 42 64"
                     stroke="#F97316"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.2 0.8"
                     strokeLinecap="round"
                   />
-                  <polygon points="285,330 275,327 281,336" fill="#F97316" />
 
                   {/* Mid-Right Arrow: Courier Portals -> Laptop */}
                   <path
-                    d="M 470 370 C 420 360, 385 340, 365 330"
+                    d="M 67 66 Q 63 62 58 64"
                     stroke="#F97316"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.2 0.8"
                     strokeLinecap="round"
                   />
-                  <polygon points="365,330 369,336 375,327" fill="#F97316" />
 
                   {/* Central playful orange chaos scribble / tangle */}
                   <path
-                    d="M 315 250 Q 330 235 340 252 Q 352 270 330 278 Q 305 265 320 243 Q 338 230 348 252 Q 355 272 335 280"
+                    d="M 48 38 Q 52 35 53 39 Q 55 43 51 44 Q 46 42 49 37 Q 53 34 54 39 Q 55 43 51 44"
                     stroke="#EA580C"
-                    strokeWidth="3.6"
+                    strokeWidth="0.9"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     fill="none"
@@ -483,9 +476,82 @@ export const Screen2Problem: React.FC = () => {
 
             </div>
 
+            {/* TABLET VIEWPORT (640px – 1023px) */}
+            {/* Section 11 Requirement: 2-column grid beneath laptop */}
+            <div className="hidden sm:block lg:hidden space-y-6 pt-4">
+              {/* Laptop Centered First */}
+              <div
+                data-testid="problem-laptop-tablet"
+                className="w-full max-w-[460px] mx-auto bg-slate-900 rounded-2xl p-2.5 shadow-xl border border-slate-700"
+              >
+                <div className="flex justify-center pb-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                </div>
+                <div className="w-full bg-white rounded-lg p-2.5 space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <div className="flex items-center gap-1.5">
+                      <LetZshopLogo size="sm" iconOnly />
+                      <span className="text-[11px] font-bold">LetZshop</span>
+                    </div>
+                    <span className="text-[9px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                      4 Disconnected Workflows
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-[9px] text-center">
+                    <div className="bg-slate-50 p-1.5 rounded border border-slate-100 font-bold">₹1,24,580</div>
+                    <div className="bg-slate-50 p-1.5 rounded border border-slate-100 font-bold">243 Orders</div>
+                    <div className="bg-slate-50 p-1.5 rounded border border-slate-100 font-bold">1,921 Users</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2-Column Staged Cards */}
+              <div className="grid grid-cols-2 gap-4 pt-2 max-w-[620px] mx-auto">
+                <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-green-500 text-white flex items-center justify-center shrink-0">
+                    <MessageCircle className="w-4 h-4 fill-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-extrabold text-xs text-slate-900">WhatsApp Orders</h5>
+                    <p className="text-[10px] text-slate-500">Unread order chats & follow-ups</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-extrabold text-xs text-slate-900">Payment Screenshots</h5>
+                    <p className="text-[10px] text-slate-500">Manual UPI screenshot verification</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-extrabold text-xs text-slate-900">Stock Spreadsheets</h5>
+                    <p className="text-[10px] text-slate-500">Quantity mismatches & manual inventory</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-extrabold text-xs text-slate-900">Courier Portals</h5>
+                    <p className="text-[10px] text-slate-500">Multiple logistics tabs & tracking chaos</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* MOBILE VIEWPORT (< 640px) */}
-            {/* Clean staged representation as required by Section 9 */}
-            <div className="sm:hidden space-y-6 pt-4">
+            {/* Section 11 Requirement: 1-column staged list beneath laptop */}
+            <div className="sm:hidden space-y-5 pt-4">
               {/* Laptop Centered First */}
               <div className="w-full max-w-[340px] mx-auto bg-slate-900 rounded-2xl p-2.5 shadow-xl border border-slate-700">
                 <div className="flex justify-center pb-1">
@@ -507,9 +573,8 @@ export const Screen2Problem: React.FC = () => {
                 </div>
               </div>
 
-              {/* Staged 2x2 cards on mobile for readability */}
-              <div className="grid grid-cols-1 gap-3 pt-2">
-                {/* 1. WhatsApp Card */}
+              {/* Staged 1-column cards on mobile for readability */}
+              <div className="grid grid-cols-1 gap-2.5 pt-1">
                 <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-green-500 text-white flex items-center justify-center shrink-0">
                     <MessageCircle className="w-4 h-4 fill-white" />
@@ -520,7 +585,6 @@ export const Screen2Problem: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2. Payment Screenshots Card */}
                 <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
                     <ImageIcon className="w-4 h-4" />
@@ -531,7 +595,6 @@ export const Screen2Problem: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 3. Stock Sheets Card */}
                 <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
                     <FileSpreadsheet className="w-4 h-4" />
@@ -542,7 +605,6 @@ export const Screen2Problem: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 4. Courier Card */}
                 <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0">
                     <Truck className="w-4 h-4" />
