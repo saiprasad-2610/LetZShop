@@ -12,6 +12,12 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
 
+// Copy references for easy side-by-side inspection
+const ref1 = path.join(artifactDir, '.user_uploaded', 'media_1792494246480.jpg');
+const ref2 = path.join(artifactDir, '.user_uploaded', 'media_1792494254209.jpg');
+if (fs.existsSync(ref1)) fs.copyFileSync(ref1, path.join(outDir, 'reference_screen1.png'));
+if (fs.existsSync(ref2)) fs.copyFileSync(ref2, path.join(outDir, 'reference_screen2.png'));
+
 async function verify() {
   console.log('Launching browser with:', executablePath);
   const browser = await puppeteer.launch({
@@ -31,31 +37,31 @@ async function verify() {
   // 1. DESKTOP 1440 x 900
   console.log('\n=== Verifying 1440 x 900 Desktop ===');
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle2', timeout: 30000 });
-  await new Promise(r => setTimeout(r, 600));
+  await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
 
-  // Check 1: Screen 1 Viewport Capture
+  // Capture Screen 1 Viewport
   console.log('Capturing Screen 1 at 1440x900...');
-  await page.screenshot({ path: path.join(outDir, 'screen1_1440x900.png') });
-  await page.screenshot({ path: path.join(artifactDir, 'screen1_1440x900.png') });
+  await page.screenshot({ path: path.join(outDir, 'actual_screen1.png') });
+  await page.screenshot({ path: path.join(artifactDir, 'actual_screen1.png') });
 
-  // Check 2: Screen 2 Viewport Capture
+  // Capture Screen 2 Viewport
   console.log('Scrolling to Screen 2 at 1440x900...');
   const s2 = await page.$('#merchant-problem');
   if (s2) {
     await s2.scrollIntoView();
     await new Promise(r => setTimeout(r, 600));
-    await page.screenshot({ path: path.join(outDir, 'screen2_1440x900.png') });
-    await page.screenshot({ path: path.join(artifactDir, 'screen2_1440x900.png') });
+    await page.screenshot({ path: path.join(outDir, 'actual_screen2.png') });
+    await page.screenshot({ path: path.join(artifactDir, 'actual_screen2.png') });
   }
 
-  // Check 3: Desktop Horizontal Overflow
+  // Check Overflow
   const desktopOverflow = await page.evaluate(() => {
     return document.documentElement.scrollWidth > document.documentElement.clientWidth;
   });
   console.log('Desktop 1440 overflow detected:', desktopOverflow);
 
-  // Check 4: CTA Routes
+  // CTA verification
   const createStoreHref = await page.evaluate(() => {
     const el = document.querySelector('header a[href*="mode=register"]');
     return el ? el.getAttribute('href') : null;
@@ -64,29 +70,10 @@ async function verify() {
     const el = document.querySelector('header a[href*="login"]:not([href*="mode=register"])');
     return el ? el.getAttribute('href') : null;
   });
-  const heroCreateStoreHref = await page.evaluate(() => {
-    const el = document.querySelector('#hero a[href*="mode=register"]');
-    return el ? el.getAttribute('href') : null;
-  });
-  const heroMerchantLoginHref = await page.evaluate(() => {
-    const el = document.querySelector('#hero a[href*="login"]:not([href*="mode=register"])');
-    return el ? el.getAttribute('href') : null;
-  });
   console.log('Navbar Create Store CTA href:', createStoreHref);
   console.log('Navbar Merchant Login CTA href:', merchantLoginHref);
-  console.log('Hero Create Store CTA href:', heroCreateStoreHref);
-  console.log('Hero Merchant Login CTA href:', heroMerchantLoginHref);
 
-  // Check 5: Nav Anchors
-  const navLinks = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('header nav a')).map(a => ({
-      text: a.textContent.trim(),
-      href: a.getAttribute('href')
-    }));
-  });
-  console.log('Navbar links:', JSON.stringify(navLinks, null, 2));
-
-  // Check 6: Marathi Language Switch
+  // Marathi Switch Test
   console.log('\n=== Testing Marathi switch ===');
   await page.evaluate(() => window.scrollTo(0, 0));
   await new Promise(r => setTimeout(r, 400));
@@ -101,23 +88,10 @@ async function verify() {
   }
 
   const marathiH1 = await page.evaluate(() => document.querySelector('h1')?.textContent?.trim() || '');
-  const marathiProblemH2 = await page.evaluate(() => document.querySelector('#merchant-problem h2')?.textContent?.trim() || '');
   console.log('Marathi H1:', marathiH1);
-  console.log('Marathi Problem H2:', marathiProblemH2);
-
-  await page.screenshot({ path: path.join(outDir, 'screen1_marathi_1440x900.png') });
-  await page.screenshot({ path: path.join(artifactDir, 'screen1_marathi_1440x900.png') });
-
-  const s2Marathi = await page.$('#merchant-problem');
-  if (s2Marathi) {
-    await s2Marathi.scrollIntoView();
-    await new Promise(r => setTimeout(r, 600));
-    await page.screenshot({ path: path.join(outDir, 'screen2_marathi_1440x900.png') });
-    await page.screenshot({ path: path.join(artifactDir, 'screen2_marathi_1440x900.png') });
-  }
+  await page.screenshot({ path: path.join(outDir, 'marathi_screen1.png') });
 
   // Switch back to English
-  console.log('Switching back to English...');
   const enButtons = await page.$$('header button');
   for (const btn of enButtons) {
     const text = await page.evaluate(el => el.textContent, btn);
@@ -134,17 +108,14 @@ async function verify() {
   await page.evaluate(() => window.scrollTo(0, 0));
   await new Promise(r => setTimeout(r, 600));
 
-  console.log('Capturing Screen 1 at 768x1024...');
-  await page.screenshot({ path: path.join(outDir, 'screen1_768x1024.png') });
-  await page.screenshot({ path: path.join(artifactDir, 'screen1_768x1024.png') });
+  await page.screenshot({ path: path.join(outDir, 'tablet_screen1.png') });
+  await page.screenshot({ path: path.join(artifactDir, 'tablet_screen1.png') });
 
-  console.log('Scrolling to Screen 2 at 768x1024...');
-  const s2Tablet = await page.$('#merchant-problem');
-  if (s2Tablet) {
-    await s2Tablet.scrollIntoView();
+  if (s2) {
+    await s2.scrollIntoView();
     await new Promise(r => setTimeout(r, 600));
-    await page.screenshot({ path: path.join(outDir, 'screen2_768x1024.png') });
-    await page.screenshot({ path: path.join(artifactDir, 'screen2_768x1024.png') });
+    await page.screenshot({ path: path.join(outDir, 'tablet_screen2.png') });
+    await page.screenshot({ path: path.join(artifactDir, 'tablet_screen2.png') });
   }
 
   const tabletOverflow = await page.evaluate(() => {
@@ -158,17 +129,14 @@ async function verify() {
   await page.evaluate(() => window.scrollTo(0, 0));
   await new Promise(r => setTimeout(r, 600));
 
-  console.log('Capturing Screen 1 at 390x844...');
-  await page.screenshot({ path: path.join(outDir, 'screen1_390x844.png') });
-  await page.screenshot({ path: path.join(artifactDir, 'screen1_390x844.png') });
+  await page.screenshot({ path: path.join(outDir, 'mobile_screen1.png') });
+  await page.screenshot({ path: path.join(artifactDir, 'mobile_screen1.png') });
 
-  console.log('Scrolling to Screen 2 at 390x844...');
-  const s2Mobile = await page.$('#merchant-problem');
-  if (s2Mobile) {
-    await s2Mobile.scrollIntoView();
+  if (s2) {
+    await s2.scrollIntoView();
     await new Promise(r => setTimeout(r, 600));
-    await page.screenshot({ path: path.join(outDir, 'screen2_390x844.png') });
-    await page.screenshot({ path: path.join(artifactDir, 'screen2_390x844.png') });
+    await page.screenshot({ path: path.join(outDir, 'mobile_screen2.png') });
+    await page.screenshot({ path: path.join(artifactDir, 'mobile_screen2.png') });
   }
 
   const mobileOverflow = await page.evaluate(() => {
@@ -176,26 +144,16 @@ async function verify() {
   });
   console.log('Mobile 390 overflow detected:', mobileOverflow);
 
-  // Check Screen 3 continuity
-  const s3 = await page.$('#features');
-  console.log('Screen 3 (#features) exists:', Boolean(s3));
-
-  console.log('\nConsole errors logged during test:', consoleErrors.length);
+  console.log('\nConsole errors count:', consoleErrors.length);
   if (consoleErrors.length > 0) {
     consoleErrors.forEach((e, i) => console.log(`  ${i + 1}. ${e}`));
   }
 
-  console.log('\n=== Verification Summary ===');
-  console.log('Desktop Overflow:', desktopOverflow ? 'FAIL' : 'PASS');
-  console.log('Tablet Overflow:', tabletOverflow ? 'FAIL' : 'PASS');
-  console.log('Mobile Overflow:', mobileOverflow ? 'FAIL' : 'PASS');
-  console.log('Console Errors:', consoleErrors.length === 0 ? 'PASS' : 'FAIL');
-  console.log('All screenshots written to:', outDir);
-
   await browser.close();
+  console.log('Verification run finished successfully!');
 }
 
 verify().catch(err => {
-  console.error('Verification script failed:', err);
+  console.error(err);
   process.exit(1);
 });

@@ -30,14 +30,14 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({ sellerUrl }) => {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand Logo */}
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 h-[68px] flex items-center justify-between gap-4">
+        {/* Brand Logo - Official 3D LetZshop mark in top-left corner */}
         <a href="/" className="flex items-center gap-2 group shrink-0">
-          <LetZshopLogo size="md" />
+          <LetZshopLogo size="lg" />
         </a>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-slate-600" aria-label="Main Navigation">
+        <nav className="hidden lg:flex items-center gap-8 text-[13px] font-semibold text-slate-600" aria-label="Main Navigation">
           {navLinks.map((link) => (
             <a
               key={link.href}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Link2, CreditCard, MessageCircle, Palette, Sparkles, TrendingUp, ShoppingBag, Search, Bell, User, Check, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Link2, CreditCard, MessageCircle, Palette, TrendingUp, ShoppingBag, Search, Bell, Sparkles } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
 import { LetZshopLogo } from './LetZshopLogo';
 
@@ -8,49 +8,67 @@ interface Screen1HeroProps {
 }
 
 export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
-  const { t } = useLandingI18n();
+  const { t, locale } = useLandingI18n();
 
   return (
-    <section id="hero" className="relative pt-6 pb-16 md:pt-10 md:pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white via-blue-50/25 to-white overflow-hidden border-b border-slate-100">
-      {/* Background Subtle Ambient Glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-32 right-12 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl" />
-        <div className="absolute top-44 -left-20 w-80 h-80 bg-orange-100/35 rounded-full blur-3xl" />
+    <section id="hero" className="relative pt-6 pb-16 md:pt-10 md:pb-24 px-4 sm:px-6 lg:px-8 bg-[#FCFCFA] overflow-hidden border-b border-slate-100">
+      {/* ======================================================== */}
+      {/* ATMOSPHERIC BACKGROUND & LIGHTING                        */}
+      {/* ======================================================== */}
+      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
+        {/* Soft Sunlight Beam / Amber Radiance (Upper Left) */}
+        <div className="absolute -top-32 -left-20 w-[600px] h-[600px] bg-gradient-to-br from-amber-100/40 via-orange-50/25 to-transparent rounded-full blur-3xl" />
+        
+        {/* Cool Atmospheric Sky Blue Radiance (Upper Right behind Dashboard) */}
+        <div className="absolute -top-24 right-0 w-[700px] h-[700px] bg-gradient-to-bl from-blue-100/50 via-indigo-50/20 to-transparent rounded-full blur-3xl" />
+        
+        {/* Warm Orange Glow (Lower Right Corner) */}
+        <div className="absolute bottom-0 right-10 w-[550px] h-[450px] bg-gradient-to-tl from-orange-100/35 via-amber-50/15 to-transparent rounded-full blur-3xl" />
+
+        {/* Realistic Desk Surface Table Plane across right side */}
+        <div className="hidden lg:block absolute bottom-0 right-0 w-[62%] h-44 bg-gradient-to-t from-stone-200/50 via-stone-100/25 to-transparent border-t border-stone-200/40" />
       </div>
 
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+      <div className="max-w-[1480px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-6 items-center">
           
           {/* ======================================================== */}
-          {/* LEFT COLUMN: Headline, copy, CTAs, advantages (~48% width) */}
+          {/* LEFT COLUMN: Narrative & CTAs (~45% width)               */}
           {/* ======================================================== */}
-          <div className="lg:col-span-6 xl:col-span-6 space-y-6 lg:pr-2">
+          <div className="lg:col-span-5 xl:col-span-5 space-y-6 lg:pr-2">
             
             {/* Eyebrow Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wide shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wider shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
               <span>{t('landing.heroEyebrow')}</span>
             </div>
 
-            {/* Headline with "your brand" highlighted in LetZshop orange */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[52px] xl:text-[58px] font-black text-slate-900 tracking-tight leading-[1.08]">
-              {t('landing.heroTitlePrefix')}{' '}
-              <span className="text-orange-500 inline-block">
-                {t('landing.heroTitleHighlight')}
+            {/* Headline with 2 distinct lines matching Reference 3 */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[46px] xl:text-[54px] 2xl:text-[60px] font-black text-slate-900 tracking-tight leading-[1.02]">
+              <span className="block xl:whitespace-nowrap">{t('landing.heroTitlePrefix')}</span>
+              <span className="block mt-1">
+                {locale === 'en-IN' || t('landing.heroTitleHighlight').toLowerCase().includes('your brand') ? (
+                  <>
+                    <span className="text-orange-500">your brand</span>{' '}
+                    <span className="text-slate-900">deserves.</span>
+                  </>
+                ) : (
+                  <span className="text-orange-500">{t('landing.heroTitleHighlight')}</span>
+                )}
               </span>
             </h1>
 
             {/* Supporting Copy */}
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-xl">
+            <p className="text-base sm:text-lg lg:text-[18px] text-slate-600 leading-relaxed font-normal max-w-[560px]">
               {t('landing.heroSupporting')}
             </p>
 
             {/* Primary & Secondary Action CTAs */}
             <div className="space-y-3 pt-1">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 <a
                   href={`${sellerUrl}/login?mode=register`}
-                  className="px-7 py-3.5 rounded-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 flex items-center justify-center gap-2 active:scale-[0.98]"
+                  className="h-14 sm:h-[58px] px-8 sm:px-9 rounded-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-xl shadow-orange-500/35 hover:shadow-orange-500/45 flex items-center justify-center gap-2.5 active:scale-[0.98]"
                 >
                   <span>{t('landing.heroCtaPrimary')}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -58,7 +76,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
 
                 <a
                   href={`${sellerUrl}/login`}
-                  className="px-6 py-3.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300/90 font-bold text-sm transition shadow-2xs hover:shadow-xs flex items-center justify-center gap-2 active:scale-[0.98]"
+                  className="h-14 sm:h-[58px] px-8 rounded-full bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border-2 border-slate-300/90 font-bold text-sm tracking-wide transition shadow-xs hover:shadow flex items-center justify-center gap-2 active:scale-[0.98]"
                 >
                   <span>{t('landing.heroCtaSecondary')}</span>
                 </a>
@@ -71,43 +89,43 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
             </div>
 
             {/* 4 Compact Advantage Items matching Reference 3 */}
-            <div className="pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-2">
+            <div className="pt-3 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-3">
               {/* 1. Branded storefront */}
-              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/60 hover:bg-white transition border border-slate-100 shadow-2xs">
-                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs border border-blue-100/60">
-                  <Link2 className="w-4 h-4 -rotate-45" />
+              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/70 hover:bg-white transition border border-slate-100 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs border border-blue-100/70">
+                  <Link2 className="w-5 h-5 -rotate-45" />
                 </div>
-                <span className="text-[11px] font-bold text-slate-800 leading-tight">
+                <span className="text-xs font-bold text-slate-800 leading-tight">
                   {t('landing.advantageStorefront')}
                 </span>
               </div>
 
               {/* 2. UPI & Razorpay */}
-              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/60 hover:bg-white transition border border-slate-100 shadow-2xs">
-                <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 shadow-2xs border border-orange-100/60">
-                  <CreditCard className="w-4 h-4" />
+              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/70 hover:bg-white transition border border-slate-100 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 shadow-2xs border border-orange-100/70">
+                  <CreditCard className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold text-slate-800 leading-tight">
+                <span className="text-xs font-bold text-slate-800 leading-tight">
                   {t('landing.advantagePayments')}
                 </span>
               </div>
 
               {/* 3. WhatsApp commerce */}
-              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/60 hover:bg-white transition border border-slate-100 shadow-2xs">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs border border-emerald-100/60">
-                  <MessageCircle className="w-4 h-4" />
+              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/70 hover:bg-white transition border border-slate-100 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs border border-emerald-100/70">
+                  <MessageCircle className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold text-slate-800 leading-tight">
+                <span className="text-xs font-bold text-slate-800 leading-tight">
                   {t('landing.advantageWhatsapp')}
                 </span>
               </div>
 
               {/* 4. Custom storefront */}
-              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/60 hover:bg-white transition border border-slate-100 shadow-2xs">
-                <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 shadow-2xs border border-purple-100/60">
-                  <Palette className="w-4 h-4" />
+              <div className="flex flex-col items-center text-center space-y-1.5 p-2 rounded-xl bg-white/70 hover:bg-white transition border border-slate-100 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 shadow-2xs border border-purple-100/70">
+                  <Palette className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold text-slate-800 leading-tight">
+                <span className="text-xs font-bold text-slate-800 leading-tight">
                   {t('landing.advantageCustom')}
                 </span>
               </div>
@@ -116,15 +134,48 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
           </div>
 
           {/* ======================================================== */}
-          {/* RIGHT COLUMN: Composition: Dashboard + Laptop + Phone    */}
+          {/* RIGHT COLUMN: Rich HeroCommerceScene Visual (~55% width)  */}
           {/* ======================================================== */}
-          <div className="lg:col-span-6 xl:col-span-6 relative mt-4 lg:mt-0">
-            <div className="relative w-full h-[470px] sm:h-[530px] md:h-[560px] lg:h-[530px] xl:h-[560px] select-none">
+          <div className="lg:col-span-7 xl:col-span-7 relative mt-6 lg:mt-0">
+            <div className="relative w-full h-[530px] sm:h-[590px] md:h-[620px] lg:h-[600px] xl:h-[640px] select-none flex items-center justify-center">
               
+              {/* ---------------------------------------------------- */}
+              {/* AMBIENT PHYSICAL SCENE ELEMENTS (Botanicals & Desk)  */}
+              {/* ---------------------------------------------------- */}
+              {/* Indoor Plant Leaves (Background behind laptop) */}
+              <div className="hidden lg:block absolute top-0 left-6 xl:left-8 w-44 h-48 pointer-events-none -z-0 opacity-45">
+                <svg viewBox="0 0 160 160" className="w-full h-full text-emerald-700/60" fill="currentColor">
+                  {/* Stem and aesthetic leaves */}
+                  <path d="M40 140 Q 60 70 120 20" stroke="#047857" strokeWidth="3" fill="none" />
+                  <ellipse cx="65" cy="85" rx="22" ry="34" transform="rotate(-35 65 85)" fill="#059669" opacity="0.75" />
+                  <ellipse cx="95" cy="55" rx="20" ry="30" transform="rotate(25 95 55)" fill="#10B981" opacity="0.7" />
+                  <ellipse cx="115" cy="25" rx="16" ry="24" transform="rotate(-15 115 25)" fill="#34D399" opacity="0.8" />
+                  <ellipse cx="45" cy="115" rx="20" ry="28" transform="rotate(-45 45 115)" fill="#047857" opacity="0.75" />
+                </svg>
+              </div>
+
+              {/* Notebook with pen in lower-left foreground */}
+              <div className="hidden lg:flex absolute -bottom-3 -left-4 xl:-left-6 w-36 h-20 bg-stone-100 rounded-lg border border-stone-300 shadow-md p-2 -rotate-6 pointer-events-none z-30 opacity-70">
+                <div className="w-full h-full border border-stone-200 rounded flex flex-col justify-around px-1.5 py-1">
+                  <div className="w-3/4 h-1 bg-stone-300 rounded" />
+                  <div className="w-1/2 h-1 bg-stone-300 rounded" />
+                  <div className="w-2/3 h-1 bg-stone-300 rounded" />
+                </div>
+                {/* Brass Pen */}
+                <div className="absolute -top-2 right-4 w-1.5 h-24 bg-gradient-to-b from-amber-600 via-amber-400 to-amber-700 rounded-full shadow-sm rotate-12" />
+              </div>
+
+              {/* Wooden craft block on lower-right foreground */}
+              <div className="hidden xl:flex absolute bottom-4 -right-4 w-28 h-20 bg-stone-200/80 rounded-xl border border-stone-300/90 shadow-sm items-center justify-center p-2 text-center pointer-events-none z-10 opacity-75">
+                <span className="text-[9px] font-bold text-stone-600 uppercase tracking-widest leading-tight">
+                  Good Products<br />Brighter Businesses
+                </span>
+              </div>
+
               {/* ---------------------------------------------------- */}
               {/* LAYER 1 (BACK): Merchant Dashboard Panel             */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute top-0 right-0 sm:right-2 w-[95%] sm:w-[90%] lg:w-[94%] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-10 transition-all">
+              <div className="absolute top-2 right-2 sm:right-6 lg:right-4 xl:right-6 w-[88%] sm:w-[84%] lg:w-[86%] xl:w-[88%] bg-white rounded-2xl border border-blue-100 shadow-[0_20px_45px_-10px_rgba(30,58,138,0.14)] overflow-hidden z-10 transition-all">
                 {/* Dashboard Top Header Bar */}
                 <div className="h-10 border-b border-slate-100 px-3.5 flex items-center justify-between bg-slate-50/80">
                   <div className="flex items-center gap-2.5">
@@ -229,130 +280,139 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* LAYER 2 (MIDDLE / FOREGROUND): Dominant Laptop Frame */}
+              {/* LAYER 2 (MIDDLE): Dominant Laptop Storefront Shell   */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute bottom-2 sm:bottom-4 left-0 sm:left-2 w-[88%] sm:w-[84%] lg:w-[86%] z-20 shadow-2xl rounded-2xl border border-slate-300 bg-slate-900 pt-2.5 px-2.5 pb-2 transition-transform duration-300">
-                {/* Laptop Camera dot */}
-                <div className="flex items-center justify-center pb-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                </div>
+              <div className="absolute bottom-6 left-0 sm:left-4 lg:left-0 xl:left-2 w-[92%] sm:w-[88%] lg:w-[90%] xl:w-[92%] z-20 transition-transform duration-300">
+                {/* Contact Shadow Underneath Laptop */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[92%] h-7 bg-slate-900/35 blur-xl -z-10 rounded-full" />
 
-                {/* Laptop Storefront Screen: Everyday Goods (Gender-Neutral) */}
-                <div className="w-full bg-white rounded-lg overflow-hidden border border-slate-200">
+                {/* Laptop Outer Bezel */}
+                <div className="rounded-t-2xl bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-2 sm:p-2.5 pb-0 border border-slate-700/80 shadow-[0_30px_60px_-15px_rgba(15,23,42,0.38),0_15px_30px_-10px_rgba(15,23,42,0.25)]">
                   
-                  {/* Storefront Navbar */}
-                  <div className="h-8 bg-white border-b border-slate-100 px-3 flex items-center justify-between text-[10px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-900 tracking-tight text-[11px]">Everyday Goods</span>
-                      <div className="hidden md:flex items-center gap-2.5 text-slate-500 font-medium pl-2">
-                        <span className="text-slate-900 font-bold">Home</span>
-                        <span>Shop</span>
-                        <span>Collections</span>
-                        <span>About</span>
+                  {/* Laptop Top Bezel Camera Dot */}
+                  <div className="flex justify-center pb-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-700 ring-1 ring-slate-600/50" />
+                  </div>
+
+                  {/* Laptop Screen Area: The Live Storefront */}
+                  <div className="bg-white rounded-t-lg overflow-hidden border border-slate-800">
+                    
+                    {/* Storefront Navigation Bar */}
+                    <div className="h-9 bg-white border-b border-slate-100 px-3 sm:px-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3 sm:gap-6">
+                        <span className="font-serif font-black text-xs sm:text-sm text-slate-900 tracking-tight">
+                          Everyday Goods
+                        </span>
+                        <div className="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-500">
+                          <span className="text-orange-600 font-bold">Home</span>
+                          <span>Shop</span>
+                          <span>Collections</span>
+                          <span>About</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Search className="w-3 h-3" />
+                        <div className="flex items-center gap-1 font-bold text-[10px]">
+                          <ShoppingBag className="w-3 h-3 text-slate-800" />
+                          <span className="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Search className="w-3 h-3" />
-                      <div className="flex items-center gap-1 font-bold text-[10px]">
-                        <ShoppingBag className="w-3 h-3 text-slate-800" />
-                        <span className="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
+                    {/* Storefront Hero Banner */}
+                    <div className="relative h-28 sm:h-32 bg-stone-900 overflow-hidden flex items-center px-4">
+                      <img
+                        src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=700&auto=format&fit=crop&q=80"
+                        alt="Everyday Goods Storefront"
+                        className="absolute inset-0 w-full h-full object-cover opacity-45"
+                      />
+                      <div className="relative z-10 space-y-1 max-w-[240px]">
+                        <span className="text-[9px] uppercase tracking-wider font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded">
+                          Artisanal & Minimal
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
+                          Minimal Goods for Everyday Living
+                        </h4>
+                        <button className="text-[9px] font-bold bg-white text-slate-900 px-2.5 py-1 rounded shadow-sm hover:bg-slate-100 transition">
+                          Shop Now →
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Storefront Best Sellers Row (4 Products) */}
+                    <div className="p-2 sm:p-2.5 bg-slate-50/60">
+                      <div className="flex items-center justify-between pb-1.5">
+                        <span className="text-[10px] font-bold text-slate-800">Best Sellers</span>
+                        <span className="text-[9px] font-semibold text-blue-600">View All →</span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {/* Product 1: Amber Diffuser */}
+                        <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
+                          <img
+                            src="https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&auto=format&fit=crop&q=80"
+                            alt="Amber Diffuser"
+                            className="w-full h-12 object-cover rounded"
+                          />
+                          <div className="text-[8px] font-bold text-slate-800 truncate">Amber Diffuser</div>
+                          <div className="text-[8px] font-black text-slate-900">₹1,290</div>
+                        </div>
+
+                        {/* Product 2: Ceramic Dripper */}
+                        <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
+                          <img
+                            src="https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=200&auto=format&fit=crop&q=80"
+                            alt="Ceramic Dripper"
+                            className="w-full h-12 object-cover rounded"
+                          />
+                          <div className="text-[8px] font-bold text-slate-800 truncate">Ceramic Dripper</div>
+                          <div className="text-[8px] font-black text-slate-900">₹1,450</div>
+                        </div>
+
+                        {/* Product 3: Coffee Mug */}
+                        <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
+                          <img
+                            src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&auto=format&fit=crop&q=80"
+                            alt="Coffee Mug"
+                            className="w-full h-12 object-cover rounded"
+                          />
+                          <div className="text-[8px] font-bold text-slate-800 truncate">Stoneware Mug</div>
+                          <div className="text-[8px] font-black text-slate-900">₹890</div>
+                        </div>
+
+                        {/* Product 4: Hand-Poured Candle */}
+                        <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
+                          <img
+                            src="https://images.unsplash.com/photo-1603006905003-be475563bc59?w=200&auto=format&fit=crop&q=80"
+                            alt="Soy Candle"
+                            className="w-full h-12 object-cover rounded"
+                          />
+                          <div className="text-[8px] font-bold text-slate-800 truncate">Soy Candle</div>
+                          <div className="text-[8px] font-black text-slate-900">₹990</div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Storefront Hero Banner */}
-                  <div className="relative h-28 sm:h-32 bg-stone-900 overflow-hidden flex items-center px-4">
-                    <img
-                      src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=700&auto=format&fit=crop&q=80"
-                      alt="Everyday Goods Storefront"
-                      className="absolute inset-0 w-full h-full object-cover opacity-45"
-                    />
-                    <div className="relative z-10 space-y-1 max-w-[240px]">
-                      <span className="text-[9px] uppercase tracking-wider font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded">
-                        Artisanal & Minimal
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
-                        Minimal Goods for Everyday Living
-                      </h4>
-                      <button className="text-[9px] font-bold bg-white text-slate-900 px-2.5 py-1 rounded shadow-sm hover:bg-slate-100 transition">
-                        Shop Now →
-                      </button>
-                    </div>
+                  {/* Laptop Base Lip / Notch */}
+                  <div className="h-2.5 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700 rounded-b-lg mt-1.5 flex justify-center">
+                    <div className="w-16 h-1 bg-slate-900 rounded-b" />
                   </div>
-
-                  {/* Storefront Best Sellers Row (4 Products) */}
-                  <div className="p-2 sm:p-2.5 bg-slate-50/60">
-                    <div className="flex items-center justify-between pb-1.5">
-                      <span className="text-[10px] font-bold text-slate-800">Best Sellers</span>
-                      <span className="text-[9px] font-semibold text-blue-600">View All →</span>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {/* Product 1: Amber Diffuser */}
-                      <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
-                        <img
-                          src="https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&auto=format&fit=crop&q=80"
-                          alt="Amber Diffuser"
-                          className="w-full h-12 object-cover rounded"
-                        />
-                        <div className="text-[8px] font-bold text-slate-800 truncate">Amber Diffuser</div>
-                        <div className="text-[8px] font-black text-slate-900">₹1,290</div>
-                      </div>
-
-                      {/* Product 2: Ceramic Dripper */}
-                      <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
-                        <img
-                          src="https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=200&auto=format&fit=crop&q=80"
-                          alt="Ceramic Dripper"
-                          className="w-full h-12 object-cover rounded"
-                        />
-                        <div className="text-[8px] font-bold text-slate-800 truncate">Ceramic Dripper</div>
-                        <div className="text-[8px] font-black text-slate-900">₹1,450</div>
-                      </div>
-
-                      {/* Product 3: Coffee Mug */}
-                      <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
-                        <img
-                          src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&auto=format&fit=crop&q=80"
-                          alt="Coffee Mug"
-                          className="w-full h-12 object-cover rounded"
-                        />
-                        <div className="text-[8px] font-bold text-slate-800 truncate">Stoneware Mug</div>
-                        <div className="text-[8px] font-black text-slate-900">₹890</div>
-                      </div>
-
-                      {/* Product 4: Hand-Poured Candle */}
-                      <div className="bg-white rounded-md p-1 border border-slate-100 space-y-0.5 shadow-2xs">
-                        <img
-                          src="https://images.unsplash.com/photo-1603006905003-be475563bc59?w=200&auto=format&fit=crop&q=80"
-                          alt="Soy Candle"
-                          className="w-full h-12 object-cover rounded"
-                        />
-                        <div className="text-[8px] font-bold text-slate-800 truncate">Soy Candle</div>
-                        <div className="text-[8px] font-black text-slate-900">₹990</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Laptop Base Lip / Notch */}
-                <div className="h-2 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 rounded-b-lg mt-1.5 flex justify-center">
-                  <div className="w-14 h-1 bg-slate-900 rounded-b" />
                 </div>
               </div>
 
               {/* ---------------------------------------------------- */}
               {/* LAYER 3 (FRONT RIGHT): Matching Mobile Storefront    */}
               {/* ---------------------------------------------------- */}
-              <div className="absolute -bottom-1 -right-1 sm:right-6 md:right-10 lg:right-8 xl:right-10 w-[145px] sm:w-[170px] md:w-[180px] z-30 shadow-2xl rounded-[28px] p-1.5 bg-slate-900 border-2 border-slate-700/80 transition-transform duration-300 hover:scale-[1.02]">
+              <div className="absolute -bottom-1 right-2 sm:right-6 md:right-10 lg:right-6 xl:right-14 w-[155px] sm:w-[185px] md:w-[195px] z-30 shadow-[0_28px_55px_-10px_rgba(0,0,0,0.55)] rounded-[32px] p-1.5 bg-slate-950 border-2 border-slate-700/80 transition-transform duration-300 hover:scale-[1.02]">
                 {/* Phone Speaker / Dynamic Island */}
                 <div className="flex items-center justify-center pb-1">
-                  <div className="w-10 h-2 bg-black rounded-full" />
+                  <div className="w-12 h-2.5 bg-black rounded-full" />
                 </div>
 
                 {/* Mobile Storefront Screen */}
-                <div className="w-full bg-white rounded-[20px] overflow-hidden border border-slate-200">
+                <div className="w-full bg-white rounded-[22px] overflow-hidden border border-slate-200">
                   {/* Mobile Store Navbar */}
                   <div className="h-7 bg-white border-b border-slate-100 px-2 flex items-center justify-between text-[9px]">
                     <div className="flex items-center gap-1">
@@ -418,11 +478,11 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
               </div>
 
               {/* Annotation 2: Pointing to Phone */}
-              <div className="hidden md:flex flex-col items-center text-center absolute top-1/2 -translate-y-1/2 -right-2 sm:-right-1 md:-right-1 lg:-right-2 xl:-right-1 z-40 pointer-events-none">
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 italic tracking-tight font-sans leading-tight">
+              <div className="hidden xl:flex flex-col items-center text-center absolute top-1/2 -translate-y-1/2 right-0 z-40 pointer-events-none">
+                <span className="text-[11px] font-bold text-slate-600 italic tracking-tight font-sans leading-tight">
                   {t('landing.heroAnnotationDevice')}
                 </span>
-                <svg className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500 mt-1" viewBox="0 0 30 30" fill="none">
+                <svg className="w-7 h-7 text-orange-500 mt-1" viewBox="0 0 30 30" fill="none">
                   <path d="M22 6 C16 12, 10 16, 6 20" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
                   <path d="M5 14 L 5 21 L 12 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
