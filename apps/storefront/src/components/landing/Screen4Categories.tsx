@@ -7,7 +7,7 @@ interface ProductItem {
   price: number;
   category: string;
   tag: string;
-  emoji: string;
+  image: string;
   rating: string;
 }
 
@@ -46,10 +46,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-rose-600 hover:bg-rose-700',
       categories: ['Sarees', 'Anarkalis', 'Kurtas', 'Dupattas'],
       products: [
-        { name: 'Banarasi Katan Silk Saree', price: 4850, category: 'Sarees', tag: 'Bestseller', emoji: '👗', rating: '4.9' },
-        { name: 'Embroidered Velvet Anarkali', price: 6200, category: 'Anarkalis', tag: 'New Arrival', emoji: '✨', rating: '5.0' },
-        { name: 'Handloom Chanderi Kurta Set', price: 2490, category: 'Kurtas', tag: 'Popular', emoji: '🧵', rating: '4.8' },
-        { name: 'Zari Woven Festive Dupatta', price: 1750, category: 'Dupattas', tag: 'Trending', emoji: '🧣', rating: '4.9' },
+        { name: 'Banarasi Katan Silk Saree', price: 4850, category: 'Sarees', tag: 'Bestseller', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Embroidered Velvet Anarkali', price: 6200, category: 'Anarkalis', tag: 'New Arrival', image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
+        { name: 'Handloom Chanderi Kurta Set', price: 2490, category: 'Kurtas', tag: 'Popular', image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
+        { name: 'Zari Woven Festive Dupatta', price: 1750, category: 'Dupattas', tag: 'Trending', image: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
       ],
     },
     {
@@ -65,10 +65,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-amber-600 hover:bg-amber-700',
       categories: ['Cold-Pressed Oils', 'Raw Honey', 'Organic Spices', 'Desi Ghee'],
       products: [
-        { name: 'Cold-Pressed Mustard Oil (1L)', price: 340, category: 'Cold-Pressed Oils', tag: 'Wood-Pressed', emoji: '🫒', rating: '4.9' },
-        { name: 'Raw Forest Wild Honey (500g)', price: 490, category: 'Raw Honey', tag: '100% Pure', emoji: '🍯', rating: '5.0' },
-        { name: 'Stone-Ground Turmeric Powder (250g)', price: 180, category: 'Organic Spices', tag: 'High Curcumin', emoji: '🌿', rating: '4.8' },
-        { name: 'Kashmiri Mongra Saffron (1g)', price: 650, category: 'Organic Spices', tag: 'Grade A', emoji: '🌸', rating: '4.9' },
+        { name: 'Cold-Pressed Mustard Oil (1L)', price: 340, category: 'Cold-Pressed Oils', tag: 'Wood-Pressed', image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Raw Forest Wild Honey (500g)', price: 490, category: 'Raw Honey', tag: '100% Pure', image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
+        { name: 'Stone-Ground Turmeric Powder (250g)', price: 180, category: 'Organic Spices', tag: 'High Curcumin', image: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
+        { name: 'Kashmiri Mongra Saffron (1g)', price: 650, category: 'Organic Spices', tag: 'Grade A', image: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
       ],
     },
     {
@@ -84,10 +84,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-amber-600 hover:bg-amber-700',
       categories: ['Silver Jhumkas', 'Chokers', 'Kadas', 'Pendants'],
       products: [
-        { name: '925 Sterling Silver Jhumkas', price: 2890, category: 'Silver Jhumkas', tag: 'Hallmarked', emoji: '💎', rating: '5.0' },
-        { name: 'Kundan Choker Necklace Set', price: 5400, category: 'Chokers', tag: 'Bridal Pick', emoji: '👑', rating: '4.9' },
-        { name: 'Handcrafted Oxidised Silver Kada', price: 3750, category: 'Kadas', tag: 'Heavy Silver', emoji: '✨', rating: '4.8' },
-        { name: 'Temple Art Peacock Pendant', price: 1990, category: 'Pendants', tag: 'Antique Finish', emoji: '🦚', rating: '4.9' },
+        { name: '925 Sterling Silver Jhumkas', price: 2890, category: 'Silver Jhumkas', tag: 'Hallmarked', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
+        { name: 'Kundan Choker Necklace Set', price: 5400, category: 'Chokers', tag: 'Bridal Pick', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Handcrafted Oxidised Silver Kada', price: 3750, category: 'Kadas', tag: 'Heavy Silver', image: 'https://images.unsplash.com/photo-1611591475878-8386348c3b7a?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
+        { name: 'Temple Art Peacock Pendant', price: 1990, category: 'Pendants', tag: 'Antique Finish', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
       ],
     },
     {
@@ -103,10 +103,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-rose-600 hover:bg-rose-700',
       categories: ['Facial Serums', 'Floral Mists', 'Face Masks', 'Hair Oils'],
       products: [
-        { name: 'Kumkumadi Night Radiance Oil (30ml)', price: 980, category: 'Facial Serums', tag: 'Pure Saffron', emoji: '🧴', rating: '4.9' },
-        { name: 'Kannauj Pure Steam-Distilled Rose Mist', price: 380, category: 'Floral Mists', tag: 'Hydro-Distilled', emoji: '🌹', rating: '4.9' },
-        { name: 'Sandalwood & Ubtan Clay Mask (100g)', price: 450, category: 'Face Masks', tag: 'Natural Detox', emoji: '✨', rating: '4.7' },
-        { name: 'Cold-Pressed Bhringraj Hair Oil (200ml)', price: 520, category: 'Hair Oils', tag: 'Root Care', emoji: '🌿', rating: '4.8' },
+        { name: 'Kumkumadi Night Radiance Oil (30ml)', price: 980, category: 'Facial Serums', tag: 'Pure Saffron', image: 'https://images.unsplash.com/photo-1608248597359-2c786720072b?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Kannauj Pure Steam-Distilled Rose Mist', price: 380, category: 'Floral Mists', tag: 'Hydro-Distilled', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Sandalwood & Ubtan Clay Mask (100g)', price: 450, category: 'Face Masks', tag: 'Natural Detox', image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=600&auto=format&fit=crop&q=80', rating: '4.7' },
+        { name: 'Cold-Pressed Bhringraj Hair Oil (200ml)', price: 520, category: 'Hair Oils', tag: 'Root Care', image: 'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
       ],
     },
     {
@@ -122,10 +122,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-orange-600 hover:bg-orange-700',
       categories: ['Clay Pottery', 'Brass Urli', 'Cotton Linen', 'Wooden Art'],
       products: [
-        { name: 'Handmade Glazed Clay Teapot Set', price: 850, category: 'Clay Pottery', tag: 'Studio Made', emoji: '🏺', rating: '4.9' },
-        { name: 'Engraved Brass Diya Urli (10 Inch)', price: 1650, category: 'Brass Urli', tag: 'Solid Brass', emoji: '🪔', rating: '5.0' },
-        { name: 'Hand-Blocked Cotton Linen Bedcover', price: 2190, category: 'Cotton Linen', tag: 'Vegetable Dyes', emoji: '🛏️', rating: '4.8' },
-        { name: 'Carved Sheesham Wooden Coaster Set', price: 490, category: 'Wooden Art', tag: 'Solid Wood', emoji: '🪵', rating: '4.7' },
+        { name: 'Handmade Glazed Clay Teapot Set', price: 850, category: 'Clay Pottery', tag: 'Studio Made', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Engraved Brass Diya Urli (10 Inch)', price: 1650, category: 'Brass Urli', tag: 'Solid Brass', image: 'https://images.unsplash.com/photo-1606744824163-985d376605aa?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
+        { name: 'Hand-Blocked Cotton Linen Bedcover', price: 2190, category: 'Cotton Linen', tag: 'Vegetable Dyes', image: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
+        { name: 'Carved Sheesham Wooden Coaster Set', price: 490, category: 'Wooden Art', tag: 'Solid Wood', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&auto=format&fit=crop&q=80', rating: '4.7' },
       ],
     },
     {
@@ -141,10 +141,10 @@ export const Screen4Categories: React.FC = () => {
       accentBg: 'bg-emerald-600 hover:bg-emerald-700',
       categories: ['Whole Grains', 'Pulses & Dals', 'Basmati Rice', 'Desi Ghee'],
       products: [
-        { name: 'MP Sharbati Whole Wheat Atta (5kg)', price: 320, category: 'Whole Grains', tag: 'Fresh Ground', emoji: '🌾', rating: '4.8' },
-        { name: 'Unpolished Farm Toor Dal (1kg)', price: 195, category: 'Pulses & Dals', tag: 'High Protein', emoji: '🥣', rating: '4.9' },
-        { name: 'Aged Royal Biryani Basmati Rice (5kg)', price: 680, category: 'Basmati Rice', tag: 'Extra Long', emoji: '🍚', rating: '5.0' },
-        { name: 'Pure Bilona Gir Cow A2 Ghee (500ml)', price: 850, category: 'Desi Ghee', tag: 'Vedic Method', emoji: '🧈', rating: '4.9' },
+        { name: 'MP Sharbati Whole Wheat Atta (5kg)', price: 320, category: 'Whole Grains', tag: 'Fresh Ground', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
+        { name: 'Unpolished Farm Toor Dal (1kg)', price: 195, category: 'Pulses & Dals', tag: 'High Protein', image: 'https://images.unsplash.com/photo-1585994192701-f1a505c817ea?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
+        { name: 'Aged Royal Biryani Basmati Rice (5kg)', price: 680, category: 'Basmati Rice', tag: 'Extra Long', image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
+        { name: 'Pure Bilona Gir Cow A2 Ghee (500ml)', price: 850, category: 'Desi Ghee', tag: 'Vedic Method', image: 'https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
       ],
     },
   ];
@@ -328,13 +328,18 @@ export const Screen4Categories: React.FC = () => {
                   key={idx}
                   className="p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-3 group"
                 >
-                  {/* Emoji Visual Card Asset */}
-                  <div className="w-full h-36 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-4xl relative group-hover:scale-[1.02] transition-transform">
-                    <span>{prod.emoji}</span>
-                    <span className="absolute top-2 left-2 text-[10px] font-bold bg-white/90 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+                  {/* Clean Demo Product Visual Asset */}
+                  <div className="w-full h-40 rounded-xl bg-slate-100 border border-slate-100 relative overflow-hidden group-hover:shadow-sm transition-all">
+                    <img
+                      src={prod.image}
+                      alt={prod.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    <span className="absolute top-2 left-2 text-[10px] font-bold bg-white/95 backdrop-blur-xs text-slate-800 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-xs">
                       {prod.tag}
                     </span>
-                    <span className="absolute bottom-2 right-2 text-[10px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
+                    <span className="absolute bottom-2 right-2 text-[10px] font-bold bg-white/95 backdrop-blur-xs text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200 shadow-xs">
                       ★ {prod.rating}
                     </span>
                   </div>

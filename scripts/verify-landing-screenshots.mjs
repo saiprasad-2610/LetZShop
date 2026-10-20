@@ -52,38 +52,26 @@ async function run() {
     await system.screenshot({ path: path.join(outDir, 'screen3_system.png') });
   }
 
-  // 4. Screen 4 - Category Boutique
-  console.log('Capturing Screen 4 Category 1 (Boutique)...');
+  // 4. Screen 4 - Category Showcase (Fashion and Grocery)
+  console.log('Capturing Screen 4 Category 1 (Fashion)...');
   const catSection = await page.$('section#categories');
   if (catSection) {
     await catSection.scrollIntoView();
     await new Promise(r => setTimeout(r, 600));
-    await catSection.screenshot({ path: path.join(outDir, 'screen4_cat_boutique.png') });
+    await catSection.screenshot({ path: path.join(outDir, 'screen4_cat_fashion.png') });
 
-    // Switch to Food & Packaged
-    console.log('Clicking Food & Packaged category...');
+    // Switch to Grocery
+    console.log('Clicking Grocery category...');
     const catButtons = await page.$$('section#categories button');
     for (const btn of catButtons) {
       const text = await page.evaluate(el => el.textContent, btn);
-      if (text.includes('Food') || text.includes('Packaged')) {
+      if (text.includes('Grocery') || text.includes('Daily Essentials')) {
         await btn.click();
         await new Promise(r => setTimeout(r, 600));
         break;
       }
     }
-    await catSection.screenshot({ path: path.join(outDir, 'screen4_cat_food.png') });
-
-    // Switch to Jewellery
-    console.log('Clicking Jewellery category...');
-    for (const btn of catButtons) {
-      const text = await page.evaluate(el => el.textContent, btn);
-      if (text.includes('Jewellery')) {
-        await btn.click();
-        await new Promise(r => setTimeout(r, 600));
-        break;
-      }
-    }
-    await catSection.screenshot({ path: path.join(outDir, 'screen4_cat_jewellery.png') });
+    await catSection.screenshot({ path: path.join(outDir, 'screen4_cat_grocery.png') });
   }
 
   // 5. Screen 5 - Brand Studio Themes
@@ -184,7 +172,7 @@ async function run() {
   console.log('Testing Marathi switch...');
   await page.evaluate(() => window.scrollTo(0, 0));
   await new Promise(r => setTimeout(r, 400));
-  const marathiButtons = await page.$$('nav button');
+  const marathiButtons = await page.$$('header button');
   for (const btn of marathiButtons) {
     const text = await page.evaluate(el => el.textContent, btn);
     if (text.includes('मराठी')) {
@@ -193,7 +181,32 @@ async function run() {
       break;
     }
   }
+
+  // Verify Marathi strings
+  const marathiHeroText = await page.evaluate(() => document.querySelector('h1')?.textContent || '');
+  console.log('Marathi Hero H1 text:', marathiHeroText);
+
+  const marathiPricingText = await page.evaluate(() => document.querySelector('#pricing h2')?.textContent || '');
+  console.log('Marathi Pricing H2 text:', marathiPricingText);
+
+  const marathiFaqText = await page.evaluate(() => document.querySelector('#faq h2')?.textContent || '');
+  console.log('Marathi FAQ H2 text:', marathiFaqText);
+
   await page.screenshot({ path: path.join(outDir, 'marathi_hero.png'), clip: { x: 0, y: 0, width: 1440, height: 900 } });
+
+  // Switch back to English
+  console.log('Switching back to English...');
+  const enButtons = await page.$$('header button');
+  for (const btn of enButtons) {
+    const text = await page.evaluate(el => el.textContent, btn);
+    if (text.includes('English')) {
+      await btn.click();
+      await new Promise(r => setTimeout(r, 800));
+      break;
+    }
+  }
+  const enHeroText = await page.evaluate(() => document.querySelector('h1')?.textContent || '');
+  console.log('English restored Hero H1 text:', enHeroText);
 
   // 10. Responsive mobile test at 390x844
   console.log('Testing Mobile 390x844...');
