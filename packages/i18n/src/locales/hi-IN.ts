@@ -1,5 +1,5 @@
 import { brandStudioHi } from './brand-studio';
-import { TranslationDictionary } from './en-IN';
+import { enIN, TranslationDictionary } from './en-IN';
 
 export const hiIN: TranslationDictionary = {
   brandStudio: brandStudioHi,
@@ -940,6 +940,7 @@ export const hiIN: TranslationDictionary = {
     errMaxPercent: 'प्रतिशत छूट 100% से अधिक नहीं हो सकती।',
   },
   landing: {
+    ...enIN.landing,
     announcement: 'Letz Shop v2.0 लाइव • बिना किसी सेटअप शुल्क के आज ही अपना ब्रांड सबडोमेन प्राप्त करें!',
     startFree: 'मुफ्त शुरू करें →',
     merchantLogin: 'मर्चेंट लॉगिन',
