@@ -960,6 +960,7 @@ export const enIN = {
     heroTitlePre: 'Build the online store',
     heroTitleGradient: 'your brand deserves.',
     heroSubtitle: 'Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — from one simple platform.',
+    heroSupporting: 'Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — from one simple platform.',
     heroCtaPrimary: 'Create Store',
     heroCtaSecondary: 'Merchant Login',
     advantageStorefront: 'Branded storefront & link',
