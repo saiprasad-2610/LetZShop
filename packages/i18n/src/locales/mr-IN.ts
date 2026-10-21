@@ -965,7 +965,7 @@ export const mrIN: TranslationDictionary = {
     heroSupporting: 'एकाच सोप्या प्लॅटफॉर्मवरून तुमचे सुंदर ब्रँडेड ई-कॉमर्स स्टोअर तयार करा, उत्पादने दाखवा, पेमेंट्स स्वीकारा, ऑर्डर्स व्यवस्थापित करा आणि व्यावसायिक ऑनलाइन स्टोअरफ्रंटद्वारे विक्री करा.',
     heroCtaPrimary: 'स्टोअर तयार करा',
     heroCtaSecondary: 'व्यापारी लॉगिन',
-    heroReassurance: 'कोणत्याही क्रेडिट कार्डची आवश्यकता नाही • काही मिनिटांत सुरू करा',
+    heroReassurance: 'काही मिनिटांत सेटअप',
     heroAnnotationDashboard: 'एकाच ठिकाणी सर्व व्यवस्थापन',
     heroAnnotationDevice: 'प्रत्येक डिव्हाइसवर तुमचे स्टोअर',
     advantageStorefront: 'ब्रँडेड स्टोअरफ्रंट व लिंक',

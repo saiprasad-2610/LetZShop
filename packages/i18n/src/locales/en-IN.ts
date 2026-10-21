@@ -963,7 +963,7 @@ export const enIN = {
     heroSupporting: 'Create a beautiful, branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — from one simple platform.',
     heroCtaPrimary: 'Create Store',
     heroCtaSecondary: 'Merchant Login',
-    heroReassurance: 'No credit card required • Setup in minutes',
+    heroReassurance: 'Setup in minutes',
     heroAnnotationDashboard: 'Manage everything in one place',
     heroAnnotationDevice: 'Your store on any device',
     advantageStorefront: 'Branded storefront & link',
