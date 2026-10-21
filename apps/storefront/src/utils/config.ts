@@ -13,9 +13,14 @@ export function getSellerUrl(): string {
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
 
-    // Render cloud deployment (e.g. simply-e-commerce-frontend.onrender.com)
+    // Vercel deployment detection
+    if (host.includes('vercel.app')) {
+      return 'https://let-z-shop.vercel.app';
+    }
+
+    // Render cloud deployment
     if (host.includes('onrender.com')) {
-      return 'https://simply-ecommerce-seller.onrender.com';
+      return 'https://let-z-shop.vercel.app';
     }
 
     // Letz Shop production domain (e.g. letzshop.store, *.letzshop.store)
@@ -25,13 +30,13 @@ export function getSellerUrl(): string {
 
     // Any other live production domain or public IP (never send users to localhost from a remote domain)
     if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
-      return 'https://simply-ecommerce-seller.onrender.com';
+      return 'https://let-z-shop.vercel.app';
     }
   }
 
   // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
-    return 'https://simply-ecommerce-seller.onrender.com';
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.VERCEL === '1') {
+    return 'https://let-z-shop.vercel.app';
   }
 
   // 4. Fallback for local development only
