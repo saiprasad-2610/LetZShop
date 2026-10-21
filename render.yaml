@@ -8,7 +8,7 @@ services:
     plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @simply/db generate && pnpm turbo run build --filter=@simply/api...
     startCommand: pnpm --filter @simply/db migrate && node apps/api/dist/main.js
-    healthCheckPath: /api/v1/health/live
+    healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -26,6 +26,8 @@ services:
         value: "false"
       - key: MEDIA_STORAGE_DRIVER
         value: local
+      - key: MEDIA_PUBLIC_URL_PREFIX
+        value: https://simply-ecommerce-api.onrender.com/media/file
 
   # --------------------------------------------------------------------------
   # 2. Buyer Storefront (Next.js)
@@ -77,6 +79,8 @@ services:
         value: production
       - key: NEXT_PUBLIC_API_URL
         value: https://simply-ecommerce-api.onrender.com
+      - key: NEXT_PUBLIC_STOREFRONT_URL
+        value: https://simply-ecommerce-storefront.onrender.com
 
 # ----------------------------------------------------------------------------
 # Render PostgreSQL Database (Free Tier)

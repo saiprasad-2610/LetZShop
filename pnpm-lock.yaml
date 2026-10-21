@@ -284,6 +284,9 @@ importers:
       '@simply/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@simply/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@simply/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -369,6 +372,9 @@ importers:
       '@simply/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@simply/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@simply/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -430,6 +436,9 @@ importers:
       '@simply/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@simply/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@simply/types':
         specifier: workspace:*
         version: link:../../packages/types

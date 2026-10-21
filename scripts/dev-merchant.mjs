@@ -260,7 +260,7 @@ function checkPortReady(port, pathname = '/') {
       }
     });
     req.on('error', () => resolve(false));
-    req.setTimeout(1200, () => {
+    req.setTimeout(4000, () => {
       req.destroy();
       resolve(false);
     });
@@ -269,7 +269,7 @@ function checkPortReady(port, pathname = '/') {
 
 async function waitForServicesReady(
   services = { api: true, seller: true, platform: true, admin: false },
-  timeoutMs = 120000
+  timeoutMs = 240000
 ) {
   const start = Date.now();
   let apiReady = !services.api;
@@ -749,7 +749,7 @@ async function main() {
   // 8. Wait for active services to become healthy before declaring success
   const allReady = await waitForServicesReady(
     { api: runApi, seller: runSeller, platform: runStorefront, admin: runAdmin },
-    120000
+    240000
   );
   if (allReady && !bannerPrinted && !shuttingDown) {
     printSummary();

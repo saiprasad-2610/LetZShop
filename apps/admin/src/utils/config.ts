@@ -16,6 +16,10 @@ export function getStorefrontUrl(): string {
     if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
       return 'http://localhost:3000';
     }
+    // Render cloud deployment
+    if (host.includes('onrender.com')) {
+      return 'https://simply-ecommerce-storefront.onrender.com';
+    }
     // Production LetzShop domain
     if (host === 'admin.letzshop.store' || host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
       return 'https://letzshop.store';
@@ -24,7 +28,7 @@ export function getStorefrontUrl(): string {
 
   // 3. Fallback for production cloud builds
   if (process.env.RENDER === 'true') {
-    return 'https://letzshop.store';
+    return 'https://simply-ecommerce-storefront.onrender.com';
   }
 
   // 4. Fallback for local development

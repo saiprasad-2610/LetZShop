@@ -15,7 +15,7 @@ export function getStorefrontUrl(): string {
 
     // Render cloud deployment
     if (host.includes('onrender.com')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
+      return 'https://simply-ecommerce-storefront.onrender.com';
     }
 
     // Letz Shop production domain
@@ -25,13 +25,13 @@ export function getStorefrontUrl(): string {
 
     // Any other live production domain or public IP
     if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
+      return 'https://simply-ecommerce-storefront.onrender.com';
     }
   }
 
   // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed storefront URL
   if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
-    return 'https://simply-e-commerce-frontend.onrender.com';
+    return 'https://simply-ecommerce-storefront.onrender.com';
   }
 
   // 4. Fallback for local development

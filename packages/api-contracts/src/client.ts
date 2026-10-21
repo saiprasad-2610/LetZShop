@@ -97,12 +97,12 @@ export class SimplyApiClient {
       } else if (typeof window !== 'undefined' && window.location) {
         const host = window.location.hostname.toLowerCase();
         if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
-          resolvedUrl = 'https://simply-e-commerce.onrender.com';
+          resolvedUrl = 'https://simply-ecommerce-api.onrender.com';
         } else if (envUrl && envUrl !== '') {
           resolvedUrl = envUrl;
         }
       } else if (isProd) {
-        resolvedUrl = 'https://simply-e-commerce.onrender.com';
+        resolvedUrl = 'https://simply-ecommerce-api.onrender.com';
       } else if (envUrl && envUrl !== '') {
         resolvedUrl = envUrl;
       }
@@ -153,7 +153,7 @@ export class SimplyApiClient {
     ) {
       const host = window.location.hostname.toLowerCase();
       if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
-        activeBase = 'https://simply-e-commerce.onrender.com';
+        activeBase = 'https://simply-ecommerce-api.onrender.com';
       }
     }
 

@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
+const rawApiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const apiUrl = rawApiUrl.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config'],
@@ -18,7 +21,7 @@ const nextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: 'http://localhost:4000/:path*',
+        destination: `${apiUrl}/:path*`,
       },
     ];
   },
