@@ -95,25 +95,24 @@ export const Screen2Problem: React.FC = () => {
               className="merchant-problem-scene hidden lg:block relative w-full max-w-[990px] h-[720px] select-none mx-auto lg:-translate-x-5"
             >
               
-              {/* Soft Gradient Depth Ambient Layers */}
-              <div className="absolute -top-4 -left-4 w-80 h-80 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -top-4 -right-4 w-80 h-80 bg-indigo-100/40 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-4 -right-4 w-80 h-80 bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-4 -left-4 w-80 h-80 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none" />
-              
-              {/* Pale curved orange backdrop wash behind right scene */}
-              <div className="absolute inset-x-1 top-2 bottom-2 bg-gradient-to-br from-orange-100/70 via-amber-100/45 to-orange-100/60 rounded-3xl pointer-events-none border border-orange-200/70 shadow-sm" />
+              {/* Soft Gradient Depth Ambient Layers - Pure Organic Glows (No rectangular borders) */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] h-[520px] bg-gradient-to-tr from-orange-100/35 via-amber-50/20 to-orange-50/30 rounded-[120px] blur-3xl pointer-events-none z-0" />
+              <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[320px] bg-sky-100/20 rounded-full blur-3xl pointer-events-none z-0" />
+              <div className="absolute -top-4 -left-4 w-80 h-80 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none z-0" />
+              <div className="absolute -top-4 -right-4 w-80 h-80 bg-indigo-100/35 rounded-full blur-3xl pointer-events-none z-0" />
+              <div className="absolute -bottom-4 -right-4 w-80 h-80 bg-orange-100/40 rounded-full blur-3xl pointer-events-none z-0" />
+              <div className="absolute -bottom-4 -left-4 w-80 h-80 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none z-0" />
 
               {/* Subtle Decorative Confetti / Accents */}
-              <div className="absolute top-1 left-8 text-emerald-500/80 font-mono text-sm tracking-widest pointer-events-none select-none">
+              <div className="absolute top-1 left-8 text-emerald-500/80 font-mono text-sm tracking-widest pointer-events-none select-none z-0">
                 \\
               </div>
-              <div className="absolute top-1 right-10 text-purple-500/80 font-mono text-sm tracking-widest pointer-events-none select-none">
+              <div className="absolute top-1 right-10 text-purple-500/80 font-mono text-sm tracking-widest pointer-events-none select-none z-0">
                 //
               </div>
 
               {/* Floating Green Shopping Cart Badge (Left of monitor) */}
-              <div className="absolute top-[328px] left-[105px] z-15 pointer-events-none">
+              <div className="absolute top-[328px] left-[110px] z-25 pointer-events-none">
                 <div className="w-8 h-8 rounded-xl bg-white border border-emerald-200 shadow-sm flex items-center justify-center text-emerald-600">
                   <svg className="w-4 h-4 stroke-[2]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <circle cx="8" cy="21" r="1" />
@@ -124,7 +123,7 @@ export const Screen2Problem: React.FC = () => {
               </div>
 
               {/* Floating Orange Box Badge (Right of monitor) */}
-              <div className="absolute top-[328px] left-[845px] z-15 pointer-events-none">
+              <div className="absolute top-[328px] left-[845px] z-25 pointer-events-none">
                 <div className="w-8 h-8 rounded-xl bg-white border border-orange-200 shadow-sm flex items-center justify-center text-[#FF6B00]">
                   <svg className="w-4 h-4 stroke-[2]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
@@ -138,7 +137,7 @@ export const Screen2Problem: React.FC = () => {
               {/* SVG ORANGE CONVERGENCE ARROWS                        */}
               {/* ==================================================== */}
               <svg
-                className="absolute inset-0 w-full h-full pointer-events-none z-15"
+                className="absolute inset-0 w-full h-full pointer-events-none z-10"
                 viewBox="0 0 990 720"
                 preserveAspectRatio="none"
                 fill="none"
@@ -158,46 +157,46 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Top-Left: WhatsApp Orders -> Convergence Badge */}
                 <path
-                  d="M 405 135 C 440 165 460 215 470 242"
+                  d="M 395 140 C 425 160 445 195 462 232"
                   stroke="#FF6B00"
                   strokeWidth="2"
-                  strokeDasharray="6 4"
+                  strokeDasharray="5 4"
                   strokeLinecap="round"
                 />
 
                 {/* Top-Right: Payment Screenshots -> Convergence Badge */}
                 <path
-                  d="M 585 135 C 550 165 530 215 490 242"
+                  d="M 595 140 C 565 160 545 195 498 232"
                   stroke="#FF6B00"
                   strokeWidth="2"
-                  strokeDasharray="6 4"
+                  strokeDasharray="5 4"
                   strokeLinecap="round"
                 />
 
                 {/* Center Down Arrow: Badge -> Monitor Top Bezel */}
                 <path
-                  d="M 480 276 L 480 306"
+                  d="M 480 278 L 480 306"
                   stroke="#FF6B00"
-                  strokeWidth="2.2"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   markerEnd="url(#arrowhead)"
                 />
 
                 {/* Down-Left Arc: Badge -> Monitor Top Left */}
                 <path
-                  d="M 465 268 C 435 282 395 296 355 308"
+                  d="M 466 272 C 445 285 410 298 375 308"
                   stroke="#FF6B00"
                   strokeWidth="1.8"
-                  strokeDasharray="5 4"
+                  strokeDasharray="4 3"
                   strokeLinecap="round"
                 />
 
                 {/* Down-Right Arc: Badge -> Monitor Top Right */}
                 <path
-                  d="M 495 268 C 525 282 565 296 605 308"
+                  d="M 494 272 C 515 285 550 298 585 308"
                   stroke="#FF6B00"
                   strokeWidth="1.8"
-                  strokeDasharray="5 4"
+                  strokeDasharray="4 3"
                   strokeLinecap="round"
                 />
               </svg>
@@ -214,7 +213,7 @@ export const Screen2Problem: React.FC = () => {
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="problem-card-whatsapp"
-                className="absolute top-[5px] left-[5px] w-[405px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(34,197,94,0.18),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3.5 space-y-2 z-20 transition-transform duration-300 hover:scale-[1.02] -rotate-1"
+                className="absolute top-[5px] left-[5px] w-[405px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(34,197,94,0.18),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3.5 space-y-2 z-30 transition-transform duration-300 hover:scale-[1.02] -rotate-1"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -278,7 +277,7 @@ export const Screen2Problem: React.FC = () => {
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="problem-card-payment"
-                className="absolute top-[5px] right-[28px] w-[375px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(99,102,241,0.18),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3.5 space-y-2 z-20 transition-transform duration-300 hover:scale-[1.02] rotate-1"
+                className="absolute top-[5px] right-[28px] w-[375px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(99,102,241,0.18),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3.5 space-y-2 z-30 transition-transform duration-300 hover:scale-[1.02] rotate-1"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -320,7 +319,7 @@ export const Screen2Problem: React.FC = () => {
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="problem-card-dashboard"
-                className="absolute top-[312px] left-[158px] w-[675px] z-10"
+                className="absolute top-[312px] left-[158px] w-[675px] z-20"
               >
                 {/* Monitor Outer Dark Casing */}
                 <div className="bg-slate-900 p-2.5 sm:p-3 rounded-2xl shadow-[0_28px_65px_-12px_rgba(15,23,42,0.30)] border-2 border-slate-800">
@@ -431,7 +430,7 @@ export const Screen2Problem: React.FC = () => {
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="problem-card-stock"
-                className="absolute top-[518px] left-[7px] w-[370px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(16,185,129,0.20),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3 space-y-2 z-20 transition-transform duration-300 hover:scale-[1.02] -rotate-1"
+                className="absolute top-[518px] left-[7px] w-[370px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(16,185,129,0.20),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3 space-y-2 z-30 transition-transform duration-300 hover:scale-[1.02] -rotate-1"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -488,12 +487,12 @@ export const Screen2Problem: React.FC = () => {
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* CARD 4 (LOWER RIGHT): Courier Portals (~350px)       */}
+              {/* CARD 4 (LOWER RIGHT): Courier Portals (~345px)       */}
               {/* Overlaps dashboard lower-right corner by ~8-10%      */}
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="problem-card-courier"
-                className="absolute top-[553px] left-[642px] w-[350px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(249,115,22,0.20),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3 space-y-2 z-20 transition-transform duration-300 hover:scale-[1.02] rotate-1"
+                className="absolute top-[553px] left-[598px] w-[345px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(249,115,22,0.20),0_6px_16px_-4px_rgba(0,0,0,0.04)] p-3 space-y-2 z-30 transition-transform duration-300 hover:scale-[1.02] rotate-1"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
