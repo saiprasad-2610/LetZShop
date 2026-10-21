@@ -142,19 +142,6 @@ export const Screen2Problem: React.FC = () => {
                 preserveAspectRatio="none"
                 fill="none"
               >
-                <defs>
-                  <marker
-                    id="arrowhead"
-                    markerWidth="4"
-                    markerHeight="4"
-                    refX="2"
-                    refY="2"
-                    orient="auto"
-                  >
-                    <polygon points="0 0, 4 2, 0 4" fill="#FF6B00" />
-                  </marker>
-                </defs>
-
                 {/* Top-Left: WhatsApp Orders -> Convergence Badge */}
                 <path
                   d="M 305 145 C 345 165 390 195 430 232"
@@ -171,15 +158,6 @@ export const Screen2Problem: React.FC = () => {
                   strokeWidth="2"
                   strokeDasharray="5 4"
                   strokeLinecap="round"
-                />
-
-                {/* Center Down Arrow: Badge -> Monitor Top Bezel */}
-                <path
-                  d="M 388 278 L 388 306"
-                  stroke="#FF6B00"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  markerEnd="url(#arrowhead)"
                 />
 
                 {/* Down-Left Arc: Badge -> Monitor Top Left */}
@@ -202,7 +180,7 @@ export const Screen2Problem: React.FC = () => {
               </svg>
 
               {/* Central Convergence Circular Down-Arrow Badge (~52px) */}
-              <div className="absolute top-[250px] left-[388px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
+              <div className="absolute top-[252px] left-[400px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
                 <div className="w-13 h-13 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-orange-500/35 border-2 border-white">
                   <ArrowDown className="w-5 h-5 stroke-[2.5]" />
                 </div>
