@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   TrendingUp,
   LayoutDashboard,
+  Share2,
 } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
 import { LetZshopLogo } from './LetZshopLogo';
@@ -22,7 +23,7 @@ interface Screen1HeroProps {
 }
 
 export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
-  const { t, locale } = useLandingI18n();
+  const { t } = useLandingI18n();
 
   return (
     <section
@@ -31,72 +32,66 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
     >
       {/* Subtle Atmospheric Wash */}
       <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-24 right-0 w-[650px] h-[550px] bg-blue-50/35 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-orange-50/25 rounded-full blur-3xl" />
+        <div className="absolute -top-24 right-0 w-[650px] h-[550px] bg-blue-50/40 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-orange-50/30 rounded-full blur-3xl" />
       </div>
 
       <div className="w-[min(1600px,calc(100%-48px))] sm:w-[min(1600px,calc(100%-64px))] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] gap-8 lg:gap-8 xl:gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.43fr)_minmax(0,0.57fr)] gap-8 lg:gap-8 xl:gap-12 items-center">
           
           {/* ======================================================== */}
-          {/* LEFT COLUMN: Narrative & CTAs (41-43% width)              */}
+          {/* LEFT COLUMN: Narrative & CTAs (~43% width)               */}
           {/* ======================================================== */}
           <div className="space-y-6 lg:pr-2 max-w-[620px]">
             
             {/* Eyebrow Pill */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wider shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-              <span>{t('landing.heroEyebrow')}</span>
+              <span>SIMPLE • POWERFUL • BUILT FOR GROWTH</span>
             </div>
 
-            {/* Headline with 2 distinct lines */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[clamp(48px,3.6vw,66px)] font-black text-slate-900 tracking-tight leading-[1.02]">
-              <span className="block xl:whitespace-nowrap">{t('landing.heroTitlePrefix')}</span>
+            {/* Dominant Headline: 2 lines at >= 1440px */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[clamp(52px,3.8vw,72px)] font-black text-slate-900 tracking-tight leading-[1.02]">
+              <span className="block xl:whitespace-nowrap">Build the online store</span>
               <span className="block mt-1">
-                {locale === 'en-IN' || t('landing.heroTitleHighlight').toLowerCase().includes('your brand') ? (
-                  <>
-                    <span className="text-orange-500">your brand</span>{' '}
-                    <span className="text-slate-900">deserves.</span>
-                  </>
-                ) : (
-                  <span className="text-orange-500">{t('landing.heroTitleHighlight')}</span>
-                )}
+                <span className="text-[#FF6B00]">your brand</span>{' '}
+                <span className="text-slate-900">deserves.</span>
               </span>
             </h1>
 
-            {/* Hero Description */}
+            {/* Description */}
             <p className="text-base sm:text-lg lg:text-[20px] text-slate-600 leading-relaxed font-normal max-w-[600px]">
-              {t('landing.heroSupporting')}
+              Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell online — from one simple platform.
             </p>
 
-            {/* Account Actions: ONLY TWO (Create Store & Merchant Login) */}
+            {/* CTAs: ONLY TWO (CREATE STORE → & Merchant Login) */}
             <div className="space-y-3 pt-1">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
                 <a
                   href={`${sellerUrl}/login?mode=register`}
                   id="hero-cta-create-store"
-                  className="h-13 sm:h-[56px] px-8 sm:px-9 rounded-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-xl shadow-orange-500/35 hover:shadow-orange-500/45 flex items-center justify-center gap-2.5 active:scale-[0.98]"
+                  className="h-13 sm:h-[56px] px-8 sm:px-9 rounded-[16px] bg-[#FF6B00] hover:bg-[#E05E00] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-xl shadow-orange-500/30 hover:shadow-orange-500/40 flex items-center justify-center gap-2.5 active:scale-[0.98]"
                 >
-                  <span>{t('landing.heroCtaPrimary')}</span>
+                  <span>CREATE STORE</span>
                   <ArrowRight className="w-4 h-4" />
                 </a>
 
                 <a
                   href={`${sellerUrl}/login`}
                   id="hero-cta-merchant-login"
-                  className="h-13 sm:h-[56px] px-8 rounded-full bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border-2 border-slate-300/90 font-bold text-sm tracking-wide transition shadow-xs hover:shadow flex items-center justify-center gap-2 active:scale-[0.98]"
+                  className="h-13 sm:h-[56px] px-8 rounded-[16px] bg-white hover:bg-slate-50 text-slate-900 hover:text-slate-950 border-2 border-slate-300 font-bold text-sm tracking-wide transition shadow-xs hover:shadow flex items-center justify-center gap-2 active:scale-[0.98]"
                 >
-                  <span>{t('landing.heroCtaSecondary')}</span>
+                  <span>Merchant Login</span>
                 </a>
               </div>
 
               {/* Reassurance text */}
               <p className="text-xs text-slate-400 font-medium pl-1">
-                {t('landing.heroReassurance')}
+                Setup in minutes
               </p>
             </div>
 
-            {/* 4 Benefits */}
+            {/* 4 Compact Benefits in One Row */}
             <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-[600px]">
               {/* 1. Branded storefront */}
               <div className="flex flex-col items-center text-center space-y-1.5 p-1 group">
@@ -104,7 +99,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <Link2 className="w-5 h-5 -rotate-45" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  {t('landing.advantageStorefront')}
+                  Branded storefront & link
                 </span>
               </div>
 
@@ -114,7 +109,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  {t('landing.advantagePayments')}
+                  UPI & Razorpay payments
                 </span>
               </div>
 
@@ -124,7 +119,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <MessageCircle className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  {t('landing.advantageWhatsapp')}
+                  WhatsApp commerce & enquiries
                 </span>
               </div>
 
@@ -134,7 +129,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <Palette className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  {t('landing.advantageCustom')}
+                  Custom storefront
                 </span>
               </div>
             </div>
@@ -142,21 +137,21 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
           </div>
 
           {/* ======================================================== */}
-          {/* RIGHT COLUMN: Contained HeroScene (57-59% width)          */}
+          {/* RIGHT COLUMN: HeroProductScene (~57% width)               */}
           {/* ======================================================== */}
-          <div className="relative w-full flex items-center justify-center lg:justify-end min-w-0">
+          <div className="relative w-full flex flex-col items-center lg:items-end min-w-0">
             <div
               data-testid="hero-scene"
-              className="heroScene relative w-full aspect-[1.25/1] min-h-[500px] sm:min-h-[560px] md:min-h-[600px] max-h-[660px] select-none"
+              className="heroScene relative w-full lg:aspect-[1.25/1] min-h-[460px] sm:min-h-[520px] md:min-h-[580px] lg:min-h-[620px] max-h-[660px] select-none"
             >
               
               {/* ---------------------------------------------------- */}
               {/* LAYER 1 (BACK): Merchant Dashboard Panel             */}
-              {/* Proportions: ~78-80% width, top: 0, right: 0        */}
+              {/* Proportions: ~78-80% width, top: 2%, right: 0        */}
               {/* ---------------------------------------------------- */}
               <div
                 data-testid="hero-dashboard"
-                className="absolute top-0 right-0 w-[78%] bg-white rounded-2xl border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(30,58,138,0.10)] overflow-hidden z-10"
+                className="hidden sm:block absolute top-[2%] right-0 w-[78%] bg-white rounded-[20px] border border-slate-200/90 shadow-[0_20px_45px_-10px_rgba(30,58,138,0.10)] overflow-hidden z-10"
               >
                 {/* Dashboard Top Header Bar */}
                 <div className="h-9 sm:h-10 border-b border-slate-100 px-3.5 flex items-center justify-between bg-slate-50/80">
@@ -263,230 +258,235 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* LAYER 2 (MIDDLE): Dominant Laptop Storefront Shell   */}
-              {/* Proportions: ~91% width, left: 0, bottom: 4%        */}
+              {/* LAYER 2 (FOREGROUND): Large Storefront Browser Frame */}
+              {/* Proportions: ~84% width on desktop, bottom: 4%       */}
               {/* ---------------------------------------------------- */}
               <div
-                data-testid="hero-laptop"
-                className="absolute bottom-[4%] left-0 w-[91%] z-20"
+                data-testid="hero-storefront"
+                className="relative lg:absolute lg:bottom-[4%] lg:left-0 w-full lg:w-[82%] xl:w-[84%] bg-white rounded-[22px] border border-slate-200/90 shadow-[0_28px_60px_-15px_rgba(15,23,42,0.18),0_12px_24px_-8px_rgba(15,23,42,0.10)] overflow-hidden z-20 flex flex-col"
               >
-                {/* Contact Shadow Underneath Base */}
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[94%] h-8 bg-slate-950/30 blur-lg -z-10 rounded-full" />
-
-                {/* Display Bezel Shell */}
-                <div className="rounded-t-2xl bg-[#0B1220] p-2 sm:p-2.5 pb-0 border border-slate-750 shadow-[0_32px_75px_-18px_rgba(15,23,42,0.48),0_16px_36px_-10px_rgba(15,23,42,0.25)]">
-                  
-                  {/* Laptop Top Bezel Camera Dot */}
-                  <div className="flex justify-center pb-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-900 ring-1 ring-slate-700/60" />
+                {/* Browser Top Window Bar */}
+                <div className="h-8 sm:h-9 bg-slate-50 border-b border-slate-200/80 px-3 sm:px-4 flex items-center justify-between">
+                  {/* Browser Window Control Dots */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56] border border-[#E0443E]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E] border border-[#DEA123]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#27C93F] border border-[#1AAB29]" />
                   </div>
 
-                  {/* Laptop Screen Area: Real DOM Storefront */}
-                  <div className="bg-white rounded-t-lg overflow-hidden border border-slate-800 flex flex-col">
-                    
-                    {/* Storefront Navigation Bar */}
-                    <div className="h-9 sm:h-10 bg-white border-b border-slate-100 px-3 sm:px-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3 sm:gap-6">
-                        {/* Daily Bakehouse Brand Logo */}
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-md bg-amber-500/15 border border-amber-300/50 flex items-center justify-center text-amber-600 shrink-0">
-                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-amber-500 stroke-amber-700 stroke-[0.7]">
-                              <path d="M18.06 6.88C17.5 4.09 15.02 2 12 2s-5.5 2.09-6.06 4.88C4.16 7.42 2.8 9.32 2.8 11.55c0 2.65 1.95 4.82 4.5 5.17V20c0 .55.45 1 1 1h7.4c.55 0 1-.45 1-1v-3.28c2.55-.35 4.5-2.52 4.5-5.17 0-2.23-1.36-4.13-3.14-4.67z" />
-                            </svg>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-serif font-black text-xs sm:text-sm text-amber-950 tracking-tight leading-none">
-                              {bakeryDemoData.storeName}
-                            </span>
-                            <span className="text-[7px] text-amber-700/80 font-sans tracking-tight">
-                              {bakeryDemoData.storeTagline}
-                            </span>
-                          </div>
-                        </div>
+                  {/* Browser URL / Address Bar */}
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md px-3 py-0.5 text-[9px] sm:text-[10px] text-slate-500 font-mono max-w-[200px] sm:max-w-[260px] truncate shadow-2xs">
+                    <span className="text-emerald-600 font-bold">🔒</span>
+                    <span className="text-slate-800 font-semibold truncate">dailybakehouse.letzshop.store</span>
+                  </div>
 
-                        {/* Navigation Links */}
-                        <div className="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-600">
-                          {bakeryDemoData.navLinks.map((link, idx) => (
-                            <span
-                              key={link}
-                              className={idx === 0 ? "text-orange-600 font-bold border-b-2 border-orange-500 pb-0.5" : "hover:text-slate-900"}
-                            >
-                              {link}
-                            </span>
-                          ))}
-                        </div>
+                  {/* Right Action dots */}
+                  <div className="w-10 flex justify-end">
+                    <span className="text-slate-400 text-xs">•••</span>
+                  </div>
+                </div>
+
+                {/* Daily Bakehouse Storefront Header */}
+                <div className="h-9 sm:h-10 bg-white border-b border-slate-100 px-3 sm:px-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3 sm:gap-6">
+                    {/* Daily Bakehouse Brand Logo */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-amber-500/15 border border-amber-300/50 flex items-center justify-center text-amber-600 shrink-0">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-amber-500 stroke-amber-700 stroke-[0.7]">
+                          <path d="M18.06 6.88C17.5 4.09 15.02 2 12 2s-5.5 2.09-6.06 4.88C4.16 7.42 2.8 9.32 2.8 11.55c0 2.65 1.95 4.82 4.5 5.17V20c0 .55.45 1 1 1h7.4c.55 0 1-.45 1-1v-3.28c2.55-.35 4.5-2.52 4.5-5.17 0-2.23-1.36-4.13-3.14-4.67z" />
+                        </svg>
                       </div>
-
-                      <div className="flex items-center gap-2.5 text-slate-600">
-                        <Search className="w-3 h-3 hover:text-slate-900 cursor-pointer" />
-                        <div className="flex items-center gap-1 font-bold text-[10px]">
-                          <ShoppingBag className="w-3.5 h-3.5 text-slate-800" />
-                          <span className="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Storefront Hero Banner with High-Resolution Photography */}
-                    <div className="relative h-28 sm:h-34 md:h-36 bg-gradient-to-r from-[#FDF8F3] via-[#FAF1E6] to-[#F5E6D3] overflow-hidden flex items-center px-4 sm:px-6">
-                      <div className="relative z-10 space-y-1 sm:space-y-1.5 max-w-[240px] sm:max-w-[280px]">
-                        <h4 className="font-serif text-sm sm:text-lg font-black text-amber-950 leading-tight">
-                          {bakeryDemoData.heroTitle} <br />
-                          <span className="text-orange-600">{bakeryDemoData.heroHighlight}</span>
-                        </h4>
-                        <p className="text-[9px] sm:text-[10px] text-amber-900/80 leading-snug line-clamp-2">
-                          {bakeryDemoData.heroDescription}
-                        </p>
-                        <button className="text-[9px] sm:text-[10px] font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-md shadow-xs transition flex items-center gap-1">
-                          <span>{bakeryDemoData.heroCta}</span>
-                          <ArrowRight className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-
-                      {/* Right Hero Image (High-Resolution Artisanal Bakery Spread) */}
-                      <div className="absolute right-0 top-0 bottom-0 w-[55%] h-full">
-                        <Image
-                          src={bakeryDemoData.heroBannerImage}
-                          alt="Artisanal Bakery Spread"
-                          fill
-                          sizes="(max-width: 1024px) 50vw, 40vw"
-                          priority
-                          className="object-cover object-left"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Storefront Best Sellers Row (4 Products from bakeryDemoData) */}
-                    <div className="p-2 sm:p-2.5 bg-white border-t border-amber-100/50">
-                      <div className="flex items-center justify-between pb-1.5">
-                        <span className="text-[10px] font-black text-slate-900 tracking-tight">
-                          {bakeryDemoData.bestSellersTitle}
+                      <div className="flex flex-col">
+                        <span className="font-serif font-black text-xs sm:text-sm text-amber-950 tracking-tight leading-none">
+                          {bakeryDemoData.storeName}
                         </span>
-                        <span className="text-[9px] font-bold text-orange-600 hover:text-orange-700 cursor-pointer">View All →</span>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                        {bakeryDemoData.products.map((prod) => (
-                          <div
-                            key={prod.id}
-                            className="bg-slate-50/70 hover:bg-slate-50 rounded-lg p-1.5 border border-slate-100 space-y-1 shadow-2xs transition"
-                          >
-                            <div className="relative w-full h-11 sm:h-13 overflow-hidden rounded bg-amber-50/50 flex items-center justify-center">
-                              <Image
-                                src={prod.image}
-                                alt={prod.name}
-                                fill
-                                sizes="(max-width: 1024px) 25vw, 15vw"
-                                className="object-cover"
-                              />
-                            </div>
-                            <div className="text-[8px] sm:text-[9px] font-bold text-slate-900 truncate">{prod.name}</div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[8px] sm:text-[9px] font-black text-slate-900">₹{prod.price}</span>
-                              <span className="text-[7px] text-amber-600 font-bold flex items-center gap-0.5">
-                                <Star className="w-2 h-2 fill-amber-400 text-amber-400" /> {prod.rating}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                        <span className="text-[7px] text-amber-700/80 font-sans tracking-tight">
+                          {bakeryDemoData.storeTagline}
+                        </span>
                       </div>
                     </div>
 
+                    {/* Navigation Links */}
+                    <div className="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-600">
+                      {bakeryDemoData.navLinks.map((link, idx) => (
+                        <span
+                          key={link}
+                          className={idx === 0 ? "text-orange-600 font-bold border-b-2 border-orange-500 pb-0.5" : "hover:text-slate-900"}
+                        >
+                          {link}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Laptop Base Lip with Metallic Edge */}
-                  <div className="h-3 bg-gradient-to-r from-slate-700 via-slate-400 to-slate-700 rounded-b-xl mt-1.5 flex justify-center shadow-md">
-                    <div className="w-20 h-1.5 bg-slate-950 rounded-b" />
+                  <div className="flex items-center gap-2.5 text-slate-600">
+                    <Search className="w-3 h-3 hover:text-slate-900 cursor-pointer" />
+                    <div className="flex items-center gap-1 font-bold text-[10px]">
+                      <ShoppingBag className="w-3.5 h-3.5 text-slate-800" />
+                      <span className="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Storefront Hero Banner with High-Resolution Photography */}
+                <div className="relative h-28 sm:h-34 md:h-36 bg-gradient-to-r from-[#FDF8F3] via-[#FAF1E6] to-[#F5E6D3] overflow-hidden flex items-center px-4 sm:px-6">
+                  <div className="relative z-10 space-y-1 sm:space-y-1.5 max-w-[240px] sm:max-w-[280px]">
+                    <h4 className="font-serif text-sm sm:text-lg font-black text-amber-950 leading-tight">
+                      {bakeryDemoData.heroTitle} <br />
+                      <span className="text-orange-600">{bakeryDemoData.heroHighlight}</span>
+                    </h4>
+                    <p className="text-[9px] sm:text-[10px] text-amber-900/80 leading-snug line-clamp-2">
+                      {bakeryDemoData.heroDescription}
+                    </p>
+                    <button className="text-[9px] sm:text-[10px] font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-md shadow-xs transition flex items-center gap-1">
+                      <span>{bakeryDemoData.heroCta}</span>
+                      <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+
+                  {/* Right Hero Image (High-Resolution Artisanal Bakery Spread) */}
+                  <div className="absolute right-0 top-0 bottom-0 w-[55%] h-full">
+                    <Image
+                      src={bakeryDemoData.heroBannerImage}
+                      alt="Artisanal Bakery Spread"
+                      fill
+                      sizes="(max-width: 1024px) 50vw, 40vw"
+                      priority
+                      className="object-cover object-left"
+                    />
+                  </div>
+                </div>
+
+                {/* Storefront Bestsellers Row (4 Products from bakeryDemoData) */}
+                <div className="p-2 sm:p-2.5 bg-white border-t border-amber-100/50">
+                  <div className="flex items-center justify-between pb-1.5">
+                    <span className="text-[10px] font-black text-slate-900 tracking-tight">
+                      {bakeryDemoData.bestSellersTitle}
+                    </span>
+                    <span className="text-[9px] font-bold text-orange-600 hover:text-orange-700 cursor-pointer">View All →</span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                    {bakeryDemoData.products.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className="bg-slate-50/70 hover:bg-slate-50 rounded-lg p-1.5 border border-slate-100 space-y-1 shadow-2xs transition"
+                      >
+                        <div className="relative w-full h-11 sm:h-13 overflow-hidden rounded bg-amber-50/50 flex items-center justify-center">
+                          <Image
+                            src={prod.image}
+                            alt={prod.name}
+                            fill
+                            sizes="(max-width: 1024px) 25vw, 15vw"
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="text-[8px] sm:text-[9px] font-bold text-slate-900 truncate">{prod.name}</div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[8px] sm:text-[9px] font-black text-slate-900">₹{prod.price}</span>
+                          <span className="text-[7px] text-amber-600 font-bold flex items-center gap-0.5">
+                            <Star className="w-2 h-2 fill-amber-400 text-amber-400" /> {prod.rating}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* LAYER 3 (FRONT RIGHT): Matching Mobile Storefront    */}
-              {/* Proportions: ~23% width, right: 0, bottom: 2%        */}
+              {/* LAYER 3 (RIGHT EDGE): Four Small Commerce/Status Cards*/}
+              {/* Desktop: Stacked vertically on the right edge         */}
               {/* ---------------------------------------------------- */}
               <div
-                data-testid="hero-phone"
-                className="absolute bottom-[2%] right-0 w-[23%] sm:w-[22%] max-w-[190px] z-30 shadow-[0_28px_55px_-10px_rgba(0,0,0,0.55)] rounded-[28px] p-1.5 bg-[#0B1220] border-2 border-slate-700/80 transition-transform hover:scale-[1.02]"
+                data-testid="hero-status-cards"
+                className="hidden lg:flex absolute right-0 top-[35%] bottom-[4%] w-[21%] min-w-[160px] max-w-[200px] z-30 flex-col justify-between py-1 pointer-events-none"
               >
-                {/* Phone Speaker / Dynamic Island */}
-                <div className="flex items-center justify-center pb-1">
-                  <div className="w-10 sm:w-12 h-2 bg-black rounded-full" />
-                </div>
-
-                {/* Mobile Storefront Screen */}
-                <div className="w-full bg-white rounded-[20px] overflow-hidden border border-slate-200">
-                  {/* Mobile Store Navbar */}
-                  <div className="h-6 sm:h-7 bg-white border-b border-slate-100 px-2 flex items-center justify-between text-[9px]">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2.5 h-1.5 flex flex-col justify-between">
-                        <span className="w-full h-0.5 bg-slate-700 rounded" />
-                        <span className="w-full h-0.5 bg-slate-700 rounded" />
-                      </div>
-                      <div className="w-3.5 h-3.5 rounded bg-amber-500/15 border border-amber-300/50 flex items-center justify-center text-amber-600 shrink-0">
-                        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-amber-500 stroke-amber-700 stroke-[0.7]">
-                          <path d="M18.06 6.88C17.5 4.09 15.02 2 12 2s-5.5 2.09-6.06 4.88C4.16 7.42 2.8 9.32 2.8 11.55c0 2.65 1.95 4.82 4.5 5.17V20c0 .55.45 1 1 1h7.4c.55 0 1-.45 1-1v-3.28c2.55-.35 4.5-2.52 4.5-5.17 0-2.23-1.36-4.13-3.14-4.67z" />
-                        </svg>
-                      </div>
-                      <span className="font-extrabold text-[8px] sm:text-[9px] text-amber-950">Daily Bakehouse</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <ShoppingBag className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-slate-800" />
-                      <span className="w-3 h-3 rounded-full bg-orange-500 text-white flex items-center justify-center text-[7px] font-bold">3</span>
-                    </div>
+                {/* CARD 1: Store Live */}
+                <div className="bg-white/95 backdrop-blur-md rounded-[16px] p-2 xl:p-2.5 border border-slate-200/90 shadow-[0_12px_28px_-6px_rgba(15,23,42,0.14)] space-y-0.5 pointer-events-auto transition-transform hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="text-[10px] font-black text-slate-900">Store Live</span>
                   </div>
-
-                  {/* Mobile Store Banner */}
-                  <div className="relative h-14 sm:h-16 bg-gradient-to-r from-[#FDF8F3] to-[#F5E6D3] overflow-hidden flex items-center p-2">
-                    <div className="relative z-10 space-y-0.5 max-w-[85px]">
-                      <h6 className="text-[7.5px] font-black text-amber-950 leading-tight">
-                        Freshly Baked <br />
-                        <span className="text-orange-600">Happiness</span>
-                      </h6>
-                      <button className="text-[6.5px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded shadow-2xs">
-                        Shop →
-                      </button>
-                    </div>
-                    <div className="absolute right-0 top-0 bottom-0 w-[55%] h-full">
-                      <Image
-                        src={bakeryDemoData.heroBannerImage}
-                        alt=""
-                        fill
-                        sizes="20vw"
-                        className="object-cover object-left"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mobile Product Cards (2 Items from bakeryDemoData) */}
-                  <div className="p-1 sm:p-1.5 bg-slate-50 space-y-1">
-                    <span className="text-[8px] font-bold text-slate-800 block">Best Sellers</span>
-                    <div className="grid grid-cols-2 gap-1">
-                      {bakeryDemoData.products.slice(0, 2).map((prod) => (
-                        <div key={prod.id} className="bg-white rounded p-1 border border-slate-100 space-y-0.5 shadow-2xs">
-                          <div className="relative w-full h-8 sm:h-9 rounded overflow-hidden">
-                            <Image
-                              src={prod.image}
-                              alt={prod.name}
-                              fill
-                              sizes="15vw"
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="text-[7px] font-bold text-slate-900 truncate">{prod.name}</div>
-                          <div className="text-[7px] font-black text-slate-900">₹{prod.price}</div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="text-[9px] font-mono text-emerald-700 truncate pl-3.5 font-semibold">
+                    yourbrand.letzshop.store
                   </div>
                 </div>
 
-                {/* Phone Bottom Home Bar */}
-                <div className="h-1 flex justify-center items-center mt-1">
-                  <div className="w-8 h-0.5 bg-slate-500 rounded-full" />
+                {/* CARD 2: 243 Orders */}
+                <div className="bg-white/95 backdrop-blur-md rounded-[16px] p-2 xl:p-2.5 border border-slate-200/90 shadow-[0_12px_28px_-6px_rgba(15,23,42,0.14)] space-y-0.5 pointer-events-auto transition-transform hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">🛒</span>
+                    <span className="text-[10px] font-black text-slate-900">243 Orders</span>
+                  </div>
+                  <div className="text-[8.5px] text-slate-500 pl-4 font-medium leading-tight">
+                    Orders managed in one place
+                  </div>
+                </div>
+
+                {/* CARD 3: UPI • Razorpay • COD */}
+                <div className="bg-white/95 backdrop-blur-md rounded-[16px] p-2 xl:p-2.5 border border-slate-200/90 shadow-[0_12px_28px_-6px_rgba(15,23,42,0.14)] space-y-0.5 pointer-events-auto transition-transform hover:scale-[1.02]">
+                  <div className="flex items-center gap-1 text-[9px] font-black text-slate-900">
+                    <CreditCard className="w-3 h-3 text-orange-500 shrink-0" />
+                    <span className="truncate">UPI • Razorpay • COD</span>
+                  </div>
+                  <div className="text-[8.5px] text-slate-500 pl-4 font-medium leading-tight">
+                    Multiple payment options
+                  </div>
+                </div>
+
+                {/* CARD 4: QR • Link • WhatsApp */}
+                <div className="bg-white/95 backdrop-blur-md rounded-[16px] p-2 xl:p-2.5 border border-slate-200/90 shadow-[0_12px_28px_-6px_rgba(15,23,42,0.14)] space-y-0.5 pointer-events-auto transition-transform hover:scale-[1.02]">
+                  <div className="flex items-center gap-1 text-[9px] font-black text-slate-900">
+                    <Share2 className="w-3 h-3 text-blue-500 shrink-0" />
+                    <span className="truncate">QR • Link • WhatsApp</span>
+                  </div>
+                  <div className="text-[8.5px] text-slate-500 pl-4 font-medium leading-tight">
+                    Share and sell everywhere
+                  </div>
                 </div>
               </div>
 
             </div>
+
+            {/* Mobile / Tablet Status Cards: 2x2 grid below storefront */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 w-full lg:hidden">
+              <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-2xs space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] font-bold text-slate-900">Store Live</span>
+                </div>
+                <div className="text-[8px] font-mono text-emerald-700 truncate">yourbrand.letzshop.store</div>
+              </div>
+
+              <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-2xs space-y-0.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs">🛒</span>
+                  <span className="text-[10px] font-bold text-slate-900">243 Orders</span>
+                </div>
+                <div className="text-[8px] text-slate-500">Orders managed in one place</div>
+              </div>
+
+              <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-2xs space-y-0.5">
+                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-900">
+                  <CreditCard className="w-3 h-3 text-orange-500" />
+                  <span>UPI • Razorpay</span>
+                </div>
+                <div className="text-[8px] text-slate-500">Multiple payment options</div>
+              </div>
+
+              <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-2xs space-y-0.5">
+                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-900">
+                  <Share2 className="w-3 h-3 text-blue-500" />
+                  <span>WhatsApp & Link</span>
+                </div>
+                <div className="text-[8px] text-slate-500">Share & sell everywhere</div>
+              </div>
+            </div>
+
           </div>
 
         </div>

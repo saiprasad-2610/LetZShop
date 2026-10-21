@@ -27,10 +27,10 @@ export const bakeryDemoData: BakeryDemoData = {
   navLinks: ['Home', 'Shop', 'Cakes', 'Cookies', 'Breads', 'About'],
   heroTitle: 'Freshly Baked',
   heroHighlight: 'Everyday Happiness',
-  heroDescription: 'Artisanal breads, cakes, cookies and more, made with the finest ingredients.',
+  heroDescription: 'Artisanal bakes, made with love and the finest ingredients.',
   heroCta: 'Shop Now',
   heroBannerImage: '/images/landing/bakery/hero-spread.jpg',
-  bestSellersTitle: 'Best Sellers',
+  bestSellersTitle: 'Our Bestsellers',
   products: [
     {
       id: 'butter-croissant',
