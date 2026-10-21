@@ -23,7 +23,7 @@ interface Screen1HeroProps {
 }
 
 export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
-  const { t } = useLandingI18n();
+  const { t, locale } = useLandingI18n();
 
   return (
     <section
@@ -47,21 +47,27 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
             {/* Eyebrow Pill */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wider shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-              <span>SIMPLE • POWERFUL • BUILT FOR GROWTH</span>
+              <span>{t('landing.heroEyebrow')}</span>
             </div>
 
             {/* Dominant Headline: 2 lines at >= 1440px */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[clamp(52px,3.8vw,72px)] font-black text-slate-900 tracking-tight leading-[1.02]">
-              <span className="block xl:whitespace-nowrap">Build the online store</span>
+            <h1 className="text-4xl sm:text-5xl lg:text-[clamp(50px,3.7vw,72px)] font-black text-slate-900 tracking-tight leading-[1.04]">
+              <span className="block xl:whitespace-nowrap">{t('landing.heroTitlePrefix')}</span>
               <span className="block mt-1">
-                <span className="text-[#FF6B00]">your brand</span>{' '}
-                <span className="text-slate-900">deserves.</span>
+                {locale === 'en-IN' ? (
+                  <>
+                    <span className="text-[#FF6B00]">your brand</span>{' '}
+                    <span className="text-slate-900">deserves.</span>
+                  </>
+                ) : (
+                  <span className="text-[#FF6B00]">{t('landing.heroTitleHighlight')}</span>
+                )}
               </span>
             </h1>
 
             {/* Description */}
             <p className="text-base sm:text-lg lg:text-[20px] text-slate-600 leading-relaxed font-normal max-w-[600px]">
-              Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell online — from one simple platform.
+              {t('landing.heroSupporting')}
             </p>
 
             {/* CTAs: ONLY TWO (CREATE STORE → & Merchant Login) */}
@@ -72,7 +78,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   id="hero-cta-create-store"
                   className="h-13 sm:h-[56px] px-8 sm:px-9 rounded-[16px] bg-[#FF6B00] hover:bg-[#E05E00] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-xl shadow-orange-500/30 hover:shadow-orange-500/40 flex items-center justify-center gap-2.5 active:scale-[0.98]"
                 >
-                  <span>CREATE STORE</span>
+                  <span>{t('landing.heroCtaPrimary')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </a>
 
@@ -81,13 +87,13 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   id="hero-cta-merchant-login"
                   className="h-13 sm:h-[56px] px-8 rounded-[16px] bg-white hover:bg-slate-50 text-slate-900 hover:text-slate-950 border-2 border-slate-300 font-bold text-sm tracking-wide transition shadow-xs hover:shadow flex items-center justify-center gap-2 active:scale-[0.98]"
                 >
-                  <span>Merchant Login</span>
+                  <span>{t('landing.heroCtaSecondary')}</span>
                 </a>
               </div>
 
               {/* Reassurance text */}
               <p className="text-xs text-slate-400 font-medium pl-1">
-                Setup in minutes
+                {t('landing.heroReassurance')}
               </p>
             </div>
 
@@ -99,7 +105,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <Link2 className="w-5 h-5 -rotate-45" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  Branded storefront & link
+                  {t('landing.advantageStorefront')}
                 </span>
               </div>
 
@@ -109,7 +115,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  UPI & Razorpay payments
+                  {t('landing.advantagePayments')}
                 </span>
               </div>
 
@@ -119,7 +125,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <MessageCircle className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  WhatsApp commerce & enquiries
+                  {t('landing.advantageWhatsapp')}
                 </span>
               </div>
 
@@ -129,7 +135,7 @@ export const Screen1Hero: React.FC<Screen1HeroProps> = ({ sellerUrl }) => {
                   <Palette className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 leading-tight">
-                  Custom storefront
+                  {t('landing.advantageCustom')}
                 </span>
               </div>
             </div>

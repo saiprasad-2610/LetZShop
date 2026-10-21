@@ -52,7 +52,7 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({ sellerUrl }) => {
 
         {/* Right Section: Language Switcher & CTAs */}
         <div className="hidden sm:flex items-center gap-2.5">
-          {/* Simple English | मराठी Language Switcher */}
+          {/* Simple English | मराठी | हिंदी Language Switcher */}
           <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50/80 p-0.5 text-xs font-semibold" aria-label="Language Selector">
             <button
               type="button"
@@ -76,6 +76,18 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({ sellerUrl }) => {
               }`}
             >
               मराठी
+            </button>
+            <span className="text-slate-300 select-none">|</span>
+            <button
+              type="button"
+              onClick={() => setLocale('hi-IN')}
+              className={`px-2 py-1 rounded-md transition-all ${
+                locale === 'hi-IN'
+                  ? 'bg-white text-blue-700 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              हिंदी
             </button>
           </div>
 
@@ -124,6 +136,14 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({ sellerUrl }) => {
               className={`px-1.5 py-0.5 rounded transition ${locale === 'mr-IN' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600'}`}
             >
               मराठी
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              type="button"
+              onClick={() => setLocale('hi-IN')}
+              className={`px-1.5 py-0.5 rounded transition ${locale === 'hi-IN' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600'}`}
+            >
+              हिंदी
             </button>
           </div>
 

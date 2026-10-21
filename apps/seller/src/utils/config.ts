@@ -1,21 +1,33 @@
 /**
  * Environment-safe URL configuration helpers for Seller Portal.
- * Resolves origins without hardcoding localhost in production.
+ * Resolves origins without hardcoding localhost in production
+ * and without routing to suspended or deprecated endpoints.
  */
 
 export function getStorefrontUrl(): string {
   // 1. Explicit build/runtime environment variable
-  if (process.env.NEXT_PUBLIC_STOREFRONT_URL && process.env.NEXT_PUBLIC_STOREFRONT_URL.trim() !== '') {
-    return process.env.NEXT_PUBLIC_STOREFRONT_URL.trim().replace(/\/+$/, '');
+  const envStorefront =
+    process.env.NEXT_PUBLIC_STOREFRONT_URL ||
+    process.env.STOREFRONT_URL ||
+    process.env.STOREFRONT_BASE_URL;
+
+  if (envStorefront && envStorefront.trim() !== '') {
+    return envStorefront.trim().replace(/\/+$/, '');
   }
 
   // 2. Client-side dynamic origin resolution
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
 
-    // Render cloud deployment
-    if (host.includes('onrender.com')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
+    // Local development
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.endsWith('.local')
+    ) {
+      return `http://${host}:3000`;
     }
 
     // Letz Shop production domain
@@ -23,34 +35,43 @@ export function getStorefrontUrl(): string {
       return 'https://letzshop.store';
     }
 
-    // Any other live production domain or public IP
-    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
-      return 'https://simply-e-commerce-frontend.onrender.com';
+    // Dynamic sibling resolution if deployed on a custom domain with subdomains
+    if (host.includes('.')) {
+      const parts = host.split('.');
+      if (parts.length >= 2) {
+        return `${window.location.protocol}//${parts.slice(-2).join('.')}`;
+      }
     }
   }
 
-  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed storefront URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
-    return 'https://simply-e-commerce-frontend.onrender.com';
-  }
-
-  // 4. Fallback for local development
+  // 3. Server-side SSR / SSG build fallback
   return 'http://localhost:3000';
 }
 
 export function getSellerUrl(): string {
   // 1. Explicit build/runtime environment variable
-  if (process.env.NEXT_PUBLIC_SELLER_URL && process.env.NEXT_PUBLIC_SELLER_URL.trim() !== '') {
-    return process.env.NEXT_PUBLIC_SELLER_URL.trim().replace(/\/+$/, '');
+  const envSeller =
+    process.env.NEXT_PUBLIC_SELLER_URL ||
+    process.env.SELLER_URL ||
+    process.env.SELLER_DASHBOARD_URL;
+
+  if (envSeller && envSeller.trim() !== '') {
+    return envSeller.trim().replace(/\/+$/, '');
   }
 
   // 2. Client-side dynamic origin resolution
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
 
-    // Render cloud deployment
-    if (host.includes('onrender.com')) {
-      return 'https://simply-ecommerce-seller.onrender.com';
+    // Local development
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.endsWith('.local')
+    ) {
+      return `http://${host}:3001`;
     }
 
     // Letz Shop production domain
@@ -58,18 +79,16 @@ export function getSellerUrl(): string {
       return 'https://seller.letzshop.store';
     }
 
-    // Any other live production domain or public IP
-    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
-      return 'https://simply-ecommerce-seller.onrender.com';
+    // Dynamic sibling resolution if deployed on a custom domain with subdomains
+    if (host.includes('.')) {
+      const parts = host.split('.');
+      if (parts.length >= 2) {
+        return `${window.location.protocol}//seller.${parts.slice(-2).join('.')}`;
+      }
     }
   }
 
-  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
-    return 'https://simply-ecommerce-seller.onrender.com';
-  }
-
-  // 4. Fallback for local development
+  // 3. Server-side SSR / SSG build fallback
   return 'http://localhost:3001';
 }
 
