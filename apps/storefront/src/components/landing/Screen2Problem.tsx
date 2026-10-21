@@ -175,7 +175,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Center Down Arrow: Badge -> Monitor Top Bezel */}
                 <path
-                  d="M 448 278 L 448 306"
+                  d="M 388 278 L 388 306"
                   stroke="#FF6B00"
                   strokeWidth="2.5"
                   strokeLinecap="round"
@@ -202,7 +202,7 @@ export const Screen2Problem: React.FC = () => {
               </svg>
 
               {/* Central Convergence Circular Down-Arrow Badge (~52px) */}
-              <div className="absolute top-[250px] left-[448px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
+              <div className="absolute top-[250px] left-[388px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
                 <div className="w-13 h-13 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-orange-500/35 border-2 border-white">
                   <ArrowDown className="w-5 h-5 stroke-[2.5]" />
                 </div>
