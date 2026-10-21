@@ -157,7 +157,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Top-Left: WhatsApp Orders -> Convergence Badge */}
                 <path
-                  d="M 305 145 C 350 165 395 195 440 232"
+                  d="M 305 145 C 345 165 390 195 430 232"
                   stroke="#FF6B00"
                   strokeWidth="2"
                   strokeDasharray="5 4"
@@ -166,7 +166,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Top-Right: Payment Screenshots -> Convergence Badge */}
                 <path
-                  d="M 587 145 C 545 165 495 195 475 232"
+                  d="M 587 145 C 540 165 490 195 466 232"
                   stroke="#FF6B00"
                   strokeWidth="2"
                   strokeDasharray="5 4"
@@ -175,7 +175,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Center Down Arrow: Badge -> Monitor Top Bezel */}
                 <path
-                  d="M 460 278 L 460 306"
+                  d="M 448 278 L 448 306"
                   stroke="#FF6B00"
                   strokeWidth="2.5"
                   strokeLinecap="round"
@@ -184,7 +184,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Down-Left Arc: Badge -> Monitor Top Left */}
                 <path
-                  d="M 446 272 C 425 285 390 298 355 308"
+                  d="M 434 272 C 413 285 378 298 343 308"
                   stroke="#FF6B00"
                   strokeWidth="1.8"
                   strokeDasharray="4 3"
@@ -193,7 +193,7 @@ export const Screen2Problem: React.FC = () => {
 
                 {/* Down-Right Arc: Badge -> Monitor Top Right */}
                 <path
-                  d="M 474 272 C 495 285 530 298 565 308"
+                  d="M 462 272 C 483 285 518 298 553 308"
                   stroke="#FF6B00"
                   strokeWidth="1.8"
                   strokeDasharray="4 3"
@@ -202,7 +202,7 @@ export const Screen2Problem: React.FC = () => {
               </svg>
 
               {/* Central Convergence Circular Down-Arrow Badge (~52px) */}
-              <div className="absolute top-[250px] left-[460px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
+              <div className="absolute top-[250px] left-[448px] -translate-x-1/2 -translate-y-1/2 z-25 pointer-events-none">
                 <div className="w-13 h-13 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-orange-500/35 border-2 border-white">
                   <ArrowDown className="w-5 h-5 stroke-[2.5]" />
                 </div>
