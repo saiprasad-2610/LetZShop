@@ -54,9 +54,18 @@ export function getApiUrl(): string {
   }
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
-    if (host.includes('onrender.com')) {
+    if (
+      host.includes('vercel.app') ||
+      host.includes('onrender.com') ||
+      host === 'letzshop.store' ||
+      host.endsWith('.letzshop.store') ||
+      (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.'))
+    ) {
       return 'https://simply-ecommerce-api.onrender.com';
     }
+  }
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.VERCEL === '1') {
+    return 'https://simply-ecommerce-api.onrender.com';
   }
   return 'http://localhost:4000';
 }

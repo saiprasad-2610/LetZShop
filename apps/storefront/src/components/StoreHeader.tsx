@@ -28,7 +28,17 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
 
   const getQueryPath = (path: string) => {
     const params = new URLSearchParams();
-    if (router.query.preview === 'true') params.set('preview', 'true');
+    if (
+      router.query.preview === 'true' ||
+      (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
+    ) {
+      params.set('preview', 'true');
+    }
+    const secret =
+      (typeof router.query.previewSecret === 'string' && router.query.previewSecret.trim() ? router.query.previewSecret.trim() : undefined) ||
+      (typeof router.query.preview === 'string' && router.query.preview !== 'true' && router.query.preview.trim() ? router.query.preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (secret) params.set('previewSecret', secret);
     if (router.query.embedded === 'true') params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;

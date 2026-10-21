@@ -60,7 +60,13 @@ export default function StoreHomePage() {
     }
     const effectiveSecret =
       (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined);
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (effectiveSecret) {
+      try {
+        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
+      } catch {}
+    }
     loadStorefront(String(slug), effectiveSecret);
   }, [slug, preview, previewSecret]);
 
@@ -235,6 +241,11 @@ export default function StoreHomePage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
+    const secret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
@@ -276,6 +287,7 @@ export default function StoreHomePage() {
             onClick={() => {
               try {
                 sessionStorage.removeItem('simply_merchant_preview');
+                sessionStorage.removeItem('simply_merchant_preview_secret');
               } catch {}
               if (window.opener) {
                 window.close();

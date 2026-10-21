@@ -28,7 +28,7 @@ import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreProductsPage() {
   const router = useRouter();
-  const { slug, preview, category: categoryQuery } = router.query;
+  const { slug, preview, previewSecret, category: categoryQuery } = router.query;
   const { setStoreId, api, addItem } = useCart();
   const toast = useToast();
   const { t } = useStorefrontI18n();
@@ -43,8 +43,22 @@ export default function StoreProductsPage() {
 
   useEffect(() => {
     if (!slug) return;
-    loadStorefront(String(slug), preview ? String(preview) : undefined);
-  }, [slug, preview]);
+    if (preview === 'true') {
+      try {
+        sessionStorage.setItem('simply_merchant_preview', 'true');
+      } catch {}
+    }
+    const effectiveSecret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (effectiveSecret) {
+      try {
+        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
+      } catch {}
+    }
+    loadStorefront(String(slug), effectiveSecret);
+  }, [slug, preview, previewSecret]);
 
   useEffect(() => {
     if (categoryQuery && typeof categoryQuery === 'string') {
@@ -104,6 +118,11 @@ export default function StoreProductsPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
+    const secret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;

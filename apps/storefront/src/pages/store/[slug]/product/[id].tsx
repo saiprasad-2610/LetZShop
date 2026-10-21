@@ -32,7 +32,7 @@ import { getProductTranslation } from '../../../../utils/productTranslation';
 
 export default function ProductDetailPage() {
   const router = useRouter();
-  const { slug, id, preview } = router.query;
+  const { slug, id, preview, previewSecret } = router.query;
   const { api, setStoreId, addItem } = useCart();
   const { locale, t, initStoreLocales } = useStorefrontI18n();
   const toast = useToast();
@@ -230,8 +230,22 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!slug || !id) return;
-    loadData(String(slug), String(id), preview ? String(preview) : undefined);
-  }, [slug, id, preview]);
+    if (preview === 'true') {
+      try {
+        sessionStorage.setItem('simply_merchant_preview', 'true');
+      } catch {}
+    }
+    const effectiveSecret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (effectiveSecret) {
+      try {
+        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
+      } catch {}
+    }
+    loadData(String(slug), String(id), effectiveSecret);
+  }, [slug, id, preview, previewSecret]);
 
   const loadData = async (storeSlug: string, productId: string, previewSecret?: string) => {
     setLoading(true);

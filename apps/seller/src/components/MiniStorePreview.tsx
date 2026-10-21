@@ -47,9 +47,15 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
       ? `/store/${slug}/about`
       : `/store/${slug}`;
 
-  const previewIframeUrl = `${storefrontUrl}${pagePath}?preview=true&embedded=true${
-    refreshKey > 0 ? `&_t=${refreshKey}` : ''
-  }`;
+  const previewParams = new URLSearchParams({ preview: 'true', embedded: 'true' });
+  if (store?.previewSecret) {
+    previewParams.set('previewSecret', store.previewSecret);
+  }
+  if (refreshKey > 0) {
+    previewParams.set('_t', String(refreshKey));
+  }
+
+  const previewIframeUrl = `${storefrontUrl}${pagePath}?${previewParams.toString()}`;
 
   const handlePageSwitch = (page: 'home' | 'products' | 'about') => {
     setCurrentPage(page);

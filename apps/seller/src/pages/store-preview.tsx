@@ -49,9 +49,14 @@ export default function StorePreviewPage() {
     activePreviewPage === 'products' ? '/products' : activePreviewPage === 'about' ? '/about' : '';
 
   useEffect(() => {
-    setCustomerPreviewUrl(`${getStoreCustomerPreviewUrl(storeSlug)}${customerPreviewPagePath}`);
-    setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive));
-  }, [storeSlug, isLive, customerPreviewPagePath]);
+    setCustomerPreviewUrl(
+      getStoreCustomerPreviewUrl(storeSlug, {
+        previewSecret: store?.previewSecret,
+        subpath: customerPreviewPagePath,
+      })
+    );
+    setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive, store?.previewSecret));
+  }, [storeSlug, isLive, customerPreviewPagePath, store?.previewSecret]);
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {

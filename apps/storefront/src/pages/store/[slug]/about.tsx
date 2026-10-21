@@ -26,7 +26,7 @@ import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreAboutPage() {
   const router = useRouter();
-  const { slug, preview } = router.query;
+  const { slug, preview, previewSecret } = router.query;
   const { setStoreId, api } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -34,8 +34,22 @@ export default function StoreAboutPage() {
 
   useEffect(() => {
     if (!slug) return;
-    loadStorefront(String(slug), preview ? String(preview) : undefined);
-  }, [slug, preview]);
+    if (preview === 'true') {
+      try {
+        sessionStorage.setItem('simply_merchant_preview', 'true');
+      } catch {}
+    }
+    const effectiveSecret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (effectiveSecret) {
+      try {
+        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
+      } catch {}
+    }
+    loadStorefront(String(slug), effectiveSecret);
+  }, [slug, preview, previewSecret]);
 
   // Live real-time studio preview sync
   useEffect(() => {
@@ -89,6 +103,11 @@ export default function StoreAboutPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
+    const secret =
+      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
+    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
