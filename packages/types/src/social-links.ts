@@ -77,7 +77,11 @@ export function parseSocialLink(
         url.username ||
         url.password ||
         url.port ||
-        !hosts[platform].includes(url.hostname)
+        !(
+          hosts[platform].includes(url.hostname) ||
+          (platform === 'linkedin' &&
+            /^[a-z]{2}\.linkedin\.com$/.test(url.hostname))
+        )
       )
         return invalid;
       const pathname = decodeURIComponent(url.pathname);
@@ -117,15 +121,15 @@ export function parseSocialLink(
           return invalid;
         url.hostname = 'linkedin.com';
       } else if (platform === 'youtube') {
-        const handle =
-          parts[0].startsWith('@') &&
-          parts.length === 1 &&
-          youtubeHandle(parts[0].slice(1));
-        const channel =
+        // Existing channel vanity/subpage and video URLs remain valid platform links.
+        if (parts[0].startsWith('@') && !youtubeHandle(parts[0].slice(1)))
+          return invalid;
+        if (!/^@?[\p{L}\p{N}\p{M}_.-]+$/u.test(parts[0])) return invalid;
+        if (
           ['channel', 'c', 'user'].includes(parts[0]) &&
-          parts.length >= 2 &&
-          /^[\p{L}\p{N}\p{M}_.-]+$/u.test(parts[1]);
-        if (!handle && !channel) return invalid;
+          (parts.length < 2 || !/^[\p{L}\p{N}\p{M}_.-]+$/u.test(parts[1]))
+        )
+          return invalid;
         url.hostname = 'youtube.com';
       } else {
         if (platform === 'instagram' && !instagramHandle(parts[0]))

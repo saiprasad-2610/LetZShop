@@ -221,6 +221,64 @@ try {
       }
       await input(platform).fill(raw[platform]);
       assert.equal(await input(platform).getAttribute('aria-invalid'), null);
+      if (evidenceOnly) {
+        const alternatives =
+          platform === 'youtube'
+            ? [
+                [
+                  'https://www.youtube.com/BrandChannel/videos',
+                  'https://youtube.com/BrandChannel/videos',
+                ],
+                [
+                  'https://youtube.com/watch?v=dQw4w9WgXcQ',
+                  'https://youtube.com/watch?v=dQw4w9WgXcQ',
+                ],
+              ]
+            : platform === 'linkedin'
+              ? [
+                  [
+                    'https://in.linkedin.com/in/person-name',
+                    'https://linkedin.com/in/person-name',
+                  ],
+                ]
+              : [];
+        for (const [value, canonical] of alternatives) {
+          await input(platform).fill(value);
+          assert.equal(
+            await input(platform).getAttribute('aria-invalid'),
+            null,
+          );
+          await page.waitForTimeout(300);
+          assert.equal(
+            await frame()
+              .locator('footer a[title="' + titles[platform] + '"]')
+              .getAttribute('href'),
+            canonical,
+          );
+          assert.equal(
+            (
+              await request('PUT', '/themes/config', {
+                themeCode: 'aura',
+                configJson: {
+                  ...fixture,
+                  themeId: 'aura',
+                  footer: {
+                    ...fixture.footer,
+                    socialLinks: { ...raw, [platform]: value },
+                  },
+                },
+              })
+            ).status,
+            200,
+          );
+          assert.equal(
+            (await request('GET', '/themes/config')).body.data.configJson.footer
+              .socialLinks[platform],
+            canonical,
+          );
+        }
+        await input(platform).fill(raw[platform]);
+      }
     }
     await page.waitForTimeout(300);
     await assertSocials(frame());

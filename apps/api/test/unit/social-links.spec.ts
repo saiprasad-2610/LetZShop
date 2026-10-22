@@ -38,6 +38,21 @@ const valid: Array<[SocialPlatform, string, string]> = [
   ['youtube', '@brandchannel', 'https://youtube.com/@brandchannel'],
   [
     'youtube',
+    'https://www.youtube.com/BrandChannel/videos',
+    'https://youtube.com/BrandChannel/videos',
+  ],
+  [
+    'youtube',
+    'https://youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://youtube.com/watch?v=dQw4w9WgXcQ',
+  ],
+  [
+    'linkedin',
+    'https://in.linkedin.com/in/person-name',
+    'https://linkedin.com/in/person-name',
+  ],
+  [
+    'youtube',
     '@मराठीदुकान',
     'https://youtube.com/@' + encodeURIComponent('मराठीदुकान'),
   ],
