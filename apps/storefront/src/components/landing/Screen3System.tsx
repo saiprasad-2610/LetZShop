@@ -1216,19 +1216,17 @@ export const Screen3System: React.FC = () => {
               return (
                 <div
                   key={cap.id}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_4px_14px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-2.5"
+                  className="min-w-0 row-span-3 grid grid-rows-subgrid gap-y-1 p-3 sm:p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_4px_14px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:shadow-md transition-all duration-200"
                 >
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${cap.badgeColor} shadow-2xs`}>
+                  <div className={`w-11 h-11 mb-1.5 rounded-xl flex items-center justify-center border ${cap.badgeColor} shadow-2xs`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h5 className="font-bold text-[16px] sm:text-[17px] text-slate-900 tracking-tight leading-snug">
-                      {cap.title}
-                    </h5>
-                    <p className="text-[13px] sm:text-[13.5px] text-slate-600 font-normal leading-relaxed mt-1">
-                      {cap.desc}
-                    </p>
-                  </div>
+                  <h5 className="font-bold text-[16px] sm:text-[17px] text-slate-900 tracking-tight leading-snug">
+                    {cap.title}
+                  </h5>
+                  <p className="text-[13px] text-slate-600 font-normal leading-relaxed">
+                    {cap.desc}
+                  </p>
                 </div>
               );
             })}
