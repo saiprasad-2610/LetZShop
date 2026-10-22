@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { TenantContext, catalogHeaderErrors, normalizeCatalogHeader } from '@simply/types';
+import { TenantContext, brandTextErrors, normalizeBrandText } from '@simply/types';
 
 @Injectable()
 export class ThemesService {
@@ -26,6 +26,8 @@ export class ThemesService {
       bannerUrl?: string;
     }
   ) {
+    const announcementErrors = brandTextErrors(dto.announcement === undefined ? {} : { announcement: { text: dto.announcement } });
+    if (announcementErrors.length) throw new BadRequestException(announcementErrors);
     const validData: any = {};
     if (dto.primaryColor !== undefined) validData.primaryColor = dto.primaryColor;
     if (dto.accentColor !== undefined) validData.accentColor = dto.accentColor;
@@ -72,7 +74,7 @@ export class ThemesService {
 
     return {
       activeTheme,
-      configJson: normalizeCatalogHeader(activeConfig?.configJson || activeTheme?.configJson || {}),
+      configJson: normalizeBrandText(activeConfig?.configJson || activeTheme?.configJson || {}),
       branding,
       sections,
     };
@@ -101,7 +103,10 @@ export class ThemesService {
       }>;
     }
   ) {
-    const errors = catalogHeaderErrors(dto.configJson);
+    const errors = [
+      ...brandTextErrors(dto.configJson),
+      ...brandTextErrors(dto.branding?.announcement === undefined ? {} : { announcement: { text: dto.branding.announcement } }),
+    ];
     if (errors.length) throw new BadRequestException(errors);
 
     return this.prisma.$transaction(async (tx) => {
@@ -148,13 +153,13 @@ export class ThemesService {
               },
             },
             update: {
-              configJson: normalizeCatalogHeader(dto.configJson || theme.configJson || {}),
+              configJson: normalizeBrandText(dto.configJson || theme.configJson || {}),
               updatedAt: new Date(),
             },
             create: {
               storeId: tenant.storeId,
               themeId: theme.id,
-              configJson: normalizeCatalogHeader(dto.configJson || theme.configJson || {}),
+              configJson: normalizeBrandText(dto.configJson || theme.configJson || {}),
             },
           });
         }

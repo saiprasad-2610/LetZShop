@@ -54,7 +54,7 @@ import { Layout } from '../components/Layout';
 import { ThemeColorField } from '../components/ThemeColorField';
 import { MiniStorePreview } from '../components/MiniStorePreview';
 import { CatalogTextField } from '../components/CatalogTextField';
-import { CATALOG_EYEBROW_MAX, CATALOG_TITLE_MAX, CATALOG_SUBTITLE_MAX, normalizeCatalogHeader } from '@simply/types';
+import { CATALOG_EYEBROW_MAX, CATALOG_TITLE_MAX, CATALOG_SUBTITLE_MAX, normalizeBrandText, clampCatalogText, BRAND_TEXT_LIMITS, HOME_TEXT_LIMITS, ABOUT_TEXT_LIMITS, ABOUT_VALUE_LIMITS, brandTextLimit } from '@simply/types';
 import { useAuth } from '../context/AuthContext';
 import {
   FOUNDATIONAL_THEMES,
@@ -97,7 +97,7 @@ export default function BrandStudioPage() {
   // A newly navigated catalog requests current edits after its data is ready.
   useEffect(() => {
     const ready = (event: MessageEvent) => {
-      if (event.source === iframeRef.current?.contentWindow && event.data?.type === 'CATALOG_PREVIEW_READY') {
+      if (event.source === iframeRef.current?.contentWindow && ['CATALOG_PREVIEW_READY', 'BRAND_PREVIEW_READY'].includes(event.data?.type)) {
         setPreviewRevision((revision) => revision + 1);
       }
     };
@@ -272,12 +272,12 @@ export default function BrandStudioPage() {
       setStore(storeRes);
 
       if (storeRes) {
-        if (!aboutPageTitle) setAboutPageTitle(`About ${storeRes.name || 'Our Boutique'}`);
+        if (!aboutPageTitle) setAboutPageTitle(clampCatalogText(`About ${storeRes.name || 'Our Boutique'}`, ABOUT_TEXT_LIMITS.pageTitle));
         if (storeRes.supportPhone) {
-          setAboutPhone(storeRes.supportPhone);
+          setAboutPhone(clampCatalogText(storeRes.supportPhone, ABOUT_TEXT_LIMITS.contactPhone));
         }
-        if (storeRes.supportEmail) setAboutEmail(storeRes.supportEmail);
-        if (storeRes.businessAddress) setPhysicalStoreAddress(storeRes.businessAddress);
+        if (storeRes.supportEmail) setAboutEmail(clampCatalogText(storeRes.supportEmail, ABOUT_TEXT_LIMITS.contactEmail));
+        if (storeRes.businessAddress) setPhysicalStoreAddress(clampCatalogText(storeRes.businessAddress, ABOUT_TEXT_LIMITS.storeAddress));
         if (storeRes.socialLinks) {
           setSocialInstagram(storeRes.socialLinks.instagram || '');
           setSocialWhatsapp(storeRes.socialLinks.whatsapp || '');
@@ -290,7 +290,7 @@ export default function BrandStudioPage() {
 
       if (storeRes?.branding) {
         if (storeRes.branding.logoUrl) setLogoUrl(storeRes.branding.logoUrl);
-        if (storeRes.branding.bannerUrl) setHeroBannerUrl(storeRes.branding.bannerUrl);
+        if (storeRes.branding.bannerUrl) setHeroBannerUrl(clampCatalogText(storeRes.branding.bannerUrl, brandTextLimit(storeRes.branding.bannerUrl, HOME_TEXT_LIMITS.heroBannerUrl, true)));
         if (normalizeHexColor(storeRes.branding.primaryColor)) setPrimaryColor(normalizeHexColor(storeRes.branding.primaryColor)!);
         if (normalizeHexColor(storeRes.branding.accentColor)) setAccentColor(normalizeHexColor(storeRes.branding.accentColor)!);
         if (storeRes.branding.logoSize) setLogoSize(Number(storeRes.branding.logoSize));
@@ -298,7 +298,7 @@ export default function BrandStudioPage() {
       }
 
       if (configRes) {
-        const cfg = normalizeCatalogHeader(configRes.configJson || configRes);
+        const cfg = normalizeBrandText(configRes.configJson || configRes);
         loadedConfigRef.current = cfg;
         const activeThemeCode =
           configRes.activeTheme?.code?.toLowerCase() || cfg.themeId || selectedThemeId;
@@ -324,20 +324,20 @@ export default function BrandStudioPage() {
         if (cfg.buttonStyle) setButtonStyle(cfg.buttonStyle);
         if (cfg.imageRatio) setImageRatio(cfg.imageRatio);
         if (cfg.announcementBarStyle) setAnnouncementBarStyle(cfg.announcementBarStyle);
-        if (cfg.physicalStoreAddress) setPhysicalStoreAddress(cfg.physicalStoreAddress);
-        if (cfg.physicalStoreTimings) setPhysicalStoreTimings(cfg.physicalStoreTimings);
+        if (cfg.physicalStoreAddress !== undefined) setPhysicalStoreAddress(cfg.physicalStoreAddress);
+        if (cfg.physicalStoreTimings !== undefined) setPhysicalStoreTimings(cfg.physicalStoreTimings);
 
         // Load custom home page fields
         if (cfg.pages?.home) {
           const h = cfg.pages.home;
-          if (h.heroBadge) setHomeHeroBadge(h.heroBadge);
-          if (h.heroTitle) setHomeHeroTitle(h.heroTitle);
-          if (h.heroSubtitle) setHomeHeroSubtitle(h.heroSubtitle);
-          if (h.heroCtaText) setHomeCtaText(h.heroCtaText);
-          if (h.heroCtaLink) setHomeCtaLink(h.heroCtaLink);
-          if (h.heroSecondaryCtaText) setHomeSecondaryCtaText(h.heroSecondaryCtaText);
-          if (h.heroSecondaryCtaLink) setHomeSecondaryCtaLink(h.heroSecondaryCtaLink);
-          if (h.heroBannerUrl) setHeroBannerUrl(h.heroBannerUrl);
+          if (h.heroBadge !== undefined) setHomeHeroBadge(h.heroBadge);
+          if (h.heroTitle !== undefined) setHomeHeroTitle(h.heroTitle);
+          if (h.heroSubtitle !== undefined) setHomeHeroSubtitle(h.heroSubtitle);
+          if (h.heroCtaText !== undefined) setHomeCtaText(h.heroCtaText);
+          if (h.heroCtaLink !== undefined) setHomeCtaLink(h.heroCtaLink);
+          if (h.heroSecondaryCtaText !== undefined) setHomeSecondaryCtaText(h.heroSecondaryCtaText);
+          if (h.heroSecondaryCtaLink !== undefined) setHomeSecondaryCtaLink(h.heroSecondaryCtaLink);
+          if (h.heroBannerUrl !== undefined) setHeroBannerUrl(h.heroBannerUrl);
         }
 
         // Load custom products page fields
@@ -351,28 +351,28 @@ export default function BrandStudioPage() {
         // Load custom about us page fields
         if (cfg.pages?.about) {
           const a = cfg.pages.about;
-          if (a.pageTitle) setAboutPageTitle(a.pageTitle);
-          if (a.tagline) setAboutTagline(a.tagline);
-          if (a.storyParagraph1) setAboutStoryP1(a.storyParagraph1);
-          if (a.storyParagraph2) setAboutStoryP2(a.storyParagraph2);
-          if (a.missionTitle) setAboutMissionTitle(a.missionTitle);
-          if (a.missionText) setAboutMissionText(a.missionText);
-          if (a.visionTitle) setAboutVisionTitle(a.visionTitle);
-          if (a.visionText) setAboutVisionText(a.visionText);
+          if (a.pageTitle !== undefined) setAboutPageTitle(a.pageTitle);
+          if (a.tagline !== undefined) setAboutTagline(a.tagline);
+          if (a.storyParagraph1 !== undefined) setAboutStoryP1(a.storyParagraph1);
+          if (a.storyParagraph2 !== undefined) setAboutStoryP2(a.storyParagraph2);
+          if (a.missionTitle !== undefined) setAboutMissionTitle(a.missionTitle);
+          if (a.missionText !== undefined) setAboutMissionText(a.missionText);
+          if (a.visionTitle !== undefined) setAboutVisionTitle(a.visionTitle);
+          if (a.visionText !== undefined) setAboutVisionText(a.visionText);
           if (Array.isArray(a.values) && a.values.length >= 3) {
-            setPillar1Title(a.values[0]?.title || pillar1Title);
-            setPillar1Desc(a.values[0]?.desc || pillar1Desc);
-            setPillar2Title(a.values[1]?.title || pillar2Title);
-            setPillar2Desc(a.values[1]?.desc || pillar2Desc);
-            setPillar3Title(a.values[2]?.title || pillar3Title);
-            setPillar3Desc(a.values[2]?.desc || pillar3Desc);
+            setPillar1Title(a.values[0]?.title ?? pillar1Title);
+            setPillar1Desc(a.values[0]?.desc ?? pillar1Desc);
+            setPillar2Title(a.values[1]?.title ?? pillar2Title);
+            setPillar2Desc(a.values[1]?.desc ?? pillar2Desc);
+            setPillar3Title(a.values[2]?.title ?? pillar3Title);
+            setPillar3Desc(a.values[2]?.desc ?? pillar3Desc);
           }
-          if (a.storeAddress) setPhysicalStoreAddress(a.storeAddress);
-          if (a.storeHours) setPhysicalStoreTimings(a.storeHours);
-          if (a.contactPhone) setAboutPhone(a.contactPhone);
-          if (a.contactEmail) setAboutEmail(a.contactEmail);
-          if (a.bannerUrl) setAboutBannerUrl(a.bannerUrl);
-          else if (a.imageUrl) setAboutBannerUrl(a.imageUrl);
+          if (a.storeAddress !== undefined) setPhysicalStoreAddress(a.storeAddress);
+          if (a.storeHours !== undefined) setPhysicalStoreTimings(a.storeHours);
+          if (a.contactPhone !== undefined) setAboutPhone(a.contactPhone);
+          if (a.contactEmail !== undefined) setAboutEmail(a.contactEmail);
+          if (a.bannerUrl !== undefined) setAboutBannerUrl(a.bannerUrl);
+          else if (a.imageUrl !== undefined) setAboutBannerUrl(a.imageUrl);
         } else if (cfg.storeStory) {
           setAboutStoryP1(cfg.storeStory);
         }
@@ -483,7 +483,7 @@ export default function BrandStudioPage() {
                 pageSubtitle: productsPageSubtitle,
               },
               about: {
-                pageTitle: aboutPageTitle || `About ${store?.name || 'Our Boutique'}`,
+                pageTitle: aboutPageTitle,
                 tagline: aboutTagline,
                 storyParagraph1: aboutStoryP1,
                 storyParagraph2: aboutStoryP2,
@@ -492,9 +492,9 @@ export default function BrandStudioPage() {
                 visionTitle: aboutVisionTitle,
                 visionText: aboutVisionText,
                 values: [
-                  { title: pillar1Title, desc: pillar1Desc },
-                  { title: pillar2Title, desc: pillar2Desc },
-                  { title: pillar3Title, desc: pillar3Desc },
+                  { ...loadedConfigRef.current.pages?.about?.values?.[0], title: pillar1Title, desc: pillar1Desc },
+                  { ...loadedConfigRef.current.pages?.about?.values?.[1], title: pillar2Title, desc: pillar2Desc },
+                  { ...loadedConfigRef.current.pages?.about?.values?.[2], title: pillar3Title, desc: pillar3Desc },
                 ],
                 storeAddress: physicalStoreAddress,
                 storeHours: physicalStoreTimings,
@@ -792,7 +792,7 @@ export default function BrandStudioPage() {
     setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout1200'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'hero', (msg) => setUploadStepMessage(msg));
-      setHeroBannerUrl(url);
+      setHeroBannerUrl(clampCatalogText(url, brandTextLimit(url, HOME_TEXT_LIMITS.heroBannerUrl, true)));
       setHomeBannerMeta(meta);
     } catch (err: any) {
       alert(err.message || t('brandStudio.failedToUploadBanner'));
@@ -808,7 +808,7 @@ export default function BrandStudioPage() {
     setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout1200'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'hero', (msg) => setUploadStepMessage(msg));
-      setHeroBannerUrl(url);
+      setHeroBannerUrl(clampCatalogText(url, brandTextLimit(url, HOME_TEXT_LIMITS.heroBannerUrl, true)));
       setHomeBannerMeta(meta);
     } catch (err: any) {
       alert(err.message || t('brandStudio.failedToUploadHeroShowcaseImage'));
@@ -824,7 +824,7 @@ export default function BrandStudioPage() {
     setUploadStepMessage(t('brandStudio.checkingImageResolutionConformingToDefaultLayout800'));
     try {
       const { url, meta } = await processAndUploadImage(files[0], 'about', (msg) => setUploadStepMessage(msg));
-      setAboutBannerUrl(url);
+      setAboutBannerUrl(clampCatalogText(url, brandTextLimit(url, ABOUT_TEXT_LIMITS.bannerUrl, true)));
       setAboutBannerMeta(meta);
     } catch (err: any) {
       alert(err.message || t('brandStudio.failedToUploadAboutStoryImage'));
@@ -910,6 +910,7 @@ export default function BrandStudioPage() {
           pages: {
             ...loadedConfigRef.current.pages,
             home: {
+              ...loadedConfigRef.current.pages?.home,
               heroBadge: homeHeroBadge,
               heroTitle: homeHeroTitle,
               heroSubtitle: homeHeroSubtitle,
@@ -926,7 +927,8 @@ export default function BrandStudioPage() {
               pageSubtitle: productsPageSubtitle,
             },
             about: {
-              pageTitle: aboutPageTitle || `About ${store?.name || 'Our Boutique'}`,
+              ...loadedConfigRef.current.pages?.about,
+              pageTitle: aboutPageTitle,
               tagline: aboutTagline,
               storyParagraph1: aboutStoryP1,
               storyParagraph2: aboutStoryP2,
@@ -935,9 +937,9 @@ export default function BrandStudioPage() {
               visionTitle: aboutVisionTitle,
               visionText: aboutVisionText,
               values: [
-                { title: pillar1Title, desc: pillar1Desc },
-                { title: pillar2Title, desc: pillar2Desc },
-                { title: pillar3Title, desc: pillar3Desc },
+                { ...loadedConfigRef.current.pages?.about?.values?.[0], title: pillar1Title, desc: pillar1Desc },
+                { ...loadedConfigRef.current.pages?.about?.values?.[1], title: pillar2Title, desc: pillar2Desc },
+                { ...loadedConfigRef.current.pages?.about?.values?.[2], title: pillar3Title, desc: pillar3Desc },
               ],
               storeAddress: physicalStoreAddress,
               storeHours: physicalStoreTimings,
@@ -1020,6 +1022,7 @@ export default function BrandStudioPage() {
             return (
               <button
                 key={th.code}
+                data-testid={`brand-theme-${th.code}`}
                 type="button"
                 onClick={() => {
                   setSelectedThemeId(th.code);
@@ -1137,14 +1140,12 @@ export default function BrandStudioPage() {
           <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-slate-800">
             {/* Offer Text Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{t('brandStudio.promotionalOfferMessage')}</label>
-              <input
-                type="text"
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                placeholder={t('brandStudio.eGFestiveOffer20OffOnAll')}
-                className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <CatalogTextField fieldKey="announcement.text"
+                  label={t('brandStudio.promotionalOfferMessage')}
+                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={setAnnouncementText}
+                  labelClassName="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5" type="text" placeholder={t('brandStudio.eGFestiveOffer20OffOnAll')}
+                  inputClassName="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{t('brandStudio.visibleAtTheTopHeaderAcrossHomeProducts')}</p>
             </div>
 
@@ -1186,7 +1187,7 @@ export default function BrandStudioPage() {
                     key={idx}
                     type="button"
                     onClick={() => {
-                      setAnnouncementText(preset);
+                      setAnnouncementText(clampCatalogText(preset, BRAND_TEXT_LIMITS.subtitle));
                       setAnnouncementEnabled(true);
                     }}
                     className="text-left text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500 text-slate-700 dark:text-slate-300 transition shadow-2xs cursor-pointer flex items-center gap-1.5"
@@ -1602,14 +1603,12 @@ export default function BrandStudioPage() {
             {announcementEnabled && (
               <div className="space-y-3 pt-1">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">{t('brandStudio.announcementMessage')}</label>
-                  <input
-                    type="text"
-                    value={announcementText}
-                    onChange={(e) => setAnnouncementText(e.target.value)}
-                    placeholder={t('brandStudio.eGComplimentaryPanIndiaInsuredShippingOn')}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
+                  <CatalogTextField fieldKey="announcement.text"
+                  label={t('brandStudio.announcementMessage')}
+                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={setAnnouncementText}
+                  labelClassName="text-[11px] font-semibold text-slate-700 block mb-1" type="text" placeholder={t('brandStudio.eGComplimentaryPanIndiaInsuredShippingOn')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
                 </div>
 
                 {/* Floating Marquee Button / Toggle */}
@@ -1680,58 +1679,48 @@ export default function BrandStudioPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.eyebrowBadgeTag')}</label>
-              <input
-                type="text"
-                value={homeHeroBadge}
-                onChange={(e) => setHomeHeroBadge(e.target.value)}
-                placeholder={t('brandStudio.eGArtisanalAtelierHallmarkedCertified')}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
-              />
+              <CatalogTextField fieldKey="pages.home.heroBadge"
+                  label={t('brandStudio.eyebrowBadgeTag')}
+                  value={homeHeroBadge} max={HOME_TEXT_LIMITS.heroBadge} onChange={setHomeHeroBadge}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.eGArtisanalAtelierHallmarkedCertified')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.heroMainHeadline')}</label>
-              <input
-                type="text"
-                value={homeHeroTitle}
-                onChange={(e) => setHomeHeroTitle(e.target.value)}
-                placeholder={t('brandStudio.eGTimelessEleganceHandcraftedLuxury')}
-                className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
-              />
+              <CatalogTextField fieldKey="pages.home.heroTitle"
+                  label={t('brandStudio.heroMainHeadline')}
+                  value={homeHeroTitle} max={HOME_TEXT_LIMITS.heroTitle} onChange={setHomeHeroTitle}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.eGTimelessEleganceHandcraftedLuxury')}
+                  inputClassName="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
+                />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.heroSubtitleDescription')}</label>
-              <textarea
-                rows={3}
-                value={homeHeroSubtitle}
-                onChange={(e) => setHomeHeroSubtitle(e.target.value)}
-                placeholder={t('brandStudio.describeYourBoutiqueSOfferingIn23')}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
-              />
+              <CatalogTextField fieldKey="pages.home.heroSubtitle"
+                  label={t('brandStudio.heroSubtitleDescription')}
+                  value={homeHeroSubtitle} max={HOME_TEXT_LIMITS.heroSubtitle} onChange={setHomeHeroSubtitle}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" multiline rows={3} placeholder={t('brandStudio.describeYourBoutiqueSOfferingIn23')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
+                />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.primaryActionButtonText')}</label>
-                <input
-                  type="text"
-                  value={homeCtaText}
-                  onChange={(e) => setHomeCtaText(e.target.value)}
-                  placeholder={t('brandStudio.eGExploreCollection')}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.home.heroCtaText"
+                  label={t('brandStudio.primaryActionButtonText')}
+                  value={homeCtaText} max={HOME_TEXT_LIMITS.heroCtaText} onChange={setHomeCtaText}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.eGExploreCollection')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.secondaryButtonText')}</label>
-                <input
-                  type="text"
-                  value={homeSecondaryCtaText}
-                  onChange={(e) => setHomeSecondaryCtaText(e.target.value)}
-                  placeholder={t('brandStudio.eGOurHeritage')}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.home.heroSecondaryCtaText"
+                  label={t('brandStudio.secondaryButtonText')}
+                  value={homeSecondaryCtaText} max={HOME_TEXT_LIMITS.heroSecondaryCtaText} onChange={setHomeSecondaryCtaText}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.eGOurHeritage')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
             </div>
@@ -1808,13 +1797,12 @@ export default function BrandStudioPage() {
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 block mb-1">{t('brandStudio.orEnterDirectImageUrl')}</label>
                   <div className="relative">
-                    <input
-                      type="url"
-                      value={heroBannerUrl}
-                      onChange={(e) => setHeroBannerUrl(e.target.value)}
-                      placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
-                    />
+                    <CatalogTextField fieldKey="pages.home.heroBannerUrl"
+                  label={t('brandStudio.orEnterDirectImageUrl')}
+                  value={heroBannerUrl} max={HOME_TEXT_LIMITS.heroBannerUrl} onChange={setHeroBannerUrl}
+                  labelClassName="sr-only" type="url" placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
+                />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
                   </div>
                 </div>
@@ -1831,7 +1819,7 @@ export default function BrandStudioPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                   <Check className="w-3 h-3 text-emerald-600" />{t('brandStudio.ultraHdQualityActive')}</span>
               </div>
-              
+
               {homeBannerMeta ? (
                 <div className={`p-3 rounded-xl border space-y-1.5 text-xs ${
                   homeBannerMeta.status === 'valid'
@@ -1982,25 +1970,21 @@ export default function BrandStudioPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.pageTitle')}</label>
-              <input
-                type="text"
-                value={aboutPageTitle}
-                onChange={(e) => setAboutPageTitle(e.target.value)}
-                placeholder={t('brandStudio.aboutPlaceholder', { store: store?.name || '' })}
-                className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
-              />
+              <CatalogTextField fieldKey="pages.about.pageTitle"
+                  label={t('brandStudio.pageTitle')}
+                  value={aboutPageTitle} max={ABOUT_TEXT_LIMITS.pageTitle} onChange={setAboutPageTitle}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.aboutPlaceholder', { store: store?.name || '' })}
+                  inputClassName="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
+                />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.taglineSubtitle')}</label>
-              <input
-                type="text"
-                value={aboutTagline}
-                onChange={(e) => setAboutTagline(e.target.value)}
-                placeholder={t('brandStudio.eGRootedInAuthenticTraditionCraftedFor')}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
-              />
+              <CatalogTextField fieldKey="pages.about.tagline"
+                  label={t('brandStudio.taglineSubtitle')}
+                  value={aboutTagline} max={ABOUT_TEXT_LIMITS.tagline} onChange={setAboutTagline}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text" placeholder={t('brandStudio.eGRootedInAuthenticTraditionCraftedFor')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                />
             </div>
           </div>
 
@@ -2012,23 +1996,21 @@ export default function BrandStudioPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.originParagraph1')}</label>
-              <textarea
-                rows={3}
-                value={aboutStoryP1}
-                onChange={(e) => setAboutStoryP1(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
-              />
+              <CatalogTextField fieldKey="pages.about.storyParagraph1"
+                  label={t('brandStudio.originParagraph1')}
+                  value={aboutStoryP1} max={ABOUT_TEXT_LIMITS.storyParagraph1} onChange={setAboutStoryP1}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" multiline rows={3}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
+                />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.craftsmanshipExpansionParagraph2')}</label>
-              <textarea
-                rows={3}
-                value={aboutStoryP2}
-                onChange={(e) => setAboutStoryP2(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
-              />
+              <CatalogTextField fieldKey="pages.about.storyParagraph2"
+                  label={t('brandStudio.craftsmanshipExpansionParagraph2')}
+                  value={aboutStoryP2} max={ABOUT_TEXT_LIMITS.storyParagraph2} onChange={setAboutStoryP2}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" multiline rows={3}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
+                />
             </div>
           </div>
 
@@ -2103,13 +2085,12 @@ export default function BrandStudioPage() {
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 block mb-1">{t('brandStudio.orEnterDirectImageUrl')}</label>
                   <div className="relative">
-                    <input
-                      type="url"
-                      value={aboutBannerUrl}
-                      onChange={(e) => setAboutBannerUrl(e.target.value)}
-                      placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
-                    />
+                    <CatalogTextField fieldKey="pages.about.bannerUrl"
+                  label={t('brandStudio.orEnterDirectImageUrl')}
+                  value={aboutBannerUrl} max={ABOUT_TEXT_LIMITS.bannerUrl} onChange={setAboutBannerUrl}
+                  labelClassName="sr-only" type="url" placeholder={t('brandStudio.httpsImagesUnsplashComOrCdnLink')}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl pr-8 font-mono"
+                />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
                   </div>
                 </div>
@@ -2126,7 +2107,7 @@ export default function BrandStudioPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                   <Check className="w-3 h-3 text-emerald-600" />{t('brandStudio.autoFitDefaultLayoutEnabled')}</span>
               </div>
-              
+
               {aboutBannerMeta ? (
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5 text-xs">
                   <div className="flex items-center gap-2 font-bold text-emerald-800">
@@ -2171,36 +2152,32 @@ export default function BrandStudioPage() {
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.missionVisionStatements')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">{t('brandStudio.missionTitle')}</label>
-                <input
-                  type="text"
-                  value={aboutMissionTitle}
-                  onChange={(e) => setAboutMissionTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.missionTitle"
+                  label={t('brandStudio.missionTitle')}
+                  value={aboutMissionTitle} max={ABOUT_TEXT_LIMITS.missionTitle} onChange={setAboutMissionTitle}
+                  labelClassName="block text-xs font-semibold text-slate-700" type="text"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
-                <label className="block text-[11px] text-slate-500">{t('brandStudio.missionDescription')}</label>
-                <textarea
-                  rows={2}
-                  value={aboutMissionText}
-                  onChange={(e) => setAboutMissionText(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.missionText"
+                  label={t('brandStudio.missionDescription')}
+                  value={aboutMissionText} max={ABOUT_TEXT_LIMITS.missionText} onChange={setAboutMissionText}
+                  labelClassName="block text-[11px] text-slate-500" multiline rows={2}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">{t('brandStudio.visionTitle')}</label>
-                <input
-                  type="text"
-                  value={aboutVisionTitle}
-                  onChange={(e) => setAboutVisionTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.visionTitle"
+                  label={t('brandStudio.visionTitle')}
+                  value={aboutVisionTitle} max={ABOUT_TEXT_LIMITS.visionTitle} onChange={setAboutVisionTitle}
+                  labelClassName="block text-xs font-semibold text-slate-700" type="text"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
-                <label className="block text-[11px] text-slate-500">{t('brandStudio.visionDescription')}</label>
-                <textarea
-                  rows={2}
-                  value={aboutVisionText}
-                  onChange={(e) => setAboutVisionText(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.visionText"
+                  label={t('brandStudio.visionDescription')}
+                  value={aboutVisionText} max={ABOUT_TEXT_LIMITS.visionText} onChange={setAboutVisionText}
+                  labelClassName="block text-[11px] text-slate-500" multiline rows={2}
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
             </div>
@@ -2217,51 +2194,51 @@ export default function BrandStudioPage() {
               {/* Pillar 1 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar1')}</span>
-                <input
-                  type="text"
-                  value={pillar1Title}
-                  onChange={(e) => setPillar1Title(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
+                <CatalogTextField fieldKey="pages.about.values.0.title"
+                  label={t('brandStudio.pillarTitle', { number: 1 })}
+                  value={pillar1Title} max={ABOUT_VALUE_LIMITS.title} onChange={setPillar1Title}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                 />
-                <input
-                  type="text"
-                  value={pillar1Desc}
-                  onChange={(e) => setPillar1Desc(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
+                <CatalogTextField fieldKey="pages.about.values.0.desc"
+                  label={t('brandStudio.pillarDescription', { number: 1 })}
+                  value={pillar1Desc} max={ABOUT_VALUE_LIMITS.desc} onChange={setPillar1Desc}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                 />
               </div>
 
               {/* Pillar 2 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar2')}</span>
-                <input
-                  type="text"
-                  value={pillar2Title}
-                  onChange={(e) => setPillar2Title(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
+                <CatalogTextField fieldKey="pages.about.values.1.title"
+                  label={t('brandStudio.pillarTitle', { number: 2 })}
+                  value={pillar2Title} max={ABOUT_VALUE_LIMITS.title} onChange={setPillar2Title}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                 />
-                <input
-                  type="text"
-                  value={pillar2Desc}
-                  onChange={(e) => setPillar2Desc(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
+                <CatalogTextField fieldKey="pages.about.values.1.desc"
+                  label={t('brandStudio.pillarDescription', { number: 2 })}
+                  value={pillar2Desc} max={ABOUT_VALUE_LIMITS.desc} onChange={setPillar2Desc}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                 />
               </div>
 
               {/* Pillar 3 */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">{t('brandStudio.pillar3')}</span>
-                <input
-                  type="text"
-                  value={pillar3Title}
-                  onChange={(e) => setPillar3Title(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
+                <CatalogTextField fieldKey="pages.about.values.2.title"
+                  label={t('brandStudio.pillarTitle', { number: 3 })}
+                  value={pillar3Title} max={ABOUT_VALUE_LIMITS.title} onChange={setPillar3Title}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg"
                 />
-                <input
-                  type="text"
-                  value={pillar3Desc}
-                  onChange={(e) => setPillar3Desc(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
+                <CatalogTextField fieldKey="pages.about.values.2.desc"
+                  label={t('brandStudio.pillarDescription', { number: 3 })}
+                  value={pillar3Desc} max={ABOUT_VALUE_LIMITS.desc} onChange={setPillar3Desc}
+                  labelClassName="sr-only" type="text"
+                  inputClassName="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600"
                 />
               </div>
             </div>
@@ -2272,42 +2249,38 @@ export default function BrandStudioPage() {
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.physicalLocationCustomerSupport')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.storeWorkshopAddress')}</label>
-                <input
-                  type="text"
-                  value={physicalStoreAddress}
-                  onChange={(e) => setPhysicalStoreAddress(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.storeAddress"
+                  label={t('brandStudio.storeWorkshopAddress')}
+                  value={physicalStoreAddress} max={ABOUT_TEXT_LIMITS.storeAddress} onChange={setPhysicalStoreAddress}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.operatingHours')}</label>
-                <input
-                  type="text"
-                  value={physicalStoreTimings}
-                  onChange={(e) => setPhysicalStoreTimings(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                <CatalogTextField fieldKey="pages.about.storeHours"
+                  label={t('brandStudio.operatingHours')}
+                  value={physicalStoreTimings} max={ABOUT_TEXT_LIMITS.storeHours} onChange={setPhysicalStoreTimings}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.phoneWhatsappSupport')}</label>
-                <input
-                  type="text"
-                  value={aboutPhone}
-                  onChange={(e) => setAboutPhone(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl font-mono"
+                <CatalogTextField fieldKey="pages.about.contactPhone"
+                  label={t('brandStudio.phoneWhatsappSupport')}
+                  value={aboutPhone} max={ABOUT_TEXT_LIMITS.contactPhone} onChange={setAboutPhone}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="text"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.customerSupportEmail')}</label>
-                <input
-                  type="email"
-                  value={aboutEmail}
-                  onChange={(e) => setAboutEmail(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl font-mono"
+                <CatalogTextField fieldKey="pages.about.contactEmail"
+                  label={t('brandStudio.customerSupportEmail')}
+                  value={aboutEmail} max={ABOUT_TEXT_LIMITS.contactEmail} onChange={setAboutEmail}
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1" type="email"
+                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl font-mono"
                 />
               </div>
             </div>

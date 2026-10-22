@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -23,6 +23,7 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { normalizeBrandText, clampCatalogText, ABOUT_TEXT_LIMITS } from '@simply/types';
 
 export default function StoreAboutPage() {
   const router = useRouter();
@@ -31,6 +32,13 @@ export default function StoreAboutPage() {
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
+  const loadRevision = useRef(0);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true' && !loading && storeData) {
+      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, '*');
+    }
+  }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
@@ -48,7 +56,7 @@ export default function StoreAboutPage() {
               ...prev,
               themeConfig: {
                 ...prev.themeConfig,
-                ...event.data.themeConfig,
+                ...normalizeBrandText(event.data.themeConfig),
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
@@ -65,17 +73,20 @@ export default function StoreAboutPage() {
   }, [router.query.embedded]);
 
   const loadStorefront = async (storeSlug: string, previewSecret?: string) => {
+    const revision = ++loadRevision.current;
     setLoading(true);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
-      setStoreData(res);
+      if (revision !== loadRevision.current) return;
+      setStoreData({ ...res, themeConfig: normalizeBrandText(res.themeConfig) });
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
     } catch (err: any) {
+      if (revision !== loadRevision.current) return;
       console.error('Failed to load store about page', err);
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
   };
 
@@ -110,25 +121,25 @@ export default function StoreAboutPage() {
   const aboutConfig = themeConfig?.pages?.about || {};
 
   // Custom text with defaults
-  const pageTitle = aboutConfig.pageTitle || `About ${store.name}`;
-  const tagline = aboutConfig.tagline || 'Rooted in authentic tradition, crafted for everyday distinction.';
+  const pageTitle = aboutConfig.pageTitle ?? `About ${store.name}`;
+  const tagline = aboutConfig.tagline ?? 'Rooted in authentic tradition, crafted for everyday distinction.';
   const storyParagraph1 =
-    aboutConfig.storyParagraph1 ||
-    themeConfig?.storeStory ||
-    store.description ||
-    'Founded with a steadfast commitment to purity and heritage, our boutique brings you exceptional goods meticulously selected from trusted origins.';
+    aboutConfig.storyParagraph1 ??
+    themeConfig?.storeStory ??
+    (clampCatalogText(store.description, ABOUT_TEXT_LIMITS.storyParagraph1) ||
+    'Founded with a steadfast commitment to purity and heritage, our boutique brings you exceptional goods meticulously selected from trusted origins.');
   const storyParagraph2 =
-    aboutConfig.storyParagraph2 ||
+    aboutConfig.storyParagraph2 ??
     'Every offering is curated by experienced master specialists who value genuine craftsmanship, ethical supply chains, and transparent customer service.';
   
-  const missionTitle = aboutConfig.missionTitle || 'Our Mission';
+  const missionTitle = aboutConfig.missionTitle ?? 'Our Mission';
   const missionText =
-    aboutConfig.missionText ||
+    aboutConfig.missionText ??
     'To deliver genuine, authentic quality directly to discerning customers with zero compromise on integrity and craftsmanship.';
 
-  const visionTitle = aboutConfig.visionTitle || 'Our Vision';
+  const visionTitle = aboutConfig.visionTitle ?? 'Our Vision';
   const visionText =
-    aboutConfig.visionText ||
+    aboutConfig.visionText ??
     'Preserving authentic Indian heritage while making premium craftsmanship accessible across the country.';
 
   const values = Array.isArray(aboutConfig.values) && aboutConfig.values.length > 0
@@ -149,18 +160,18 @@ export default function StoreAboutPage() {
       ];
 
   const storeAddress =
-    aboutConfig.storeAddress ||
-    themeConfig?.physicalStoreAddress ||
-    store.businessAddress ||
-    'Heritage Arcade, MG Road, Pune, Maharashtra 411001';
+    aboutConfig.storeAddress ??
+    themeConfig?.physicalStoreAddress ??
+    (clampCatalogText(store.businessAddress, ABOUT_TEXT_LIMITS.storeAddress) ||
+    'Heritage Arcade, MG Road, Pune, Maharashtra 411001');
   
   const storeHours =
-    aboutConfig.storeHours ||
-    themeConfig?.physicalStoreTimings ||
+    aboutConfig.storeHours ??
+    themeConfig?.physicalStoreTimings ??
     'Monday – Saturday: 10:30 AM to 8:30 PM (IST)';
 
-  const contactPhone = aboutConfig.contactPhone || store.supportPhone || '+91 98220 12345';
-  const contactEmail = aboutConfig.contactEmail || store.supportEmail || 'contact@sairamteacompany.com';
+  const contactPhone = aboutConfig.contactPhone ?? (clampCatalogText(store.supportPhone, ABOUT_TEXT_LIMITS.contactPhone) || '+91 98220 12345');
+  const contactEmail = aboutConfig.contactEmail ?? (clampCatalogText(store.supportEmail, ABOUT_TEXT_LIMITS.contactEmail) || 'contact@sairamteacompany.com');
   const heroImage =
     aboutConfig.bannerUrl ||
     themeConfig?.branding?.bannerUrl ||
@@ -198,7 +209,7 @@ export default function StoreAboutPage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-8 sm:space-y-10">
+      <main className="[overflow-wrap:anywhere] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-8 sm:space-y-10">
         {/* 1. Hero Header */}
         <section className="relative rounded-3xl overflow-hidden p-6 sm:p-10 border border-gray-200/80 shadow-xs bg-white text-left space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-gray-100 text-gray-700">
@@ -220,10 +231,10 @@ export default function StoreAboutPage() {
           <div className="lg:col-span-7 space-y-6">
             <div className="space-y-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 uppercase">
-                {aboutConfig.storyBadge || 'Our Story'}
+                {aboutConfig.storyBadge ?? 'Our Story'}
               </span>
               <h2 className="text-2xl sm:text-3xl font-bold font-theme-heading text-gray-900 tracking-tight">
-                {aboutConfig.storyHeading || 'Rooted in authentic tradition & passionate care'}
+                {aboutConfig.storyHeading ?? 'Rooted in authentic tradition & passionate care'}
               </h2>
             </div>
             <div className="space-y-4 text-xs sm:text-sm text-gray-600 leading-relaxed">

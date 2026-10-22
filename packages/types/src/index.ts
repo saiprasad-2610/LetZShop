@@ -1,4 +1,5 @@
 export * from './catalog-header';
+export * from './brand-text';
 
 // ==============================================================================
 // Enums matching Domain & PostgreSQL Prisma Schema

@@ -1,4 +1,6 @@
 export const brandStudioEn = {
+  "pillarTitle": "Pillar {number} title",
+  "pillarDescription": "Pillar {number} description",
   "characterCount": "Character count",
   "aboutPlaceholder": "About {store}",
   "copyrightPlaceholder": "© {year} {store}. All rights reserved.",
@@ -373,6 +375,8 @@ export const brandStudioEn = {
 };
 
 export const brandStudioMr = {
+  "pillarTitle": "आधारस्तंभ {number} चे शीर्षक",
+  "pillarDescription": "आधारस्तंभ {number} चे वर्णन",
   "characterCount": "अक्षरांची संख्या",
   "aboutPlaceholder": "{store} बद्दल",
   "copyrightPlaceholder": "© {year} {store}. सर्व हक्क राखीव.",
@@ -747,6 +751,8 @@ export const brandStudioMr = {
 };
 
 export const brandStudioHi = {
+  "pillarTitle": "स्तंभ {number} का शीर्षक",
+  "pillarDescription": "स्तंभ {number} का विवरण",
   "characterCount": "अक्षरों की संख्या",
   "aboutPlaceholder": "{store} के बारे में",
   "copyrightPlaceholder": "© {year} {store}। सर्वाधिकार सुरक्षित।",

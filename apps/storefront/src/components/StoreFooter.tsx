@@ -99,7 +99,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
   const copyrightText = rawCopyright.replace(/\.?\s*DPDPA\s*2023\s*Compliant\.?/gi, '').trim();
 
   return (
-    <footer className="bg-gray-900 text-white border-t border-gray-800 pt-12 pb-8 mt-16">
+    <footer className="[overflow-wrap:anywhere] bg-gray-900 text-white border-t border-gray-800 pt-12 pb-8 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Value Proposition Strip */}
         {showTrustBadges && (
