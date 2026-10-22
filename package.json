@@ -12,6 +12,7 @@
     "dev:stop": "node scripts/dev-merchant.mjs --stop",
     "dev:all": "node scripts/dev-merchant.mjs --all",
     "admin:seed": "node scripts/seed-admin.mjs",
+    "admin:create": "pnpm --filter @simply/db exec tsx ../../scripts/create-super-admin.ts",
     "test:admin": "node scripts/test-admin-moderation.mjs",
     "dev:check": "pnpm --filter @simply/db exec tsx ../../scripts/dev-health-check.ts",
     "test": "pnpm test:unit && pnpm test:e2e",

@@ -11,6 +11,7 @@
     "migrate": "prisma migrate deploy",
     "migrate:dev": "prisma migrate dev",
     "seed": "tsx prisma/seed.ts",
+    "admin:create": "tsx ../../scripts/create-super-admin.ts",
     "studio": "prisma studio"
   },
   "dependencies": {
