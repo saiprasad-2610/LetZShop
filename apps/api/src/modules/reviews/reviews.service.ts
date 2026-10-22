@@ -271,7 +271,9 @@ export class ReviewsService {
       throw new NotFoundException(`Store "${storeSlug}" not found.`);
     }
 
-    const reviews = await this.prisma.productReview.findMany({
+    const where = { productId, storeId: store.id, status: { in: ['ACTIVE', 'SENT_FOR_REVIEW'] } };
+    const [reviews, groups] = await Promise.all([this.prisma.productReview.findMany({
+      take: 50,
       where: {
         productId,
         storeId: store.id,
@@ -287,16 +289,15 @@ export class ReviewsService {
         verifiedPurchase: true,
         createdAt: true,
       },
-    });
+    }), this.prisma.productReview.groupBy({ by: ['rating'], where, _count: { _all: true } })]);
 
-    const totalReviews = reviews.length;
+    const totalReviews = groups.reduce((count, group) => count + group._count._all, 0);
     const distribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     let sum = 0;
-
-    for (const r of reviews) {
-      const star = Math.max(1, Math.min(5, r.rating));
-      distribution[star] = (distribution[star] || 0) + 1;
-      sum += star;
+    for (const group of groups) {
+      const star = Math.max(1, Math.min(5, group.rating));
+      distribution[star] += group._count._all;
+      sum += star * group._count._all;
     }
 
     const averageRating = totalReviews > 0 ? Number((sum / totalReviews).toFixed(1)) : 0;

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { COUPON_KEY, ORDER_NOTES_KEY, guestTokenKey, newGuestToken, persistStoreValue, readStoreCartState } from '../utils/cart-storage';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { SimplyApiClient, createApiClient } from '@simply/api-contracts';
 
@@ -35,30 +36,30 @@ const BUILT_IN_COUPONS: Record<string, Omit<AppliedCoupon, 'discountPaise'>> = {
     code: 'WELCOME10',
     type: 'PERCENTAGE',
     value: 10,
-    label: '10% Off — Welcome Discount',
-    minOrderPaise: 50000, // ₹500 minimum
-    maxDiscountPaise: 20000, // max ₹200 off
+    label: '10% Off â€” Welcome Discount',
+    minOrderPaise: 50000, // â‚¹500 minimum
+    maxDiscountPaise: 20000, // max â‚¹200 off
   },
   FLAT50: {
     code: 'FLAT50',
     type: 'FLAT',
-    value: 5000, // ₹50 flat off
-    label: '₹50 Off on Your Order',
-    minOrderPaise: 30000, // ₹300 minimum
+    value: 5000, // â‚¹50 flat off
+    label: 'â‚¹50 Off on Your Order',
+    minOrderPaise: 30000, // â‚¹300 minimum
   },
   SAVE20: {
     code: 'SAVE20',
     type: 'PERCENTAGE',
     value: 20,
-    label: '20% Off — Limited Offer',
-    minOrderPaise: 100000, // ₹1000 minimum
-    maxDiscountPaise: 50000, // max ₹500 off
+    label: '20% Off â€” Limited Offer',
+    minOrderPaise: 100000, // â‚¹1000 minimum
+    maxDiscountPaise: 50000, // max â‚¹500 off
   },
   FIRST100: {
     code: 'FIRST100',
     type: 'FLAT',
-    value: 10000, // ₹100 off
-    label: '₹100 Off — First Order',
+    value: 10000, // â‚¹100 off
+    label: 'â‚¹100 Off â€” First Order',
     minOrderPaise: 50000,
   },
   FREESHIP: {
@@ -153,8 +154,6 @@ const CartContext = createContext<CartContextType>({
 });
 
 const PREVIEW_CART_KEY = 'simply_preview_cart';
-const COUPON_KEY = 'simply_applied_coupon';
-const ORDER_NOTES_KEY = 'simply_order_notes';
 
 function normalizeCart(raw: any) {
   if (!raw) return null;
@@ -201,7 +200,12 @@ function normalizeCart(raw: any) {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const [cart, setCart] = useState<any | null>(null);
-  const [guestToken, setGuestToken] = useState<string>('');
+  const [guestIdentity, setGuestIdentity] = useState<{ storeId: string; token: string } | null>(null);
+  const guestToken = guestIdentity?.token || '';
+  const activeStoreRef = useRef<string | null>(null);
+  const previewRef = useRef(false);
+  const recoveredTokens = useRef(new Set<string>());
+  const pendingCarts = useRef(new Map<string, Promise<any>>());
   const [storeId, setStoreIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
@@ -226,31 +230,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateCartState = useCallback((raw: any, sId?: string | null) => {
     const norm = normalizeCart(raw);
-    if (!norm) return;
+    const activeStore = sId || activeStoreRef.current;
+    if (!norm || !activeStore || activeStore !== activeStoreRef.current || (norm.storeId && norm.storeId !== activeStore)) return;
     setCart(norm);
-
     if (typeof window !== 'undefined') {
-      const activeStore = sId || storeId;
-      if (activeStore && norm.id) {
-        try {
-          localStorage.setItem(`simply_cart_${activeStore}`, JSON.stringify(norm));
-        } catch {}
-      }
+      try { if (norm.id) localStorage.setItem(`simply_cart_${activeStore}`, JSON.stringify(norm)); } catch {}
       if (norm.guestToken) {
-        setGuestToken(norm.guestToken);
-        try {
-          localStorage.setItem('simply_guest_token', norm.guestToken);
-        } catch {}
+        setGuestIdentity(previous => previous?.storeId === activeStore && previous.token === norm.guestToken ? previous : {storeId:activeStore,token:norm.guestToken});
+        try { localStorage.setItem(guestTokenKey(activeStore), norm.guestToken); } catch {}
       }
     }
-  }, [storeId]);
+  }, []);
 
   // Check preview mode state
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isQueryPreview = router.query.preview === 'true';
-      const isSessionPreview = sessionStorage.getItem('simply_merchant_preview') === 'true';
+      let isSessionPreview = false;
+      try { isSessionPreview = sessionStorage.getItem('simply_merchant_preview') === 'true'; } catch {}
       const active = isQueryPreview || isSessionPreview;
+      previewRef.current = active;
       setIsPreview(active);
 
       if (active) {
@@ -269,80 +268,55 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [router.query.preview]);
 
-  useEffect(() => {
-    // Generate or restore anonymous persistent guest token
-    if (typeof window !== 'undefined') {
-      let token = localStorage.getItem('simply_guest_token');
-      if (!token) {
-        token = 'gst_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-        localStorage.setItem('simply_guest_token', token);
-      }
-      setGuestToken(token);
-
-      // Restore saved active store id if available
-      const savedStoreId = localStorage.getItem('simply_active_store_id');
-      if (savedStoreId && !storeId) {
-        setStoreIdState(savedStoreId);
-        const cached = localStorage.getItem(`simply_cart_${savedStoreId}`);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (parsed?.id) setCart(parsed);
-          } catch {}
-        }
-      }
-
-      // Restore coupon from localStorage
-      try {
-        const savedCoupon = localStorage.getItem(COUPON_KEY);
-        if (savedCoupon) {
-          setAppliedCoupon(JSON.parse(savedCoupon));
-        }
-      } catch {}
-
-      // Restore order notes
-      try {
-        const savedNotes = localStorage.getItem(ORDER_NOTES_KEY);
-        if (savedNotes) {
-          setOrderNotesState(savedNotes);
-        }
-      } catch {}
-    }
+  const setStoreId = useCallback((id: string) => {
+    if (activeStoreRef.current === id) return;
+    activeStoreRef.current = id;
+    setStoreIdState(id);
+    let saved = { token: newGuestToken(), cart: null as any, coupon: null as any, notes: '' };
+    try { saved = readStoreCartState(localStorage, id); } catch {}
+    setGuestIdentity({storeId:id,token:saved.token});
+    if (!previewRef.current) setCart(saved.cart);
+    setAppliedCoupon(saved.coupon);
+    setCouponError(null);
+    setOrderNotesState(saved.notes);
   }, []);
 
-  const setStoreId = useCallback((id: string) => {
-    setStoreIdState(id);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('simply_active_store_id', id);
-        const cached = localStorage.getItem(`simply_cart_${id}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed?.id) {
-            setCart(parsed);
-          }
-        }
-      } catch {}
-    }
+  useEffect(() => {
+    try { const saved = localStorage.getItem('simply_active_store_id'); if (saved) setStoreId(saved); } catch {}
+  }, [setStoreId]);
+
+  const requestCart = useCallback((id: string, token?: string) => {
+    const key = `${id}:${token || ''}`;
+    const pending = pendingCarts.current.get(key);
+    if (pending) return pending;
+    const request = apiClient.cart.init(id, token).finally(() => pendingCarts.current.delete(key));
+    pendingCarts.current.set(key, request);
+    return request;
   }, []);
 
   const initCart = useCallback(async (sId: string, gToken: string) => {
     setLoading(true);
     try {
-      const c = await apiClient.cart.init(sId, gToken);
+      const c = await requestCart(sId, gToken);
       updateCartState(c, sId);
-    } catch (err) {
-      console.error('Failed to init cart', err);
+    } catch (err: any) {
+      if (err?.status === 404 && activeStoreRef.current === sId && !recoveredTokens.current.has(sId)) {
+        recoveredTokens.current.add(sId);
+        const token = newGuestToken();
+        try { localStorage.setItem(guestTokenKey(sId), token); } catch {}
+        setCart(null);
+        setGuestIdentity({storeId:sId,token});
+      } else console.error('Failed to init cart', err);
     } finally {
-      setLoading(false);
+      if (activeStoreRef.current === sId) setLoading(false);
     }
-  }, [updateCartState]);
+  }, [updateCartState, requestCart]);
 
   useEffect(() => {
-    if (storeId && guestToken && !isPreview) {
+    if (storeId && guestIdentity?.storeId === storeId && guestToken && !isPreview) {
       initCart(storeId, guestToken);
     }
-  }, [storeId, guestToken, isPreview, initCart]);
+  }, [storeId, guestToken, guestIdentity?.storeId, isPreview, initCart]);
 
   const savePreviewCart = (updatedCart: any) => {
     setCart(updatedCart);
@@ -353,7 +327,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addItem = async (variantId: string, quantity = 1, itemDetails?: CartItemDetails) => {
     if (isPreview) {
-      // Completely isolated client-side preview cart — Zero API / DB mutations
+      // Completely isolated client-side preview cart â€” Zero API / DB mutations
       const currentItems: any[] = [...(cart?.items || [])];
       const existingIdx = currentItems.findIndex((it) => it.variantId === variantId);
 
@@ -403,9 +377,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Auto-initialize cart if not ready
       if (!activeCart?.id) {
         const sId = storeId || (typeof window !== 'undefined' ? localStorage.getItem('simply_active_store_id') : null);
-        const gToken = guestToken || (typeof window !== 'undefined' ? localStorage.getItem('simply_guest_token') : null) || undefined;
+        const gToken = guestIdentity?.storeId === sId ? guestToken : (sId && typeof window !== 'undefined' ? localStorage.getItem(guestTokenKey(sId)) : null) || undefined;
         if (sId) {
-          const initRes = await apiClient.cart.init(sId, gToken);
+          const initRes = await requestCart(sId, gToken);
           activeCart = normalizeCart(initRes);
           updateCartState(activeCart, sId);
         }
@@ -529,7 +503,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOrderNotesState('');
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem(ORDER_NOTES_KEY);
+        persistStoreValue(localStorage, storeId, ORDER_NOTES_KEY, null);
         if (storeId) {
           localStorage.removeItem(`simply_cart_${storeId}`);
         }
@@ -609,7 +583,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (couponDef.minOrderPaise && currentSubtotal < couponDef.minOrderPaise) {
             const minAmount = (couponDef.minOrderPaise / 100).toFixed(0);
-            setCouponError(`Minimum order value for this coupon is ₹${minAmount}`);
+            setCouponError(`Minimum order value for this coupon is â‚¹${minAmount}`);
             return false;
           }
 
@@ -618,9 +592,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...couponDef,
             discountPaise: disc,
           };
-          setAppliedCoupon(applied);
+          if (activeStoreRef.current === storeId) setAppliedCoupon(applied);
           try {
-            localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
+            persistStoreValue(localStorage, storeId, COUPON_KEY, JSON.stringify(applied));
           } catch {}
           return true;
         }
@@ -646,9 +620,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           minOrderPaise: res.coupon.minOrderPaise,
           maxDiscountPaise: res.coupon.maxDiscountPaise,
         };
-        setAppliedCoupon(applied);
+        if (activeStoreRef.current === storeId) setAppliedCoupon(applied);
         try {
-          localStorage.setItem(COUPON_KEY, JSON.stringify(applied));
+          persistStoreValue(localStorage, storeId, COUPON_KEY, JSON.stringify(applied));
         } catch {}
         return true;
       } catch (err: any) {
@@ -667,16 +641,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAppliedCoupon(null);
     setCouponError(null);
     try {
-      localStorage.removeItem(COUPON_KEY);
+      persistStoreValue(localStorage, storeId, COUPON_KEY, null);
     } catch {}
-  }, []);
+  }, [storeId]);
 
   const setOrderNotes = useCallback((notes: string) => {
     setOrderNotesState(notes);
     try {
-      localStorage.setItem(ORDER_NOTES_KEY, notes);
+      persistStoreValue(localStorage, storeId, ORDER_NOTES_KEY, notes);
     } catch {}
-  }, []);
+  }, [storeId]);
 
   // ====================================================================
   // Computed Coupon, Shipping & Grand Totals

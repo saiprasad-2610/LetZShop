@@ -58,6 +58,8 @@ async function bootstrap() {
   const brand = getBrandConfig();
 
   const fastifyAdapter = new FastifyAdapter({
+    // Trust the local reverse proxy, never forwarded IP headers from arbitrary remote clients.
+    trustProxy: 'loopback',
     // Only log warnings and errors from Fastify in development to suppress routine HTTP request noise
     logger: process.env.NODE_ENV === 'production' ? false : { level: 'warn' },
     bodyLimit: 15 * 1024 * 1024,

@@ -1,5 +1,7 @@
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   Controller,
+  UseGuards,
   Post,
   Get,
   Body,
@@ -15,6 +17,8 @@ import { Public, CurrentUser } from '../../common/decorators';
 import { AuthenticatedUser, OtpPurpose } from '@simply/types';
 
 @ApiTags('Authentication')
+@UseGuards(ThrottlerGuard)
+@Throttle({ default: { limit: 30, ttl: 60000 } })
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

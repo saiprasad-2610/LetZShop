@@ -337,7 +337,7 @@ export class CatalogService {
       for (let i = 0; i < mediaInputs.length; i++) {
         const item = mediaInputs[i];
         const asset = await tx.mediaAsset.findFirst({
-          where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
+          where: { id: item.mediaAssetId, tenantId: tenant.tenantId, storeId: tenant.storeId },
         });
         if (asset) {
           let resolvedOptionValueId: string | null = null;
@@ -351,6 +351,9 @@ export class CatalogService {
           }
 
           const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+          if (resolvedVariantId && !await tx.productVariant.findFirst({ where: { id: resolvedVariantId, productId: product.id, tenantId: tenant.tenantId, storeId: tenant.storeId } })) {
+            throw new BadRequestException('Media variant does not belong to this product.');
+          }
 
           await tx.productMedia.create({
             data: {
@@ -958,6 +961,9 @@ export class CatalogService {
           }
 
           const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+          if (resolvedVariantId && !await tx.productVariant.findFirst({ where: { id: resolvedVariantId, productId: product.id, tenantId: tenant.tenantId, storeId: tenant.storeId } })) {
+            throw new BadRequestException('Media variant does not belong to this product.');
+          }
           const sortOrder = item.sortOrder !== undefined ? item.sortOrder : i;
 
           const existingMedias = await tx.productMedia.findMany({
@@ -987,7 +993,7 @@ export class CatalogService {
             }
           } else {
             const asset = await tx.mediaAsset.findFirst({
-              where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
+              where: { id: item.mediaAssetId, tenantId: tenant.tenantId, storeId: tenant.storeId },
             });
             if (asset) {
               await tx.productMedia.create({

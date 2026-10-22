@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const storefront = process.env.STOREFRONT_URL || 'http://localhost:3000';
 const seller = process.env.SELLER_URL || 'http://localhost:3001';
-const out = path.resolve('artifacts/production-screen4');
+const out = path.resolve(process.env.CART_ARTIFACTS || 'artifacts/production-screen4');
 fs.mkdirSync(out, { recursive: true });
 const svg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#e2e8f0"/><path d="M130 70 80 120 120 170 140 150V330H260V150L280 170 320 120 270 70 230 90H170Z" fill="#64748b"/></svg>');
 const product = {
@@ -176,7 +176,7 @@ try {
   await context2.route('http://localhost:4000/**', route => {
     const url = new URL(route.request().url());
     return route.fulfill({ json: { success:true, data: url.pathname.startsWith('/storefront/')
-      ? { ...fixture, themeConfig: { ...fixture.themeConfig, themeId:theme } } : { id:'theme-cart',items:[],subtotalPaise:0 } } });
+      ? { ...fixture, pagination: { page:1, limit:20, total:1, totalPages:1 }, themeConfig: { ...fixture.themeConfig, themeId:theme } } : { id:'theme-cart',items:[],subtotalPaise:0 } } });
   });
   for (theme of themes) {
     await page2.goto(storefront + '/store/notification-demo/products');

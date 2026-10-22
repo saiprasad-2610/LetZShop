@@ -32,6 +32,7 @@ export class CartService {
       });
 
       if (existing) {
+        if (existing.storeId !== storeId) throw new NotFoundException('Cart not found in this store.');
         // If expired, refresh expiration by 30 days
         if (existing.expiresAt <= new Date()) {
           const newExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -60,28 +61,41 @@ export class CartService {
     const assignedToken = cleanToken || `guest_${crypto.randomUUID()}`;
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    const created = await this.prisma.cart.create({
-      data: {
-        tenantId: store.tenantId,
-        storeId: store.id,
-        guestToken: assignedToken,
-        expiresAt,
-      },
-      include: {
-        items: {
-          include: {
-            variant: {
-              include: {
-                product: {
-                  include: { media: { orderBy: { sortOrder: 'asc' } } },
+    let created: any;
+    try {
+      created = await this.prisma.cart.create({
+        data: {
+          tenantId: store.tenantId,
+          storeId: store.id,
+          guestToken: assignedToken,
+          expiresAt,
+        },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: {
+                    include: { media: { orderBy: { sortOrder: 'asc' } } },
+                  },
+                  optionValues: { include: { optionValue: true } },
                 },
-                optionValues: { include: { optionValue: true } },
               },
             },
           },
         },
-      },
-    });
+      });
+    } catch (error: any) {
+      const target = error?.meta?.target;
+      if (error?.code === 'P2002' && Array.isArray(target) && target.some((key: string) => key === 'guestToken' || key === 'guest_token')) {
+        const winner = await this.prisma.cart.findUnique({ where: { guestToken: assignedToken } });
+        if (winner) {
+          if (winner.storeId !== storeId) throw new NotFoundException('Cart not found in this store.');
+          return this.getCart(winner.id);
+        }
+      }
+      throw error;
+    }
 
     return {
       ...created,
@@ -105,6 +119,10 @@ export class CartService {
     });
     if (!variant || variant.deletedAt !== null) {
       throw new NotFoundException('Product variant not found.');
+    }
+
+    if (variant.storeId !== cart.storeId || variant.tenantId !== cart.tenantId) {
+      throw new NotFoundException('Product variant not found in this store.');
     }
 
     // Verify stock availability
