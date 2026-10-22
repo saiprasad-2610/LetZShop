@@ -399,7 +399,7 @@ export default function ProductDetailPage() {
         sku: variant.sku || '',
       });
       setCartSuccess(true);
-      toast.success(t('cartToast.added'));
+      toast.cartAdded(t('cartToast.added'));
       setTimeout(() => setCartSuccess(false), 2500);
     } catch (err: any) {
       toast.error('Could Not Add Item', err.message || 'Failed to add item to cart');

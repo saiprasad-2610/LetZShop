@@ -5,6 +5,7 @@ import { Smartphone, Lock, KeyRound, ArrowRight, Store, RefreshCw, ShieldCheck, 
 import { IndianPhoneInput } from '../components/IndianPhoneInput';
 import { isValidIndianPhone, isValidPin } from '@simply/validation';
 import { ThemeToggle } from '../components/ui/MerchantUi';
+import { useActionNotification } from '../hooks/useActionNotification';
 
 type AuthMode =
   | 'PIN_LOGIN'
@@ -28,7 +29,7 @@ export default function LoginPage() {
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { notification, notify, clearNotification } = useActionNotification();
   const [accountExists, setAccountExists] = useState(false);
 
   const { user, store, loading: authLoading, login } = useAuth();
@@ -55,8 +56,8 @@ export default function LoginPage() {
   // Clean PIN state on mode change
   const resetFormState = (newMode: AuthMode) => {
     setError(null);
+    clearNotification();
     setAccountExists(false);
-    setSuccessMsg(null);
     setPin('');
     setConfirmPin('');
     setShowPin(false);
@@ -76,6 +77,7 @@ export default function LoginPage() {
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
@@ -98,11 +100,11 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       if (err.code === 'PIN_LOCKED') {
-        setError(err.message || 'Account temporarily locked due to too many failed attempts. Please use PIN Recovery.');
+        notify('error', err.message || 'Account temporarily locked due to too many failed attempts. Please use PIN Recovery.');
       } else if (err.code === 'PIN_INVALID') {
-        setError(err.message || 'Invalid phone number or PIN. Please verify your credentials.');
+        notify('error', err.message || 'Invalid phone number or PIN. Please verify your credentials.');
       } else {
-        setError(err.message || 'Login failed. Please verify your credentials.');
+        notify('error', err.message || 'Login failed. Please verify your credentials.');
       }
     } finally {
       setLoading(false);
@@ -113,6 +115,7 @@ export default function LoginPage() {
   const handleRequestRegisterOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
@@ -125,14 +128,15 @@ export default function LoginPage() {
       await apiClient.auth.requestRegisterOtp(phone);
       setAccountExists(false);
       setMode('REGISTER_VERIFY');
-      setSuccessMsg(`Verification OTP sent to ${phone}`);
+      notify('success', `Verification OTP sent to ${phone}`);
     } catch (err: any) {
       if (err.code === 'ACCOUNT_EXISTS' || err.status === 409) {
         setAccountExists(true);
         setError(null);
+        clearNotification();
       } else {
         setAccountExists(false);
-        setError(err.message || 'Failed to send registration OTP.');
+        notify('error', err.message || 'Failed to send registration OTP.');
       }
     } finally {
       setLoading(false);
@@ -143,6 +147,7 @@ export default function LoginPage() {
   const handleVerifyRegisterOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
     setLoading(true);
 
     try {
@@ -151,9 +156,9 @@ export default function LoginPage() {
       setPin('');
       setConfirmPin('');
       setMode('REGISTER_PIN');
-      setSuccessMsg(null);
+      clearNotification();
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired OTP.');
+      notify('error', err.message || 'Invalid or expired OTP.');
     } finally {
       setLoading(false);
     }
@@ -163,6 +168,7 @@ export default function LoginPage() {
   const handleSetupPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidPin(pin)) {
       setError('PIN must be exactly 6 digits.');
@@ -184,7 +190,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to setup PIN.');
+      notify('error', err.message || 'Failed to setup PIN.');
     } finally {
       setLoading(false);
     }
@@ -194,6 +200,7 @@ export default function LoginPage() {
   const handleRequestRecoveryOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
@@ -205,9 +212,9 @@ export default function LoginPage() {
     try {
       await apiClient.auth.requestRecoveryOtp(phone);
       setMode('RECOVERY_VERIFY');
-      setSuccessMsg(`Recovery OTP sent to ${phone}`);
+      notify('success', `Recovery OTP sent to ${phone}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to send recovery OTP.');
+      notify('error', err.message || 'Failed to send recovery OTP.');
     } finally {
       setLoading(false);
     }
@@ -217,6 +224,7 @@ export default function LoginPage() {
   const handleVerifyRecoveryOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
     setLoading(true);
 
     try {
@@ -225,9 +233,9 @@ export default function LoginPage() {
       setPin('');
       setConfirmPin('');
       setMode('RECOVERY_PIN');
-      setSuccessMsg(null);
+      clearNotification();
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired OTP.');
+      notify('error', err.message || 'Invalid or expired OTP.');
     } finally {
       setLoading(false);
     }
@@ -237,6 +245,7 @@ export default function LoginPage() {
   const handleResetPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidPin(pin)) {
       setError('PIN must be exactly 6 digits.');
@@ -258,7 +267,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to reset PIN.');
+      notify('error', err.message || 'Failed to reset PIN.');
     } finally {
       setLoading(false);
     }
@@ -314,15 +323,15 @@ export default function LoginPage() {
           style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
         >
           {error && (
-            <div className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium">
+            <div role="alert" data-field-validation className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium">
               {error}
             </div>
           )}
 
-          {successMsg && (
-            <div className="mb-5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>{successMsg}</span>
+          {notification && (
+            <div data-action-notification role={notification.type === 'error' ? 'alert' : 'status'} className={`mb-5 p-3 rounded-lg border text-xs font-medium flex items-center gap-2 ${notification.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+              {notification.type === 'success' && <CheckCircle className="w-4 h-4 shrink-0" />}
+              <span>{notification.message}</span>
             </div>
           )}
 

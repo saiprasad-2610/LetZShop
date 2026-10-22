@@ -135,7 +135,7 @@ export default function StoreProductsPage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
-      toast.success(t('cartToast.added'));
+      toast.cartAdded(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2000);
     } catch (err: any) {
       console.error('Quick add failed', err);

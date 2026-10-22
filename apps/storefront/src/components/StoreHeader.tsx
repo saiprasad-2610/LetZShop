@@ -7,6 +7,7 @@ import { getWordmark } from '@simply/ui';
 import { useStorefrontI18n, StorefrontLanguageSelect } from '@simply/i18n';
 import { logWhatsappEnquiry } from '../utils/enquiry';
 import { AnnouncementMarquee } from './AnnouncementMarquee';
+import { MobileCart } from './MobileCart';
 
 interface StoreHeaderProps {
   store: any;
@@ -92,7 +93,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       : 'sticky-action');
 
   const renderBrandWordmark = () => (
-    <Link href={getQueryPath(`/store/${slug}`)} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+    <Link href={getQueryPath(`/store/${slug}`)} className="flex min-w-0 max-w-full items-center gap-2.5 sm:gap-3 group sm:shrink-0">
       {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
         <img
           src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
@@ -125,13 +126,13 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         </span>
       )}
 
-      <div className="flex flex-col text-left">
+      <div className="flex min-w-0 flex-col text-left">
         <span
           style={{
             fontSize: `${storeNameSize}px`,
             lineHeight: '1.2',
           }}
-          className={`font-bold tracking-tight transition-all ${
+          className={`truncate sm:overflow-visible font-bold tracking-tight transition-all ${
             themeCode === 'atelier' ? 'font-serif tracking-wide text-stone-900 group-hover:text-amber-800' :
             themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-slate-900 group-hover:text-pink-600' :
             themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
@@ -214,7 +215,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       <Link data-theme-tone="primary"
         href={getQueryPath(`/store/${slug}/cart`)}
         data-theme-btn="true"
-        className="relative flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 store-btn"
+        className="relative hidden md:flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 store-btn"
         style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
         aria-label={`Shopping Cart with ${itemCount} items`}
       >
@@ -237,7 +238,8 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
   );
 
   return (
-    <header className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b transition shadow-sm ${
+    <>
+    <header data-storefront-header className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b transition shadow-sm ${
       themeCode === 'foundry' ? 'border-slate-300' :
       themeCode === 'pulse' ? 'border-slate-800' :
       themeCode === 'harvest' ? 'border-amber-200' :
@@ -266,11 +268,11 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       {resolvedHeaderStyle === 'minimal-center' ? (
         /* Minimal Centered Layout: Nav Left, Centered Brand Logo, Actions Right */
         <div
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-2 sm:gap-4 transition-all"
           style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
         >
           {/* Left: Mobile Menu (<sm) or Desktop Nav (>=sm) */}
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4 sm:flex-1">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
@@ -282,12 +284,12 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           </div>
 
           {/* Center: Brand Logo & Highlighted Store Name */}
-          <div className="flex items-center justify-center shrink-0">
+          <div className="flex min-w-0 flex-1 sm:flex-none items-center justify-center sm:shrink-0">
             {renderBrandWordmark()}
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center justify-end gap-2 sm:gap-3 flex-1">
+          <div className="flex items-center justify-end gap-2 sm:gap-3 sm:flex-1">
             {renderActions(true)}
           </div>
         </div>
@@ -298,7 +300,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
         >
           {/* Left: Mobile Menu + Brand Logo */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex min-w-0 flex-1 sm:flex-none items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
@@ -329,10 +331,10 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       ) : (
         /* Sticky Action Layout (Default): Brand Left, Desktop Nav Center, Actions Right */
         <div
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 transition-all"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-2 sm:gap-4 transition-all"
           style={{ minHeight: `${Math.max(64, logoSize + 16)}px` }}
         >
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex min-w-0 flex-1 sm:flex-none items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
@@ -415,5 +417,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         </div>
       )}
     </header>
+    <MobileCart slug={slug} />
+    </>
   );
 };
