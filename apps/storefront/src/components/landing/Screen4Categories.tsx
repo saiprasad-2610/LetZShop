@@ -1,378 +1,860 @@
-import React, { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Share2, QrCode, MessageCircle, ExternalLink, Check, Copy, ShoppingBag, Sparkles } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Copy,
+  Croissant,
+  CakeSlice,
+  Cookie,
+  Facebook,
+  Flower2,
+  Gem,
+  Globe2,
+  Heart,
+  Instagram,
+  Leaf,
+  Link2,
+  Menu,
+  MessageCircle,
+  Package,
+  Paintbrush,
+  QrCode,
+  Search,
+  Shirt,
+  ShoppingBag,
+  ShoppingBasket,
+  Sparkles,
+  Wheat,
+  type LucideIcon,
+} from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
 
-interface ProductItem {
-  name: string;
-  price: number;
-  category: string;
-  tag: string;
-  image: string;
-  rating: string;
-}
-
-interface CategoryData {
+type Category = {
   id: string;
-  labelKey: string;
-  storeName: string;
+  label: string;
+  icon: LucideIcon;
+  store: string;
   slug: string;
   tagline: string;
-  bannerGradient: string;
-  bannerTitle: string;
-  bannerSubtitle: string;
-  accentColor: string;
-  accentBg: string;
-  categories: string[];
-  products: ProductItem[];
+  headline: string;
+  accent: string;
+  surface: string;
+  collections: string[];
+  products: { name: string; price: number; icon: LucideIcon }[];
+};
+
+const CATEGORIES: Category[] = [
+  {
+    id: 'fashion',
+    label: 'fashion',
+    icon: Shirt,
+    store: 'Urban Loom',
+    slug: 'urbanloom',
+    tagline: 'Good clothes. Every day.',
+    headline: 'Made for your everyday.',
+    accent: '#24566A',
+    surface: '#EDF4F5',
+    collections: ['Everyday', 'Cotton', 'Layers'],
+    products: [
+      { name: 'Everyday Shirt', price: 899, icon: Shirt },
+      { name: 'Cotton Kurta', price: 1299, icon: Shirt },
+      { name: 'Casual Jacket', price: 1899, icon: Shirt },
+      { name: 'Classic Tee', price: 599, icon: Shirt },
+    ],
+  },
+  {
+    id: 'beauty',
+    label: 'beauty',
+    icon: Sparkles,
+    store: 'Pure & Co.',
+    slug: 'pureandco',
+    tagline: 'A little care, every day.',
+    headline: 'Your everyday care ritual.',
+    accent: '#8B5267',
+    surface: '#F8EEF2',
+    collections: ['Face', 'Body', 'Daily Care'],
+    products: [
+      { name: 'Face Serum', price: 649, icon: Sparkles },
+      { name: 'Moisturiser', price: 449, icon: Flower2 },
+      { name: 'Cleanser', price: 349, icon: Sparkles },
+      { name: 'Body Care', price: 549, icon: Leaf },
+    ],
+  },
+  {
+    id: 'jewellery',
+    label: 'jewellery',
+    icon: Gem,
+    store: 'Aura Jewellery',
+    slug: 'aurajewellery',
+    tagline: 'Small details. Lasting favourites.',
+    headline: 'A little shine. All your own.',
+    accent: '#8B662C',
+    surface: '#FAF4E8',
+    collections: ['Everyday', 'Classics', 'Gifting'],
+    products: [
+      { name: 'Pendant', price: 1499, icon: Gem },
+      { name: 'Earrings', price: 1199, icon: Sparkles },
+      { name: 'Bracelet', price: 899, icon: Heart },
+      { name: 'Ring', price: 1299, icon: Gem },
+    ],
+  },
+  {
+    id: 'food',
+    label: 'food',
+    icon: Croissant,
+    store: 'Daily Bakehouse',
+    slug: 'dailybakehouse',
+    tagline: 'A happier kind of everyday.',
+    headline: 'Something good is baking.',
+    accent: '#984D32',
+    surface: '#FFF1E6',
+    collections: ['Fresh Bakes', 'Sweet Treats', 'Bread'],
+    products: [
+      { name: 'Croissant', price: 149, icon: Croissant },
+      { name: 'Chocolate Cake', price: 699, icon: CakeSlice },
+      { name: 'Artisan Bread', price: 199, icon: Wheat },
+      { name: 'Cookies', price: 249, icon: Cookie },
+    ],
+  },
+  {
+    id: 'handicrafts',
+    label: 'handicrafts',
+    icon: Paintbrush,
+    store: 'Crafted India',
+    slug: 'craftedindia',
+    tagline: 'Thoughtfully made. Naturally yours.',
+    headline: 'A home with a human touch.',
+    accent: '#765944',
+    surface: '#F5EFE7',
+    collections: ['Ceramics', 'Woven', 'Home Accents'],
+    products: [
+      { name: 'Ceramic Vase', price: 799, icon: Flower2 },
+      { name: 'Handmade Decor', price: 599, icon: Paintbrush },
+      { name: 'Woven Basket', price: 899, icon: ShoppingBasket },
+      { name: 'Table Accent', price: 449, icon: Leaf },
+    ],
+  },
+  {
+    id: 'groceries',
+    label: 'groceries',
+    icon: ShoppingBasket,
+    store: 'Daily Basket',
+    slug: 'dailybasket',
+    tagline: 'Your neighbourhood, now online.',
+    headline: 'Everyday essentials, sorted.',
+    accent: '#326349',
+    surface: '#EDF5EC',
+    collections: ['Grains', 'Fresh Picks', 'Essentials'],
+    products: [
+      { name: 'Rice', price: 349, icon: Wheat },
+      { name: 'Pulses', price: 179, icon: Package },
+      { name: 'Fresh Produce', price: 149, icon: Leaf },
+      { name: 'Daily Essentials', price: 299, icon: ShoppingBasket },
+    ],
+  },
+];
+
+function ProductArt({
+  category,
+  index = 0,
+}: {
+  category: Category;
+  index?: number;
+}) {
+  const Icon = category.products[index].icon;
+  const colours = [category.accent, '#A6B9B1', '#C4A17C', '#7A8B9C'];
+  return (
+    <div
+      className="flex h-full w-full items-center justify-center"
+      style={{ color: colours[index] }}
+    >
+      {category.id === 'fashion' ? (
+        <svg
+          viewBox="0 0 140 120"
+          className="h-[88%] w-[88%]"
+          fill="none"
+          aria-hidden="true"
+        >
+          <ellipse
+            cx="70"
+            cy="108"
+            rx="34"
+            ry="4"
+            fill="currentColor"
+            opacity=".08"
+          />
+          <path
+            d="M49 17 31 25 14 47 32 61 43 49v53h54V49l11 12 18-14-17-22-18-8c-8 12-34 12-42 0Z"
+            fill="currentColor"
+            opacity=".85"
+          />
+          <path
+            d="m49 17 11 18 10-9 10 9 11-18M70 29v72M81 45h10v14H81Z"
+            stroke="white"
+            strokeWidth="1.5"
+            opacity=".8"
+          />
+          {[46, 60, 74, 88].map((y) => (
+            <circle key={y} cx="73" cy={y} r="1.2" fill="white" />
+          ))}
+        </svg>
+      ) : category.id === 'beauty' ? (
+        <svg
+          viewBox="0 0 140 120"
+          className="h-[88%] w-[88%]"
+          fill="none"
+          aria-hidden="true"
+        >
+          <ellipse
+            cx="70"
+            cy="108"
+            rx="29"
+            ry="4"
+            fill="currentColor"
+            opacity=".1"
+          />
+          <rect
+            x={index === 1 ? 36 : 48}
+            y={index === 1 ? 48 : 34}
+            width={index === 1 ? 68 : 44}
+            height={index === 1 ? 54 : 68}
+            rx="9"
+            fill="currentColor"
+            opacity=".75"
+          />
+          <rect
+            x={index === 1 ? 34 : 53}
+            y={index === 1 ? 39 : 25}
+            width={index === 1 ? 72 : 34}
+            height="13"
+            rx="4"
+            fill="currentColor"
+          />
+          {index !== 1 && <path d="M65 25V12h24v6H76v7" fill="currentColor" />}
+          <rect
+            x="48"
+            y="62"
+            width="44"
+            height="25"
+            rx="3"
+            fill="white"
+            opacity=".9"
+          />
+          <path d="M60 72h20M65 78h10" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      ) : category.id === 'jewellery' ? (
+        <svg
+          viewBox="0 0 140 120"
+          className="h-[88%] w-[88%]"
+          fill="none"
+          aria-hidden="true"
+        >
+          <ellipse
+            cx="70"
+            cy="108"
+            rx="34"
+            ry="4"
+            fill="currentColor"
+            opacity=".08"
+          />
+          {index === 0 ? (
+            <>
+              <path
+                d="M35 24c0 66 70 66 70 0"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+              <path
+                d="m70 77 12 12-12 16-12-16Z"
+                fill="currentColor"
+                opacity=".8"
+              />
+            </>
+          ) : index === 1 ? (
+            <>
+              <circle cx="46" cy="44" r="4" fill="currentColor" />
+              <circle cx="94" cy="44" r="4" fill="currentColor" />
+              <ellipse
+                cx="46"
+                cy="72"
+                rx="15"
+                ry="25"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <ellipse
+                cx="94"
+                cy="72"
+                rx="15"
+                ry="25"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+            </>
+          ) : (
+            <>
+              <circle
+                cx="70"
+                cy="70"
+                r={index === 2 ? 34 : 25}
+                stroke="currentColor"
+                strokeWidth={index === 2 ? 5 : 7}
+              />
+              <path d="m70 25 10 10-10 12-10-12Z" fill="currentColor" />
+            </>
+          )}
+        </svg>
+      ) : category.id === 'handicrafts' && index === 0 ? (
+        <svg
+          viewBox="0 0 140 120"
+          className="h-[88%] w-[88%]"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M57 30h26v14c0 14 18 22 18 37 0 20-17 23-31 23s-31-3-31-23c0-15 18-23 18-37Z"
+            fill="currentColor"
+            opacity=".75"
+          />
+          <path
+            d="M70 30V8m0 12 18-11M70 17 53 7"
+            stroke="#6A825D"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M45 79h50M50 91h40"
+            stroke="white"
+            strokeWidth="2"
+            opacity=".5"
+          />
+        </svg>
+      ) : (
+        <Icon
+          className="h-[65%] w-[65%]"
+          strokeWidth={1.25}
+          aria-hidden="true"
+        />
+      )}
+    </div>
+  );
+}
+
+function IllustrativeQr({ label }: { label: string }) {
+  const cells = Array.from({ length: 21 * 21 }, (_, n) => ({
+    x: n % 21,
+    y: Math.floor(n / 21),
+  })).filter(
+    ({ x, y }) =>
+      !((x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12)) &&
+      (x * 7 + y * 11 + x * y) % 5 < 2,
+  );
+  return (
+    <svg
+      viewBox="-2 -2 25 25"
+      role="img"
+      aria-label={label}
+      className="h-24 w-24 text-slate-800"
+      shapeRendering="crispEdges"
+    >
+      <rect x="-2" y="-2" width="25" height="25" fill="white" />
+      {[
+        [0, 0],
+        [14, 0],
+        [0, 14],
+      ].map(([x, y]) => (
+        <g key={x + '-' + y}>
+          <rect x={x} y={y} width="7" height="7" rx=".5" fill="currentColor" />
+          <rect x={x + 1} y={y + 1} width="5" height="5" fill="white" />
+          <rect x={x + 2} y={y + 2} width="3" height="3" fill="currentColor" />
+        </g>
+      ))}
+      {cells.map(({ x, y }) => (
+        <rect
+          key={x + '-' + y}
+          x={x}
+          y={y}
+          width="1"
+          height="1"
+          fill="currentColor"
+        />
+      ))}
+      <rect x="8" y="8" width="6" height="6" rx="1" fill="white" />
+      <path d="M10 9v3h3" stroke="#FF6B00" strokeWidth="1.2" fill="none" />
+    </svg>
+  );
 }
 
 export const Screen4Categories: React.FC = () => {
   const { t } = useLandingI18n();
-  const [activeCategoryId, setActiveCategoryId] = useState<string>('fashion');
-  const [copiedLink, setCopiedLink] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tr = (key: string) => t('landing.businessShowcase.' + key);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const selector = useRef<HTMLDivElement>(null);
+  const category = CATEGORIES[activeIndex];
 
-  const categoriesData: CategoryData[] = [
+  const select = (index: number, focus = false) => {
+    const next = (index + CATEGORIES.length) % CATEGORIES.length;
+    setActiveIndex(next);
+    const button = selector.current?.querySelector<HTMLButtonElement>(
+      '[data-category="' + CATEGORIES[next].id + '"]',
+    );
+    button?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: 'smooth',
+    });
+    if (focus) button?.focus({ preventScroll: true });
+  };
+
+  const productCard = (index: number, mobile = false) => {
+    const product = category.products[index];
+    return (
+      <div key={product.name} className="min-w-0">
+        <div
+          className={
+            mobile
+              ? 'h-24 md:h-[60px] rounded-xl border border-black/[.03]'
+              : 'h-[92px] rounded-xl border border-black/[.03]'
+          }
+          style={{ backgroundColor: category.surface }}
+        >
+          <ProductArt category={category} index={index} />
+        </div>
+        <p
+          className={
+            mobile
+              ? 'mt-2 text-xs md:text-[10px] font-semibold leading-snug text-slate-800'
+              : 'mt-2 text-[13px] font-semibold leading-snug text-slate-800'
+          }
+        >
+          {product.name}
+        </p>
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <span
+            className={
+              mobile
+                ? 'text-xs md:text-[10px] font-bold text-slate-900'
+                : 'text-[13px] font-bold text-slate-900'
+            }
+          >
+            ₹{product.price.toLocaleString('en-IN')}
+          </span>
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600"
+            aria-hidden="true"
+          >
+            <ArrowUpRight className="h-3 w-3" />
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const benefits = [
     {
-      id: 'fashion',
-      labelKey: 'landing.catFashion',
-      storeName: 'Aarya Silk & Couture',
-      slug: 'aaryasilk.letzshop.store',
-      tagline: 'Handloom Sarees, Lehengas & Ethnic Wear',
-      bannerGradient: 'from-pink-900 via-rose-800 to-amber-900',
-      bannerTitle: 'Festive Banarasi & Chanderi Silks',
-      bannerSubtitle: 'Artisanal weaves shipped straight from master artisans',
-      accentColor: 'text-rose-600',
-      accentBg: 'bg-rose-600 hover:bg-rose-700',
-      categories: ['Sarees', 'Anarkalis', 'Kurtas', 'Dupattas'],
-      products: [
-        { name: 'Banarasi Katan Silk Saree', price: 4850, category: 'Sarees', tag: 'Bestseller', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Embroidered Velvet Anarkali', price: 6200, category: 'Anarkalis', tag: 'New Arrival', image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
-        { name: 'Handloom Chanderi Kurta Set', price: 2490, category: 'Kurtas', tag: 'Popular', image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-        { name: 'Zari Woven Festive Dupatta', price: 1750, category: 'Dupattas', tag: 'Trending', image: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-      ],
+      icon: Link2,
+      title: 'benefitLink',
+      desc: 'benefitLinkDesc',
+      colour: 'text-blue-600 bg-blue-50',
     },
     {
-      id: 'food',
-      labelKey: 'landing.catFood',
-      storeName: 'Giri Organic Provisions',
-      slug: 'giriorganics.letzshop.store',
-      tagline: 'Farm-Fresh Spices, Cold-Pressed Oils & Forest Honey',
-      bannerGradient: 'from-amber-950 via-yellow-900 to-stone-900',
-      bannerTitle: 'Pure Cold-Pressed Oils & Raw Honey',
-      bannerSubtitle: 'Unadulterated pantry essentials directly from certified growers',
-      accentColor: 'text-amber-700',
-      accentBg: 'bg-amber-600 hover:bg-amber-700',
-      categories: ['Cold-Pressed Oils', 'Raw Honey', 'Organic Spices', 'Desi Ghee'],
-      products: [
-        { name: 'Cold-Pressed Mustard Oil (1L)', price: 340, category: 'Cold-Pressed Oils', tag: 'Wood-Pressed', image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Raw Forest Wild Honey (500g)', price: 490, category: 'Raw Honey', tag: '100% Pure', image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
-        { name: 'Stone-Ground Turmeric Powder (250g)', price: 180, category: 'Organic Spices', tag: 'High Curcumin', image: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-        { name: 'Kashmiri Mongra Saffron (1g)', price: 650, category: 'Organic Spices', tag: 'Grade A', image: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-      ],
+      icon: QrCode,
+      title: 'benefitShare',
+      desc: 'benefitShareDesc',
+      colour: 'text-orange-600 bg-orange-50',
     },
     {
-      id: 'jewellery',
-      labelKey: 'landing.catJewellery',
-      storeName: 'Ratnam Silver & Jewels',
-      slug: 'ratnamjewels.letzshop.store',
-      tagline: 'Hallmarked 925 Silver, Kundan & Temple Jewels',
-      bannerGradient: 'from-slate-900 via-amber-950 to-slate-950',
-      bannerTitle: 'Heritage 925 Silver & Kundan Jewels',
-      bannerSubtitle: 'Hallmarked craftsmanship designed for timeless celebrations',
-      accentColor: 'text-amber-600',
-      accentBg: 'bg-amber-600 hover:bg-amber-700',
-      categories: ['Silver Jhumkas', 'Chokers', 'Kadas', 'Pendants'],
-      products: [
-        { name: '925 Sterling Silver Jhumkas', price: 2890, category: 'Silver Jhumkas', tag: 'Hallmarked', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
-        { name: 'Kundan Choker Necklace Set', price: 5400, category: 'Chokers', tag: 'Bridal Pick', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Handcrafted Oxidised Silver Kada', price: 3750, category: 'Kadas', tag: 'Heavy Silver', image: 'https://images.unsplash.com/photo-1611591475878-8386348c3b7a?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-        { name: 'Temple Art Peacock Pendant', price: 1990, category: 'Pendants', tag: 'Antique Finish', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-      ],
+      icon: ShoppingBasket,
+      title: 'benefitBusiness',
+      desc: 'benefitBusinessDesc',
+      colour: 'text-emerald-600 bg-emerald-50',
     },
     {
-      id: 'beauty',
-      labelKey: 'landing.catBeauty',
-      storeName: 'Veda Glow Botanicals',
-      slug: 'vedaglow.letzshop.store',
-      tagline: 'Pure Ayurvedic Serums, Kumkumadi & Rose Mists',
-      bannerGradient: 'from-rose-950 via-pink-900 to-rose-900',
-      bannerTitle: 'Ayurvedic Skin Radiance Elixirs',
-      bannerSubtitle: 'Botanical formulations free from sulfates, parabens and silicones',
-      accentColor: 'text-rose-600',
-      accentBg: 'bg-rose-600 hover:bg-rose-700',
-      categories: ['Facial Serums', 'Floral Mists', 'Face Masks', 'Hair Oils'],
-      products: [
-        { name: 'Kumkumadi Night Radiance Oil (30ml)', price: 980, category: 'Facial Serums', tag: 'Pure Saffron', image: 'https://images.unsplash.com/photo-1608248597359-2c786720072b?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Kannauj Pure Steam-Distilled Rose Mist', price: 380, category: 'Floral Mists', tag: 'Hydro-Distilled', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Sandalwood & Ubtan Clay Mask (100g)', price: 450, category: 'Face Masks', tag: 'Natural Detox', image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=600&auto=format&fit=crop&q=80', rating: '4.7' },
-        { name: 'Cold-Pressed Bhringraj Hair Oil (200ml)', price: 520, category: 'Hair Oils', tag: 'Root Care', image: 'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-      ],
-    },
-    {
-      id: 'handicrafts',
-      labelKey: 'landing.catHandicrafts',
-      storeName: 'Hastakshar Art & Home',
-      slug: 'hastakshar.letzshop.store',
-      tagline: 'Artisanal Pottery, Brassware & Handloom Linen',
-      bannerGradient: 'from-stone-900 via-amber-950 to-orange-950',
-      bannerTitle: 'Earthy Pottery & Hand-Cast Brassware',
-      bannerSubtitle: 'Slow-made home decor that breathes character into every room',
-      accentColor: 'text-orange-700',
-      accentBg: 'bg-orange-600 hover:bg-orange-700',
-      categories: ['Clay Pottery', 'Brass Urli', 'Cotton Linen', 'Wooden Art'],
-      products: [
-        { name: 'Handmade Glazed Clay Teapot Set', price: 850, category: 'Clay Pottery', tag: 'Studio Made', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Engraved Brass Diya Urli (10 Inch)', price: 1650, category: 'Brass Urli', tag: 'Solid Brass', image: 'https://images.unsplash.com/photo-1606744824163-985d376605aa?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
-        { name: 'Hand-Blocked Cotton Linen Bedcover', price: 2190, category: 'Cotton Linen', tag: 'Vegetable Dyes', image: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-        { name: 'Carved Sheesham Wooden Coaster Set', price: 490, category: 'Wooden Art', tag: 'Solid Wood', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&auto=format&fit=crop&q=80', rating: '4.7' },
-      ],
-    },
-    {
-      id: 'grocery',
-      labelKey: 'landing.catGrocery',
-      storeName: 'Sai Krupa Super Store',
-      slug: 'saikrupa.letzshop.store',
-      tagline: 'Daily Grains, Flours, Pulses & Fresh Provisions',
-      bannerGradient: 'from-emerald-950 via-teal-900 to-slate-900',
-      bannerTitle: 'Daily Farm Essentials & Grains',
-      bannerSubtitle: 'Unpolished dals, premium rice, and stone-ground atta at direct prices',
-      accentColor: 'text-emerald-700',
-      accentBg: 'bg-emerald-600 hover:bg-emerald-700',
-      categories: ['Whole Grains', 'Pulses & Dals', 'Basmati Rice', 'Desi Ghee'],
-      products: [
-        { name: 'MP Sharbati Whole Wheat Atta (5kg)', price: 320, category: 'Whole Grains', tag: 'Fresh Ground', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80', rating: '4.8' },
-        { name: 'Unpolished Farm Toor Dal (1kg)', price: 195, category: 'Pulses & Dals', tag: 'High Protein', image: 'https://images.unsplash.com/photo-1585994192701-f1a505c817ea?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-        { name: 'Aged Royal Biryani Basmati Rice (5kg)', price: 680, category: 'Basmati Rice', tag: 'Extra Long', image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80', rating: '5.0' },
-        { name: 'Pure Bilona Gir Cow A2 Ghee (500ml)', price: 850, category: 'Desi Ghee', tag: 'Vedic Method', image: 'https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?w=600&auto=format&fit=crop&q=80', rating: '4.9' },
-      ],
+      icon: Clock3,
+      title: 'benefitAnytime',
+      desc: 'benefitAnytimeDesc',
+      colour: 'text-violet-600 bg-violet-50',
     },
   ];
 
-  const currentCategory = categoriesData.find((c) => c.id === activeCategoryId) || categoriesData[0];
-
-  const scrollTabs = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -200 : 200;
-      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(`https://${currentCategory.slug}`);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
-  };
-
   return (
-    <section id="categories" className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 bg-white border-b border-slate-100">
-      <div className="max-w-7xl mx-auto space-y-12">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wide">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>{t('landing.businessEyebrow')}</span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
-            {t('landing.businessTitle')}
+    <section
+      id="categories"
+      data-testid="screen4-showcase"
+      className="relative overflow-hidden border-b border-slate-100 bg-[#FCFDFE] px-4 py-10 sm:px-6 lg:py-8"
+    >
+      <div
+        className="pointer-events-none absolute left-[10%] top-64 h-80 w-80 rounded-full bg-orange-100/25 blur-3xl"
+        aria-hidden="true"
+      />
+      <div className="relative mx-auto max-w-[1440px] space-y-5 lg:space-y-4">
+        <div className="mx-auto max-w-[1250px] text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
+            <Globe2
+              className="h-3.5 w-3.5 text-orange-600"
+              aria-hidden="true"
+            />
+            {tr('eyebrow')}
+          </span>
+          <h2 className="mt-3 text-[34px] font-black leading-[1.2] tracking-tight text-[#0B1528] sm:text-[42px] lg:text-[48px]">
+            {tr('titleLead')}{' '}
+            <span className="text-[#FF6B00]">{tr('titleEmphasis')}</span>{' '}
+            {tr('titleEnd')}
           </h2>
-
-          <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            {t('landing.businessSupporting')}
+          <p className="mx-auto mt-3 max-w-[990px] text-[15px] leading-relaxed text-slate-500 sm:text-base">
+            {tr('supporting')}
           </p>
         </div>
 
-        {/* Category Selector Tabs with < and > Controls */}
-        <div className="relative max-w-4xl mx-auto flex items-center gap-2">
-          {/* Scroll Left Button */}
+        <div className="mx-auto flex max-w-[1120px] items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={() => scrollTabs('left')}
-            aria-label="Previous categories"
-            className="hidden sm:flex w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 items-center justify-center shadow-xs shrink-0 transition"
+            onClick={() => select(activeIndex - 1)}
+            aria-label={tr('previous')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-orange-300 hover:text-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-
-          {/* Horizontally scrollable container */}
           <div
-            ref={scrollContainerRef}
-            className="flex-1 flex items-center gap-2.5 overflow-x-auto no-scrollbar py-2 px-1 scroll-smooth"
+            ref={selector}
+            role="group"
+            aria-label={tr('categorySelector')}
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-1 py-2 no-scrollbar"
           >
-            {categoriesData.map((cat) => {
-              const isSelected = cat.id === activeCategoryId;
+            {CATEGORIES.map((item, index) => {
+              const Icon = item.icon;
               return (
                 <button
-                  key={cat.id}
-                  onClick={() => setActiveCategoryId(cat.id)}
+                  key={item.id}
                   type="button"
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border ${
-                    isSelected
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-[1.02]'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
+                  data-category={item.id}
+                  aria-pressed={index === activeIndex}
+                  aria-controls="business-store-preview"
+                  onClick={() => select(index)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'ArrowRight' ||
+                      event.key === 'ArrowLeft'
+                    ) {
+                      event.preventDefault();
+                      select(
+                        index + (event.key === 'ArrowRight' ? 1 : -1),
+                        true,
+                      );
+                    }
+                  }}
+                  className={
+                    'flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[13px] font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ' +
+                    (index === activeIndex
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-100'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50')
+                  }
                 >
-                  {t(cat.labelKey)}
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {tr(item.label)}
                 </button>
               );
             })}
           </div>
-
-          {/* Scroll Right Button */}
           <button
             type="button"
-            onClick={() => scrollTabs('right')}
-            aria-label="Next categories"
-            className="hidden sm:flex w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 items-center justify-center shadow-xs shrink-0 transition"
+            onClick={() => select(activeIndex + 1)}
+            aria-label={tr('next')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-orange-300 hover:text-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        {/* Dynamic Storefront Preview Canvas */}
-        <div className="max-w-5xl mx-auto rounded-3xl bg-white border border-slate-200/90 shadow-xl overflow-hidden transition-all duration-300">
-          {/* Top Browser URL & Channel Tools Bar */}
-          <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-            {/* Store Link & Copy Action */}
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-slate-400 text-xs">Link:</span>
-              <span className="font-mono font-bold text-slate-900 bg-white px-3 py-1 rounded-lg border border-slate-200">
-                https://{currentCategory.slug}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:bg-slate-50 transition shadow-2xs font-semibold text-[11px]"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-
-            {/* Channels & QR Strip */}
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-              <span className="inline-flex items-center gap-1 bg-white px-2.5 py-1 rounded-md border border-slate-200 text-emerald-700">
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                WhatsApp Ready
-              </span>
-              <span className="inline-flex items-center gap-1 bg-white px-2.5 py-1 rounded-md border border-slate-200 text-blue-700">
-                <QrCode className="w-3.5 h-3.5 text-blue-600" />
-                QR Code Access
-              </span>
-              <span className="inline-flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-emerald-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                24/7 Live Web
-              </span>
-            </div>
-          </div>
-
-          {/* Storefront Visual Body */}
-          <div className="p-4 sm:p-8 space-y-6">
-            {/* Storefront Header Mock */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  {currentCategory.storeName}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{currentCategory.tagline}</p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700">
-                  <ShoppingBag className="w-4 h-4 text-blue-600" />
-                  <span>Cart (0)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Storefront Hero Banner */}
-            <div className={`rounded-2xl p-6 sm:p-10 bg-gradient-to-r ${currentCategory.bannerGradient} text-white shadow-md relative overflow-hidden transition-all duration-300`}>
-              <div className="relative z-10 max-w-lg space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-xs inline-block">
-                  Featured Catalogue 2026
-                </span>
-                <h4 className="text-2xl sm:text-3xl font-black tracking-tight leading-snug">
-                  {currentCategory.bannerTitle}
-                </h4>
-                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-                  {currentCategory.bannerSubtitle}
-                </p>
-                <div className="pt-2">
-                  <span className="inline-block text-xs font-bold bg-white text-slate-900 px-4 py-2 rounded-xl shadow-sm">
-                    Explore Storefront →
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Sub-Category Pills Strip */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs font-bold text-slate-500 mr-1">Collections:</span>
-              {currentCategory.categories.map((c, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-
-            {/* Product Grid (4 items) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              {currentCategory.products.map((prod, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-3 group"
-                >
-                  {/* Clean Demo Product Visual Asset */}
-                  <div className="w-full h-40 rounded-xl bg-slate-100 border border-slate-100 relative overflow-hidden group-hover:shadow-sm transition-all">
-                    <img
-                      src={prod.image}
-                      alt={prod.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
+        <div
+          id="business-store-preview"
+          className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_264px]"
+        >
+          <div className="relative min-w-0 md:pb-3 md:pr-[132px] xl:pr-[150px]">
+            <p className="sr-only" aria-live="polite">
+              {tr(category.label)}: {category.store}
+            </p>
+            <div
+              data-testid="showcase-desktop"
+              data-active-category={category.id}
+              className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-20px_rgba(15,23,42,0.25)] md:block"
+            >
+              <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+                <div className="flex gap-1" aria-hidden="true">
+                  {[0, 1, 2].map((n) => (
+                    <span
+                      key={n}
+                      className="h-1.5 w-1.5 rounded-full bg-slate-300"
                     />
-                    <span className="absolute top-2 left-2 text-[10px] font-bold bg-white/95 backdrop-blur-xs text-slate-800 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-xs">
-                      {prod.tag}
+                  ))}
+                </div>
+                <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[10px] text-slate-500">
+                  <Globe2 className="h-3 w-3" aria-hidden="true" />
+                  <span data-store-url>{category.slug}.letzshop.store</span>
+                </span>
+                <span className="hidden text-[9px] font-medium text-slate-400 xl:inline">
+                  {tr('illustrativeDemo')}
+                </span>
+              </div>
+              <div className="px-4 pb-4 xl:px-5 xl:pb-5">
+                <div className="flex items-center justify-between gap-2 py-4">
+                  <div className="min-w-0">
+                    <h3
+                      data-store-name
+                      className="text-lg font-extrabold tracking-tight"
+                      style={{ color: category.accent }}
+                    >
+                      {category.store}
+                    </h3>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      {category.tagline}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-[10px] text-slate-500">
+                    <span className="hidden xl:inline">{tr('home')}</span>
+                    <span className="hidden xl:inline">{tr('shop')}</span>
+                    <Search className="h-4 w-4" aria-hidden="true" />
+                    <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                </div>
+                <div
+                  className="relative grid min-h-[154px] grid-cols-[1.1fr_1fr] overflow-hidden rounded-xl px-5 py-5 xl:px-7"
+                  style={{ backgroundColor: category.surface }}
+                >
+                  <div className="relative z-10 flex flex-col items-start justify-center">
+                    <span
+                      className="text-[9px] font-bold uppercase tracking-[.15em]"
+                      style={{ color: category.accent }}
+                    >
+                      {category.collections[0]}
                     </span>
-                    <span className="absolute bottom-2 right-2 text-[10px] font-bold bg-white/95 backdrop-blur-xs text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200 shadow-xs">
-                      ★ {prod.rating}
+                    <h4 className="mt-2 max-w-[260px] text-[25px] font-extrabold leading-tight tracking-tight text-slate-900 xl:text-[29px]">
+                      {category.headline}
+                    </h4>
+                    <span
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-bold text-white"
+                      style={{ backgroundColor: category.accent }}
+                    >
+                      {tr('shopCollection')}
+                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     </span>
                   </div>
-
-                  {/* Product Details */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                      {prod.category}
-                    </span>
-                    <h5 className="font-bold text-slate-900 text-sm leading-snug line-clamp-1">
-                      {prod.name}
-                    </h5>
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-base font-extrabold text-slate-900">
-                        ₹{prod.price.toLocaleString('en-IN')}
-                      </span>
-                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                        In Stock
-                      </span>
+                  <div
+                    className="relative flex items-center justify-center"
+                    aria-hidden="true"
+                  >
+                    <div className="absolute h-32 w-32 rounded-full bg-white/60" />
+                    <div className="absolute left-[5%] top-2 h-[95px] w-[95px] -rotate-12 rounded-2xl border border-white bg-white/60 p-2 shadow-sm">
+                      <ProductArt category={category} index={1} />
+                    </div>
+                    <div className="relative ml-9 h-[128px] w-[128px] rotate-6 rounded-2xl border border-white bg-white/90 p-2 shadow-sm">
+                      <ProductArt category={category} />
                     </div>
                   </div>
-
-                  {/* Add to Cart Button */}
-                  <button
-                    type="button"
-                    className="w-full py-2 rounded-xl border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-bold hover:bg-slate-50 transition shadow-2xs flex items-center justify-center gap-1.5"
-                  >
-                    <span>Add to Bag</span>
-                  </button>
                 </div>
-              ))}
+                <div className="flex flex-wrap items-center gap-2 py-3">
+                  <span className="mr-1 text-[10px] font-semibold text-slate-400">
+                    {tr('collections')}
+                  </span>
+                  {category.collections.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-slate-200 px-2.5 py-1 text-[9px] font-medium text-slate-600"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {category.products.map((_, index) => productCard(index))}
+                </div>
+              </div>
+            </div>
+
+            <div
+              data-testid="showcase-mobile"
+              data-active-category={category.id}
+              className="relative mx-auto w-full max-w-[350px] rounded-[32px] border-[5px] border-slate-800 bg-white p-2 shadow-[0_16px_40px_-18px_rgba(15,23,42,0.35)] md:absolute md:bottom-0 md:right-0 md:w-[208px] md:rounded-[27px] md:border-[4px] md:p-1.5"
+            >
+              <div
+                className="mx-auto mb-2 h-1 w-12 rounded-full bg-slate-800 md:mb-1.5 md:h-0.5 md:w-9"
+                aria-hidden="true"
+              />
+              <div className="overflow-hidden rounded-[20px] border border-slate-100 md:rounded-[16px]">
+                <div className="flex items-center justify-between gap-2 px-3 py-3 md:px-2 md:py-2.5">
+                  <Menu
+                    className="h-4 w-4 shrink-0 md:h-3 md:w-3"
+                    aria-hidden="true"
+                  />
+                  <h3
+                    data-store-name
+                    className="min-w-0 text-sm font-extrabold md:text-[11px]"
+                    style={{ color: category.accent }}
+                  >
+                    {category.store}
+                  </h3>
+                  <ShoppingBag
+                    className="h-4 w-4 shrink-0 md:h-3 md:w-3"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div
+                  className="relative overflow-hidden px-4 py-5 md:px-3 md:py-3"
+                  style={{ backgroundColor: category.surface }}
+                >
+                  <div
+                    className="absolute -bottom-1 -right-3 h-28 w-28 opacity-35 md:h-20 md:w-20"
+                    aria-hidden="true"
+                  >
+                    <ProductArt category={category} />
+                  </div>
+                  <p className="relative max-w-[190px] text-[24px] font-extrabold leading-tight tracking-tight text-slate-900 md:max-w-[140px] md:text-[20px]">
+                    {category.headline}
+                  </p>
+                  <span
+                    className="relative mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[10px] font-semibold text-white md:text-[8px]"
+                    style={{ backgroundColor: category.accent }}
+                  >
+                    {tr('shopCollection')}
+                    <ArrowRight className="h-2.5 w-2.5" aria-hidden="true" />
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 p-3 md:gap-y-2 md:p-2">
+                  {category.products.map((_, index) =>
+                    productCard(index, true),
+                  )}
+                </div>
+                <div className="flex items-center justify-center gap-1 border-t border-slate-100 py-2 text-[10px] text-slate-400 md:text-[8px]">
+                  <Globe2 className="h-2.5 w-2.5" aria-hidden="true" />
+                  {category.slug}.letzshop.store
+                </div>
+              </div>
             </div>
           </div>
+
+          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 p-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <Clock3 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold leading-snug text-slate-900">
+                  {tr('onlineAccess')}
+                </h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                  {tr('onlineAccessDesc')}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 text-center">
+              <h3 className="text-sm font-bold text-slate-900">
+                {tr('scanStore')}
+              </h3>
+              <div className="mx-auto mt-2 flex w-fit items-center justify-center rounded-xl border border-slate-200 p-1.5">
+                <IllustrativeQr label={tr('illustrativeQr')} />
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
+                {tr('illustrativeQr')}
+              </p>
+            </div>
+            <div className="mt-3 border-t border-slate-100 pt-2.5">
+              <h3 className="text-xs font-bold text-slate-700">
+                {tr('storeLink')}
+              </h3>
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2.5">
+                <Link2
+                  className="h-3.5 w-3.5 shrink-0 text-blue-600"
+                  aria-hidden="true"
+                />
+                <code
+                  data-testid="showcase-store-link"
+                  className="min-w-0 break-all text-[11px] font-semibold text-slate-600"
+                >
+                  {category.slug}.letzshop.store
+                </code>
+              </div>
+            </div>
+            <div className="mt-3 border-t border-slate-100 pt-2.5">
+              <h3 className="text-xs font-bold text-slate-700">
+                {tr('shareStore')}
+              </h3>
+              <div
+                className="mt-2 flex flex-wrap gap-2"
+                aria-label={tr('sharingExamples')}
+              >
+                {[
+                  {
+                    icon: MessageCircle,
+                    label: 'WhatsApp',
+                    style: 'text-emerald-600 bg-emerald-50',
+                  },
+                  {
+                    icon: Instagram,
+                    label: 'Instagram',
+                    style: 'text-rose-600 bg-rose-50',
+                  },
+                  {
+                    icon: Facebook,
+                    label: 'Facebook',
+                    style: 'text-blue-600 bg-blue-50',
+                  },
+                  {
+                    icon: Copy,
+                    label: tr('copyLink'),
+                    style: 'text-slate-600 bg-slate-100',
+                  },
+                ].map((item) => (
+                  <span
+                    key={item.label}
+                    title={item.label}
+                    aria-label={item.label}
+                    role="img"
+                    className={
+                      'flex h-9 w-9 items-center justify-center rounded-lg ' +
+                      item.style
+                    }
+                  >
+                    <item.icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                {tr('sharingExamples')}
+              </p>
+            </div>
+          </aside>
+        </div>
+
+        <div
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          data-testid="showcase-benefits"
+        >
+          {benefits.map((item) => (
+            <div
+              key={item.title}
+              className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4"
+            >
+              <span
+                className={
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ' +
+                  item.colour
+                }
+              >
+                <item.icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h3 className="text-[15px] font-bold leading-snug text-slate-900">
+                  {tr(item.title)}
+                </h3>
+                <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+                  {tr(item.desc)}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
