@@ -1,3 +1,4 @@
+import { customerJourneyEn } from './customer-journey';
 import { brandStudioEn } from './brand-studio';
 export const enIN = {
   brandStudio: brandStudioEn,
@@ -938,6 +939,7 @@ export const enIN = {
     errMaxPercent: 'Percentage discount cannot exceed 100%.',
   },
   landing: {
+    customerJourney: customerJourneyEn,
     themeGallery: {
       eyebrow: 'STOREFRONT THEMES',
       title: 'Choose a look that fits your business.',
@@ -1101,7 +1103,7 @@ export const enIN = {
     brandCapColours: 'Curated Palette & Accent Colours',
     brandCapFonts: 'Editorial Typography Pairings',
     brandCapBanners: 'Hero Banners & Headlines',
-    brandCapLayout: 'Dynamic Section Hierarchy',
+    brandCapLayout: 'Home & Catalogue Layout',
     brandCapStyling: 'Component Radius & Card Shapes',
     previewDesktop: 'Desktop Storefront',
     previewMobile: 'Mobile Storefront',

@@ -1,3 +1,4 @@
+import { customerJourneyHi } from './customer-journey';
 import { brandStudioHi } from './brand-studio';
 import { enIN, TranslationDictionary } from './en-IN';
 
@@ -941,6 +942,8 @@ export const hiIN: TranslationDictionary = {
   },
   landing: {
     ...enIN.landing,
+    customerJourney: customerJourneyHi,
+    brandCapLayout: 'होम और कैटलॉग का लेआउट',
     themeGallery: {
       eyebrow: 'ऑनलाइन स्टोर थीम्स',
       title: 'अपने व्यवसाय के अनुरूप लुक चुनें।',

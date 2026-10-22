@@ -7,8 +7,8 @@ import { Screen1Hero } from '../components/landing/Screen1Hero';
 import { Screen2Problem } from '../components/landing/Screen2Problem';
 import { Screen3System } from '../components/landing/Screen3System';
 import { Screen4Categories } from '../components/landing/Screen4Categories';
-import { Screen5BrandStudio } from '../components/landing/Screen5BrandStudio';
-import { Screen6Journey } from '../components/landing/Screen6Journey';
+import { Screen5CustomerJourney } from '../components/landing/Screen5CustomerJourney';
+import { Screen6BrandStudio } from '../components/landing/Screen6BrandStudio';
 import { Screen7Pricing } from '../components/landing/Screen7Pricing';
 import { Screen8StepsFaqCta } from '../components/landing/Screen8StepsFaqCta';
 import { LandingFooter } from '../components/landing/LandingFooter';
@@ -58,11 +58,11 @@ function LandingPageInner() {
         {/* Screen 4: Your Business Goes Online (Interactive Category Showcase) */}
         <Screen4Categories />
 
-        {/* Screen 5: Brand Studio / Make It Yours (Interactive Canonical Themes) */}
-        <Screen5BrandStudio sellerUrl={sellerUrl} />
+        {/* Screen 5: Customer Visit to Delivery */}
+        <Screen5CustomerJourney />
 
-        {/* Screen 6: Customer Visit to Delivery (Interactive Horizontal Journey Carousel) */}
-        <Screen6Journey />
+        {/* Screen 6: Brand Studio / Make It Yours (Interactive Canonical Themes) */}
+        <Screen6BrandStudio sellerUrl={sellerUrl} />
 
         {/* Screen 7: Value + ₹999 */}
         <Screen7Pricing sellerUrl={sellerUrl} />

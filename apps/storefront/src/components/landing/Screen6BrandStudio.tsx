@@ -3,11 +3,11 @@ import { Palette, Sparkles, Check, ChevronLeft, ChevronRight, Laptop, Smartphone
 import { useLandingI18n } from '@simply/i18n';
 import { FOUNDATIONAL_THEMES, ThemeConfig } from '@simply/ui';
 
-interface Screen5BrandStudioProps {
+interface Screen6BrandStudioProps {
   sellerUrl: string;
 }
 
-export const Screen5BrandStudio: React.FC<Screen5BrandStudioProps> = ({ sellerUrl }) => {
+export const Screen6BrandStudio: React.FC<Screen6BrandStudioProps> = ({ sellerUrl }) => {
   const { t } = useLandingI18n();
 
   // Curated list of real foundational themes from FOUNDATIONAL_THEMES

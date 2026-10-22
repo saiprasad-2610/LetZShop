@@ -1,3 +1,4 @@
+import { customerJourneyMr } from './customer-journey';
 import { brandStudioMr } from './brand-studio';
 import { TranslationDictionary } from './en-IN';
 
@@ -940,6 +941,7 @@ export const mrIN: TranslationDictionary = {
     errMaxPercent: 'टक्केवारी सवलत १००% पेक्षा जास्त असू शकत नाही.',
   },
   landing: {
+    customerJourney: customerJourneyMr,
     themeGallery: {
       eyebrow: 'ऑनलाइन स्टोअर थीम्स',
       title: 'तुमच्या व्यवसायाला साजेसा लूक निवडा.',
@@ -1103,7 +1105,7 @@ export const mrIN: TranslationDictionary = {
     brandCapColours: 'आकर्षक रंगसंगती व शेड्स',
     brandCapFonts: 'फॉन्ट्सची सुंदर जुळणी',
     brandCapBanners: 'हिरो बॅनर्स व मथळे',
-    brandCapLayout: 'लवचिक विभाग मांडणी',
+    brandCapLayout: 'होम व कॅटलॉगची मांडणी',
     brandCapStyling: 'बटण व कार्ड स्टाइलिंग',
     previewDesktop: 'डेस्कटॉप स्टोअरफ्रंट',
     previewMobile: 'मोबाइल स्टोअरफ्रंट',
