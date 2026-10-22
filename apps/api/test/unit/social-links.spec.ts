@@ -38,6 +38,11 @@ const valid: Array<[SocialPlatform, string, string]> = [
   ['youtube', '@brandchannel', 'https://youtube.com/@brandchannel'],
   [
     'youtube',
+    '@मराठीदुकान',
+    'https://youtube.com/@' + encodeURIComponent('मराठीदुकान'),
+  ],
+  [
+    'youtube',
     'https://www.youtube.com/channel/UC_abcdef123',
     'https://youtube.com/channel/UC_abcdef123',
   ],
@@ -113,6 +118,15 @@ describe('shared social-link contract', () => {
   ])('rejects invalid %s format %s', (platform, raw) =>
     expect(parseSocialLink(platform as SocialPlatform, raw).valid).toBe(false),
   );
+  it('rejects canonical WhatsApp URLs that exceed the bound after encoding', () => {
+    expect(
+      parseSocialLink(
+        'whatsapp',
+        'https://api.whatsapp.com/send?phone=919876543210&text=' +
+          'अ'.repeat(500),
+      ).valid,
+    ).toBe(false);
+  });
   it('preserves unrelated delivery metadata and does not mutate the source', () => {
     const source = {
       instagram: '@brand',

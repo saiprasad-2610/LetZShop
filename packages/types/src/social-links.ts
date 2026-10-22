@@ -92,7 +92,9 @@ export function parseSocialLink(
           const target = new URL('https://wa.me/' + phone);
           if (url.searchParams.has('text'))
             target.searchParams.set('text', url.searchParams.get('text')!);
-          return { url: target.toString(), valid: true };
+          return target.href.length <= SOCIAL_LINK_MAX
+            ? { url: target.href, valid: true }
+            : invalid;
         }
         if (
           parts.length === 2 &&
@@ -156,7 +158,7 @@ export function parseSocialLink(
   if (platform === 'facebook' && facebookSlug(handle))
     return { url: 'https://facebook.com/' + handle, valid: true };
   if (platform === 'youtube' && value.startsWith('@') && youtubeHandle(handle))
-    return { url: 'https://youtube.com/@' + handle, valid: true };
+    return { url: new URL('https://youtube.com/@' + handle).href, valid: true };
   // Legacy footer rendering already supported company slugs.
   if (platform === 'linkedin' && companySlug(value))
     return { url: 'https://linkedin.com/company/' + value, valid: true };
