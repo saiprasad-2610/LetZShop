@@ -4,7 +4,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { createTranslator } from '../packages/i18n/dist/index.js';
 
-const out=path.resolve('artifacts/catalog-theme-polish');
+const out=path.resolve(process.env.SCREEN4_ARTIFACTS || 'artifacts/catalog-theme-polish');
 fs.mkdirSync(out,{recursive:true});
 const base=process.env.STOREFRONT_URL || 'http://localhost:3000';
 const sizes=[[1920,1080],[1680,945],[1440,900],[1280,800],[768,1024],[390,844]];
@@ -16,7 +16,7 @@ const categories=[
   ['handicrafts','Crafted India','Ceramic Vase','craftedindia'],
   ['groceries','Daily Basket','Rice','dailybasket'],
 ];
-const frozenPath=path.join(out,'screen4-frozen.json');
+const frozenPath=path.resolve(process.env.SCREEN4_FROZEN || 'artifacts/catalog-theme-polish/screen4-frozen.json');
 const frozen=fs.existsSync(frozenPath)?JSON.parse(fs.readFileSync(frozenPath)):null;
 const results=[],errors=[];
 const browser=await chromium.launch({channel:'chrome',headless:true});
@@ -26,6 +26,14 @@ try{
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base,{waitUntil:'networkidle'});
   await page.evaluate(()=>document.fonts.ready);
+  const initial=await page.locator('#storefront-theme-rail').evaluate(e=>({
+    scrollLeft:e.scrollLeft,
+    firstOffset:e.firstElementChild.getBoundingClientRect().left-e.getBoundingClientRect().left,
+    order:[...e.children].map(card=>card.dataset.themePreview),
+  }));
+  assert.equal(initial.scrollLeft,0,'fresh carousel starts at zero');
+  assert.ok(Math.abs(initial.firstOffset)<1,'first card starts cleanly');
+  assert.deepEqual(initial.order,['canvas','aura','horizon','feast','atelier','harvest']);
   for(const locale of ['en-IN','mr-IN','hi-IN']){
     const t=createTranslator(locale);
     await page.setViewportSize({width:1680,height:945});
@@ -92,7 +100,8 @@ try{
       assert.equal(await gallery.locator('[data-theme-preview]').count(),6);
       assert.equal(await gallery.locator('iframe').count(),0,'no heavy theme iframes');
       assert.equal(await gallery.getByRole('heading',{name:t('landing.themeGallery.title'),exact:true}).count(),1);
-      for(const id of ['aura','harvest','feast','horizon','canvas','atelier']){
+      assert.deepEqual(await gallery.locator('[data-theme-preview]').evaluateAll(cards=>cards.map(card=>card.dataset.themePreview)),['canvas','aura','horizon','feast','atelier','harvest']);
+      for(const id of ['canvas','aura','horizon','feast','atelier','harvest']){
         const card=gallery.locator('[data-theme-preview="'+id+'"]');
         const image=card.locator('img');
         await image.scrollIntoViewIfNeeded();

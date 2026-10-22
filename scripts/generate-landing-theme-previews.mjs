@@ -38,13 +38,21 @@ function art(type, color, index = 0) {
             ? '<path d="M158 112h84v44c0 22 43 49 43 78 0 49-170 49-170 0 0-29 43-56 43-78z" fill="' +
               color +
               '"/><path d="M200 114V45m0 26 40-19m-40 32-36-22" stroke="#66826b" stroke-width="5"/><path d="M135 220h130m-121 19h112" stroke="#ffffff" stroke-opacity=".4" stroke-width="4"/>'
-            : '<rect x="110" y="115" width="180" height="110" rx="12" fill="' +
-              color +
-              '"/><rect x="120" y="125" width="160" height="90" rx="5" fill="#e8f0f3"/><path d="M200 225v30m-40 0h80" stroke="' +
-              color +
-              '" stroke-width="9"/><path d="m172 169 18 18 39-39" stroke="' +
-              color +
-              '" stroke-width="8" fill="none"/>';
+            : type === 'tech' && index === 1
+              ? '<path d="M200 90c-43 0-66 35-66 86v38c0 49 132 49 132 0v-38c0-51-23-86-66-86z" fill="' +
+                color +
+                '"/><path d="M200 92v79m-64 5h128" stroke="#d6e7f0" stroke-width="4"/><rect x="194" y="114" width="12" height="30" rx="6" fill="#e8f0f3"/>'
+              : type === 'tech' && index === 2
+                ? '<rect x="119" y="104" width="46" height="152" rx="15" fill="' +
+                  color +
+                  '"/><rect x="172" y="104" width="110" height="152" rx="12" fill="#263c4c"/><path d="M132 138h20m-10-10v20m53 64h62" stroke="#e8f0f3" stroke-width="5"/><circle cx="142" cy="213" r="9" fill="#c3d9e6"/><circle cx="259" cy="130" r="5" fill="#79b4d1"/>'
+                : '<rect x="110" y="115" width="180" height="110" rx="12" fill="' +
+                  color +
+                  '"/><rect x="120" y="125" width="160" height="90" rx="5" fill="#e8f0f3"/><path d="M200 225v30m-40 0h80" stroke="' +
+                  color +
+                  '" stroke-width="9"/><path d="m172 169 18 18 39-39" stroke="' +
+                  color +
+                  '" stroke-width="8" fill="none"/>';
   return (
     'data:image/svg+xml,' +
     encodeURIComponent(
@@ -105,15 +113,15 @@ const demos = [
     id: 'horizon',
     store: 'Horizon Works',
     badge: 'Craft meets innovation',
-    title: 'From looms to labs.',
+    title: 'High-tech solutions.',
     subtitle: 'Precision, heritage and useful products for a changing world.',
     type: 'tech',
     color: '#426986',
     names: [
       'Studio Display',
-      'Precision Module',
+      'Precision Mouse',
       'Connected Console',
-      'Workshop Monitor',
+      'Desktop Monitor',
     ],
   },
   {
@@ -148,10 +156,19 @@ const demos = [
     ],
   },
 ];
+const requestedIds = new Set(process.argv.slice(2));
+for (const id of requestedIds)
+  assert.ok(
+    demos.some((demo) => demo.id === id),
+    'Unknown demo theme: ' + id,
+  );
+const selectedDemos = demos.filter(
+  (demo) => !requestedIds.size || requestedIds.has(demo.id),
+);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const manifest = [];
 try {
-  for (const demo of demos) {
+  for (const demo of selectedDemos) {
     const theme = FOUNDATIONAL_THEMES[demo.id];
     assert.ok(theme, 'active production theme');
     const context = await browser.newContext({
@@ -235,6 +252,13 @@ try {
     const page = await context.newPage();
     await page.goto(base + '/store/theme-demo', { waitUntil: 'networkidle' });
     await page.locator('.theme-' + demo.id + ' .store-product-grid').waitFor();
+    assert.ok(
+      await page
+        .locator('[data-theme-hero] h1')
+        .textContent()
+        .then((text) => text.includes(demo.title)),
+      'authored demo headline uses the real hero renderer',
+    );
     await page.evaluate(async () => {
       await document.fonts.ready;
       for (const image of document.images) {

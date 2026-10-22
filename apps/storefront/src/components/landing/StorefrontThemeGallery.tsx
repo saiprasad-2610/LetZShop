@@ -5,12 +5,12 @@ import { useLandingI18n } from '@simply/i18n';
 import { FOUNDATIONAL_THEMES } from '@simply/ui';
 
 const THEME_IDS = [
-  'aura',
-  'harvest',
-  'feast',
-  'horizon',
   'canvas',
+  'aura',
+  'horizon',
+  'feast',
   'atelier',
+  'harvest',
 ] as const;
 
 export function StorefrontThemeGallery() {
@@ -40,6 +40,7 @@ export function StorefrontThemeGallery() {
   useEffect(() => {
     const element = rail.current;
     if (!element) return;
+    element.scrollLeft = 0;
     const observer = new ResizeObserver(updateEdges);
     observer.observe(element);
     updateEdges();
