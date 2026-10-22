@@ -1,4 +1,5 @@
 export const brandStudioEn = {
+  "characterCount": "Character count",
   "aboutPlaceholder": "About {store}",
   "copyrightPlaceholder": "© {year} {store}. All rights reserved.",
   "topAnnouncementBar": "Top Announcement Bar",
@@ -372,6 +373,7 @@ export const brandStudioEn = {
 };
 
 export const brandStudioMr = {
+  "characterCount": "अक्षरांची संख्या",
   "aboutPlaceholder": "{store} बद्दल",
   "copyrightPlaceholder": "© {year} {store}. सर्व हक्क राखीव.",
   "topAnnouncementBar": "वरची घोषणा पट्टी",
@@ -745,6 +747,7 @@ export const brandStudioMr = {
 };
 
 export const brandStudioHi = {
+  "characterCount": "अक्षरों की संख्या",
   "aboutPlaceholder": "{store} के बारे में",
   "copyrightPlaceholder": "© {year} {store}। सर्वाधिकार सुरक्षित।",
   "topAnnouncementBar": "ऊपरी घोषणा पट्टी",

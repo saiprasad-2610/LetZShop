@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { TenantContext } from '@simply/types';
+import { TenantContext, catalogHeaderErrors, normalizeCatalogHeader } from '@simply/types';
 
 @Injectable()
 export class ThemesService {
@@ -72,7 +72,7 @@ export class ThemesService {
 
     return {
       activeTheme,
-      configJson: activeConfig?.configJson || activeTheme?.configJson || {},
+      configJson: normalizeCatalogHeader(activeConfig?.configJson || activeTheme?.configJson || {}),
       branding,
       sections,
     };
@@ -101,6 +101,9 @@ export class ThemesService {
       }>;
     }
   ) {
+    const errors = catalogHeaderErrors(dto.configJson);
+    if (errors.length) throw new BadRequestException(errors);
+
     return this.prisma.$transaction(async (tx) => {
       // 1. Update branding if provided
       if (dto.branding) {
@@ -145,13 +148,13 @@ export class ThemesService {
               },
             },
             update: {
-              configJson: dto.configJson || theme.configJson || {},
+              configJson: normalizeCatalogHeader(dto.configJson || theme.configJson || {}),
               updatedAt: new Date(),
             },
             create: {
               storeId: tenant.storeId,
               themeId: theme.id,
-              configJson: dto.configJson || theme.configJson || {},
+              configJson: normalizeCatalogHeader(dto.configJson || theme.configJson || {}),
             },
           });
         }

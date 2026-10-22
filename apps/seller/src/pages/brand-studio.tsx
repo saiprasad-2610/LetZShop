@@ -53,6 +53,8 @@ import {
 import { Layout } from '../components/Layout';
 import { ThemeColorField } from '../components/ThemeColorField';
 import { MiniStorePreview } from '../components/MiniStorePreview';
+import { CatalogTextField } from '../components/CatalogTextField';
+import { CATALOG_EYEBROW_MAX, CATALOG_TITLE_MAX, CATALOG_SUBTITLE_MAX, normalizeCatalogHeader } from '@simply/types';
 import { useAuth } from '../context/AuthContext';
 import {
   FOUNDATIONAL_THEMES,
@@ -89,6 +91,19 @@ export default function BrandStudioPage() {
   const homeBannerInputRef = useRef<HTMLInputElement>(null);
   const aboutBannerInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const loadedConfigRef = useRef<any>({});
+  const [previewRevision, setPreviewRevision] = useState(0);
+
+  // A newly navigated catalog requests current edits after its data is ready.
+  useEffect(() => {
+    const ready = (event: MessageEvent) => {
+      if (event.source === iframeRef.current?.contentWindow && event.data?.type === 'CATALOG_PREVIEW_READY') {
+        setPreviewRevision((revision) => revision + 1);
+      }
+    };
+    window.addEventListener('message', ready);
+    return () => window.removeEventListener('message', ready);
+  }, []);
 
   // Global Theme & Styling State
   const [selectedThemeId, setSelectedThemeId] = useState('atelier');
@@ -283,7 +298,8 @@ export default function BrandStudioPage() {
       }
 
       if (configRes) {
-        const cfg = configRes.configJson || configRes;
+        const cfg = normalizeCatalogHeader(configRes.configJson || configRes);
+        loadedConfigRef.current = cfg;
         const activeThemeCode =
           configRes.activeTheme?.code?.toLowerCase() || cfg.themeId || selectedThemeId;
         if (activeThemeCode) setSelectedThemeId(activeThemeCode);
@@ -327,9 +343,9 @@ export default function BrandStudioPage() {
         // Load custom products page fields
         if (cfg.pages?.products) {
           const p = cfg.pages.products;
-          if (p.pageTitle) setProductsPageTitle(p.pageTitle);
-          if (p.pageSubtitle) setProductsPageSubtitle(p.pageSubtitle);
-          if (p.badgeText) setProductsBadgeText(p.badgeText);
+          if (p.pageTitle !== undefined) setProductsPageTitle(p.pageTitle);
+          if (p.pageSubtitle !== undefined) setProductsPageSubtitle(p.pageSubtitle);
+          if (p.badgeText !== undefined) setProductsBadgeText(p.badgeText);
         }
 
         // Load custom about us page fields
@@ -512,6 +528,7 @@ export default function BrandStudioPage() {
       );
     }
   }, [
+    previewRevision,
     selectedThemeId,
     primaryColor,
     accentColor,
@@ -839,6 +856,7 @@ export default function BrandStudioPage() {
       await api.themes.updateThemeConfig({
         themeCode: selectedThemeId,
         configJson: {
+          ...loadedConfigRef.current,
           themeId: selectedThemeId,
           logoSize,
           storeNameSize,
@@ -890,6 +908,7 @@ export default function BrandStudioPage() {
             address: physicalStoreAddress,
           },
           pages: {
+            ...loadedConfigRef.current.pages,
             home: {
               heroBadge: homeHeroBadge,
               heroTitle: homeHeroTitle,
@@ -901,6 +920,7 @@ export default function BrandStudioPage() {
               heroBannerUrl: heroBannerUrl,
             },
             products: {
+              ...loadedConfigRef.current.pages?.products,
               badgeText: productsBadgeText,
               pageTitle: productsPageTitle,
               pageSubtitle: productsPageSubtitle,
@@ -1925,39 +1945,21 @@ export default function BrandStudioPage() {
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.productsCatalogHeader')}</label>
               <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.customizeTheBannerAndHeadlinesDisplayedAtThe')}</p>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.eyebrowBadgeTag')}</label>
-              <input
-                type="text"
-                value={productsBadgeText}
-                onChange={(e) => setProductsBadgeText(e.target.value)}
-                placeholder={t('brandStudio.eGDirectFromMerchant')}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.catalogPageTitle')}</label>
-              <input
-                type="text"
-                value={productsPageTitle}
-                onChange={(e) => setProductsPageTitle(e.target.value)}
-                placeholder={t('brandStudio.eGOurCollection')}
-                className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('brandStudio.catalogSubtitleDescription')}</label>
-              <textarea
-                rows={2}
-                value={productsPageSubtitle}
-                onChange={(e) => setProductsPageSubtitle(e.target.value)}
-                placeholder={t('brandStudio.eGExploreOurCompleteSelectionOfHandcrafted')}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
-              />
-            </div>
+            <CatalogTextField
+              label={t('brandStudio.eyebrowBadgeTag')}
+              value={productsBadgeText} max={CATALOG_EYEBROW_MAX} onChange={setProductsBadgeText}
+              placeholder={t('brandStudio.eGDirectFromMerchant')}
+            />
+            <CatalogTextField
+              label={t('brandStudio.catalogPageTitle')}
+              value={productsPageTitle} max={CATALOG_TITLE_MAX} onChange={setProductsPageTitle}
+              placeholder={t('brandStudio.eGOurCollection')}
+            />
+            <CatalogTextField
+              label={t('brandStudio.catalogSubtitleDescription')}
+              value={productsPageSubtitle} max={CATALOG_SUBTITLE_MAX} onChange={setProductsPageSubtitle}
+              placeholder={t('brandStudio.eGExploreOurCompleteSelectionOfHandcrafted')} multiline
+            />
           </div>
 
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-xs text-emerald-900 space-y-2">

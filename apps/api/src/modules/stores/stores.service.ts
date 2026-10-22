@@ -2,7 +2,7 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { PrismaClient, StoreStatus } from '@prisma/client';
 import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
-import { AuthenticatedUser } from '@simply/types';
+import { AuthenticatedUser, normalizeCatalogHeader } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 export interface CreateStoreInput {
@@ -177,7 +177,7 @@ export class StoresService {
     const activeLegacyConfig = fullStore?.themeConfigs?.[0];
     const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
     const themeVersion = activeThemeDef?.version || fullStore?.themeConfiguration?.themeVersion || '1.0.0';
-    const themeJson = (fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {};
+    const themeJson = normalizeCatalogHeader((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {});
 
     const sanitizedBranding = {
       logoUrl: fullStore?.branding?.logoUrl || null,

@@ -24,6 +24,7 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { normalizeCatalogHeader } from '@simply/types';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreProductsPage() {
@@ -40,6 +41,12 @@ export default function StoreProductsPage() {
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'newest'>('featured');
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true' && !loading && storeData) {
+      window.parent.postMessage({ type: 'CATALOG_PREVIEW_READY' }, '*');
+    }
+  }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
@@ -63,7 +70,7 @@ export default function StoreProductsPage() {
               ...prev,
               themeConfig: {
                 ...prev.themeConfig,
-                ...event.data.themeConfig,
+                ...normalizeCatalogHeader(event.data.themeConfig),
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
@@ -83,7 +90,7 @@ export default function StoreProductsPage() {
     setLoading(true);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
-      setStoreData(res);
+      setStoreData({ ...res, themeConfig: normalizeCatalogHeader(res.themeConfig) });
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -188,9 +195,9 @@ export default function StoreProductsPage() {
   }
 
   // Titles & text from vendor customization
-  const pageTitle = productsConfig.pageTitle || 'Our Collection';
-  const pageSubtitle = productsConfig.pageSubtitle || `Explore our complete selection of handcrafted offerings from ${store.name}.`;
-  const badgeText = productsConfig.badgeText || 'Direct from Merchant';
+  const pageTitle = productsConfig.pageTitle ?? 'Our Collection';
+  const pageSubtitle = productsConfig.pageSubtitle ?? `Explore our complete selection of handcrafted offerings from ${store.name}.`;
+  const badgeText = productsConfig.badgeText ?? 'Direct from Merchant';
 
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
@@ -226,12 +233,12 @@ export default function StoreProductsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-5 sm:space-y-6">
 
         {/* Page Hero Header Banner */}
-        <div className="relative rounded-2xl overflow-hidden p-5 sm:p-7 border border-gray-200/80 shadow-xs bg-white text-left space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-gray-100 text-gray-700">
-            <Sparkles className="w-3 h-3 text-amber-500" />
+        <div data-testid="catalog-header" className="relative rounded-2xl overflow-hidden p-5 sm:p-7 border border-gray-200/80 shadow-xs bg-white text-left space-y-2 [overflow-wrap:anywhere]">
+          <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 px-3 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-gray-100 text-gray-700">
+            <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
             <span className="font-bold text-gray-900">{store.name}</span>
             <span className="text-gray-400">•</span>
-            <span>{badgeText}</span>
+            <span data-catalog-field="badgeText" className="min-w-0">{badgeText}</span>
           </div>
           <h1 className={`text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight ${
             themeCode === 'atelier' ? 'font-serif' :
@@ -239,9 +246,9 @@ export default function StoreProductsPage() {
             themeCode === 'foundry' ? 'font-mono' : ''
           }`}>
             <span className="text-amber-800 block text-xs sm:text-sm font-semibold tracking-wider uppercase font-mono mb-0.5">{store.name} Collection</span>
-            <span>{pageTitle}</span>
+            <span data-catalog-field="pageTitle" className="block text-balance">{pageTitle}</span>
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 max-w-2xl leading-relaxed">
+          <p data-catalog-field="pageSubtitle" className="text-xs sm:text-sm text-gray-600 max-w-2xl leading-relaxed">
             {pageSubtitle}
           </p>
         </div>
