@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React from 'react';
 import Link from 'next/link';
 import { 
@@ -204,7 +205,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
             <p className="font-bold text-xs uppercase tracking-wider text-gray-400">Navigation</p>
             <ul className="space-y-1.5 text-xs text-gray-400">
               <li>
-                <Link href={`/store/${slug}`} className="hover:text-white transition">
+                <Link href={getPublicStoreUrl(String(slug))} className="hover:text-white transition">
                   Home
                 </Link>
               </li>

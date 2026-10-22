@@ -7,6 +7,8 @@ import {
   Query,
   UseGuards,
   Req,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StoresService } from './stores.service';
@@ -15,6 +17,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentTenant, CurrentUser, Public } from '../../common/decorators';
 import { AuthenticatedUser, TenantContext } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Stores & Storefront')
 @Controller()
@@ -25,6 +28,14 @@ export class StoresController {
   ) {}
 
   // 1. Seller Merchant API
+  @Get('stores/slug-availability')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async slugAvailability(@Query('name') name: string) {
+    if (typeof name !== 'string' || !name.trim() || name.length > 100) throw new BadRequestException('Business name must contain 1–100 characters.');
+    return this.storesService.suggestSlug(name);
+  }
+
   @ApiBearerAuth()
   @Post('stores/onboard')
   @ApiOperation({ summary: 'First-time onboarding to create merchant business and store' })
@@ -48,11 +59,11 @@ export class StoresController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(TenantGuard)
   @Get('stores/my-store')
   @ApiOperation({ summary: 'Get current merchant store details' })
-  async getMyStore(@CurrentTenant() tenant: TenantContext) {
-    return this.storesService.getStoreByTenantId(tenant.tenantId);
+  async getMyStore(@CurrentUser() user: AuthenticatedUser) {
+    if (!user.tenantId) throw new NotFoundException('Complete onboarding to create your store.');
+    return this.storesService.getStoreByTenantId(user.tenantId);
   }
 
   @ApiBearerAuth()
@@ -79,7 +90,7 @@ export class StoresController {
   async createStore(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { name: string; slug: string; description?: string }
+    @Body() body: { name: string; slug?: string; description?: string }
   ) {
     return this.storesService.createStore(
       {

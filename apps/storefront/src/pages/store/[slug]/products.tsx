@@ -42,6 +42,24 @@ export default function StoreProductsPage() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
 
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogPages, setCatalogPages] = useState(1);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  useEffect(() => { setCatalogPage(1); }, [slug, activeCategory, searchQuery, sortBy]);
+  useEffect(() => {
+    if (!slug || !storeData?.store?.id) return;
+    let current = true;
+    setCatalogLoading(true);
+    const timer = setTimeout(() => {
+      api.stores.getPublicProducts(String(slug), { page: catalogPage, limit: 20, category: activeCategory === 'all' ? undefined : activeCategory, q: searchQuery, sort: sortBy, previewSecret: preview ? String(preview) : undefined }).then((res: any) => {
+        if (!current) return;
+        setStoreData((prev: any) => ({ ...prev, products: res.products }));
+        setCatalogPages(res.pagination.totalPages || 1);
+      }).catch((error: any) => { if (current) toast.error('Could not load products', error.message); }).finally(() => { if (current) setCatalogLoading(false); });
+    }, 250);
+    return () => { current = false; clearTimeout(timer); };
+  }, [slug, storeData?.store?.id, activeCategory, searchQuery, sortBy, catalogPage, preview]);
+
   useEffect(() => {
     if (router.query.embedded === 'true' && !loading && storeData) {
       window.parent.postMessage({ type: 'CATALOG_PREVIEW_READY' }, '*');
@@ -167,32 +185,7 @@ export default function StoreProductsPage() {
   const themeCode = themeConfig?.themeId || 'atelier';
   const productsConfig = themeConfig?.pages?.products || {};
 
-  // Filter products by category & search
-  let processedProducts = [...products];
-
-  if (activeCategory !== 'all') {
-    processedProducts = processedProducts.filter((p: any) => p.categoryId === activeCategory);
-  }
-
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    processedProducts = processedProducts.filter(
-      (p: any) =>
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.title && p.title.toLowerCase().includes(q)) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        (p.category?.name && p.category.name.toLowerCase().includes(q))
-    );
-  }
-
-  // Sort products
-  if (sortBy === 'price_asc') {
-    processedProducts.sort((a, b) => (a.pricePaise || a.variants?.[0]?.pricePaise || 0) - (b.pricePaise || b.variants?.[0]?.pricePaise || 0));
-  } else if (sortBy === 'price_desc') {
-    processedProducts.sort((a, b) => (b.pricePaise || b.variants?.[0]?.pricePaise || 0) - (a.pricePaise || a.variants?.[0]?.pricePaise || 0));
-  } else if (sortBy === 'newest') {
-    processedProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }
+  const processedProducts = products;
 
   // Titles & text from vendor customization
   const pageTitle = productsConfig.pageTitle ?? 'Our Collection';
@@ -754,6 +747,11 @@ export default function StoreProductsPage() {
             })}
           </div>
         )}
+        <nav className="flex items-center justify-center gap-4 py-6" aria-label={t('storefront.products')} aria-busy={catalogLoading}>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage <= 1} onClick={() => setCatalogPage(page => page - 1)}>{t('common.previous')}</button>
+          <span className="text-sm tabular-nums">{catalogPage} / {catalogPages}</span>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage >= catalogPages} onClick={() => setCatalogPage(page => page + 1)}>{t('common.next')}</button>
+        </nav>
       </main>
 
       <StoreFooter store={store} themeConfig={themeConfig} />

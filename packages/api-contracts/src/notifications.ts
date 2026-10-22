@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 /**
  * Centralized, Unicode-safe Notification Templates and URL Builders
  * for LetzShop / Simply Multi-Merchant Platform.
@@ -125,7 +126,7 @@ export function buildPublicTrackingUrl(orderNumber: string, trackingToken?: stri
 export function buildPublicReviewUrl(storeSlug: string, orderNumber: string, reviewToken?: string | null, customBaseUrl?: string): string {
   const base = customBaseUrl || getStorefrontBaseUrl();
   const tokenQuery = reviewToken ? `?token=${encodeURIComponent(reviewToken)}` : '';
-  return `${base.replace(/\/+$/, '')}/store/${encodeURIComponent(storeSlug)}/review/${encodeURIComponent(orderNumber)}${tokenQuery}`;
+  return `${getPublicStoreUrl(storeSlug, base)}/review/${encodeURIComponent(orderNumber)}${tokenQuery}`;
 }
 
 /**

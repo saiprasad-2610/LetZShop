@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -237,7 +238,7 @@ export default function StoreCartPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1 transition">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900 flex items-center gap-1 transition">
             <ArrowLeft className="w-3.5 h-3.5" /> {t('storefront.continueShopping')}
           </Link>
           <span className="text-gray-300">/</span>
@@ -279,7 +280,7 @@ export default function StoreCartPage() {
             </div>
             <div className="pt-2">
               <Link data-theme-tone="primary"
-                href={getLink(`/store/${slug}`)}
+                href={getLink(getPublicStoreUrl(String(slug)))}
                 data-theme-btn="true"
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90 hover:-translate-y-0.5"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
@@ -647,7 +648,7 @@ export default function StoreCartPage() {
                   </Link>
 
                   <Link
-                    href={getLink(`/store/${slug}`)}
+                    href={getLink(getPublicStoreUrl(String(slug)))}
                     data-theme-btn="true"
                     className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition flex items-center justify-center gap-1 border border-gray-200"
                   >

@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
@@ -254,7 +255,7 @@ export default function SubscriptionPage() {
 
             {isLive && store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store.slug}`}
+                href={getPublicStoreUrl(store.slug, getStorefrontUrl())}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition self-start sm:self-auto shrink-0"

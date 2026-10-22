@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react';
@@ -40,16 +41,8 @@ export const MiniStorePreview: React.FC<MiniStorePreviewProps> = ({
     setStorefrontUrl(getStorefrontUrl());
   }, []);
 
-  const pagePath =
-    currentPage === 'products'
-      ? `/store/${slug}/products`
-      : currentPage === 'about'
-      ? `/store/${slug}/about`
-      : `/store/${slug}`;
-
-  const previewIframeUrl = `${storefrontUrl}${pagePath}?preview=true&embedded=true${
-    refreshKey > 0 ? `&_t=${refreshKey}` : ''
-  }`;
+  const previewIframeUrl = `${getPublicStoreUrl(slug, storefrontUrl, { preview: true, page: currentPage === 'home' ? undefined : currentPage })}&embedded=true${refreshKey > 0 ? `&_t=${refreshKey}` : ''}`;
+  const pagePath = getPublicStoreUrl(slug, '', { page: currentPage === 'home' ? undefined : currentPage });
 
   const handlePageSwitch = (page: 'home' | 'products' | 'about') => {
     setCurrentPage(page);

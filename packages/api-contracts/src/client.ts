@@ -283,6 +283,11 @@ export class SimplyApiClient {
 
   // --- Stores ---
   public stores = {
+    getPublicProducts: (slug: string, params?: { page?: number; limit?: number; category?: string; q?: string; sort?: string; previewSecret?: string }) =>
+      this.request(`storefront/${encodeURIComponent(slug)}/products`, { params }),
+    getPublicProduct: (slug: string, productId: string, previewSecret?: string) =>
+      this.request(`storefront/${encodeURIComponent(slug)}/products/${encodeURIComponent(productId)}`, { params: { previewSecret } }),
+    slugAvailability: (name: string) => this.request('stores/slug-availability?name=' + encodeURIComponent(name)),
     onboard: (data: {
       businessName: string;
       category: string;

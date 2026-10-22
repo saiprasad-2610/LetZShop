@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -538,7 +539,7 @@ export default function StoreCheckoutPage() {
               {/* Action Buttons */}
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
-                  href={getLink(`/store/${slug}`)}
+                  href={getLink(getPublicStoreUrl(String(slug)))}
                   data-theme-btn="true"
                   className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition flex items-center justify-center gap-1.5"
                 >
@@ -929,7 +930,7 @@ export default function StoreCheckoutPage() {
                   <div className="py-6 text-center space-y-2">
                     <p className="text-xs text-gray-500">Your cart is empty.</p>
                     <Link
-                      href={getLink(`/store/${slug}`)}
+                      href={getLink(getPublicStoreUrl(String(slug)))}
                       className="text-xs font-semibold text-emerald-700 hover:underline"
                     >
                       Browse Store Catalog

@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
@@ -138,8 +139,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
   const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
     ? store.status === 'LIVE'
-      ? `${baseStorefrontUrl}/store/${store.slug}`
-      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`
+      ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
+      : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true })
     : null;
 
   return (

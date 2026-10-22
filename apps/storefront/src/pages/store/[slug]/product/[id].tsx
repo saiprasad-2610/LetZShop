@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -245,13 +246,11 @@ export default function ProductDetailPage() {
         setStoreId(sRes.store.id);
       }
 
-      const found = (sRes.products || []).find(
+      let found = (sRes.products || []).find(
         (p: any) => p.id === productId || p.slug === productId
       );
 
-      if (!found) {
-        throw new Error('Product not found in store catalog');
-      }
+      if (!found) found = (await api.stores.getPublicProduct(storeSlug, productId, previewSecret)).product;
 
       // Format options with id, name, and values
       const formattedOptions = (found.options || []).map((opt: any) => ({
@@ -583,7 +582,7 @@ export default function ProductDetailPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900">
             {t('storefront.home')}
           </Link>
           <span>/</span>

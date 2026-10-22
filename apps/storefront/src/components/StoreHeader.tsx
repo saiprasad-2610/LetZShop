@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -93,7 +94,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       : 'sticky-action');
 
   const renderBrandWordmark = () => (
-    <Link href={getQueryPath(`/store/${slug}`)} className="flex min-w-0 max-w-full items-center gap-2.5 sm:gap-3 group sm:shrink-0">
+    <Link href={getQueryPath(getPublicStoreUrl(String(slug)))} className="flex min-w-0 max-w-full items-center gap-2.5 sm:gap-3 group sm:shrink-0">
       {(themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl) ? (
         <img
           src={themeConfig?.branding?.logoUrl || store?.branding?.logoUrl || store?.logoUrl}
@@ -164,7 +165,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-slate-700' :
       themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
     } ${extraClass}`}>
-      <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-gray-900 transition">
+      <Link href={getQueryPath(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900 transition">
         {t('storefront.home')}
       </Link>
       <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
@@ -368,7 +369,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           )}
 
           <Link
-            href={getQueryPath(`/store/${slug}`)}
+            href={getQueryPath(getPublicStoreUrl(String(slug)))}
             onClick={() => setMobileMenuOpen(false)}
             className="block text-sm font-semibold text-gray-800 py-1"
           >

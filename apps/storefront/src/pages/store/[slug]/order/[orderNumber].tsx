@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -89,7 +90,7 @@ export default function OrderConfirmationPage() {
             For privacy and customer security under Indian DPDPA compliance, order tracking requires your unique tracking link with security token (?t=...). Please use the direct link provided in your order confirmation SMS or WhatsApp.
           </p>
           <Link
-            href={`/store/${slug}`}
+            href={getPublicStoreUrl(String(slug))}
             className="inline-block px-4 py-2 bg-gray-900 text-white text-xs font-semibold rounded-lg"
           >
             Back to Store
@@ -110,7 +111,7 @@ export default function OrderConfirmationPage() {
             We could not locate an order matching #{orderNumber}.
           </p>
           <Link
-            href={`/store/${slug}`}
+            href={getPublicStoreUrl(String(slug))}
             className="inline-block px-4 py-2 bg-gray-900 text-white text-xs font-semibold rounded-lg"
           >
             Back to Store
@@ -416,7 +417,7 @@ export default function OrderConfirmationPage() {
 
         <div className="text-center pt-4">
           <Link
-            href={`/store/${slug}`}
+            href={getPublicStoreUrl(String(slug))}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90"
             style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
           >

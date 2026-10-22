@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import {
@@ -2454,7 +2455,7 @@ export default function BrandStudioPage() {
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             {store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
+                href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                 target="_blank"
                 rel="noreferrer"
                 style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
@@ -2491,7 +2492,7 @@ export default function BrandStudioPage() {
             </div>
             {store?.slug && (
               <a
-                href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
+                href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500 transition shrink-0"
@@ -2649,7 +2650,7 @@ export default function BrandStudioPage() {
                   <div className="pt-4 pb-6 flex items-center gap-3">
                     {store?.slug && (
                       <a
-                        href={`${getStorefrontUrl()}/store/${store.slug}?preview=true`}
+                        href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                         target="_blank"
                         rel="noreferrer"
                         className="flex-1 py-3 px-4 rounded-xl text-xs font-bold border flex items-center justify-center gap-2 text-center shadow-xs transition hover:opacity-90"

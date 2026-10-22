@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -213,7 +214,7 @@ export default function OrderReviewPage() {
           </p>
           <div className="pt-2">
             <Link
-              href={`/store/${slug}`}
+              href={getPublicStoreUrl(String(slug))}
               className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl shadow-xs transition"
             >
               <span>Back to Store</span>
@@ -457,7 +458,7 @@ export default function OrderReviewPage() {
         {/* Bottom Actions */}
         <div className="flex items-center justify-center pt-4 border-t border-gray-200 dark:border-slate-800">
           <Link
-            href={`/store/${slug}`}
+            href={getPublicStoreUrl(String(slug))}
             className="w-full sm:w-auto px-8 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl text-center shadow-xs transition flex items-center justify-center gap-1.5"
           >
             <ShoppingBag className="w-3.5 h-3.5" />

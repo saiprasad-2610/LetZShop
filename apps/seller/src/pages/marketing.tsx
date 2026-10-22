@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -30,7 +31,7 @@ export default function MarketingPage() {
 
   const curStore = storeData || store;
   const baseStorefrontUrl = getStorefrontUrl();
-  const storeUrl = curStore ? `${baseStorefrontUrl}/store/${curStore.slug}` : `${baseStorefrontUrl}/store/preview`;
+  const storeUrl = curStore ? getPublicStoreUrl(curStore.slug, baseStorefrontUrl) : `${baseStorefrontUrl}/store/preview`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(storeUrl);

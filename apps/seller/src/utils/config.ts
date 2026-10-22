@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 /**
  * Environment-safe URL configuration helpers for Seller Portal.
  * Resolves origins without hardcoding localhost in production
@@ -92,12 +93,12 @@ export function getSellerUrl(): string {
   return 'http://localhost:3001';
 }
 
-export function getStoreCustomerPreviewUrl(slug: string): string {
+export function getStoreCustomerPreviewUrl(slug: string, page?: 'products' | 'about'): string {
   const origin = getStorefrontUrl();
-  return `${origin}/store/${slug}?preview=true`;
+  return getPublicStoreUrl(slug, origin, { preview: true, page });
 }
 
 export function getStorePublicShareUrl(slug: string, isLive: boolean = false): string {
   const origin = getStorefrontUrl();
-  return `${origin}/store/${slug}${isLive ? '' : '?preview=true'}`;
+  return getPublicStoreUrl(slug, origin, { preview: !isLive });
 }

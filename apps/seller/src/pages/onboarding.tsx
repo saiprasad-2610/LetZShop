@@ -21,6 +21,8 @@ import {
 import { IndianPhoneInput } from '../components/IndianPhoneInput';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { ThemeToggle } from '../components/ui/MerchantUi';
+import { getPublicStoreUrl } from '@simply/types';
+import { getStorefrontUrl } from '../utils/config';
 
 const CATEGORIES = [
   'Fashion',
@@ -42,6 +44,18 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [businessName, setBusinessName] = useState('');
   const [businessNameTouched, setBusinessNameTouched] = useState(false);
+  const [slugSuggestion, setSlugSuggestion] = useState<{ slug: string; available: boolean } | null>(null);
+  useEffect(() => {
+    setSlugSuggestion(null);
+    if (!isValidBusinessName(businessName)) return;
+    let current = true;
+    const timer = setTimeout(() => {
+      apiClient.stores.slugAvailability(businessName.trim()).then((result: any) => {
+        if (current) setSlugSuggestion(result);
+      }).catch(() => { /* The database reserves the URL on submission. */ });
+    }, 400);
+    return () => { current = false; clearTimeout(timer); };
+  }, [businessName]);
   const [category, setCategory] = useState('Fashion');
   const [logoUrl, setLogoUrl] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -324,6 +338,13 @@ export default function OnboardingPage() {
                     }`}
                   />
                 </div>
+                {slugSuggestion && (
+                  <div className="mt-3 text-xs break-all" style={{ color: 'var(--merchant-text-secondary)' }} aria-live="polite">
+                    <p>{slugSuggestion.available ? '✓ Available' : 'This URL is taken or reserved. Suggested URL:'}</p>
+                    <p className="mt-1 font-mono">{getPublicStoreUrl(slugSuggestion.slug, getStorefrontUrl())}</p>
+                    <p className="mt-1">Your URL is reserved when you finish setup. Different stores can share a business name.</p>
+                  </div>
+                )}
                 {businessNameTouched && !businessName.trim() && (
                   <p className="mt-1 text-xs text-rose-400 font-medium">Business name is required.</p>
                 )}

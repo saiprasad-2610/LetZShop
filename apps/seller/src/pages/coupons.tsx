@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
@@ -226,7 +227,7 @@ export default function CouponsManagementPage() {
   };
 
   const getWhatsAppShareUrl = (c: CouponItem) => {
-    const storeLink = store ? `${getStorefrontUrl()}/store/${store.slug}` : 'our store';
+    const storeLink = store ? getPublicStoreUrl(store.slug, getStorefrontUrl()) : 'our store';
     const discStr = c.type === 'PERCENTAGE' ? `${c.value}% OFF` : `₹${(c.value / 100).toFixed(0)} OFF`;
     const minStr = c.minOrderPaise ? ` on orders above ₹${(c.minOrderPaise / 100).toFixed(0)}` : '';
     const text = encodeURIComponent(

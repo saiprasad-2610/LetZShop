@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -29,6 +30,22 @@ export default function StoreSearchPage() {
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc'>('featured');
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogPages, setCatalogPages] = useState(1);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  useEffect(() => { setCatalogPage(1); }, [slug, searchTerm, selectedCategory, sortBy]);
+  useEffect(() => {
+    if (!slug || !storeData?.store?.id) return;
+    let current = true;
+    setCatalogLoading(true);
+    const timer = setTimeout(() => {
+      api.stores.getPublicProducts(String(slug), { page: catalogPage, limit: 20, q: searchTerm, category: selectedCategory || undefined, sort: sortBy, previewSecret: preview ? String(preview) : undefined }).then((res: any) => {
+        if (current) { setProducts(res.products); setCatalogPages(res.pagination.totalPages || 1); }
+      }).catch((error: any) => { if (current) toast.error('Could not load products', error.message); }).finally(() => { if (current) setCatalogLoading(false); });
+    }, 250);
+    return () => { current = false; clearTimeout(timer); };
+  }, [slug, storeData?.store?.id, searchTerm, selectedCategory, sortBy, catalogPage, preview]);
 
   const isPreviewMode = Boolean(
     storeData?.isPreview ||
@@ -110,26 +127,7 @@ export default function StoreSearchPage() {
     }
   };
 
-  const filteredProducts = products
-    .filter((p) => {
-      const title = p.name || p.title || '';
-      const matchSearch =
-        !searchTerm.trim() ||
-        title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchCat =
-        !selectedCategory ||
-        p.categoryId === selectedCategory ||
-        p.category?.name?.toLowerCase() === selectedCategory.toLowerCase();
-      return matchSearch && matchCat;
-    })
-    .sort((a, b) => {
-      const aPrice = a.basePricePaise ?? a.variants?.[0]?.pricePaise ?? 0;
-      const bPrice = b.basePricePaise ?? b.variants?.[0]?.pricePaise ?? 0;
-      if (sortBy === 'price_asc') return aPrice - bPrice;
-      if (sortBy === 'price_desc') return bPrice - aPrice;
-      return 0;
-    });
+  const filteredProducts = products;
 
   if (loading || !storeData) {
     return (
@@ -152,7 +150,7 @@ export default function StoreSearchPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Breadcrumb & Title */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900 flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Storefront
           </Link>
           <span>/</span>
@@ -335,6 +333,11 @@ export default function StoreSearchPage() {
             })}
           </div>
         )}
+        <nav className="flex items-center justify-center gap-4 py-6" aria-label={t('storefront.products')} aria-busy={catalogLoading}>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage <= 1} onClick={() => setCatalogPage(page => page - 1)}>{t('common.previous')}</button>
+          <span className="text-sm tabular-nums">{catalogPage} / {catalogPages}</span>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage >= catalogPages} onClick={() => setCatalogPage(page => page + 1)}>{t('common.next')}</button>
+        </nav>
       </main>
 
       <StoreFooter store={store} themeConfig={themeConfig} />
