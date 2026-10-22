@@ -4,10 +4,10 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { createTranslator } from '../packages/i18n/dist/index.js';
 
-const out=path.resolve('artifacts/production-screen4');
+const out=path.resolve('artifacts/catalog-theme-polish');
 fs.mkdirSync(out,{recursive:true});
 const base=process.env.STOREFRONT_URL || 'http://localhost:3000';
-const sizes=[[1680,945],[1440,900],[1280,800],[768,1024],[390,844]];
+const sizes=[[1920,1080],[1680,945],[1440,900],[1280,800],[768,1024],[390,844]];
 const categories=[
   ['fashion','Urban Loom','Everyday Shirt','urbanloom'],
   ['beauty','Pure & Co.','Face Serum','pureandco'],
@@ -16,7 +16,7 @@ const categories=[
   ['handicrafts','Crafted India','Ceramic Vase','craftedindia'],
   ['groceries','Daily Basket','Rice','dailybasket'],
 ];
-const frozenPath=path.join(out,'frozen-before.json');
+const frozenPath=path.join(out,'screen4-frozen.json');
 const frozen=fs.existsSync(frozenPath)?JSON.parse(fs.readFileSync(frozenPath)):null;
 const results=[],errors=[];
 const browser=await chromium.launch({channel:'chrome',headless:true});
@@ -43,13 +43,13 @@ try{
           assert.match(await target.textContent(),new RegExp(firstProduct.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
         }
         assert.equal(await page.getByTestId('showcase-store-link').textContent(),slug+'.letzshop.store');
-        assert.equal(await page.getByTestId('screen4-showcase').locator('img').count(),0,'preview is HTML/SVG');
+        assert.equal(await page.locator('#business-store-preview').locator('img').count(),0,'preview is HTML/SVG');
         const geometry=await page.getByTestId('screen4-showcase').evaluate(section=>{
           const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);
           const bad=[...section.querySelectorAll('h2,h3,h4,p,code')].filter(visible).filter(e=>!e.classList.contains('sr-only')&&e.scrollWidth>e.clientWidth+2).map(e=>e.textContent);
           const selector=section.querySelector('[data-category]').parentElement.getBoundingClientRect();
           const preview=section.querySelector('#business-store-preview').getBoundingClientRect();
-          const benefits=section.querySelector('[data-testid="showcase-benefits"]').getBoundingClientRect();
+          const benefits=section.querySelector('[data-testid="theme-gallery"]').getBoundingClientRect();
           return{overflow:document.documentElement.scrollWidth>innerWidth,bad,selectorBottom:selector.bottom,previewTop:preview.top,previewBottom:preview.bottom,benefitTop:benefits.top};
         });
         assert.equal(geometry.overflow,false,locale+' '+width+' '+id+' document overflow');
@@ -61,11 +61,79 @@ try{
       await page.locator('[data-category="fashion"]').click();
       await page.waitForTimeout(250);
       await page.evaluate(()=>document.fonts.ready);
-      if(locale==='en-IN'&&frozen?.[width]){
-        const current=await page.evaluate(()=>[...document.querySelectorAll('main > section')].slice(0,3).map(e=>{const r=e.getBoundingClientRect();return{id:e.id,x:r.x,y:r.y+scrollY,width:r.width,height:r.height,text:e.textContent}}));
-        for(let i=0;i<3;i++){assert.equal(current[i].id,frozen[width][i].id);assert.equal(current[i].text,frozen[width][i].text,'frozen section text');for(const key of ['x','y','width','height'])assert.ok(Math.abs(current[i][key]-frozen[width][i][key])<.05,'Screen '+(i+1)+' '+key+' unchanged');}
+      if(frozen?.[locale+'-'+width]){
+        const expected=frozen[locale+'-'+width];
+        const current=await page.evaluate(()=>{
+          const g=e=>{const r=e.getBoundingClientRect();return{html:e.outerHTML,text:e.textContent,x:r.x,y:r.y+scrollY,width:r.width,height:r.height}};
+          const section=document.querySelector('#categories');
+          return {screens:[...document.querySelectorAll('main > section')].slice(0,3).map(g),heading:g(section.querySelector('h2').parentElement),selector:g(section.querySelector('[data-category]').parentElement.parentElement),preview:g(section.querySelector('#business-store-preview'))};
+        });
+        for(const key of ['heading','selector','preview']){
+          const canonical=await page.evaluate(htmls=>htmls.map(html=>{
+            const doc=new DOMParser().parseFromString(html,'text/html');
+            doc.querySelectorAll('[style]').forEach(e=>e.setAttribute('style',e.style.cssText));
+            const walker=doc.createTreeWalker(doc.body,NodeFilter.SHOW_COMMENT);const comments=[];
+            while(walker.nextNode())comments.push(walker.currentNode);comments.forEach(e=>e.remove());
+            return doc.body.innerHTML;
+          }),[current[key].html,expected[key].html]);
+          assert.ok(canonical[0]===canonical[1],'approved main '+key+' markup unchanged');
+          for(const dimension of ['x','y','width','height'])assert.ok(Math.abs(current[key][dimension]-expected[key][dimension])<.05,'approved main '+key+' '+dimension+' unchanged');
+        }
+        const expectedText=await page.evaluate(screens=>screens.map(s=>new DOMParser().parseFromString(s.html,'text/html').body.textContent),expected.screens);
+        for(let i=0;i<3;i++){
+          assert.equal(current.screens[i].text,expectedText[i],'Screen '+(i+1)+' frozen text');
+          for(const dimension of ['x','y','width','height'])assert.ok(Math.abs(current.screens[i][dimension]-expected.screens[i][dimension])<.05,'Screen '+(i+1)+' '+dimension+' unchanged');
+        }
       }
       assert.match(await page.getByTestId('screen4-showcase').textContent(),new RegExp(t('landing.businessShowcase.eyebrow')));
+      const gallery=page.getByTestId('theme-gallery');
+      const rail=page.locator('#storefront-theme-rail');
+      assert.equal(await page.getByTestId('showcase-benefits').count(),0,'generic benefits removed');
+      assert.equal(await gallery.locator('[data-theme-preview]').count(),6);
+      assert.equal(await gallery.locator('iframe').count(),0,'no heavy theme iframes');
+      assert.equal(await gallery.getByRole('heading',{name:t('landing.themeGallery.title'),exact:true}).count(),1);
+      for(const id of ['aura','harvest','feast','horizon','canvas','atelier']){
+        const card=gallery.locator('[data-theme-preview="'+id+'"]');
+        const image=card.locator('img');
+        await image.scrollIntoViewIfNeeded();
+        await image.evaluate(image=>image.decode());
+        assert.ok(await image.getAttribute('alt'),'meaningful preview alt text');
+        const dimensions=await image.evaluate(image=>({natural:image.naturalWidth,display:image.clientWidth}));
+        assert.equal(dimensions.natural,1008);
+        assert.ok(dimensions.display<=dimensions.natural,'preview never upscaled');
+        if(width>=1440)assert.ok(dimensions.display>=260&&dimensions.display<=330,'readable desktop theme width');
+      }
+      await rail.focus();
+      await page.keyboard.press('Home');
+      await page.waitForTimeout(100);
+      assert.ok(await rail.evaluate(e=>e.scrollLeft<2));
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(500);
+      assert.ok(await rail.evaluate(e=>e.scrollLeft>100),'keyboard next theme');
+      await page.keyboard.press('End');
+      await page.waitForTimeout(100);
+      assert.ok(await rail.evaluate(e=>Math.abs(e.scrollWidth-e.clientWidth-e.scrollLeft)<2),'keyboard end');
+      await page.keyboard.press('Home');
+      if(width>=768){
+        await gallery.getByRole('button',{name:t('landing.themeGallery.next'),exact:true}).click();
+        await page.waitForTimeout(500);
+        assert.ok(await rail.evaluate(e=>e.scrollLeft>100),'next theme arrow');
+        await gallery.getByRole('button',{name:t('landing.themeGallery.previous'),exact:true}).click();
+        await page.waitForTimeout(500);
+        assert.ok(await rail.evaluate(e=>e.scrollLeft<2),'previous theme arrow');
+      }
+      // Mouse drag uses the native rail; touch retains native scrolling.
+      const box=await rail.boundingBox();
+      await page.mouse.move(box.x+box.width*.75,box.y+70);
+      await page.mouse.down();
+      await page.mouse.move(box.x+box.width*.2,box.y+70,{steps:12});
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      assert.ok(await rail.evaluate(e=>e.scrollLeft>100),'mouse drag scrolls');
+      await rail.focus();await page.keyboard.press('Home');
+      await rail.evaluate(e=>e.blur());
+      await gallery.screenshot({path:path.join(out,'theme-gallery-'+locale+'-'+width+'.png')});
+
       await page.getByTestId('screen4-showcase').screenshot({path:path.join(out,'screen4-'+locale+'-'+width+'.png')});
       if(locale==='en-IN'){
         await page.evaluate(()=>scrollTo({top:document.querySelector('#categories').getBoundingClientRect().top+scrollY-68,behavior:'instant'}));
@@ -83,6 +151,21 @@ try{
     await page.getByRole('button',{name:t('landing.businessShowcase.previous'),exact:true}).click();
     assert.equal(await page.locator('[data-category="beauty"]').getAttribute('aria-pressed'),'true');
   }
+  const touchContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const touchPage=await touchContext.newPage();
+  await touchPage.goto(base,{waitUntil:'networkidle'});
+  const touchRail=touchPage.locator('#storefront-theme-rail');
+  await touchRail.scrollIntoViewIfNeeded();
+  const touchBox=await touchRail.boundingBox();
+  const cdp=await touchContext.newCDPSession(touchPage);
+  const touchY=Math.max(30,touchBox.y+90);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:330,y:touchY}]});
+  for(let x=310;x>=70;x-=20){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:touchY}]});await touchPage.waitForTimeout(20);}
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await touchPage.waitForTimeout(700);
+  assert.ok(await touchRail.evaluate(e=>e.scrollLeft>100),'native mobile swipe');
+  assert.equal(await touchPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile swipe keeps page within viewport');
+  await touchContext.close();
   await page.getByRole('button',{name:'English',exact:true}).first().click();
   const register=page.locator('header a[href$="/login?mode=register"]').first();
   const registerHref=await register.getAttribute('href');

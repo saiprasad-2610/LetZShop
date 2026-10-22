@@ -21,7 +21,6 @@ import {
   MessageCircle,
   Package,
   Paintbrush,
-  QrCode,
   Search,
   Shirt,
   ShoppingBag,
@@ -31,6 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
+import { StorefrontThemeGallery } from './StorefrontThemeGallery';
 
 type Category = {
   id: string;
@@ -453,33 +453,6 @@ export const Screen4Categories: React.FC = () => {
     );
   };
 
-  const benefits = [
-    {
-      icon: Link2,
-      title: 'benefitLink',
-      desc: 'benefitLinkDesc',
-      colour: 'text-blue-600 bg-blue-50',
-    },
-    {
-      icon: QrCode,
-      title: 'benefitShare',
-      desc: 'benefitShareDesc',
-      colour: 'text-orange-600 bg-orange-50',
-    },
-    {
-      icon: ShoppingBasket,
-      title: 'benefitBusiness',
-      desc: 'benefitBusinessDesc',
-      colour: 'text-emerald-600 bg-emerald-50',
-    },
-    {
-      icon: Clock3,
-      title: 'benefitAnytime',
-      desc: 'benefitAnytimeDesc',
-      colour: 'text-violet-600 bg-violet-50',
-    },
-  ];
-
   return (
     <section
       id="categories"
@@ -828,34 +801,7 @@ export const Screen4Categories: React.FC = () => {
           </aside>
         </div>
 
-        <div
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
-          data-testid="showcase-benefits"
-        >
-          {benefits.map((item) => (
-            <div
-              key={item.title}
-              className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4"
-            >
-              <span
-                className={
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ' +
-                  item.colour
-                }
-              >
-                <item.icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div>
-                <h3 className="text-[15px] font-bold leading-snug text-slate-900">
-                  {tr(item.title)}
-                </h3>
-                <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                  {tr(item.desc)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StorefrontThemeGallery />
       </div>
     </section>
   );
