@@ -20,7 +20,7 @@ import { PrismaClient, OrderStatus, ProductStatus, StoreStatus, ShippingProvider
 import { StoreSubscriptionRequiredException } from '../../common/exceptions/domain.exceptions';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentTenant, CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser, TenantContext } from '@simply/types';
+import { AuthenticatedUser, TenantContext, normalizeSocialLinks, socialLinkErrors } from '@simply/types';
 import { StoresService } from '../stores/stores.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { ThemesService } from '../themes/themes.service';
@@ -151,6 +151,8 @@ export class SellerController {
       enabledStorefrontLocales?: string[];
     }
   ) {
+    const socialErrors = socialLinkErrors(body.socialLinks);
+    if (socialErrors.length) throw new BadRequestException(socialErrors);
     if (body.storefrontDefaultLocale && !isActiveLocale(body.storefrontDefaultLocale)) {
       throw new BadRequestException(`Invalid storefront default locale. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
     }
@@ -177,7 +179,7 @@ export class SellerController {
         ...(body.whatsappNumber !== undefined ? { whatsappNumber: body.whatsappNumber } : {}),
         ...(body.businessAddress !== undefined ? { businessAddress: body.businessAddress } : {}),
         ...(body.mapsUrl !== undefined ? { mapsUrl: body.mapsUrl } : {}),
-        ...(body.socialLinks !== undefined ? { socialLinks: body.socialLinks } : {}),
+        ...(body.socialLinks !== undefined ? { socialLinks: normalizeSocialLinks(body.socialLinks) } : {}),
         ...(body.fulfillmentMode ? { fulfillmentMode: body.fulfillmentMode } : {}),
         ...(body.storefrontDefaultLocale ? { storefrontDefaultLocale: sanitizeLocale(body.storefrontDefaultLocale) } : {}),
         ...(body.enabledStorefrontLocales ? { enabledStorefrontLocales: body.enabledStorefrontLocales.map((l) => sanitizeLocale(l)) } : {}),

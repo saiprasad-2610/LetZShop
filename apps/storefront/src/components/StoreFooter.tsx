@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getWordmark, resolveTrustBadgeIcon } from '@simply/ui';
 import { TrustBadgeIcon } from './TrustBadgeIcon';
+import { normalizeSocialLinks } from '@simply/types';
 
 interface StoreFooterProps {
   store: any;
@@ -26,51 +27,8 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
   const slug = store.slug;
 
   const footerConfig = themeConfig?.footer || {};
-  const socialLinks = footerConfig.socialLinks !== undefined ? (footerConfig.socialLinks || {}) : (store.socialLinks || {});
-
-  const cleanUrl = (
-    rawUrl?: string | null,
-    type?: 'instagram' | 'facebook' | 'twitter' | 'youtube' | 'linkedin' | 'whatsapp'
-  ): string => {
-    if (!rawUrl || typeof rawUrl !== 'string') return '';
-    const trimmed = rawUrl.trim();
-    if (!trimmed) return '';
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    if (type === 'whatsapp') {
-      const digits = trimmed.replace(/\D/g, '');
-      return digits.length >= 7 ? `https://wa.me/${digits}` : '';
-    }
-    if (type === 'instagram') {
-      const handle = trimmed.replace(/^@/, '').trim();
-      return handle ? `https://instagram.com/${handle}` : '';
-    }
-    if (type === 'twitter') {
-      const handle = trimmed.replace(/^@/, '').trim();
-      return handle ? `https://x.com/${handle}` : '';
-    }
-    if (type === 'facebook') {
-      const user = trimmed.replace(/^@/, '').trim();
-      return user ? `https://facebook.com/${user}` : '';
-    }
-    if (type === 'youtube') {
-      const handle = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
-      return trimmed ? `https://youtube.com/${handle}` : '';
-    }
-    if (type === 'linkedin') {
-      const handle = trimmed.replace(/^@/, '').trim();
-      return handle ? `https://linkedin.com/company/${handle}` : '';
-    }
-    return `https://${trimmed}`;
-  };
-
-  const instagramUrl = cleanUrl(socialLinks?.instagram, 'instagram');
-  const facebookUrl = cleanUrl(socialLinks?.facebook, 'facebook');
-  const whatsappUrl = cleanUrl(socialLinks?.whatsapp, 'whatsapp');
-  const youtubeUrl = cleanUrl(socialLinks?.youtube, 'youtube');
-  const twitterUrl = cleanUrl(socialLinks?.twitter, 'twitter');
-  const linkedinUrl = cleanUrl(socialLinks?.linkedin, 'linkedin');
+  const socialLinks = normalizeSocialLinks(footerConfig.socialLinks !== undefined ? footerConfig.socialLinks : store.socialLinks);
+  const { instagram: instagramUrl, facebook: facebookUrl, whatsapp: whatsappUrl, youtube: youtubeUrl, twitter: twitterUrl, linkedin: linkedinUrl } = socialLinks;
 
   const hasAnySocial = Boolean(
     instagramUrl || facebookUrl || whatsappUrl || youtubeUrl || twitterUrl || linkedinUrl

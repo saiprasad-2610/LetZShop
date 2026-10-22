@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { TenantContext, brandTextErrors, normalizeBrandText } from '@simply/types';
+import { TenantContext, brandTextErrors, normalizeBrandText, themeSocialLinkErrors, normalizeThemeSocialLinks } from '@simply/types';
 
 @Injectable()
 export class ThemesService {
@@ -105,6 +105,7 @@ export class ThemesService {
   ) {
     const errors = [
       ...brandTextErrors(dto.configJson),
+      ...themeSocialLinkErrors(dto.configJson),
       ...brandTextErrors(dto.branding?.announcement === undefined ? {} : { announcement: { text: dto.branding.announcement } }),
     ];
     if (errors.length) throw new BadRequestException(errors);
@@ -153,13 +154,13 @@ export class ThemesService {
               },
             },
             update: {
-              configJson: normalizeBrandText(dto.configJson || theme.configJson || {}),
+              configJson: normalizeThemeSocialLinks(normalizeBrandText(dto.configJson || theme.configJson || {})),
               updatedAt: new Date(),
             },
             create: {
               storeId: tenant.storeId,
               themeId: theme.id,
-              configJson: normalizeBrandText(dto.configJson || theme.configJson || {}),
+              configJson: normalizeThemeSocialLinks(normalizeBrandText(dto.configJson || theme.configJson || {})),
             },
           });
         }

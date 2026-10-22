@@ -54,6 +54,8 @@ import { Layout } from '../components/Layout';
 import { ThemeColorField } from '../components/ThemeColorField';
 import { MiniStorePreview } from '../components/MiniStorePreview';
 import { CatalogTextField } from '../components/CatalogTextField';
+import { SocialLinkField } from '../components/SocialLinkField';
+import { normalizeSocialLinks, SOCIAL_PLATFORMS, parseSocialLink } from '@simply/types';
 import { CATALOG_EYEBROW_MAX, CATALOG_TITLE_MAX, CATALOG_SUBTITLE_MAX, normalizeBrandText, clampCatalogText, BRAND_TEXT_LIMITS, HOME_TEXT_LIMITS, ABOUT_TEXT_LIMITS, ABOUT_VALUE_LIMITS, brandTextLimit } from '@simply/types';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -232,6 +234,9 @@ export default function BrandStudioPage() {
   const [socialYoutube, setSocialYoutube] = useState('');
   const [socialTwitter, setSocialTwitter] = useState('');
   const [socialLinkedin, setSocialLinkedin] = useState('');
+  const socialValues = { instagram: socialInstagram, whatsapp: socialWhatsapp, facebook: socialFacebook, youtube: socialYoutube, twitter: socialTwitter, linkedin: socialLinkedin };
+  const canonicalSocialLinks = normalizeSocialLinks(socialValues);
+  const hasInvalidSocialLinks = SOCIAL_PLATFORMS.some(platform => !parseSocialLink(platform, socialValues[platform]).valid);
   const [showTrustBadges, setShowTrustBadges] = useState(true);
   const [trustBadge1Icon, setTrustBadge1Icon] = useState<TrustBadgeIconId>('payment');
   const [trustBadge1Title, setTrustBadge1Title] = useState('Secure Indian Payments');
@@ -279,12 +284,12 @@ export default function BrandStudioPage() {
         if (storeRes.supportEmail) setAboutEmail(clampCatalogText(storeRes.supportEmail, ABOUT_TEXT_LIMITS.contactEmail));
         if (storeRes.businessAddress) setPhysicalStoreAddress(clampCatalogText(storeRes.businessAddress, ABOUT_TEXT_LIMITS.storeAddress));
         if (storeRes.socialLinks) {
-          setSocialInstagram(storeRes.socialLinks.instagram || '');
-          setSocialWhatsapp(storeRes.socialLinks.whatsapp || '');
-          setSocialFacebook(storeRes.socialLinks.facebook || '');
-          setSocialYoutube(storeRes.socialLinks.youtube || '');
-          setSocialTwitter(storeRes.socialLinks.twitter || '');
-          setSocialLinkedin(storeRes.socialLinks.linkedin || '');
+          setSocialInstagram(typeof storeRes.socialLinks.instagram === 'string' ? storeRes.socialLinks.instagram : '');
+          setSocialWhatsapp(typeof storeRes.socialLinks.whatsapp === 'string' ? storeRes.socialLinks.whatsapp : '');
+          setSocialFacebook(typeof storeRes.socialLinks.facebook === 'string' ? storeRes.socialLinks.facebook : '');
+          setSocialYoutube(typeof storeRes.socialLinks.youtube === 'string' ? storeRes.socialLinks.youtube : '');
+          setSocialTwitter(typeof storeRes.socialLinks.twitter === 'string' ? storeRes.socialLinks.twitter : '');
+          setSocialLinkedin(typeof storeRes.socialLinks.linkedin === 'string' ? storeRes.socialLinks.linkedin : '');
         }
       }
 
@@ -382,12 +387,12 @@ export default function BrandStudioPage() {
         if (f) {
           if (f.description) setFooterDescription(f.description);
           if (f.socialLinks) {
-            if (f.socialLinks.instagram) setSocialInstagram(f.socialLinks.instagram);
-            if (f.socialLinks.whatsapp) setSocialWhatsapp(f.socialLinks.whatsapp);
-            if (f.socialLinks.facebook) setSocialFacebook(f.socialLinks.facebook);
-            if (f.socialLinks.youtube) setSocialYoutube(f.socialLinks.youtube);
-            if (f.socialLinks.twitter) setSocialTwitter(f.socialLinks.twitter);
-            if (f.socialLinks.linkedin) setSocialLinkedin(f.socialLinks.linkedin);
+            setSocialInstagram(typeof f.socialLinks.instagram === 'string' ? f.socialLinks.instagram : '');
+            setSocialWhatsapp(typeof f.socialLinks.whatsapp === 'string' ? f.socialLinks.whatsapp : '');
+            setSocialFacebook(typeof f.socialLinks.facebook === 'string' ? f.socialLinks.facebook : '');
+            setSocialYoutube(typeof f.socialLinks.youtube === 'string' ? f.socialLinks.youtube : '');
+            setSocialTwitter(typeof f.socialLinks.twitter === 'string' ? f.socialLinks.twitter : '');
+            setSocialLinkedin(typeof f.socialLinks.linkedin === 'string' ? f.socialLinks.linkedin : '');
           }
           if (f.showTrustBadges !== undefined) setShowTrustBadges(f.showTrustBadges);
           setTrustBadge1Icon(resolveTrustBadgeIcon(f.trustBadge1Icon, 'payment'));
@@ -443,14 +448,7 @@ export default function BrandStudioPage() {
             physicalStoreTimings,
             footer: {
               description: footerDescription,
-              socialLinks: {
-                instagram: socialInstagram,
-                whatsapp: socialWhatsapp,
-                facebook: socialFacebook,
-                youtube: socialYoutube,
-                twitter: socialTwitter,
-                linkedin: socialLinkedin,
-              },
+              socialLinks: canonicalSocialLinks,
               showTrustBadges,
               trustBadge1Icon,
               trustBadge1Title,
@@ -504,14 +502,7 @@ export default function BrandStudioPage() {
               },
               footer: {
                 description: footerDescription,
-                socialLinks: {
-                  instagram: socialInstagram,
-                  whatsapp: socialWhatsapp,
-                  facebook: socialFacebook,
-                  youtube: socialYoutube,
-                  twitter: socialTwitter,
-                  linkedin: socialLinkedin,
-                },
+                socialLinks: canonicalSocialLinks,
               },
             },
           },
@@ -849,7 +840,7 @@ export default function BrandStudioPage() {
   };
 
   const handleSaveThemeConfig = async () => {
-    if (hasInvalidColors) return;
+    if (hasInvalidColors || hasInvalidSocialLinks) return;
     setSaving(true);
     setSaveSuccess(false);
     try {
@@ -884,14 +875,7 @@ export default function BrandStudioPage() {
           physicalStoreTimings,
           footer: {
             description: footerDescription,
-            socialLinks: {
-              instagram: socialInstagram,
-              whatsapp: socialWhatsapp,
-              facebook: socialFacebook,
-              youtube: socialYoutube,
-              twitter: socialTwitter,
-              linkedin: socialLinkedin,
-            },
+            socialLinks: canonicalSocialLinks,
             showTrustBadges,
             trustBadge1Icon,
             trustBadge1Title,
@@ -949,14 +933,7 @@ export default function BrandStudioPage() {
             },
             footer: {
               description: footerDescription,
-              socialLinks: {
-                instagram: socialInstagram,
-                whatsapp: socialWhatsapp,
-                facebook: socialFacebook,
-                youtube: socialYoutube,
-                twitter: socialTwitter,
-                linkedin: socialLinkedin,
-              },
+              socialLinks: canonicalSocialLinks,
             },
           },
         },
@@ -2302,94 +2279,22 @@ export default function BrandStudioPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               {/* Instagram */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Instagram className="w-4 h-4 text-pink-500" />
-                  <span>Instagram</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialInstagram}
-                  onChange={(e) => setSocialInstagram(e.target.value)}
-                  placeholder={t('brandStudio.httpsInstagramComYourbrandOrYourbrand')}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition"
-                />
-              </div>
+              <SocialLinkField platform="instagram" label={<><Instagram className="w-4 h-4 text-pink-600" /><span>Instagram</span></>} value={socialInstagram} onChange={setSocialInstagram} />
 
               {/* WhatsApp */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <MessageCircle className="w-4 h-4 text-emerald-500" />
-                  <span>{t('brandStudio.whatsappBusiness')}</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialWhatsapp}
-                  onChange={(e) => setSocialWhatsapp(e.target.value)}
-                  placeholder={t('brandStudio.size919876543210OrWaMe')}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-mono"
-                />
-              </div>
+              <SocialLinkField platform="whatsapp" label={<><MessageCircle className="w-4 h-4 text-emerald-600" /><span>{t('brandStudio.whatsappBusiness')}</span></>} value={socialWhatsapp} onChange={setSocialWhatsapp} />
 
               {/* Facebook */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Facebook className="w-4 h-4 text-blue-600" />
-                  <span>{t('brandStudio.facebookPage')}</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialFacebook}
-                  onChange={(e) => setSocialFacebook(e.target.value)}
-                  placeholder="https://facebook.com/yourpage"
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                />
-              </div>
+              <SocialLinkField platform="facebook" label={<><Facebook className="w-4 h-4 text-blue-600" /><span>{t('brandStudio.facebookPage')}</span></>} value={socialFacebook} onChange={setSocialFacebook} />
 
               {/* YouTube */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Youtube className="w-4 h-4 text-rose-600" />
-                  <span>{t('brandStudio.youtubeChannel')}</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialYoutube}
-                  onChange={(e) => setSocialYoutube(e.target.value)}
-                  placeholder="https://youtube.com/@yourchannel"
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition"
-                />
-              </div>
+              <SocialLinkField platform="youtube" label={<><Youtube className="w-4 h-4 text-rose-600" /><span>{t('brandStudio.youtubeChannel')}</span></>} value={socialYoutube} onChange={setSocialYoutube} />
 
               {/* Twitter / X */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Twitter className="w-4 h-4 text-sky-500" />
-                  <span>Twitter / X</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialTwitter}
-                  onChange={(e) => setSocialTwitter(e.target.value)}
-                  placeholder={t('brandStudio.httpsXComYourhandleOrYourhandle')}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
-                />
-              </div>
+              <SocialLinkField platform="twitter" label={<><Twitter className="w-4 h-4 text-sky-500" /><span>Twitter / X</span></>} value={socialTwitter} onChange={setSocialTwitter} />
 
               {/* LinkedIn */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Linkedin className="w-4 h-4 text-blue-700" />
-                  <span>{t('brandStudio.linkedinCompanyPage')}</span>
-                </label>
-                <input
-                  type="text"
-                  value={socialLinkedin}
-                  onChange={(e) => setSocialLinkedin(e.target.value)}
-                  placeholder="https://linkedin.com/company/yourbrand"
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-blue-700 focus:ring-1 focus:ring-blue-700 transition"
-                />
-              </div>
+              <SocialLinkField platform="linkedin" label={<><Linkedin className="w-4 h-4 text-blue-700" /><span>{t('brandStudio.linkedinCompanyPage')}</span></>} value={socialLinkedin} onChange={setSocialLinkedin} />
             </div>
           </div>
 
@@ -2649,7 +2554,7 @@ export default function BrandStudioPage() {
 
             <button
               onClick={handleSaveThemeConfig}
-              disabled={saving || hasInvalidColors}
+              disabled={saving || hasInvalidColors || hasInvalidSocialLinks}
               style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
               className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 hover:opacity-90 cursor-pointer"
             >
@@ -2658,6 +2563,8 @@ export default function BrandStudioPage() {
             </button>
           </div>
         </div>
+
+        {hasInvalidSocialLinks && <p role="alert" data-testid="social-save-error" className="text-xs text-red-700">{t('brandStudio.socialSaveError')}</p>}
 
         {/* Success Alert Banner */}
         {saveSuccess && (
@@ -2841,7 +2748,7 @@ export default function BrandStudioPage() {
                     <button
                       type="button"
                       onClick={handleSaveThemeConfig}
-                      disabled={saving || hasInvalidColors}
+                      disabled={saving || hasInvalidColors || hasInvalidSocialLinks}
                       style={{ backgroundColor: 'var(--merchant-accent)', color: '#ffffff' }}
                       className="flex-1 py-3 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:opacity-90"
                     >

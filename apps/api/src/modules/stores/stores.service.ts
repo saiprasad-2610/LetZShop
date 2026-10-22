@@ -2,7 +2,7 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { PrismaClient, StoreStatus } from '@prisma/client';
 import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
-import { AuthenticatedUser, normalizeBrandText } from '@simply/types';
+import { AuthenticatedUser, normalizeBrandText, normalizeThemeSocialLinks, normalizeSocialLinks } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 export interface CreateStoreInput {
@@ -177,7 +177,7 @@ export class StoresService {
     const activeLegacyConfig = fullStore?.themeConfigs?.[0];
     const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
     const themeVersion = activeThemeDef?.version || fullStore?.themeConfiguration?.themeVersion || '1.0.0';
-    const themeJson = normalizeBrandText((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {});
+    const themeJson = normalizeThemeSocialLinks(normalizeBrandText((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {}));
 
     const sanitizedBranding = {
       logoUrl: fullStore?.branding?.logoUrl || null,
@@ -203,7 +203,7 @@ export class StoresService {
       whatsappNumber: fullStore?.whatsappNumber,
       businessAddress: fullStore?.businessAddress,
       mapsUrl: fullStore?.mapsUrl,
-      socialLinks: fullStore?.socialLinks || {},
+      socialLinks: normalizeSocialLinks(fullStore?.socialLinks),
       fulfillmentMode: fullStore?.fulfillmentMode || 'DELIVERY',
       storefrontDefaultLocale: fullStore?.storefrontDefaultLocale || 'en-IN',
       enabledStorefrontLocales: fullStore?.enabledStorefrontLocales || ['en-IN', 'mr-IN', 'hi-IN'],
