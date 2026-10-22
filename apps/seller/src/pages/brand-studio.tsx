@@ -12,8 +12,6 @@ import {
   Monitor,
   Type,
   Layers,
-  ArrowUp,
-  ArrowDown,
   UploadCloud,
   AlertTriangle,
   Building,
@@ -248,20 +246,6 @@ export default function BrandStudioPage() {
   const [trustBadge3Title, setTrustBadge3Title] = useState('Verified Authentic Goods');
   const [trustBadge3Subtitle, setTrustBadge3Subtitle] = useState('Direct from certified merchant business');
   const [footerCopyright, setFooterCopyright] = useState('');
-
-  // Sections flow for Home Page
-  const [sections, setSections] = useState<
-    Array<{ id: string; name: string; enabled: boolean }>
-  >([
-    { id: 'announcement', name: 'Top Announcement Bar', enabled: true },
-    { id: 'hero', name: 'Hero Showcase Banner', enabled: true },
-    { id: 'categories', name: 'Category Showcase', enabled: true },
-    { id: 'featured_products', name: 'Curated Products Grid', enabled: true },
-    { id: 'brand_story', name: 'Brand Story & Heritage', enabled: true },
-    { id: 'physical_store', name: 'Visit Physical Store & Map', enabled: true },
-    { id: 'testimonials', name: 'Customer Testimonials', enabled: true },
-    { id: 'contact', name: 'Contact & Inquiry Section', enabled: true },
-  ]);
 
   useEffect(() => {
     loadStudioData();
@@ -937,13 +921,6 @@ export default function BrandStudioPage() {
             },
           },
         },
-        sections: sections.map((s, idx) => ({
-          sectionType: s.id,
-          title: (s as any).title || s.name,
-          isEnabled: s.enabled,
-          sortOrder: idx,
-          configJson: {},
-        })),
       });
 
       // Update store branding (logo and colors)
@@ -962,19 +939,6 @@ export default function BrandStudioPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const moveSection = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= sections.length) return;
-    const updated = [...sections];
-    const [moved] = updated.splice(index, 1);
-    updated.splice(targetIndex, 0, moved);
-    setSections(updated);
-  };
-
-  const toggleSection = (id: string) => {
-    setSections(sections.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)));
   };
 
   const currentThemeObj = FOUNDATIONAL_THEMES[selectedThemeId] || FOUNDATIONAL_THEMES.atelier;
@@ -1850,56 +1814,6 @@ export default function BrandStudioPage() {
             </div>
           </div>
 
-          {/* Section Visibility & Reordering */}
-          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">{t('brandStudio.homepageSectionFlowOrder')}</label>
-              <p className="text-xs text-slate-500 mt-0.5">{t('brandStudio.enableDisableAndRearrangeTheSectionsVisibleOn')}</p>
-            </div>
-            <div className="space-y-2">
-              {sections.map((sec, idx) => (
-                <div
-                  key={sec.id}
-                  className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={sec.enabled}
-                      onChange={() => toggleSection(sec.id)}
-                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                    />
-                    <span
-                      className={`font-semibold ${
-                        sec.enabled ? 'text-slate-900' : 'text-slate-400 line-through'
-                      }`}
-                    >
-                      {t(`brandStudio.sections.${sec.id}`, undefined, sec.name)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => moveSection(idx, 'up')}
-                      disabled={idx === 0}
-                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20 rounded"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(idx, 'down')}
-                      disabled={idx === sections.length - 1}
-                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20 rounded"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
     </div>
   );
 

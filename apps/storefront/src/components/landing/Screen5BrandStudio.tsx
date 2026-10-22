@@ -21,7 +21,7 @@ export const Screen5BrandStudio: React.FC<Screen5BrandStudioProps> = ({ sellerUr
     { label: t('landing.brandCapColours'), icon: Palette, desc: 'Tailored palette shades for primary, accent & surface' },
     { label: t('landing.brandCapFonts'), icon: Type, desc: 'Curated serif, modern grotesque & sans typography' },
     { label: t('landing.brandCapBanners'), icon: ImageIcon, desc: 'Custom hero headlines, promotions & lifestyle banners' },
-    { label: t('landing.brandCapLayout'), icon: LayoutGrid, desc: 'Reorder sections, announcement bars & product grids' },
+    { label: t('landing.brandCapLayout'), icon: LayoutGrid, desc: 'Configure banners, announcement bars & product grids' },
     { label: t('landing.brandCapStyling'), icon: Sliders, desc: 'Pill, rounded or sharp button radii & card shadows' },
   ];
 
