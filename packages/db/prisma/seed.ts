@@ -1,4 +1,5 @@
-import { PrismaClient, UserRole, TenantStatus, StoreStatus, SubscriptionStatus, ProductMode, ProductStatus, VariantStatus, OptionType, InventoryMovementType, OrderStatus, PaymentStatus, ShipmentStatus, EnquiryStatus, PaymentProviderType, ShippingProviderType, ThemeKey } from '@prisma/client';
+import crypto from 'node:crypto';
+import { PrismaClient, UserRole, TenantStatus, StoreStatus, SubscriptionStatus, ProductMode, ProductStatus, VariantStatus, OptionType, InventoryMovementType, OrderStatus, PaymentStatus, ShipmentStatus, EnquiryStatus, PaymentProviderType, ShippingProviderType, ThemeKey, CredentialType } from '@prisma/client';
 import { SEED_IDS } from '../src/seed-data';
 
 const prisma = new PrismaClient();
@@ -20,7 +21,20 @@ export async function runSeed() {
       isActive: true,
     },
   });
-  console.log(`✓ Admin seeded: ${admin.fullName} (${admin.phone})`);
+
+  // Seed default admin PIN / Password (Admin@123456)
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin@123456';
+  const salt = crypto.randomBytes(16).toString('hex');
+  const pinHash = salt + ':' + crypto.scryptSync(adminPassword, salt, 64).toString('hex');
+  await prisma.sellerCredential.upsert({
+    where: {
+      userId_credentialType: { userId: admin.id, credentialType: CredentialType.PIN },
+    },
+    create: { userId: admin.id, credentialType: CredentialType.PIN, pinHash },
+    update: { pinHash, failedPinAttempts: 0, lockedUntil: null },
+  });
+  console.log(`✓ Admin seeded: ${admin.fullName} (${admin.phone}) - Password: ${adminPassword}`);
+
 
   // 2. Subscription Plans
   const starterPlan = await prisma.plan.upsert({
@@ -518,6 +532,19 @@ export async function runSeed() {
       isActive: true,
     },
   });
+
+  // Seed default seller PIN (123456)
+  const sellerPin = '123456';
+  const sellerSalt = crypto.randomBytes(16).toString('hex');
+  const sellerPinHash = sellerSalt + ':' + crypto.scryptSync(sellerPin, sellerSalt, 64).toString('hex');
+  await prisma.sellerCredential.upsert({
+    where: {
+      userId_credentialType: { userId: tenantAOwner.id, credentialType: CredentialType.PIN },
+    },
+    create: { userId: tenantAOwner.id, credentialType: CredentialType.PIN, pinHash: sellerPinHash },
+    update: { pinHash: sellerPinHash, failedPinAttempts: 0, lockedUntil: null },
+  });
+
 
   // Store A (LIVE & Publicly Accessible)
   const storeA = await prisma.store.upsert({

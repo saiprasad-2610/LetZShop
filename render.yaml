@@ -5,15 +5,17 @@ services:
   - type: web
     name: simply-ecommerce-api
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @simply/db generate && pnpm turbo run build --filter=@simply/api...
-    startCommand: node apps/api/dist/src/main.js
+    startCommand: pnpm --filter @simply/db migrate && node apps/api/dist/main.js
     healthCheckPath: /api/v1/health/live
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false # Set to your Railway Postgres connection string
+        fromDatabase:
+          name: simply-ecommerce-db
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -31,14 +33,14 @@ services:
   - type: web
     name: simply-ecommerce-storefront
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/storefront...
-    startCommand: pnpm --filter @simply/storefront start
+    startCommand: pnpm --filter @simply/storefront exec next start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: https://simply-e-commerce.onrender.com
+        value: https://simply-ecommerce-api.onrender.com
       - key: NEXT_PUBLIC_SELLER_URL
         value: https://simply-ecommerce-seller.onrender.com
 
@@ -48,16 +50,16 @@ services:
   - type: web
     name: simply-ecommerce-seller
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/seller...
-    startCommand: pnpm --filter @simply/seller start
+    startCommand: pnpm --filter @simply/seller exec next start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: https://simply-e-commerce.onrender.com
+        value: https://simply-ecommerce-api.onrender.com
       - key: NEXT_PUBLIC_STOREFRONT_URL
-        value: https://simply-e-commerce-frontend.onrender.com
+        value: https://simply-ecommerce-storefront.onrender.com
       - key: NEXT_PUBLIC_SELLER_URL
         value: https://simply-ecommerce-seller.onrender.com
 
@@ -67,11 +69,21 @@ services:
   - type: web
     name: simply-ecommerce-admin
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@simply/admin...
-    startCommand: pnpm --filter @simply/admin start
+    startCommand: pnpm --filter @simply/admin exec next start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: https://simply-e-commerce.onrender.com
+        value: https://simply-ecommerce-api.onrender.com
+
+# ----------------------------------------------------------------------------
+# Render PostgreSQL Database (Free Tier)
+# ----------------------------------------------------------------------------
+databases:
+  - name: simply-ecommerce-db
+    plan: free
+    databaseName: simply_ecommerce
+    user: simply
+
