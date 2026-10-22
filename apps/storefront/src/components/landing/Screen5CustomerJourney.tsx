@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
+  ArrowLeft,
   Check,
   CheckCircle2,
   CreditCard,
@@ -300,9 +301,68 @@ function JourneyPhone({ step }: { step: (typeof STEPS)[number] }) {
   );
 }
 
+function JourneyStep({
+  step,
+  index,
+}: {
+  step: (typeof STEPS)[number];
+  index: number;
+}) {
+  const { t } = useLandingI18n();
+  return (
+    <li className={styles.step} data-journey-step={step}>
+      <div className={styles.stepCopy}>
+        <span className={styles.number} data-step-number>
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <h3>{t(`landing.customerJourney.steps.${step}.title`)}</h3>
+        <p>{t(`landing.customerJourney.steps.${step}.description`)}</p>
+      </div>
+      <JourneyPhone step={step} />
+      {index < 7 && (
+        <ArrowRight className={styles.connector} aria-hidden="true" />
+      )}
+    </li>
+  );
+}
+
 export function Screen5CustomerJourney() {
   const { t } = useLandingI18n();
   const tr = (key: string) => t('landing.customerJourney.' + key);
+  const rail = useRef<HTMLOListElement>(null);
+  const [edges, setEdges] = useState({ start: true, end: false });
+  useEffect(() => {
+    const element = rail.current;
+    if (!element) return;
+    const update = () =>
+      setEdges({
+        start: element.scrollLeft < 2,
+        end:
+          element.scrollLeft + element.clientWidth >= element.scrollWidth - 2,
+      });
+    update();
+    element.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => {
+      element.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, []);
+  const move = (direction: number) => {
+    const element = rail.current;
+    if (!element) return;
+    const first = element.children[0] as HTMLElement;
+    const distance =
+      first.getBoundingClientRect().width +
+      parseFloat(getComputedStyle(element).columnGap);
+    element.scrollBy({
+      left: direction * distance,
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'instant'
+        : 'smooth',
+    });
+  };
   return (
     <section
       id="journey"
@@ -339,30 +399,41 @@ export function Screen5CustomerJourney() {
             </div>
           </aside>
         </div>
-        <p className={styles.scrollHint}>
-          {tr('scrollHint')}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </p>
+        <div className={styles.railControls}>
+          <p className={styles.scrollHint}>{tr('scrollHint')}</p>
+          <div>
+            <button
+              type="button"
+              aria-label={tr('previous')}
+              aria-controls="customer-journey-rail"
+              disabled={edges.start}
+              onClick={() => move(-1)}
+              data-testid="journey-previous"
+            >
+              <ArrowLeft aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={tr('next')}
+              aria-controls="customer-journey-rail"
+              disabled={edges.end}
+              onClick={() => move(1)}
+              data-testid="journey-next"
+            >
+              <ArrowRight aria-hidden="true" />
+            </button>
+          </div>
+        </div>
         <ol
+          id="customer-journey-rail"
+          ref={rail}
           className={styles.journey}
           aria-label={tr('railLabel')}
           tabIndex={0}
           data-testid="journey-rail"
         >
           {STEPS.map((step, index) => (
-            <li key={step} className={styles.step} data-journey-step={step}>
-              <div className={styles.stepCopy}>
-                <span className={styles.number} data-step-number>
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <h3>{tr(`steps.${step}.title`)}</h3>
-                <p>{tr(`steps.${step}.description`)}</p>
-              </div>
-              <JourneyPhone step={step} />
-              {index < 7 && (
-                <ArrowRight className={styles.connector} aria-hidden="true" />
-              )}
-            </li>
+            <JourneyStep key={step} step={step} index={index} />
           ))}
         </ol>
         <div className={styles.benefits} data-testid="journey-benefits">

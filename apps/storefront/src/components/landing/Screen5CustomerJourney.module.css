@@ -92,20 +92,31 @@
   font-weight: 400;
 }
 .journey {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 24px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 28px;
   list-style: none;
-  margin: 0;
-  padding: 0 0 12px;
+  max-width: 1360px;
+  margin: auto;
+  padding: 0 0 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #fb923c #ffedd5;
   outline-offset: 5px;
 }
 .step {
   position: relative;
+  flex: 0 0 auto;
+  width: 260px;
   min-width: 0;
   display: grid;
   grid-template-rows: 1fr 430px;
   gap: 20px;
+  scroll-snap-align: start;
 }
 .stepCopy {
   min-height: 160px;
@@ -184,8 +195,48 @@
   border-radius: 20px;
   background: #cbd5e1;
 }
+.railControls {
+  max-width: 1360px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
 .scrollHint {
-  display: none;
+  color: #9a3412;
+  font-size: 12px;
+}
+.railControls > div {
+  display: flex;
+  gap: 10px;
+}
+.railControls button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #fed7aa;
+  border-radius: 50%;
+  background: #fff7ed;
+  color: #c2410c;
+}
+.railControls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.railControls button:focus-visible {
+  outline: 2px solid #c2410c;
+  outline-offset: 3px;
+}
+.railControls svg {
+  width: 20px;
+  height: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey {
+    scroll-behavior: auto;
+  }
 }
 .benefits {
   display: grid;
@@ -231,26 +282,6 @@
   line-height: 1.8;
 }
 @media (min-width: 768px) and (max-width: 1535px) {
-  .journey {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 40px 32px;
-    max-width: 1120px;
-    margin: auto;
-  }
-  .stepCopy {
-    min-height: 146px;
-  }
-  .phone {
-    max-width: 240px;
-    width: 100%;
-    margin: auto;
-  }
-  .connector {
-    right: -27px;
-  }
-  .step:nth-child(4) .connector {
-    display: none;
-  }
   .benefits {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -266,16 +297,6 @@
   }
   .supporting {
     font-size: 14px;
-  }
-  .journey {
-    gap: 32px 20px;
-  }
-  .connector {
-    right: -20px;
-    width: 17px;
-  }
-  .stepCopy {
-    min-height: 170px;
   }
   .benefit {
     padding: 16px;
@@ -302,43 +323,14 @@
     flex-basis: auto;
     width: 100%;
   }
-  .scrollHint {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #9a3412;
-    font-size: 11px;
-    margin-bottom: 16px;
-  }
-  .journey {
-    display: flex;
-    gap: 24px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    padding: 0 0 20px;
-    scrollbar-width: thin;
-    scrollbar-color: #fb923c #ffedd5;
-  }
   .step {
-    flex: 0 0 min(76vw, 250px);
-    scroll-snap-align: start;
-    grid-template-rows: 1fr 430px;
+    width: min(76vw, 260px);
   }
   .stepCopy {
-    min-height: 155px;
+    min-height: 160px;
   }
   .stepCopy p {
     font-size: 13px;
-  }
-  .phone {
-    width: 100%;
-    max-width: 230px;
-    margin: auto;
-  }
-  .connector {
-    right: -23px;
-    width: 20px;
   }
   .benefits {
     grid-template-columns: repeat(2, minmax(0, 1fr));

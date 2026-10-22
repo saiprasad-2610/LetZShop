@@ -7,7 +7,9 @@ export const customerJourneyEn = {
   paymentsReady: 'UPI, Cards, COD',
   whatsappReady: 'WhatsApp Ordering',
   languagesReady: 'Multiple Languages',
-  languageNames: 'English, हिंदी, मराठी and more',
+  previous: 'Previous journey stage',
+  next: 'Next journey stage',
+  languageNames: 'English, हिंदी, मराठी',
   railLabel: 'Customer journey, steps 01 to 08',
   scrollHint: 'Swipe or scroll to follow every step',
   steps: {
@@ -99,7 +101,7 @@ export const customerJourneyEn = {
     },
     languages: {
       title: 'Multi-Language Support',
-      body: 'Reach customers in English, हिंदी, मराठी and more.',
+      body: 'Reach customers in English, हिंदी, मराठी.',
     },
     security: {
       title: 'Trusted & Secure',
@@ -121,7 +123,9 @@ export const customerJourneyMr: typeof customerJourneyEn = {
   paymentsReady: 'UPI, कार्ड, COD',
   whatsappReady: 'WhatsApp वर ऑर्डर',
   languagesReady: 'अनेक भाषांचा आधार',
-  languageNames: 'English, हिंदी, मराठी आणि आणखी भाषा',
+  previous: 'मागील टप्पा',
+  next: 'पुढील टप्पा',
+  languageNames: 'English, हिंदी, मराठी',
   railLabel: 'ग्राहकाचा खरेदी प्रवास, टप्पे 01 ते 08',
   scrollHint: 'प्रत्येक टप्पा पाहण्यासाठी स्वाइप किंवा स्क्रोल करा',
   steps: {
@@ -211,7 +215,7 @@ export const customerJourneyMr: typeof customerJourneyEn = {
     },
     languages: {
       title: 'अनेक भाषांचा आधार',
-      body: 'English, हिंदी, मराठी आणि इतर भाषांमध्ये ग्राहकांपर्यंत पोहोचा.',
+      body: 'English, हिंदी, मराठीमध्ये ग्राहकांपर्यंत पोहोचा.',
     },
     security: {
       title: 'विश्वासार्ह व सुरक्षित',
@@ -233,7 +237,9 @@ export const customerJourneyHi: typeof customerJourneyEn = {
   paymentsReady: 'UPI, कार्ड, COD',
   whatsappReady: 'WhatsApp पर ऑर्डर',
   languagesReady: 'कई भाषाओं की सुविधा',
-  languageNames: 'English, हिंदी, मराठी और भी भाषाएँ',
+  previous: 'पिछला चरण',
+  next: 'अगला चरण',
+  languageNames: 'English, हिंदी, मराठी',
   railLabel: 'ग्राहक का खरीदारी सफ़र, चरण 01 से 08',
   scrollHint: 'हर चरण देखने के लिए स्वाइप या स्क्रॉल करें',
   steps: {
@@ -323,7 +329,7 @@ export const customerJourneyHi: typeof customerJourneyEn = {
     },
     languages: {
       title: 'कई भाषाओं की सुविधा',
-      body: 'English, हिंदी, मराठी और अन्य भाषाओं में ग्राहकों तक पहुँचें।',
+      body: 'English, हिंदी, मराठी में ग्राहकों तक पहुँचें।',
     },
     security: {
       title: 'भरोसेमंद और सुरक्षित',

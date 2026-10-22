@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { createTranslator } from '../packages/i18n/dist/index.js';
-const out = path.resolve('artifacts/journey-social');
+const out = path.resolve(
+  process.env.JOURNEY_ARTIFACTS || 'artifacts/rail-media-identity',
+);
 fs.mkdirSync(out, { recursive: true });
 const base = process.env.STOREFRONT_URL || 'http://localhost:3000';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -26,11 +28,11 @@ try {
       .click();
     const t = createTranslator(locale);
     for (const [width, height] of [
-      [1920, 1080],
       [1680, 1050],
       [1440, 900],
-      [1280, 900],
+      [1024, 900],
       [768, 1024],
+      [430, 900],
       [390, 844],
     ]) {
       await page.setViewportSize({ width, height });
@@ -136,10 +138,55 @@ try {
         'equal-height benefits at every viewport',
       );
       const rail = page.getByTestId('journey-rail');
-      await rail.evaluate((e) => (e.scrollLeft = 0));
+      const layout = await rail.evaluate((e) => ({
+        display: getComputedStyle(e).display,
+        wrap: getComputedStyle(e).flexWrap,
+        snap: getComputedStyle(e).scrollSnapType,
+        tops: [...e.children].map((c) => c.getBoundingClientRect().top),
+        widths: [...e.children].map((c) => c.getBoundingClientRect().width),
+        overflow: e.scrollWidth > e.clientWidth,
+      }));
+      assert.equal(layout.display, 'flex');
+      assert.equal(layout.wrap, 'nowrap');
+      assert.equal(layout.snap, 'x mandatory');
+      assert.ok(
+        Math.max(...layout.tops) - Math.min(...layout.tops) < 1,
+        'single row',
+      );
+      assert.ok(layout.widths.every((w) => w >= 240 && w <= 270));
+      assert.equal(layout.overflow, true, 'scrollable at every viewport');
+      await rail.evaluate((e) => e.scrollTo({ left: 0, behavior: 'instant' }));
+      await page.waitForTimeout(100);
+      assert.equal(
+        await page.getByTestId('journey-previous').isDisabled(),
+        true,
+      );
+      await page.getByTestId('journey-next').click();
+      await page.waitForTimeout(700);
+      assert.ok(
+        await rail.evaluate((e) => e.scrollLeft >= 240 && e.scrollLeft < 320),
+        'one-card arrow movement and snap',
+      );
+      assert.equal(
+        await page.getByTestId('journey-previous').isDisabled(),
+        false,
+      );
+      await page.getByTestId('journey-previous').click();
+      await page.waitForTimeout(700);
+      assert.ok(await rail.evaluate((e) => e.scrollLeft < 2));
       await section.screenshot({
         path: path.join(out, `screen5-${locale}-${width}.png`),
       });
+      await rail.evaluate((e) =>
+        e.scrollTo({ left: e.scrollWidth, behavior: 'instant' }),
+      );
+      await page.waitForTimeout(100);
+      assert.equal(await page.getByTestId('journey-next').isDisabled(), true);
+      if (width === 1680)
+        await section.screenshot({
+          path: path.join(out, `screen5-${locale}-1680-end.png`),
+        });
+      await rail.evaluate((e) => e.scrollTo({ left: 0, behavior: 'instant' }));
       if (width === 390) {
         await rail.focus();
         await page.keyboard.press('ArrowRight');
@@ -148,7 +195,9 @@ try {
           await rail.evaluate((e) => e.scrollLeft > 0),
           'native keyboard rail scrolling',
         );
-        await rail.evaluate((e) => (e.scrollLeft = e.scrollWidth));
+        await rail.evaluate((e) =>
+          e.scrollTo({ left: e.scrollWidth, behavior: 'instant' }),
+        );
         await page.waitForTimeout(150);
         assert.ok(
           await section.locator('[data-journey-step="review"]').isVisible(),
