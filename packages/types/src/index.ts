@@ -1,3 +1,4 @@
+export * from './public-media';
 export * from './catalog-header';
 export * from './brand-text';
 export * from './social-links';

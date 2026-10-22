@@ -108,6 +108,11 @@ export class LocalDiskStorageProvider implements StorageProvider {
     try {
       if (fs.existsSync(absolutePath)) {
         await fs.promises.unlink(absolutePath);
+        for (const format of ['webp', 'png']) {
+          await fs.promises.unlink(`${absolutePath}.compat.${format}`).catch((error) => {
+            if (error.code !== 'ENOENT') throw error;
+          });
+        }
         return true;
       }
       return false;

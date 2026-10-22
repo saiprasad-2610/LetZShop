@@ -1,3 +1,5 @@
+import { publicProduct } from './public-product';
+import { normalizePublicMedia } from '../media/public-media-reference';
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, StoreStatus } from '@prisma/client';
 import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
@@ -177,11 +179,11 @@ export class StoresService {
     const activeLegacyConfig = fullStore?.themeConfigs?.[0];
     const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
     const themeVersion = activeThemeDef?.version || fullStore?.themeConfiguration?.themeVersion || '1.0.0';
-    const themeJson = normalizeThemeSocialLinks(normalizeBrandText((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {}));
+    const themeJson = normalizePublicMedia(normalizeThemeSocialLinks(normalizeBrandText((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {})));
 
     const sanitizedBranding = {
-      logoUrl: fullStore?.branding?.logoUrl || null,
-      faviconUrl: fullStore?.branding?.faviconUrl || null,
+      logoUrl: normalizePublicMedia({ logoUrl: fullStore?.branding?.logoUrl || null }).logoUrl,
+      faviconUrl: normalizePublicMedia({ faviconUrl: fullStore?.branding?.faviconUrl || null }).faviconUrl,
       bannerUrl: themeJson?.pages?.home?.heroBannerUrl || (themeJson as any)?.branding?.bannerUrl || null,
       primaryColor: fullStore?.branding?.primaryColor || themeJson.palette?.primary || '#1C1917',
       accentColor: fullStore?.branding?.accentColor || themeJson.palette?.accent || '#D4AF37',
@@ -248,7 +250,7 @@ export class StoresService {
         mediaAssetId: c.mediaAssetId,
         sortOrder: c.sortOrder,
       })),
-      products: fullStore?.products || [],
+      products: (fullStore?.products || []).map(publicProduct),
       isPreview,
     };
   }

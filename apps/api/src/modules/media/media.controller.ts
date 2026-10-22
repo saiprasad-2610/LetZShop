@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Res,
+  Req,
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -16,6 +17,8 @@ import { CurrentTenant, Public } from '../../common/decorators';
 import { TenantContext } from '@simply/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isPublicMediaKey, localMediaRoot } from './local-media-root';
+import { avifFallbackFormat, compatibleAvifFile } from './compatible-image';
 
 @ApiTags('Media & Storage')
 @Controller('media')
@@ -112,11 +115,13 @@ export class MediaController {
     return this.mediaService.deleteProductMedia(tenant, id);
   }
 
-  private streamMediaFile(storageKey: string, res: any) {
-    const rootDir = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
+  private async streamMediaFile(storageKey: string, res: any, accept?: string) {
+    const rootDir = localMediaRoot();
     const normalizedRoot = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep;
 
     let safeKey = (storageKey || '').replace(/^[\/\\]+/, '');
+    if (safeKey.startsWith('file/')) safeKey = safeKey.slice(5);
+    if (!isPublicMediaKey(safeKey)) throw new NotFoundException('Requested media file not found.');
     let absolutePath = path.resolve(rootDir, safeKey);
 
     // If file prefix was included in safeKey (e.g. /media/file/<key>), also resolve without it
@@ -142,12 +147,20 @@ export class MediaController {
       throw new NotFoundException('Requested media file not found.');
     }
 
-    const ext = path.extname(absolutePath).toLowerCase();
+    let responsePath = absolutePath;
+    if (path.extname(absolutePath).toLowerCase() === '.avif') {
+      const vary = String(res.getHeader('Vary') || '').split(',').map((value: string) => value.trim()).filter(Boolean);
+      res.header('Vary', [...new Set([...vary, 'Accept'])].join(', '));
+      const fallback = avifFallbackFormat(accept);
+      if (fallback) responsePath = await compatibleAvifFile(absolutePath, fallback);
+    }
+    const ext = path.extname(responsePath).toLowerCase();
     const mimeMap: Record<string, string> = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.webp': 'image/webp',
+      '.avif': 'image/avif',
       '.gif': 'image/gif',
       '.svg': 'image/svg+xml',
     };
@@ -155,7 +168,7 @@ export class MediaController {
       res.header('Content-Type', mimeMap[ext]);
     }
 
-    const stream = fs.createReadStream(absolutePath);
+    const stream = fs.createReadStream(responsePath);
     res.header('Cache-Control', 'public, max-age=86400');
     res.header('Cross-Origin-Resource-Policy', 'cross-origin');
     res.header('Access-Control-Allow-Origin', '*');
@@ -165,8 +178,8 @@ export class MediaController {
   @Public()
   @Get('file/*')
   @ApiOperation({ summary: 'Serve stored media file safely' })
-  async serveFile(@Param('*') storageKey: string, @Res() res: any) {
-    return this.streamMediaFile(storageKey, res);
+  async serveFile(@Param('*') storageKey: string, @Res() res: any, @Req() req?: any) {
+    return this.streamMediaFile(storageKey, res, req?.headers?.accept);
   }
 
   @Public()
@@ -176,9 +189,10 @@ export class MediaController {
     @Param('tenantId') tenantId: string,
     @Param('storeId') storeId: string,
     @Param('*') restKey: string,
-    @Res() res: any
+    @Res() res: any,
+    @Req() req?: any
   ) {
     const storageKey = `${tenantId}/${storeId}/${restKey}`;
-    return this.streamMediaFile(storageKey, res);
+    return this.streamMediaFile(storageKey, res, req?.headers?.accept);
   }
 }

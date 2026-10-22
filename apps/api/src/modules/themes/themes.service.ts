@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantContext, brandTextErrors, normalizeBrandText, themeSocialLinkErrors, normalizeThemeSocialLinks } from '@simply/types';
+import { publicMediaErrors } from '@simply/types';
 
 @Injectable()
 export class ThemesService {
@@ -27,7 +28,8 @@ export class ThemesService {
     }
   ) {
     const announcementErrors = brandTextErrors(dto.announcement === undefined ? {} : { announcement: { text: dto.announcement } });
-    if (announcementErrors.length) throw new BadRequestException(announcementErrors);
+    const mediaErrors = publicMediaErrors(dto);
+    if (announcementErrors.length || mediaErrors.length) throw new BadRequestException([...announcementErrors, ...mediaErrors]);
     const validData: any = {};
     if (dto.primaryColor !== undefined) validData.primaryColor = dto.primaryColor;
     if (dto.accentColor !== undefined) validData.accentColor = dto.accentColor;
@@ -104,6 +106,7 @@ export class ThemesService {
     }
   ) {
     const errors = [
+      ...publicMediaErrors(dto),
       ...brandTextErrors(dto.configJson),
       ...themeSocialLinkErrors(dto.configJson),
       ...brandTextErrors(dto.branding?.announcement === undefined ? {} : { announcement: { text: dto.branding.announcement } }),

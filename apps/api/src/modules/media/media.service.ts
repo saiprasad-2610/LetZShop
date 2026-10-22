@@ -30,6 +30,9 @@ export class MediaService {
       where: { id: productId, tenantId: tenant.tenantId, storeId: tenant.storeId },
     });
     if (!product) throw new NotFoundException('Product not found in this store.');
+    if (variantId && !await this.prisma.productVariant.findFirst({ where: { id: variantId, productId, tenantId: tenant.tenantId, storeId: tenant.storeId, deletedAt: null } })) {
+      throw new NotFoundException('Product variant not found in this store.');
+    }
 
     // 2. Validate real binary magic bytes & file size (5MB limit)
     const validation = validateProductImageBuffer(file.buffer, file.originalFilename);
@@ -140,10 +143,8 @@ export class MediaService {
     },
     type: 'logo' | 'banner' | 'favicon'
   ) {
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
-    if (!allowedMime.includes(file.mimeType)) {
-      throw new BadRequestException(`Invalid asset MIME type: ${file.mimeType}. Allowed: ${allowedMime.join(', ')}`);
-    }
+    const validation = validateProductImageBuffer(file.buffer, file.originalFilename);
+    if (!validation.isValid || !validation.mimeType) throw new BadRequestException(validation.error || 'Use a JPEG, PNG, WebP or AVIF image.');
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
     if (file.buffer.length > MAX_SIZE) {
@@ -155,7 +156,7 @@ export class MediaService {
       storeId: tenant.storeId,
       buffer: file.buffer,
       originalFilename: file.originalFilename,
-      mimeType: file.mimeType,
+      mimeType: validation.mimeType,
       prefix: 'branding',
     });
 
