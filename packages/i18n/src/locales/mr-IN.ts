@@ -1318,6 +1318,10 @@ export const mrIN: TranslationDictionary = {
     whatsappMissingWarning: 'खरेदीदारांची चौकशी सक्षम करण्यासाठी स्टोअर सेटिंग्जमध्ये WhatsApp नंबर जोडा.',
   },
   checkout: {
+    contactInfo: "संपर्क माहिती",
+    email: "ईमेल",
+    delivery: "वितरण",
+
     title: 'सुरक्षित चेकआउट',
     orderSummary: 'ऑर्डर सारांश',
     deliveryAddress: 'डिलिव्हरी पत्ता',

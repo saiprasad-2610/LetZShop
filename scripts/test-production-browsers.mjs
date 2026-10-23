@@ -4,7 +4,24 @@ import { chromium, firefox, webkit } from "playwright";
 import { createTranslator } from "../packages/i18n/dist/index.js";
 const out = "artifacts/production-hardening";
 const base = process.env.STOREFRONT_URL || "http://localhost:3000";
-assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname), "Use a local storefront for fixture tests.");
+assert.ok(
+  ["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname),
+  "Use a local storefront for fixture tests.",
+);
+// Explicit CORS keeps intercepted API responses valid in every browser engine.
+const fulfill = (route, options) =>
+  route.fulfill({
+    ...options,
+    headers: {
+      "access-control-allow-origin": new URL(base).origin,
+      "access-control-allow-credentials": "true",
+      "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+      "access-control-allow-headers":
+        route.request().headers()["access-control-request-headers"] ||
+        "content-type,authorization",
+      ...options.headers,
+    },
+  });
 const engines = [
   ["Chrome", chromium, { channel: "chrome" }],
   ["Edge", chromium, { channel: "msedge" }],
@@ -141,6 +158,8 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
             };
             await context.route("http://localhost:4000/**", async (route) => {
               const url = new URL(route.request().url());
+              if (route.request().method() === "OPTIONS")
+                return fulfill(route, { status: 204 });
               if (url.pathname === "/orders/checkout") {
                 placed = route.request().postDataJSON();
                 assert.deepEqual(placed.directItems, [
@@ -151,7 +170,7 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
                   },
                 ]);
                 assert.equal(placed.cartId, undefined);
-                return route.fulfill({
+                return fulfill(route, {
                   json: {
                     success: true,
                     data: {
@@ -163,7 +182,7 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
                 });
               }
               if (url.pathname.startsWith("/storefront/"))
-                return route.fulfill({
+                return fulfill(route, {
                   json: {
                     success: true,
                     data: {
@@ -177,7 +196,7 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
                   },
                 });
               if (url.pathname === "/cart/init")
-                return route.fulfill({
+                return fulfill(route, {
                   json: {
                     success: true,
                     data: {
@@ -188,11 +207,11 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
                 });
               if (url.pathname.startsWith("/cart/")) {
                 if (route.request().method() !== "GET") mutations++;
-                return route.fulfill({
+                return fulfill(route, {
                   json: { success: true, data: persistent },
                 });
               }
-              return route.fulfill({
+              return fulfill(route, {
                 json: {
                   success: true,
                   data: {
@@ -231,6 +250,12 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
             await page.goto(productUrl, { waitUntil: "networkidle" });
             await choose();
             await buy();
+            assert.ok(
+              !/\b(fullName|mobileNumber|placeOrder|totalAmount|onlinePayment|contactInfo|paymentMethod)\b/.test(
+                await page.locator("body").innerText(),
+              ),
+              "checkout renders translated labels rather than keys",
+            );
             assert.match(await page.locator("body").innerText(), /White/);
             assert.match(await page.locator("body").innerText(), /L/);
             assert.ok(
@@ -337,7 +362,7 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
         })),
       };
       await soldOutContext.route("http://localhost:4000/**", (route) =>
-        route.fulfill({
+        fulfill(route, {
           json: {
             success: true,
             data: route.request().url().includes("/storefront/")

@@ -1197,6 +1197,10 @@ export const hiIN: TranslationDictionary = {
     whatsappMissingWarning: 'खरीदार की पूछताछ सक्षम करने के लिए स्टोर सेटिंग्स में WhatsApp नंबर जोड़ें।',
   },
   checkout: {
+    contactInfo: "संपर्क जानकारी",
+    email: "ईमेल",
+    delivery: "डिलीवरी",
+
     title: 'सुरक्षित चेकआउट',
     orderSummary: 'ऑर्डर सारांश',
     deliveryAddress: 'डिलीवरी का पता',

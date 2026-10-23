@@ -1316,6 +1316,10 @@ export const enIN = {
     whatsappMissingWarning: 'Add a WhatsApp number in Store Settings to enable buyer enquiries.',
   },
   checkout: {
+    contactInfo: "Contact information",
+    email: "Email",
+    delivery: "Delivery",
+
     title: 'Secure Checkout',
     orderSummary: 'Order Summary',
     deliveryAddress: 'Delivery Address',

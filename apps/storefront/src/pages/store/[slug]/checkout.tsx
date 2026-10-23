@@ -577,7 +577,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">1</span>
-                      {t('storefront.contactInfo')}
+                      {t('checkout.contactInfo')}
                     </h2>
                     <span className="text-[11px] text-gray-400 font-medium">OTP-free guest flow</span>
                   </div>
@@ -585,7 +585,7 @@ export default function StoreCheckoutPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.fullName')} <span className="text-red-500">*</span>
+                        {t('checkout.fullName')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -602,7 +602,7 @@ export default function StoreCheckoutPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.mobileNumber')} <span className="text-red-500">*</span>
+                        {t('checkout.phone')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-2.5 text-xs font-mono text-gray-500 font-bold">+91</span>
@@ -620,7 +620,7 @@ export default function StoreCheckoutPage() {
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.email')} <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
+                        {t('checkout.email')} <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -641,7 +641,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">2</span>
-                      {t('storefront.delivery')}
+                      {t('checkout.delivery')}
                     </h2>
 
                     {supportsPickup && supportsDelivery && (
@@ -803,7 +803,7 @@ export default function StoreCheckoutPage() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">3</span>
-                      {t('storefront.paymentMethod')}
+                      {t('checkout.paymentMethod')}
                     </h2>
                     <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Verified Secure
@@ -831,7 +831,7 @@ export default function StoreCheckoutPage() {
                           />
                           <div>
                             <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              {t('storefront.cod')}
+                              {t('checkout.cod')}
                               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
                                 Most Popular
                               </span>
@@ -866,7 +866,7 @@ export default function StoreCheckoutPage() {
                           />
                           <div>
                             <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              {t('storefront.onlinePayment')}
+                              {t('checkout.online')}
                               {isPreviewMode && (
                                 <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
                                   Preview Mode Simulation
@@ -1096,7 +1096,7 @@ export default function StoreCheckoutPage() {
                   </div>
 
                   <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
-                    <span>{t('storefront.totalAmount')}</span>
+                    <span>{t('common.total')}</span>
                     <span className="font-mono text-emerald-800">
                       {formatPaise(calculatedGrandTotalPaise)}
                     </span>
@@ -1124,7 +1124,7 @@ export default function StoreCheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <span>{t('storefront.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
+                      <span>{t('checkout.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
