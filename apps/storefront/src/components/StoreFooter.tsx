@@ -58,7 +58,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
   const copyrightText = rawCopyright.replace(/\.?\s*DPDPA\s*2023\s*Compliant\.?/gi, '').trim();
 
   return (
-    <footer className="[overflow-wrap:anywhere] bg-gray-900 text-white border-t border-gray-800 pt-12 pb-8 mt-16">
+    <footer className="[overflow-wrap:anywhere] bg-[var(--store-footer-bg)] text-white border-t border-gray-800 pt-12 pb-8 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Value Proposition Strip */}
         {showTrustBadges && (
@@ -69,7 +69,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge1Title}</p>
-                <p className="text-xs text-gray-400">{trustBadge1Subtitle}</p>
+                <p className="text-xs text-[var(--store-footer-muted)]">{trustBadge1Subtitle}</p>
               </div>
             </div>
 
@@ -79,7 +79,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge2Title}</p>
-                <p className="text-xs text-gray-400">{trustBadge2Subtitle}</p>
+                <p className="text-xs text-[var(--store-footer-muted)]">{trustBadge2Subtitle}</p>
               </div>
             </div>
 
@@ -89,7 +89,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               </div>
               <div>
                 <p className="font-bold text-white">{trustBadge3Title}</p>
-                <p className="text-xs text-gray-400">{trustBadge3Subtitle}</p>
+                <p className="text-xs text-[var(--store-footer-muted)]">{trustBadge3Subtitle}</p>
               </div>
             </div>
           </div>
@@ -107,14 +107,14 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               </span>
               <span className="font-bold text-lg text-white">{store.name}</span>
             </div>
-            <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
+            <p className="text-xs text-[var(--store-footer-muted)] max-w-sm leading-relaxed">
               {footerDescription}
             </p>
 
             {/* Social Media Links Section */}
             {hasAnySocial && (
               <div className="space-y-2 pt-1">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-[var(--store-footer-muted)] uppercase tracking-wider block">
                   Connect With Us
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
@@ -202,8 +202,8 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
 
           {/* Quick Links */}
           <div className="space-y-2">
-            <p className="font-bold text-xs uppercase tracking-wider text-gray-400">Navigation</p>
-            <ul className="space-y-1.5 text-xs text-gray-400">
+            <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Navigation</p>
+            <ul className="space-y-1.5 text-xs text-[var(--store-footer-muted)]">
               <li>
                 <Link href={getPublicStoreUrl(String(slug))} className="hover:text-white transition">
                   Home
@@ -229,8 +229,8 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
 
           {/* Contact Details */}
           <div className="space-y-2">
-            <p className="font-bold text-xs uppercase tracking-wider text-gray-400">Contact Us</p>
-            <ul className="space-y-2 text-xs text-gray-400">
+            <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Contact Us</p>
+            <ul className="space-y-2 text-xs text-[var(--store-footer-muted)]">
               {contactPhone && (
                 <li className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-emerald-400" />
@@ -254,7 +254,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
         </div>
 
         {/* Bottom Copyright & Compliance */}
-        <div className="pt-8 border-t border-gray-800 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="pt-8 border-t border-gray-800 text-xs text-[var(--store-footer-muted)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>{copyrightText}</p>
           <p className="flex items-center gap-1 text-[11px]">
             Powered by{' '}
@@ -263,7 +263,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               className="font-semibold text-gray-300 hover:text-white transition inline-flex items-center gap-1"
             >
               <span>Letz Shop</span>
-              <span className="text-[10px] text-gray-500 font-mono">letzshop.store</span>
+              <span className="text-[10px] text-[var(--store-footer-muted)] font-mono">letzshop.store</span>
             </a>
           </p>
         </div>

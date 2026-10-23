@@ -105,7 +105,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             maxHeight: `${logoSize}px`,
             maxWidth: `${logoSize}px`,
           }}
-          className="rounded-full object-contain p-0.5 bg-white border border-gray-200/80 shadow-xs group-hover:scale-105 transition-all shrink-0"
+          className="rounded-full object-contain p-0.5 bg-[var(--store-surface)] store-surface border border-gray-200/80 shadow-xs group-hover:scale-105 transition-all shrink-0"
         />
       ) : (
         <span
@@ -113,7 +113,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             width: `${logoSize}px`,
             height: `${logoSize}px`,
             fontSize: `${Math.max(10, Math.round(logoSize * 0.4))}px`,
-            backgroundColor: 'var(--theme-primary, #111827)',
+            backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)',
           }}
           className={`rounded-lg flex items-center justify-center font-black text-white shadow-xs shrink-0 group-hover:scale-105 transition-all ${
             themeCode === 'atelier' ? 'rounded-none border border-amber-500/50' :
@@ -128,25 +128,26 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       )}
 
       <div className="flex min-w-0 flex-col text-left">
-        <span
+        <span data-store-name="true"
           style={{
             fontSize: `${storeNameSize}px`,
+            color: 'var(--store-text-primary)',
             lineHeight: '1.2',
           }}
           className={`truncate sm:overflow-visible font-bold tracking-tight transition-all ${
-            themeCode === 'atelier' ? 'font-serif tracking-wide text-stone-900 group-hover:text-amber-800' :
-            themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-slate-900 group-hover:text-pink-600' :
-            themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-stone-900 group-hover:text-emerald-800' :
-            themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-slate-900 group-hover:text-sky-600' :
-            themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-stone-900 group-hover:text-stone-700' :
-            themeCode === 'canvas' ? 'font-sans font-black uppercase text-slate-900 group-hover:text-amber-600' :
-            themeCode === 'horizon' ? 'font-sans font-bold text-slate-900 group-hover:text-blue-600' :
-            'font-bold text-gray-900 group-hover:text-blue-700'
+            themeCode === 'atelier' ? 'font-serif tracking-wide text-[var(--store-text-primary)] group-hover:text-amber-800' :
+            themeCode === 'pulse' ? 'font-black uppercase tracking-tight text-[var(--store-text-primary)] group-hover:text-pink-600' :
+            themeCode === 'harvest' ? 'font-serif font-bold tracking-tight text-[var(--store-text-primary)] group-hover:text-emerald-800' :
+            themeCode === 'foundry' ? 'font-mono uppercase font-bold tracking-wider text-[var(--store-text-primary)] group-hover:text-sky-600' :
+            themeCode === 'habitat' ? 'font-serif tracking-wide font-medium text-[var(--store-text-primary)] group-hover:text-[var(--store-text-primary)]' :
+            themeCode === 'canvas' ? 'font-sans font-black uppercase text-[var(--store-text-primary)] group-hover:text-amber-600' :
+            themeCode === 'horizon' ? 'font-sans font-bold text-[var(--store-text-primary)] group-hover:text-blue-600' :
+            'font-bold text-[var(--store-text-primary)] group-hover:text-blue-700'
           }`}
         >
           {store.name}
         </span>
-        <span className="text-[10px] text-gray-400 font-mono tracking-wider uppercase -mt-0.5 hidden xs:inline">
+        <span className="text-[10px] text-[var(--store-text-secondary)] font-mono tracking-wider uppercase -mt-0.5 hidden xs:inline">
           {themeCode === 'harvest' ? 'Pure & Artisanal' :
            themeCode === 'atelier' ? 'Haute Maison' :
            themeCode === 'pulse' ? 'Verified Drop' :
@@ -161,17 +162,17 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
 
   const renderNavLinks = (extraClass = '') => (
     <nav className={`items-center gap-6 text-sm font-medium ${
-      themeCode === 'atelier' ? 'uppercase text-xs tracking-widest text-stone-600' :
-      themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-slate-700' :
-      themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-slate-800' : 'text-gray-600'
+      themeCode === 'atelier' ? 'uppercase text-xs tracking-widest text-[var(--store-text-secondary)]' :
+      themeCode === 'foundry' ? 'font-mono text-xs uppercase tracking-wider text-[var(--store-text-primary)]' :
+      themeCode === 'pulse' ? 'font-bold uppercase text-xs tracking-wider text-[var(--store-text-primary)]' : 'text-[var(--store-text-secondary)]'
     } ${extraClass}`}>
-      <Link href={getQueryPath(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900 transition">
+      <Link href={getQueryPath(getPublicStoreUrl(String(slug)))} className="hover:text-[var(--store-text-primary)] transition">
         {t('storefront.home')}
       </Link>
-      <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-gray-900 transition">
+      <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-[var(--store-text-primary)] transition">
         {t('storefront.products')}
       </Link>
-      <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-gray-900 transition">
+      <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-[var(--store-text-primary)] transition">
         {t('storefront.aboutUs')}
       </Link>
     </nav>
@@ -183,7 +184,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       {showSearchIcon && (
         <Link
           href={getQueryPath(`/store/${slug}/search`)}
-          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          className="p-2 text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)] hover:bg-[var(--store-surface)] rounded-lg transition"
           title="Search Products"
           aria-label="Search Catalog"
         >
@@ -217,7 +218,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
         href={getQueryPath(`/store/${slug}/cart`)}
         data-theme-btn="true"
         className="relative hidden md:flex items-center gap-1.5 px-3 py-2 text-white font-medium text-xs shadow-sm transition hover:opacity-90 store-btn"
-        style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+        style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
         aria-label={`Shopping Cart with ${itemCount} items`}
       >
         <ShoppingBag className="w-4 h-4" />
@@ -229,7 +230,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
             className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold text-white ${
               themeCode === 'pulse' ? 'animate-bounce' : ''
             }`}
-            style={{ backgroundColor: 'var(--theme-accent, #D97706)' }}
+            style={{ backgroundColor: 'var(--theme-accent, #D97706)', color: 'var(--theme-on-accent)' }}
           >
             {itemCount}
           </span>
@@ -240,7 +241,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
 
   return (
     <>
-    <header data-storefront-header className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b transition shadow-sm ${
+    <header data-storefront-header className={`sticky top-0 z-40 bg-[var(--store-surface)] store-surface backdrop-blur-md border-b transition shadow-sm ${
       themeCode === 'foundry' ? 'border-slate-300' :
       themeCode === 'pulse' ? 'border-slate-800' :
       themeCode === 'harvest' ? 'border-amber-200' :
@@ -276,7 +277,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <div className="flex items-center gap-4 sm:flex-1">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              className="sm:hidden p-2 text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -304,7 +305,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <div className="flex min-w-0 flex-1 sm:flex-none items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              className="sm:hidden p-2 text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -316,9 +317,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <div className="hidden sm:flex flex-1 max-w-md mx-2 lg:mx-4">
             <Link
               href={getQueryPath(`/store/${slug}/search`)}
-              className="w-full flex items-center gap-2 bg-gray-100 hover:bg-gray-200/80 border border-gray-300 rounded-full px-3.5 py-1.5 text-xs text-gray-500 transition shadow-2xs"
+              className="w-full flex items-center gap-2 bg-[var(--store-surface)] hover:bg-[var(--store-surface)] border border-gray-300 rounded-full px-3.5 py-1.5 text-xs text-[var(--store-text-secondary)] transition shadow-2xs"
             >
-              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+              <Search className="w-4 h-4 text-[var(--store-text-secondary)] shrink-0" />
               <span className="truncate">Search products, categories, daily essentials...</span>
             </Link>
           </div>
@@ -338,7 +339,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <div className="flex min-w-0 flex-1 sm:flex-none items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-gray-600 hover:text-gray-900"
+              className="sm:hidden p-2 text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -354,15 +355,15 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
 
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-3 shadow-lg">
+        <div className="sm:hidden border-t border-gray-100 bg-[var(--store-surface)] store-surface px-4 py-4 space-y-3 shadow-lg">
           {themeCode === 'local' && (
             <div className="mb-3">
               <Link
                 href={`/store/${slug}/search`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500"
+                className="w-full flex items-center gap-2 bg-[var(--store-surface)] border border-gray-200 rounded-lg px-3 py-2 text-xs text-[var(--store-text-secondary)]"
               >
-                <Search className="w-4 h-4 text-gray-400" />
+                <Search className="w-4 h-4 text-[var(--store-text-secondary)]" />
                 <span>Search provisions & catalog...</span>
               </Link>
             </div>
@@ -371,28 +372,28 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           <Link
             href={getQueryPath(getPublicStoreUrl(String(slug)))}
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-semibold text-gray-800 py-1"
+            className="block text-sm font-semibold text-[var(--store-text-primary)] py-1"
           >
             {t('storefront.home')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/products`)}
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-semibold text-gray-800 py-1"
+            className="block text-sm font-semibold text-[var(--store-text-primary)] py-1"
           >
             {t('storefront.products')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/about`)}
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-semibold text-gray-800 py-1"
+            className="block text-sm font-semibold text-[var(--store-text-primary)] py-1"
           >
             {t('storefront.aboutUs')}
           </Link>
           <Link
             href={getQueryPath(`/store/${slug}/cart`)}
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-semibold text-gray-800 py-1"
+            className="block text-sm font-semibold text-[var(--store-text-primary)] py-1"
           >
             {t('storefront.cart')} ({itemCount})
           </Link>

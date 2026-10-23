@@ -220,7 +220,7 @@ export default function StoreHomePage() {
             {icon}
           </div>
           <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
+          <p className="text-xs text-[var(--store-text-secondary)] leading-relaxed">{description}</p>
           <div className="pt-2">
             <Link
               href="/"
@@ -378,7 +378,7 @@ export default function StoreHomePage() {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4 p-4 border border-amber-500/20 bg-stone-950/70 backdrop-blur-sm">
+                  <div className="absolute bottom-4 left-4 right-4 p-4 border border-amber-500/20 bg-stone-950/70 store-image-caption backdrop-blur-sm">
                     <p className="text-[11px] font-serif tracking-wider text-amber-200 text-center uppercase">Verified 100% Authentic • Certified Craftsmanship</p>
                   </div>
                 </div>
@@ -539,7 +539,7 @@ export default function StoreHomePage() {
 
         {/* --- FOUNDRY: Technical B2B Industrial Hero --- */}
         {themeCode === 'foundry' && (
-          <section data-theme-hero="true" className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
+          <section data-theme-hero="true" data-store-inverse-hero="true" className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
             {/* Background Grid Pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 pointer-events-none" />
 
@@ -664,7 +664,7 @@ export default function StoreHomePage() {
 
         {/* --- LOCAL: High Density Instant Commerce Hero --- */}
         {themeCode === 'local' && (
-          <section data-theme-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
+          <section data-theme-hero="true" data-store-inverse-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-3">
                 <div data-theme-accent="true" className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
@@ -1154,7 +1154,7 @@ export default function StoreHomePage() {
 
         {/* --- CANVAS: Full-Front Cinematic Showcase Hero --- */}
         {themeCode === 'canvas' && (
-          <section data-theme-hero="true" className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
+          <section data-theme-hero="true" data-store-overlay="true" className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
             {/* Full-Bleed Panoramic Background Image */}
             <div className="absolute inset-0 z-0">
               <SafeImage
@@ -1251,7 +1251,7 @@ export default function StoreHomePage() {
                    themeCode === 'habitat' ? 'Shop by Space' :
                    themeCode === 'pulse' ? 'DROP CATEGORIES' : 'Featured Collections'}
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--store-text-secondary)]">
                   {themeCode === 'foundry' ? 'Select equipment classification' : 'Explore products by category'}
                 </p>
               </div>
@@ -1351,7 +1351,7 @@ export default function StoreHomePage() {
         <section id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-4">
             <div>
-              <h2 className={`text-xl sm:text-2xl font-bold text-gray-900 ${
+              <h2 className={`text-xl sm:text-2xl font-bold text-[var(--store-text-primary)] ${
                 themeCode === 'atelier' ? 'font-serif tracking-wide text-2xl' :
                 themeCode === 'foundry' ? 'font-mono uppercase text-lg' :
                 themeCode === 'pulse' ? 'font-black uppercase tracking-tight' : ''
@@ -1361,7 +1361,7 @@ export default function StoreHomePage() {
                  themeCode === 'harvest' ? `Handcrafted by ${store.name}` :
                  themeCode === 'habitat' ? `${store.name} Living Pieces` : `${store.name} Collection`}
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--store-text-secondary)]">
                 Showing {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} ready for dispatch
               </p>
             </div>
@@ -1434,16 +1434,16 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-stone-50/50">
+                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           {p.category?.name && (
-                            <span className="text-[10px] font-mono text-stone-500 uppercase tracking-widest block mb-1">
+                            <span className="text-[10px] font-mono text-[var(--store-text-secondary)] uppercase tracking-widest block mb-1">
                               {p.category.name}
                             </span>
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-base text-stone-900 hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
+                            className="font-serif text-base text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
                           >
                             {title}
                           </Link>
@@ -1451,11 +1451,11 @@ export default function StoreHomePage() {
 
                         <div className="pt-3 border-t border-stone-200 flex items-center justify-between">
                           <div>
-                            <div className="font-serif text-base font-semibold text-stone-900">
+                            <div data-store-price="true" className="font-serif text-base font-semibold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && (
-                              <div className="text-[11px] text-stone-400 font-mono line-through">
+                              <div className="text-[11px] text-[var(--store-text-secondary)] font-mono line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -1463,10 +1463,11 @@ export default function StoreHomePage() {
 
                           <div className="flex items-center gap-2">
                             <button
+                              data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3 py-1.5 rounded-none bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
-                              title="Add to shopping bag"
+                              className="px-3 py-1.5 rounded-none bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                              title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
@@ -1478,13 +1479,13 @@ export default function StoreHomePage() {
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>Add</span>
+                                  <span>{t('storefront.addToCart')}</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-semibold text-stone-900 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
+                              className="text-xs font-semibold text-[var(--store-text-primary)] hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
                               title="View full piece"
                             >
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -1518,20 +1519,20 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-slate-900">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-black text-sm uppercase tracking-tight text-white hover:text-pink-400 transition line-clamp-1"
+                            className="font-black text-sm uppercase tracking-tight text-[var(--store-text-primary)] hover:text-pink-400 transition line-clamp-1"
                           >
                             {title}
                           </Link>
                           <div className="flex items-baseline gap-2 mt-1">
-                            <span className="font-black text-base text-pink-400 font-mono">
+                            <span data-store-price="true" className="font-black text-base text-pink-400 font-mono">
                               {formatPaise(pricePaise)}
                             </span>
                             {comparePaise && (
-                              <span className="text-xs text-slate-500 font-mono line-through">
+                              <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through">
                                 {formatPaise(comparePaise)}
                               </span>
                             )}
@@ -1539,9 +1540,10 @@ export default function StoreHomePage() {
                         </div>
 
                         <button
-                          onClick={(e) => handleQuickAdd(e, p)}
+                          data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="w-full py-2 bg-white hover:bg-pink-500 hover:text-white text-slate-950 font-black text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1.5"
+                          className="w-full py-2 bg-[var(--store-surface)] hover:bg-pink-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-black text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1.5"
                         >
                           {isAdded ? (
                             <>
@@ -1551,7 +1553,7 @@ export default function StoreHomePage() {
                           ) : (
                             <>
                               <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>{isAdding ? 'ADDING...' : 'QUICK BAG'}</span>
+                              <span>{isAdding ? t('common.loading') : t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>
@@ -1591,24 +1593,25 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif font-bold text-sm text-stone-900 hover:text-emerald-800 transition line-clamp-2"
+                            className="font-serif font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2"
                           >
                             {title}
                           </Link>
-                          <div className="text-[11px] text-stone-500 mt-1">
+                          <div className="text-[11px] text-[var(--store-text-secondary)] mt-1">
                             Vacuum-sealed 500g pack
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-2">
-                          <div className="font-bold text-sm text-stone-900 font-mono">
+                          <div data-store-price="true" className="font-bold text-sm text-[var(--store-text-primary)] font-mono">
                             {formatPaise(pricePaise)}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-sm transition flex items-center gap-1"
+                            className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-[var(--store-text-primary)] font-bold text-xs shadow-sm transition flex items-center gap-1"
                           >
                             {isAdded ? (
                               <>
@@ -1618,7 +1621,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1650,33 +1653,33 @@ export default function StoreHomePage() {
                         </div>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 text-slate-200">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 text-[var(--store-text-primary)]">
                         <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <div className="flex items-center justify-between text-[10px] text-[var(--store-text-secondary)]">
                             <span>PART ID: #PRD-{p.id.slice(0, 6).toUpperCase()}</span>
                             <span className="text-emerald-400 font-bold">IN STOCK</span>
                           </div>
 
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-bold text-sm text-white hover:text-sky-300 transition line-clamp-2 block"
+                            className="font-bold text-sm text-[var(--store-text-primary)] hover:text-sky-300 transition line-clamp-2 block"
                           >
                             {title}
                           </Link>
 
                           {/* Technical Specification Matrix */}
-                          <div className="bg-slate-900 p-2.5 rounded-sm border border-slate-700/80 space-y-1 text-[11px]">
+                          <div className="bg-[var(--store-surface)] p-2.5 rounded-sm border border-slate-700/80 space-y-1 text-[11px]">
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Standard MOQ:</span>
-                              <span className="text-white font-bold">25 Units</span>
+                              <span className="text-[var(--store-text-secondary)]">Standard MOQ:</span>
+                              <span className="text-[var(--store-text-primary)] font-bold">25 Units</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Lead Time:</span>
-                              <span className="text-white font-bold">3-5 Business Days</span>
+                              <span className="text-[var(--store-text-secondary)]">Lead Time:</span>
+                              <span className="text-[var(--store-text-primary)] font-bold">3-5 Business Days</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Unit Base:</span>
-                              <span className="text-sky-400 font-bold">{formatPaise(pricePaise)}</span>
+                              <span className="text-[var(--store-text-secondary)]">Unit Base:</span>
+                              <span data-store-price="true" className="text-sky-400 font-bold">{formatPaise(pricePaise)}</span>
                             </div>
                           </div>
                         </div>
@@ -1698,7 +1701,7 @@ export default function StoreHomePage() {
                               }
                             }}
                             data-theme-btn="true"
-                            className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                            className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <MessageSquare className="w-3 h-3" />
                             <span>RFQ Quote</span>
@@ -1707,7 +1710,7 @@ export default function StoreHomePage() {
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
                             data-theme-btn="true"
-                            className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                            className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <span>Full Spec</span>
                             <ArrowRight className="w-3 h-3" />
@@ -1744,25 +1747,26 @@ export default function StoreHomePage() {
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-semibold text-stone-900 hover:text-stone-600 transition line-clamp-1"
+                            className="font-serif text-sm font-semibold text-[var(--store-text-primary)] hover:text-[var(--store-text-secondary)] transition line-clamp-1"
                           >
                             {title}
                           </Link>
-                          <div className="text-[11px] text-stone-500">
+                          <div className="text-[11px] text-[var(--store-text-secondary)]">
                             Solid Wood • Hand-Finished
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                          <div className="font-serif text-sm font-bold text-stone-900">
+                          <div data-store-price="true" className="font-serif text-sm font-bold text-[var(--store-text-primary)]">
                             {formatPaise(pricePaise)}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
+                              data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs shadow-sm transition flex items-center gap-1"
-                              title="Add to shopping bag"
+                              className="px-3.5 py-1.5 rounded-lg bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-[var(--store-text-primary)] font-medium text-xs shadow-sm transition flex items-center gap-1"
+                              title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
@@ -1774,13 +1778,13 @@ export default function StoreHomePage() {
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>Add</span>
+                                  <span>{t('storefront.addToCart')}</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-serif uppercase tracking-wider text-stone-600 hover:text-stone-900"
+                              className="text-xs font-serif uppercase tracking-wider text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
                               title="View piece details"
                             >
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -1823,7 +1827,7 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-semibold text-slate-900 hover:text-rose-800 transition line-clamp-2 leading-snug"
+                            className="font-serif text-sm font-semibold text-[var(--store-text-primary)] hover:text-rose-800 transition line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -1831,20 +1835,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-rose-100 flex items-center justify-between">
                           <div>
-                            <div className="font-serif text-base font-bold text-rose-950">
+                            <div data-store-price="true" className="font-serif text-base font-bold text-rose-950">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-slate-400 line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-white font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -1854,7 +1859,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1886,28 +1891,29 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-zinc-900 text-zinc-200">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)] text-[var(--store-text-primary)]">
                         <div>
-                          <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-1">
+                          <div className="flex items-center justify-between text-[10px] text-[var(--store-text-secondary)] mb-1">
                             <span>#{p.id.slice(0, 6).toUpperCase()}</span>
                             <span className="text-emerald-400 font-bold">RESERVE RUN</span>
                           </div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans font-bold text-sm text-white hover:text-emerald-300 transition line-clamp-1"
+                            className="font-sans font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-300 transition line-clamp-1"
                           >
                             {title}
                           </Link>
                         </div>
 
                         <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-                          <div className="font-mono text-sm font-bold text-emerald-400">
+                          <div data-store-price="true" className="font-mono text-sm font-bold text-emerald-400">
                             {formatPaise(pricePaise)}
                           </div>
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3 py-1.5 rounded-sm bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3 py-1.5 rounded-sm bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -1917,7 +1923,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>ACQUIRE</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1965,13 +1971,14 @@ export default function StoreHomePage() {
                         </div>
 
                         <div className="pt-2.5 border-t border-amber-200/60 flex items-center justify-between">
-                          <div className="font-serif text-base font-bold text-[#9A3412]">
+                          <div data-store-price="true" className="font-serif text-base font-bold text-[#9A3412]">
                             {formatPaise(pricePaise)}
                           </div>
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-[var(--store-text-primary)] font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2019,7 +2026,7 @@ export default function StoreHomePage() {
                         ) : null}
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           {p.category?.name && (
                             <span className="text-[10px] font-sans font-bold text-blue-600 uppercase tracking-wider block mb-1">
@@ -2028,7 +2035,7 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans text-sm font-bold text-slate-900 hover:text-blue-600 transition line-clamp-2 leading-snug"
+                            className="font-sans text-sm font-bold text-[var(--store-text-primary)] hover:text-blue-600 transition line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -2036,20 +2043,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
+                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-slate-400 line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2059,7 +2067,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -2097,11 +2105,11 @@ export default function StoreHomePage() {
                         ) : null}
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans text-sm font-bold text-slate-900 hover:text-amber-600 transition-colors line-clamp-2 leading-snug"
+                            className="font-sans text-sm font-bold text-[var(--store-text-primary)] hover:text-amber-600 transition-colors line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -2109,20 +2117,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
+                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[11px] text-slate-400 line-through">
+                              <div className="text-[11px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[var(--store-surface)] hover:bg-amber-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2182,7 +2191,7 @@ export default function StoreHomePage() {
 
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
                         <div>
-                          <div className="font-mono font-bold text-xs text-gray-900">
+                          <div data-store-price="true" className="font-mono font-bold text-xs text-gray-900">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
@@ -2193,7 +2202,8 @@ export default function StoreHomePage() {
                         </div>
 
                         <button
-                          onClick={(e) => handleQuickAdd(e, p)}
+                          data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
                           className="px-2.5 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-bold text-[11px] transition shadow-sm flex items-center gap-1"
                         >
@@ -2205,7 +2215,7 @@ export default function StoreHomePage() {
                           ) : (
                             <>
                               <Plus className="w-3 h-3" />
-                              <span>Add</span>
+                              <span>{t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>
@@ -2310,7 +2320,7 @@ export default function StoreHomePage() {
         {(themeCode === 'habitat' || themeCode === 'local' || themeCode === 'pulse') && (
           <section className="bg-gray-50 border-y border-gray-200 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center space-y-4">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h3 className="text-xl sm:text-2xl font-bold text-[var(--store-text-primary)]">
                 Direct From {store.name}
               </h3>
               <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-2xl mx-auto">

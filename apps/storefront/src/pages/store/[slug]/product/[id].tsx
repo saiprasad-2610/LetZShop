@@ -450,8 +450,8 @@ export default function ProductDetailPage() {
 
   if (loading || !storeData || !product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
+        <div className="w-8 h-8 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin" />
       </div>
     );
   }
@@ -574,16 +574,16 @@ export default function ProductDetailPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900">
+        <div data-testid="product-breadcrumb" className="flex items-center gap-2 text-xs text-[var(--store-text-secondary)]">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-[var(--store-text-primary)]">
             {t('storefront.home')}
           </Link>
           <span>/</span>
-          <Link href={getLink(`/store/${slug}/search`)} className="hover:text-gray-900">
+          <Link href={getLink(`/store/${slug}/search`)} className="hover:text-[var(--store-text-primary)]">
             {t('storefront.products')}
           </Link>
           <span>/</span>
-          <span className="font-semibold text-gray-800 line-clamp-1">{displayTitle}</span>
+          <span className="font-semibold text-[var(--store-text-primary)] line-clamp-1">{displayTitle}</span>
         </div>
 
         {/* Product Hero Split (Gallery Left / Commercials Right) */}
@@ -591,7 +591,7 @@ export default function ProductDetailPage() {
           {/* LEFT: Dynamic Image Gallery */}
           <div className="lg:col-span-5 xl:col-span-5 space-y-3 lg:sticky lg:top-24">
             {/* Primary Main Viewport */}
-            <div className="aspect-square max-h-[460px] w-full bg-white rounded-2xl overflow-hidden border border-gray-200/90 shadow-xs relative group flex items-center justify-center p-4 sm:p-6">
+            <div className="aspect-square max-h-[460px] w-full bg-[var(--store-surface)] store-surface rounded-2xl overflow-hidden border border-[var(--store-border)] shadow-xs relative group flex items-center justify-center p-4 sm:p-6">
               <SafeImage
                 data-testid="product-main-image"
                 src={
@@ -606,7 +606,7 @@ export default function ProductDetailPage() {
               {comparePricePaise && !isEnquiryOnly && (
                 <span
                   className="absolute top-3.5 left-3.5 text-white text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-xs"
-                  style={{ backgroundColor: 'var(--theme-accent, #D97706)' }}
+                  style={{ backgroundColor: 'var(--theme-accent, #D97706)', color: 'var(--theme-on-accent)' }}
                 >
                   Save {Math.round(((comparePricePaise - currentPricePaise) / comparePricePaise) * 100)}%
                 </span>
@@ -623,10 +623,10 @@ export default function ProductDetailPage() {
                       key={m.id || idx}
                       type="button"
                       onClick={() => setSelectedMediaId(m.id)}
-                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white p-1.5 flex items-center justify-center cursor-pointer ${
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-[var(--store-surface)] store-surface p-1.5 flex items-center justify-center cursor-pointer ${
                         isSelected
                           ? 'border-gray-900 ring-2 ring-gray-900/15 shadow-xs'
-                          : 'border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100'
+                          : 'border-[var(--store-border)] hover:border-[var(--store-border)] opacity-70 hover:opacity-100'
                       }`}
                     >
                       <SafeImage src={m.url} alt="thumbnail" className="w-full h-full object-contain" />
@@ -646,7 +646,7 @@ export default function ProductDetailPage() {
                   {product.category.name}
                 </span>
               )}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-theme-heading text-gray-900 tracking-tight leading-tight">
+              <h1 data-testid="product-title" className="text-2xl sm:text-3xl lg:text-4xl font-bold font-theme-heading text-[var(--store-text-primary)] tracking-tight leading-tight">
                 {displayTitle}
               </h1>
             </div>
@@ -654,11 +654,11 @@ export default function ProductDetailPage() {
             {/* Price Display */}
             {!isEnquiryOnly && (
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-black text-gray-900 font-mono">
+                <span data-testid="product-price" className="text-3xl font-black text-[var(--store-text-primary)] font-mono">
                   {formatPaise(currentPricePaise)}
                 </span>
                 {comparePricePaise && (
-                  <span className="text-base text-gray-400 font-mono line-through">
+                  <span className="text-base text-[var(--store-text-secondary)] font-mono line-through">
                     {formatPaise(comparePricePaise)}
                   </span>
                 )}
@@ -689,7 +689,7 @@ export default function ProductDetailPage() {
 
             {/* DYNAMIC OPTION SELECTORS (Colour, Size, Material, Custom) */}
             {product.options && product.options.length > 0 && (
-              <div className="space-y-4 pt-4 border-t border-gray-100">
+              <div className="space-y-4 pt-4 border-t border-[var(--store-border)]">
                 {product.options.map((opt: any) => {
                   const isColourOption =
                     opt.name.toLowerCase() === 'colour' || opt.name.toLowerCase() === 'color';
@@ -710,10 +710,10 @@ export default function ProductDetailPage() {
                   return (
                     <div key={opt.name} className="space-y-2">
                       <div className="flex justify-between text-xs">
-                        <span className="font-bold text-gray-900 uppercase tracking-wide">
+                        <span className="font-bold text-[var(--store-text-primary)] uppercase tracking-wide">
                           {isColourOption ? t('storefront.selectColour') : isSizeOption ? t('storefront.selectSize') : `Select ${opt.name}`}
                         </span>
-                        <span className="font-semibold text-gray-600">{selectedVal}</span>
+                        <span className="font-semibold text-[var(--store-text-secondary)]">{selectedVal}</span>
                       </div>
 
                       {/* Colour Image Swatches */}
@@ -737,12 +737,12 @@ export default function ProductDetailPage() {
                                 onClick={() => handleOptionChange(opt.name, val)}
                                 className={`group relative flex items-center gap-2 p-1.5 pr-3 rounded-xl border-2 transition cursor-pointer ${
                                   isSelected
-                                    ? 'border-gray-900 bg-gray-50 shadow-xs ring-1 ring-gray-900'
-                                    : 'border-gray-200 bg-white hover:border-gray-400'
+                                    ? 'border-gray-900 bg-[var(--store-surface)] store-surface shadow-xs ring-1 ring-gray-900'
+                                    : 'border-[var(--store-border)] bg-[var(--store-surface)] store-surface hover:border-gray-400'
                                 }`}
                               >
                                 {swatchImg ? (
-                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-[var(--store-surface)] store-surface flex-shrink-0 border border-[var(--store-border)]">
                                     <SafeImage
                                       src={swatchImg}
                                       alt={val}
@@ -751,7 +751,7 @@ export default function ProductDetailPage() {
                                   </div>
                                 ) : (
                                   <div
-                                    className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
+                                    className="w-6 h-6 rounded-full border border-[var(--store-border)] flex-shrink-0"
                                     style={{
                                       backgroundColor:
                                         val.toLowerCase() === 'white'
@@ -762,9 +762,9 @@ export default function ProductDetailPage() {
                                     }}
                                   />
                                 )}
-                                <span className="text-xs font-bold text-gray-900">{val}</span>
+                                <span className="text-xs font-bold text-[var(--store-text-primary)]">{val}</span>
                                 {isSelected && (
-                                  <Check className="w-3.5 h-3.5 text-gray-900 ml-1" />
+                                  <Check className="w-3.5 h-3.5 text-[var(--store-text-primary)] ml-1" />
                                 )}
                               </button>
                             );
@@ -787,10 +787,10 @@ export default function ProductDetailPage() {
                                 onClick={() => available && handleOptionChange(opt.name, val)}
                                 className={`px-4 py-2 rounded-xl text-xs font-semibold border transition ${
                                   isSelected
-                                    ? 'border-gray-900 bg-gray-900 text-white shadow-sm cursor-pointer'
+                                    ? 'border-gray-900 bg-[var(--store-button-bg)] store-inverse text-white shadow-sm cursor-pointer'
                                     : !available
-                                    ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50 line-through'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400 cursor-pointer'
+                                    ? 'border-[var(--store-border)] bg-[var(--store-surface)] store-surface text-[var(--store-text-secondary)] cursor-not-allowed opacity-50 line-through'
+                                    : 'border-[var(--store-border)] bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)] hover:border-gray-400 cursor-pointer'
                                 }`}
                               >
                                 {val}
@@ -812,8 +812,8 @@ export default function ProductDetailPage() {
                                 onClick={() => handleOptionChange(opt.name, val)}
                                 className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                                   isSelected
-                                    ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                                    ? 'border-gray-900 bg-[var(--store-button-bg)] store-inverse text-white shadow-sm'
+                                    : 'border-[var(--store-border)] bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)] hover:border-gray-400'
                                 }`}
                               >
                                 {val}
@@ -831,22 +831,22 @@ export default function ProductDetailPage() {
             {/* Quantity Selector (for ecommerce products) */}
             {!isEnquiryOnly && !isOutOfStock && (
               <div className="flex items-center gap-4 pt-2">
-                <span className="text-xs font-bold text-gray-700 uppercase">{t('storefront.quantity')}</span>
-                <div className="flex items-center border border-gray-300 rounded-xl bg-white overflow-hidden shadow-sm">
+                <span data-testid="product-quantity" className="text-xs font-bold text-[var(--store-text-primary)] uppercase">{t('storefront.quantity')}</span>
+                <div className="flex items-center border border-[var(--store-border)] rounded-xl bg-[var(--store-surface)] store-surface overflow-hidden shadow-sm">
                   <button
                     type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-2 text-gray-500 hover:bg-gray-100 transition"
+                    className="p-2 text-[var(--store-text-secondary)] hover:bg-[var(--store-surface)] store-surface transition"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="px-4 py-1.5 text-xs font-bold font-mono text-gray-900">
+                  <span className="px-4 py-1.5 text-xs font-bold font-mono text-[var(--store-text-primary)]">
                     {quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => setQuantity(quantity + 1)}
-                    className="p-2 text-gray-500 hover:bg-gray-100 transition"
+                    className="p-2 text-[var(--store-text-secondary)] hover:bg-[var(--store-surface)] store-surface transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -866,7 +866,7 @@ export default function ProductDetailPage() {
                       disabled={addingToCart || isOutOfStock}
                       onClick={handleAddToCart}
                       data-theme-btn="true"
-                      className="w-full py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full py-3.5 px-4 bg-[var(--store-surface)] store-surface hover:bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)] font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       <ShoppingBag className="w-4 h-4" />
                       {cartSuccess ? t('storefront.addedToCart') : addingToCart ? t('storefront.adding') : t('storefront.addToCart')}
@@ -879,7 +879,7 @@ export default function ProductDetailPage() {
                       onClick={handleBuyNow}
                       data-theme-btn="true"
                       className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
-                      style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                      style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
                     >
                       {t('storefront.buyNow')}
                     </button>
@@ -911,7 +911,7 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Merchant Guarantee & Logistics Trust */}
-            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-2.5 text-xs text-gray-600">
+            <div className="p-4 bg-[var(--store-surface)] store-surface rounded-2xl border border-[var(--store-border)] space-y-2.5 text-xs text-[var(--store-text-secondary)]">
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                 <span>Pan-India Delivery via Shiprocket couriers</span>
@@ -924,11 +924,11 @@ export default function ProductDetailPage() {
 
             {/* Description Tab */}
             {displayDescription && (
-              <div className="space-y-2 pt-4 border-t border-gray-100">
-                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+              <div className="space-y-2 pt-4 border-t border-[var(--store-border)]">
+                <h3 className="text-xs font-bold text-[var(--store-text-primary)] uppercase tracking-wider">
                   {t('storefront.description')}
                 </h3>
-                <div className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
+                <div className="text-xs text-[var(--store-text-secondary)] leading-relaxed whitespace-pre-line">
                   {displayDescription}
                 </div>
               </div>
@@ -936,32 +936,32 @@ export default function ProductDetailPage() {
 
             {/* Technical Specification Table for B2B/Foundry or Industrial items */}
             {(themeConfig?.themeId === 'foundry' || isEnquiryOnly) && (
-              <div className="space-y-3 pt-4 border-t border-gray-200 font-mono">
-                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="space-y-3 pt-4 border-t border-[var(--store-border)] font-mono">
+                <h3 className="text-xs font-bold text-[var(--store-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 bg-sky-500 rounded-sm" />
                   Technical Datasheet & Compliance
                 </h3>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden text-xs">
+                <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-xl overflow-hidden text-xs">
                   <table className="w-full text-left">
                     <tbody className="divide-y divide-slate-200">
                       <tr>
-                        <td className="p-2.5 font-semibold text-slate-500 w-1/3">Part ID / SKU</td>
-                        <td className="p-2.5 text-slate-900 font-bold">PRD-{product.id.slice(0, 8).toUpperCase()}</td>
+                        <td className="p-2.5 font-semibold text-[var(--store-text-secondary)] w-1/3">Part ID / SKU</td>
+                        <td className="p-2.5 text-[var(--store-text-primary)] font-bold">PRD-{product.id.slice(0, 8).toUpperCase()}</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-semibold text-slate-500">Material Grade</td>
-                        <td className="p-2.5 text-slate-900">AISI 316 / Industrial Standard</td>
+                        <td className="p-2.5 font-semibold text-[var(--store-text-secondary)]">Material Grade</td>
+                        <td className="p-2.5 text-[var(--store-text-primary)]">AISI 316 / Industrial Standard</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-semibold text-slate-500">Standard MOQ</td>
-                        <td className="p-2.5 text-slate-900 font-bold">25 Units</td>
+                        <td className="p-2.5 font-semibold text-[var(--store-text-secondary)]">Standard MOQ</td>
+                        <td className="p-2.5 text-[var(--store-text-primary)] font-bold">25 Units</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-semibold text-slate-500">Dispatch Window</td>
-                        <td className="p-2.5 text-slate-900">3-5 Business Days</td>
+                        <td className="p-2.5 font-semibold text-[var(--store-text-secondary)]">Dispatch Window</td>
+                        <td className="p-2.5 text-[var(--store-text-primary)]">3-5 Business Days</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-semibold text-slate-500">Quality Cert</td>
+                        <td className="p-2.5 font-semibold text-[var(--store-text-secondary)]">Quality Cert</td>
                         <td className="p-2.5 text-emerald-700 font-semibold">MTC Provided with Invoicing</td>
                       </tr>
                     </tbody>
@@ -984,18 +984,18 @@ export default function ProductDetailPage() {
       {/* MODAL: Request Quotation / Product Enquiry */}
       {enquiryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+          <div className="bg-[var(--store-surface)] store-surface rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center border-b border-[var(--store-border)] pb-3">
               <div>
-                <h3 className="text-base font-bold text-gray-900">Request Commercial Quotation</h3>
-                <p className="text-xs text-gray-500">Direct enquiry to {store.name}</p>
+                <h3 className="text-base font-bold text-[var(--store-text-primary)]">Request Commercial Quotation</h3>
+                <p className="text-xs text-[var(--store-text-secondary)]">Direct enquiry to {store.name}</p>
               </div>
               <button
                 onClick={() => {
                   setEnquiryModalOpen(false);
                   setEnquirySuccess(false);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-[var(--store-text-secondary)] hover:text-[var(--store-text-secondary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1006,8 +1006,8 @@ export default function ProductDetailPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                   <Check className="w-6 h-6" />
                 </div>
-                <h4 className="text-base font-bold text-gray-900">Enquiry Received!</h4>
-                <p className="text-xs text-gray-500">
+                <h4 className="text-base font-bold text-[var(--store-text-primary)]">Enquiry Received!</h4>
+                <p className="text-xs text-[var(--store-text-secondary)]">
                   The merchant has received your quotation request and will contact you via WhatsApp / Phone shortly.
                 </p>
                 <button
@@ -1016,7 +1016,7 @@ export default function ProductDetailPage() {
                     setEnquirySuccess(false);
                   }}
                   data-theme-btn="true"
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold"
+                  className="px-4 py-2 bg-[var(--store-button-bg)] store-inverse text-white rounded-lg text-xs font-semibold"
                 >
                   Close
                 </button>
@@ -1024,19 +1024,19 @@ export default function ProductDetailPage() {
             ) : (
               <form onSubmit={handleSubmitEnquiry} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Your Name *</label>
+                  <label className="block text-xs font-medium text-[var(--store-text-primary)] mb-1">Your Name *</label>
                   <input
                     type="text"
                     required
                     value={enquiryName}
                     onChange={(e) => setEnquiryName(e.target.value)}
                     placeholder="e.g. Ramesh Patel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[var(--store-text-primary)] mb-1">
                     Mobile Number (for WhatsApp quote) *
                   </label>
                   <input
@@ -1045,12 +1045,12 @@ export default function ProductDetailPage() {
                     value={enquiryPhone}
                     onChange={(e) => setEnquiryPhone(e.target.value)}
                     placeholder="e.g. 9876543210"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[var(--store-text-primary)] mb-1">
                     Estimated Quantity
                   </label>
                   <input
@@ -1058,12 +1058,12 @@ export default function ProductDetailPage() {
                     min="1"
                     value={enquiryQty}
                     onChange={(e) => setEnquiryQty(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[var(--store-text-primary)] mb-1">
                     Customization / Inquiries
                   </label>
                   <textarea
@@ -1071,15 +1071,15 @@ export default function ProductDetailPage() {
                     value={enquiryMsg}
                     onChange={(e) => setEnquiryMsg(e.target.value)}
                     placeholder="Dimensions, required delivery timeline, special packaging requirements..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--store-border)]">
                   <button
                     type="button"
                     onClick={() => setEnquiryModalOpen(false)}
-                    className="px-4 py-2 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 hover:bg-gray-50"
+                    className="px-4 py-2 border border-[var(--store-border)] text-xs font-medium rounded-lg text-[var(--store-text-primary)] hover:bg-[var(--store-surface)] store-surface"
                   >
                     Cancel
                   </button>
@@ -1100,12 +1100,12 @@ export default function ProductDetailPage() {
       )}
 
       {/* Mobile Sticky Bottom CTA Bar */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 p-3 shadow-2xl flex items-center justify-between gap-3">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--store-surface)] store-surface backdrop-blur-md border-t border-[var(--store-border)] p-3 shadow-2xl flex items-center justify-between gap-3">
         <div>
-          <div className="text-[10px] text-gray-500 font-mono line-clamp-1">
+          <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-clamp-1">
             {activeVariant?.title || 'Selected'}
           </div>
-          <div className="text-base font-black text-gray-900 font-mono">
+          <div className="text-base font-black text-[var(--store-text-primary)] font-mono">
             {formatPaise(currentPricePaise)}
           </div>
         </div>
@@ -1116,7 +1116,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={addingToCart || isOutOfStock}
                 onClick={handleAddToCart}
-                className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-xs rounded-xl transition"
+                className="px-3 py-2.5 bg-[var(--store-surface)] store-surface hover:bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)] font-bold text-xs rounded-xl transition"
                 aria-label={t('storefront.addToCart')}
               >
                 {cartSuccess ? '✓' : addingToCart ? '...' : <ShoppingBag className="w-4 h-4" />}
@@ -1128,7 +1128,7 @@ export default function ProductDetailPage() {
                       onClick={handleBuyNow}
                 data-theme-btn="true"
                 className="px-4 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition"
-                style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
               >
                 {t('storefront.buyNow')}
               </button>

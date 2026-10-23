@@ -131,8 +131,8 @@ export default function StoreSearchPage() {
 
   if (loading || !storeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
+        <div className="w-8 h-8 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin" />
       </div>
     );
   }
@@ -149,32 +149,32 @@ export default function StoreSearchPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Breadcrumb & Title */}
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-gray-900 flex items-center gap-1">
+        <div className="flex items-center gap-2 text-xs text-[var(--store-text-secondary)]">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-[var(--store-text-primary)] flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Storefront
           </Link>
           <span>/</span>
-          <span className="font-semibold text-gray-800">All Products</span>
+          <span className="font-semibold text-[var(--store-text-primary)]">All Products</span>
         </div>
 
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Explore Catalog</h1>
-          <p className="text-xs text-gray-500 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--store-text-primary)]">Explore Catalog</h1>
+          <p className="text-xs text-[var(--store-text-secondary)] mt-1">
             Showing {filteredProducts.length} items from {store.name}
           </p>
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[var(--store-surface)] store-surface p-3 rounded-xl border border-[var(--store-border)] shadow-sm">
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3 top-3 text-[var(--store-text-secondary)]" />
             <input
               type="text"
               placeholder="Search by keywords..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-9 pr-3 py-2 text-xs border border-[var(--store-border)] rounded-lg focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
@@ -183,7 +183,7 @@ export default function StoreSearchPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 text-xs border border-[var(--store-border)] rounded-lg bg-[var(--store-surface)] store-surface focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">All Categories</option>
               {categories.map((c: any) => (
@@ -199,7 +199,7 @@ export default function StoreSearchPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 text-xs border border-[var(--store-border)] rounded-lg bg-[var(--store-surface)] store-surface focus:ring-2 focus:ring-emerald-500"
             >
               <option value="featured">Featured / Default</option>
               <option value="price_asc">Price: Low to High</option>
@@ -210,10 +210,10 @@ export default function StoreSearchPage() {
 
         {/* Products Grid */}
         {filteredProducts.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center space-y-3">
-            <Search className="w-10 h-10 text-gray-300 mx-auto" />
-            <h3 className="text-base font-semibold text-gray-800">No matching products found</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+          <div className="bg-[var(--store-surface)] store-surface border border-dashed border-[var(--store-border)] rounded-2xl p-12 text-center space-y-3">
+            <Search className="w-10 h-10 text-[var(--store-text-secondary)] mx-auto" />
+            <h3 className="text-base font-semibold text-[var(--store-text-primary)]">No matching products found</h3>
+            <p className="text-xs text-[var(--store-text-secondary)] max-w-sm mx-auto">
               Try adjusting your search terms or clearing the selected category filter.
             </p>
             <button
@@ -222,7 +222,7 @@ export default function StoreSearchPage() {
                 setSelectedCategory('');
               }}
               data-theme-btn="true"
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold"
+              className="px-4 py-2 bg-[var(--store-button-bg)] store-inverse text-white rounded-lg text-xs font-semibold"
             >
               Reset Filters
             </button>
@@ -248,11 +248,11 @@ export default function StoreSearchPage() {
               return (
                 <div
                   key={p.id}
-                  className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
+                  className="bg-[var(--store-surface)] store-surface rounded-2xl border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
                 >
                   <Link
                     href={getLink(`/store/${slug}/product/${p.id}`)}
-                    className="block relative aspect-square bg-gray-100 overflow-hidden"
+                    className="block relative aspect-square bg-[var(--store-surface)] store-surface overflow-hidden"
                   >
                     <SafeImage
                       src={coverImage}
@@ -269,25 +269,25 @@ export default function StoreSearchPage() {
                   <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                     <div>
                       {p.category?.name && (
-                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                        <span className="text-[11px] font-semibold text-[var(--store-text-secondary)] uppercase tracking-wide block mb-1">
                           {p.category.name}
                         </span>
                       )}
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="font-bold text-sm text-gray-900 hover:text-emerald-700 transition line-clamp-2"
+                        className="font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-700 transition line-clamp-2"
                       >
                         {title}
                       </Link>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-2">
                       <div>
-                        <div className="font-mono font-bold text-sm text-gray-900">
+                        <div className="font-mono font-bold text-sm text-[var(--store-text-primary)]">
                           {formatPaise(pricePaise)}
                         </div>
                         {comparePaise && comparePaise > pricePaise && (
-                          <div className="text-[11px] text-gray-400 font-mono line-through">
+                          <div className="text-[11px] text-[var(--store-text-secondary)] font-mono line-through">
                             {formatPaise(comparePaise)}
                           </div>
                         )}
@@ -296,6 +296,7 @@ export default function StoreSearchPage() {
                       <div className="flex items-center gap-1.5">
                         {/* Interactive Add to Cart Button */}
                         <button
+                          data-store-button="true"
                           onClick={(e) => handleAddToCart(e, p)}
                           disabled={isAdding}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5 hover:opacity-95 ${
@@ -321,7 +322,7 @@ export default function StoreSearchPage() {
                           ) : (
                             <>
                               <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>Add to Cart</span>
+                              <span>{t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>

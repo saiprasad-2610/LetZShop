@@ -25,7 +25,7 @@ export function MobileCart({ slug }: { slug: string }) {
     >
       <ShoppingBag className="h-6 w-6" aria-hidden="true" />
       <span className="text-sm font-semibold">{t('storefront.cart')}</span>
-      <span data-cart-count aria-hidden="true" className="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold text-slate-900">{itemCount}</span>
+      <span data-cart-count aria-hidden="true" className="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-[var(--store-surface)] store-surface px-1.5 text-xs font-bold text-[var(--store-text-primary)]">{itemCount}</span>
     </Link>
   );
 }
