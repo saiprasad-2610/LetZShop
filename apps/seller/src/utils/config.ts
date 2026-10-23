@@ -1,4 +1,5 @@
 import { getPublicStoreUrl } from '@simply/types';
+
 /**
  * Environment-safe URL configuration helpers for Seller Portal.
  * Resolves origins without hardcoding localhost in production
@@ -20,16 +21,6 @@ export function getStorefrontUrl(): string {
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
 
-<<<<<<< HEAD
-    // Vercel deployment detection
-    if (host.includes('vercel.app')) {
-      return 'https://letzshop-storefront.vercel.app';
-    }
-
-    // Render cloud deployment (fallback)
-    if (host.includes('onrender.com')) {
-      return 'https://letzshop-storefront.vercel.app';
-=======
     // Local development
     if (
       host === 'localhost' ||
@@ -39,7 +30,6 @@ export function getStorefrontUrl(): string {
       host.endsWith('.local')
     ) {
       return `http://${host}:3000`;
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
     }
 
     // Letz Shop production domain
@@ -47,11 +37,26 @@ export function getStorefrontUrl(): string {
       return 'https://letzshop.store';
     }
 
-<<<<<<< HEAD
-    // Any other live production domain or public IP
-    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
+    // Dynamic sibling resolution if deployed on a custom domain with subdomains
+    if (host.includes('.')) {
+      const parts = host.split('.');
+      if (parts.length >= 2 && !host.includes('vercel.app') && !host.includes('onrender.com')) {
+        return `${window.location.protocol}//${parts.slice(-2).join('.')}`;
+      }
+    }
+
+    // Vercel deployment detection
+    if (host.includes('vercel.app')) {
       return 'https://letzshop-storefront.vercel.app';
     }
+
+    // Render cloud deployment (fallback)
+    if (host.includes('onrender.com')) {
+      return 'https://letzshop-storefront.vercel.app';
+    }
+
+    // Any other live production domain or public IP
+    return 'https://letzshop-storefront.vercel.app';
   }
 
   // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed storefront URL
@@ -60,18 +65,6 @@ export function getStorefrontUrl(): string {
   }
 
   // 4. Fallback for local development
-=======
-    // Dynamic sibling resolution if deployed on a custom domain with subdomains
-    if (host.includes('.')) {
-      const parts = host.split('.');
-      if (parts.length >= 2) {
-        return `${window.location.protocol}//${parts.slice(-2).join('.')}`;
-      }
-    }
-  }
-
-  // 3. Server-side SSR / SSG build fallback
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
   return 'http://localhost:3000';
 }
 
@@ -90,16 +83,6 @@ export function getSellerUrl(): string {
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname.toLowerCase();
 
-<<<<<<< HEAD
-    // Vercel deployment detection
-    if (host.includes('vercel.app')) {
-      return 'https://let-z-shop.vercel.app';
-    }
-
-    // Render cloud deployment
-    if (host.includes('onrender.com')) {
-      return 'https://let-z-shop.vercel.app';
-=======
     // Local development
     if (
       host === 'localhost' ||
@@ -109,7 +92,6 @@ export function getSellerUrl(): string {
       host.endsWith('.local')
     ) {
       return `http://${host}:3001`;
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
     }
 
     // Letz Shop production domain
@@ -117,11 +99,26 @@ export function getSellerUrl(): string {
       return 'https://seller.letzshop.store';
     }
 
-<<<<<<< HEAD
-    // Any other live production domain or public IP
-    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
+    // Dynamic sibling resolution if deployed on a custom domain with subdomains
+    if (host.includes('.')) {
+      const parts = host.split('.');
+      if (parts.length >= 2 && !host.includes('vercel.app') && !host.includes('onrender.com')) {
+        return `${window.location.protocol}//seller.${parts.slice(-2).join('.')}`;
+      }
+    }
+
+    // Vercel deployment detection
+    if (host.includes('vercel.app')) {
       return 'https://let-z-shop.vercel.app';
     }
+
+    // Render cloud deployment
+    if (host.includes('onrender.com')) {
+      return 'https://let-z-shop.vercel.app';
+    }
+
+    // Any other live production domain or public IP
+    return 'https://let-z-shop.vercel.app';
   }
 
   // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
@@ -136,24 +133,7 @@ export function getSellerUrl(): string {
 export interface StorePreviewOptions {
   previewSecret?: string;
   subpath?: string;
-=======
-    // Dynamic sibling resolution if deployed on a custom domain with subdomains
-    if (host.includes('.')) {
-      const parts = host.split('.');
-      if (parts.length >= 2) {
-        return `${window.location.protocol}//seller.${parts.slice(-2).join('.')}`;
-      }
-    }
-  }
-
-  // 3. Server-side SSR / SSG build fallback
-  return 'http://localhost:3001';
-}
-
-export function getStoreCustomerPreviewUrl(slug: string, page?: 'products' | 'about'): string {
-  const origin = getStorefrontUrl();
-  return getPublicStoreUrl(slug, origin, { preview: true, page });
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
+  page?: 'products' | 'about';
 }
 
 export function getStoreCustomerPreviewUrl(
@@ -161,13 +141,22 @@ export function getStoreCustomerPreviewUrl(
   options?: StorePreviewOptions | string
 ): string {
   const origin = getStorefrontUrl();
-<<<<<<< HEAD
   let subpath = '';
   let previewSecret: string | undefined;
 
   if (typeof options === 'string') {
+    if (options === 'products' || options === 'about') {
+      return getPublicStoreUrl(slug, origin, { preview: true, page: options });
+    }
     subpath = options;
   } else if (options) {
+    if (options.page) {
+      return getPublicStoreUrl(slug, origin, {
+        preview: true,
+        previewSecret: options.previewSecret,
+        page: options.page,
+      });
+    }
     subpath = options.subpath || '';
     previewSecret = options.previewSecret;
   }
@@ -194,7 +183,4 @@ export function getStorePublicShareUrl(
     params.set('previewSecret', previewSecret.trim());
   }
   return `${origin}/store/${slug}?${params.toString()}`;
-=======
-  return getPublicStoreUrl(slug, origin, { preview: !isLive });
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
 }

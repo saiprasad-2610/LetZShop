@@ -48,20 +48,14 @@ export default function StorePreviewPage() {
   const displayUrl = getPublicStoreUrl(storeSlug, getStorefrontUrl());
 
   useEffect(() => {
-<<<<<<< HEAD
     setCustomerPreviewUrl(
       getStoreCustomerPreviewUrl(storeSlug, {
         previewSecret: store?.previewSecret,
-        subpath: customerPreviewPagePath,
+        page: activePreviewPage === 'home' ? undefined : activePreviewPage,
       })
     );
     setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive, store?.previewSecret));
-  }, [storeSlug, isLive, customerPreviewPagePath, store?.previewSecret]);
-=======
-    setCustomerPreviewUrl(getStoreCustomerPreviewUrl(storeSlug, activePreviewPage === 'home' ? undefined : activePreviewPage));
-    setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive));
-  }, [storeSlug, isLive, activePreviewPage]);
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
+  }, [storeSlug, isLive, activePreviewPage, store?.previewSecret]);
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {

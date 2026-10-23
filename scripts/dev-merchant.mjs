@@ -248,52 +248,7 @@ async function checkPortPreflight(ports = CANONICAL_PORTS) {
   return true;
 }
 
-<<<<<<< HEAD
-// --- Health Checking ---
 
-function checkPortReady(port, pathname = '/') {
-  return new Promise((resolve) => {
-    const req = http.get(`http://localhost:${port}${pathname}`, (res) => {
-      if (port === 4000) {
-        resolve(res.statusCode >= 200 && res.statusCode < 300);
-      } else {
-        resolve(res.statusCode >= 200 && res.statusCode < 500);
-      }
-    });
-    req.on('error', () => resolve(false));
-    req.setTimeout(4000, () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
-}
-
-async function waitForServicesReady(
-  services = { api: true, seller: true, platform: true, admin: false },
-  timeoutMs = 240000
-) {
-  const start = Date.now();
-  let apiReady = !services.api;
-  let sellerReady = !services.seller;
-  let platformReady = !services.platform;
-  let adminReady = !services.admin;
-
-  while (Date.now() - start < timeoutMs) {
-    if (!apiReady) apiReady = await checkPortReady(4000, '/health');
-    if (!sellerReady) sellerReady = await checkPortReady(3001, '/');
-    if (!platformReady) platformReady = await checkPortReady(3000, '/');
-    if (!adminReady) adminReady = await checkPortReady(3002, '/login');
-
-    if (apiReady && sellerReady && platformReady && adminReady) {
-      return true;
-    }
-    await new Promise((r) => setTimeout(r, 600));
-  }
-  return false;
-}
-
-=======
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
 // --- CLI Commands: --status and --stop ---
 
 async function handleStatus() {
@@ -762,9 +717,6 @@ async function main() {
   // 8. Wait for active services to become healthy before declaring success
   const readiness = await waitForServicesReady(
     { api: runApi, seller: runSeller, platform: runStorefront, admin: runAdmin },
-<<<<<<< HEAD
-    240000
-=======
     {
       timeoutMs: startupTimeoutMs,
       onProgress: ({ pending, elapsedMs }) => {
@@ -773,7 +725,6 @@ async function main() {
         console.log('Waiting for ' + waiting + ' (' + Math.round(elapsedMs / 1000) + 's; startup limit ' + Math.round(startupTimeoutMs / 1000) + 's)...');
       },
     }
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
   );
   if (readiness.ready && !bannerPrinted && !shuttingDown) {
     printSummary();

@@ -225,11 +225,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
             <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Navigation</p>
             <ul className="space-y-1.5 text-xs text-[var(--store-footer-muted)]">
               <li>
-<<<<<<< HEAD
                 <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-white transition">
-=======
-                <Link href={getPublicStoreUrl(String(slug))} className="hover:text-white transition">
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
                   Home
                 </Link>
               </li>

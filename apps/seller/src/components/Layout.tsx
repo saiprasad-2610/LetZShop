@@ -117,13 +117,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
   const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
-<<<<<<< HEAD
-    ? getStorePublicShareUrl(store.slug, store.status === 'LIVE', store.previewSecret)
-=======
-    ? isStorePublic
-      ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
-      : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true })
->>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
+    ? getStorePublicShareUrl(store.slug, isStorePublic, store?.previewSecret)
     : null;
 
   return (
