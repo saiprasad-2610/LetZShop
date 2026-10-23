@@ -672,15 +672,15 @@ export default function ProductDetailPage() {
             {!isEnquiryOnly && (
               <div>
                 {isOutOfStock ? (
-                  <span className="text-xs font-bold text-red-600 flex items-center gap-1.5">
+                  <span data-store-stock className="text-xs font-bold text-red-800 bg-red-50 rounded px-2 py-1 flex items-center gap-1.5">
                     <X className="w-4 h-4" /> {t('storefront.outOfStock')}
                   </span>
                 ) : isLowStock ? (
-                  <span className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                  <span data-store-stock className="text-xs font-bold text-amber-800 bg-amber-50 rounded px-2 py-1 flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4" /> {t('storefront.lowStock', { count: stockQuantity })}
                   </span>
                 ) : (
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                  <span data-store-stock className="text-xs font-bold text-emerald-800 bg-emerald-50 rounded px-2 py-1 flex items-center gap-1.5">
                     <Check className="w-4 h-4" /> {t('storefront.readyForDispatch')}
                   </span>
                 )}
@@ -962,7 +962,7 @@ export default function ProductDetailPage() {
                       </tr>
                       <tr>
                         <td className="p-2.5 font-semibold text-[var(--store-text-secondary)]">Quality Cert</td>
-                        <td className="p-2.5 text-emerald-700 font-semibold">MTC Provided with Invoicing</td>
+                        <td className="p-2.5 text-[var(--store-text-primary)] font-semibold">MTC Provided with Invoicing</td>
                       </tr>
                     </tbody>
                   </table>
