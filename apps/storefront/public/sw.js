@@ -3,8 +3,14 @@
 // STRICT PRIVACY & ZERO CACHING OF SENSITIVE CHECKOUT / PAYMENT PAYLOADS
 // ==============================================================================
 
-const CACHE_NAME = 'simply-storefront-v1';
-const STATIC_ASSETS = ['/favicon.ico'];
+const CACHE_NAME = 'simply-storefront-v2';
+const STATIC_ASSETS = [
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

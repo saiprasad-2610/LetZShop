@@ -1,6 +1,14 @@
 // Simply E-Commerce Seller PWA Service Worker
-const CACHE_NAME = 'simply-seller-v1';
-const STATIC_ASSETS = ['/', '/manifest.json'];
+const CACHE_NAME = 'simply-seller-v2';
+const STATIC_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
