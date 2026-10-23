@@ -45,8 +45,8 @@ export function getSellerUrl(): string {
   }
 
   // 3. Server-side SSR / SSG build fallback:
-  // Default to local seller development port so static exports & dev builds don't bake dead links
-  return 'http://localhost:3001';
+  // Production HTML must have a valid merchant destination even before hydration.
+  return process.env.NODE_ENV === 'production' ? 'https://seller.letzshop.store' : 'http://localhost:3001';
 }
 
 export function getSellerStorePreviewUrl(): string {

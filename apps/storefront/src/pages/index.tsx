@@ -17,12 +17,18 @@ import { LandingFooter } from '../components/landing/LandingFooter';
  * LetZshop Public Landing Page (Root `/`)
  * Clean, modern white/warm-white visual identity with blue & orange branding.
  */
-function LandingPageInner() {
-  const [sellerUrl, setSellerUrl] = useState(getSellerUrl());
+interface LandingPageProps {
+  initialSellerUrl: string;
+  sellerOriginConfigured: boolean;
+}
+
+function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingPageProps) {
+  // Serialize the same initial origin into server HTML and the first browser render.
+  const [sellerUrl, setSellerUrl] = useState(initialSellerUrl);
 
   useEffect(() => {
-    setSellerUrl(getSellerUrl());
-  }, []);
+    setSellerUrl(sellerOriginConfigured ? initialSellerUrl : getSellerUrl());
+  }, [initialSellerUrl, sellerOriginConfigured]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between font-sans antialiased selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
@@ -77,10 +83,17 @@ function LandingPageInner() {
   );
 }
 
-export default function PlatformLandingPage() {
+export function getStaticProps() {
+  return { props: {
+    initialSellerUrl: getSellerUrl(),
+    sellerOriginConfigured: Boolean(process.env.NEXT_PUBLIC_SELLER_URL || process.env.SELLER_URL || process.env.SELLER_DASHBOARD_URL),
+  } };
+}
+
+export default function PlatformLandingPage(props: LandingPageProps) {
   return (
     <LandingLocaleProvider>
-      <LandingPageInner />
+      <LandingPageInner {...props} />
     </LandingLocaleProvider>
   );
 }
