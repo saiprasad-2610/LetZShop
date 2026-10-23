@@ -97,7 +97,7 @@ export class StoresService {
     });
 
     if (!store) throw new NotFoundException('Store not found for this merchant.');
-    return store;
+    return { ...store, publicVisibility: await this.visibilityService.getEffectivePublicStatus(store.id) };
   }
 
   public evaluatePublicVisibility(slug: string, options?: { previewSecret?: string; authenticatedUser?: AuthenticatedUser | null }) {

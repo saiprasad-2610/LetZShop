@@ -82,6 +82,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     setMobileDrawerOpen(false);
   }, [router.pathname]);
 
+  useEffect(() => { drawerRef.current?.toggleAttribute('inert', !mobileDrawerOpen); }, [mobileDrawerOpen]);
+
   // Handle Escape key to close mobile drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,40 +107,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
     };
   }, [mobileDrawerOpen]);
 
-  const getStatusBadge = (compact = false) => {
-    const status = store?.status || 'PRIVATE_PREVIEW';
-    switch (status) {
-      case 'LIVE':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-            {compact ? 'LIVE' : t('navigation.live')}
-          </span>
-        );
-      case 'EXPIRED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-            {compact ? 'EXPIRED' : t('navigation.expired')}
-          </span>
-        );
-      case 'SUSPENDED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30">
-            {compact ? 'SUSPENDED' : t('navigation.suspended')}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
-            {compact ? 'PRIVATE' : t('navigation.private')}
-          </span>
-        );
-    }
-  };
+  const isStorePublic = store?.publicVisibility?.isPublic === true;
+  const getStatusBadge = (_compact = false) => (
+    <span data-testid="store-visibility" data-public={isStorePublic} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${isStorePublic ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'}`}>
+      <span className={`w-1.5 h-1.5 mr-1.5 rounded-full ${isStorePublic ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+      {t(isStorePublic ? 'navigation.storePublic' : 'navigation.storePrivate')}
+    </span>
+  );
 
   const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
-    ? store.status === 'LIVE'
+    ? isStorePublic
       ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
       : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true })
     : null;
@@ -310,8 +289,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
       <aside
         ref={drawerRef}
         aria-label="Mobile Left Navigation Drawer"
-        aria-modal="true"
-        role="dialog"
+        aria-hidden={!mobileDrawerOpen}
+        aria-modal={mobileDrawerOpen || undefined}
+        role={mobileDrawerOpen ? 'dialog' : undefined}
         className={`md:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-merchant-sidebar text-merchant-sidebar-text z-50 shadow-2xl flex flex-col transition-transform duration-200 ease-in-out border-r border-merchant-sidebar-border ${
           mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
