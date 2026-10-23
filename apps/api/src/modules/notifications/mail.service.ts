@@ -72,6 +72,7 @@ export class MailService {
           port,
           secure: port === 465,
           auth: { user, pass },
+          connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
         });
         this.logger.log(`[SMTP] Transporter configured for host: ${host}:${port}`);
       } catch (err: any) {
@@ -80,6 +81,18 @@ export class MailService {
     } else {
       this.logger.log('[SMTP] Transporter not configured. Running in development simulation mode (logging outgoing emails).');
     }
+  }
+
+  public async sendVerificationOtp(to: string, code: string, minutes: number): Promise<boolean> {
+    if (!this.transporter) return false;
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress, to, subject: 'Your LetzShop verification code',
+        text: `Your verification code is ${code}. It expires in ${minutes} minutes. If you did not request this, ignore the email.`,
+        html: `<p>Your LetzShop verification code is <strong>${code}</strong>.</p><p>It expires in ${minutes} minutes.</p><p>If you did not request this, ignore the email.</p>`,
+      });
+      return true;
+    } catch { this.logger.error('[SMTP] Unable to send verification email.'); return false; }
   }
 
   private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {

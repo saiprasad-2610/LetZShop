@@ -19,6 +19,10 @@ type AuthMode =
 export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>('PIN_LOGIN');
   const [phone, setPhone] = useState('');
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [resendUntil, setResendUntil] = useState(0);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [phoneValid, setPhoneValid] = useState(false);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -34,7 +38,10 @@ export default function LoginPage() {
 
   const { user, store, loading: authLoading, login } = useAuth();
   const router = useRouter();
-  const isDev = process.env.NODE_ENV !== 'production';
+  useEffect(() => {
+    const tick = () => setResendSeconds(Math.max(0, Math.ceil((resendUntil - Date.now()) / 1000)));
+    tick(); const interval = setInterval(tick, 1000); return () => clearInterval(interval);
+  }, [resendUntil]);
 
   // Route protection: authenticated users must not see login or registration again
   useEffect(() => {
@@ -122,13 +129,18 @@ export default function LoginPage() {
       return;
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationEmail.trim())) { setError('Invalid email address'); return; }
+
     setLoading(true);
 
     try {
-      await apiClient.auth.requestRegisterOtp(phone);
+      const result = await apiClient.auth.requestRegisterOtp(phone, registrationEmail.trim().toLowerCase());
+      setMaskedEmail(result.maskedEmail || `${registrationEmail.trim()[0]}***@${registrationEmail.trim().split('@')[1]}`);
+      setResendUntil(Date.now() + (result.resendAfterSeconds || 60) * 1000);
+      setOtp('');
       setAccountExists(false);
       setMode('REGISTER_VERIFY');
-      notify('success', `Verification OTP sent to ${phone}`);
+      notify('success', result.message || 'Verification code sent to your email.');
     } catch (err: any) {
       if (err.code === 'ACCOUNT_EXISTS' || err.status === 409) {
         setAccountExists(true);
@@ -151,7 +163,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await apiClient.auth.verifyRegisterOtp(phone, otp);
+      const res = await apiClient.auth.verifyRegisterOtp(phone, otp, registrationEmail.trim().toLowerCase());
       setTempToken(res.tempToken || null);
       setPin('');
       setConfirmPin('');
@@ -210,9 +222,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await apiClient.auth.requestRecoveryOtp(phone);
+      const result = await apiClient.auth.requestRecoveryOtp(phone);
+      setMaskedEmail(result.maskedEmail || phone);
       setMode('RECOVERY_VERIFY');
-      notify('success', `Recovery OTP sent to ${phone}`);
+      notify('success', result.message || 'Recovery code sent to your registered contact.');
     } catch (err: any) {
       notify('error', err.message || 'Failed to send recovery OTP.');
     } finally {
@@ -417,7 +430,7 @@ export default function LoginPage() {
                     className="font-semibold hover:underline"
                     style={{ color: 'var(--merchant-primary)' }}
                   >
-                    Register with Mobile OTP
+                    Register with Email OTP
                   </button>
                 </p>
               </div>
@@ -474,8 +487,15 @@ export default function LoginPage() {
                   required
                 />
                 <p className="mt-1.5 text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>
-                  A one-time verification code will be sent to your mobile.
+                  A one-time verification code will be sent to your email.
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="register-email" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>Email Address</label>
+                <input id="register-email" type="email" autoComplete="email" required maxLength={254}
+                  value={registrationEmail} onChange={e => setRegistrationEmail(e.target.value)}
+                  style={inputStyle} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
 
               <button
@@ -507,7 +527,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Enter 6-Digit OTP sent to {phone}
+                  Enter 6-Digit OTP sent to {maskedEmail}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: 'var(--merchant-text-muted)' }}>
@@ -526,12 +546,6 @@ export default function LoginPage() {
                     className="block w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm tracking-widest text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
-                {isDev && (
-                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center justify-between">
-                    <span className="font-medium" style={{ color: 'var(--merchant-text-secondary)' }}>Development code:</span>
-                    <span className="font-mono font-bold tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">123456</span>
-                  </div>
-                )}
               </div>
 
               <button
@@ -543,6 +557,11 @@ export default function LoginPage() {
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : 'Verify Code'}
               </button>
 
+              <p className="text-xs" data-testid="otp-sent-destination">Verification code sent to {maskedEmail}</p>
+              <button type="button" disabled={loading || resendSeconds > 0} onClick={handleRequestRegisterOtp}
+                className="text-xs disabled:opacity-50" style={{ color: 'var(--merchant-primary)' }}>
+                {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend code'}
+              </button>
               <div className="pt-3 text-center">
                 <button
                   type="button"
@@ -552,7 +571,7 @@ export default function LoginPage() {
                   className="text-xs hover:underline"
                   style={{ color: 'var(--merchant-text-muted)' }}
                 >
-                  Change Mobile Number
+                  Change Email / Mobile
                 </button>
               </div>
             </form>
@@ -711,7 +730,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyRecoveryOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Enter 6-Digit Recovery OTP sent to {phone}
+                  Enter 6-Digit Recovery OTP sent to {maskedEmail || phone}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: 'var(--merchant-text-muted)' }}>
@@ -730,12 +749,6 @@ export default function LoginPage() {
                     className="block w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm tracking-widest text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
-                {isDev && (
-                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center justify-between">
-                    <span className="font-medium" style={{ color: 'var(--merchant-text-secondary)' }}>Development code:</span>
-                    <span className="font-mono font-bold tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">123456</span>
-                  </div>
-                )}
               </div>
 
               <button

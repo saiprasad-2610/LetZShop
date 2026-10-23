@@ -31,6 +31,10 @@ export function validateProductionSecrets(): void {
       violations.push('COOKIE_SECRET must be at least 32 random characters and not a development default.');
     }
 
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !(process.env.SMTP_PASSWORD || process.env.SMTP_PASS)) {
+      violations.push('SMTP host, user and password are required for registration email verification.');
+    }
+
     if (devMockOtp) {
       violations.push('OTP_DEV_MOCK_ENABLED cannot be true in production.');
     }
@@ -47,6 +51,6 @@ export function validateProductionSecrets(): void {
 
     logger.log('🛡️ Production security secrets validated successfully (FAIL-CLOSED gate passed).');
   } else {
-    logger.warn('⚠️ Running in development/test mode. Mock secrets and dev OTP providers active.');
+    logger.warn('⚠️ Running in development/test mode. Production secret checks are relaxed; registration still requires real SMTP.');
   }
 }

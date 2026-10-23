@@ -1,3 +1,4 @@
+import { AccountEmailVerification } from '../components/AccountEmailVerification';
 import { getPublicStoreUrl } from '@simply/types';
 import { getStorefrontUrl } from '../utils/config';
 import React, { useState, useEffect } from 'react';
@@ -669,6 +670,8 @@ export default function SettingsPage() {
             {t('settings.subtitle')}
           </p>
         </div>
+
+        <AccountEmailVerification />
 
         {/* Top Store Setup Requirements Status Banner */}
         {(!razorpayConnected || (!isSelfDelivery && !shiprocketConnected)) ? (

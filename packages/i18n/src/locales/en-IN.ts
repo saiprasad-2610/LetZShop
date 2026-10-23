@@ -1,6 +1,20 @@
 import { customerJourneyEn } from './customer-journey';
 import { brandStudioEn } from './brand-studio';
 export const enIN = {
+  accountEmail: {
+    "title": "Verify your recovery email",
+    "description": "Add a verified email for secure PIN recovery. Your current PIN login stays available.",
+    "email": "Email Address",
+    "sent": "Verification code sent to {email}",
+    "verify": "Verify Code",
+    "send": "Send Verification OTP",
+    "resend": "Resend code",
+    "wait": "Resend in {seconds}s",
+    "change": "Change email",
+    "success": "Email verified.",
+    "sendError": "Unable to send verification code.",
+    "verifyError": "Unable to verify code."
+  },
   brandStudio: brandStudioEn,
   reviewReportStates: {"PENDING":"Reported — Pending Admin Review","UNDER_REVIEW":"Under Review","RESOLVED":"Resolved","DISMISSED":"Dismissed"},
   cartToast: { added: "Added to cart" },

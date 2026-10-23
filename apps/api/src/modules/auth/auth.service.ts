@@ -1,3 +1,4 @@
+import { EmailOtpService } from './email-otp.service';
 import {
   Injectable,
   UnauthorizedException,
@@ -20,188 +21,48 @@ import * as crypto from 'crypto';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly otpExpirySeconds: number;
-  private readonly maxAttempts: number;
-  private readonly devMockEnabled: boolean;
-  private readonly devDefaultCode: string;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    @Inject('OTP_PROVIDER') private readonly otpProvider: OtpProvider
+    @Inject('OTP_PROVIDER') private readonly otpProvider: OtpProvider,
+    private readonly emailOtp: EmailOtpService
   ) {
-    this.otpExpirySeconds = Number(this.configService.get('OTP_EXPIRY_SECONDS')) || 300;
-    this.maxAttempts = Number(this.configService.get('OTP_MAX_ATTEMPTS')) || 5;
-    this.devMockEnabled = this.configService.get<string>('OTP_DEV_MOCK_ENABLED', 'true') === 'true';
-    this.devDefaultCode = this.configService.get<string>('OTP_DEV_DEFAULT_CODE', '123456');
   }
 
   // ============================================================================
   // CANONICAL SELLER AUTH FLOW (OTP -> PIN SETUP -> PIN LOGIN)
   // ============================================================================
 
-  public async requestOtpChallenge(
-    rawPhone: string,
-    purpose: OtpPurpose = OtpPurpose.REGISTRATION
-  ): Promise<{ challengeId: string; expiresInSeconds: number; message: string }> {
-    const phone = normalizePhone(rawPhone);
-    if (!isValidIndianPhone(phone)) {
-      throw new BadRequestException('Please provide a valid Indian 10-digit mobile number.');
-    }
-
-    // Check if account already exists with a completed PIN setup (prevent duplicate registration)
-    if (purpose === OtpPurpose.REGISTRATION) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { phone },
-        include: { credentials: true },
-      });
-
-      const hasPin = existingUser?.credentials?.some(
-        (c) => c.credentialType === CredentialType.PIN
-      );
-
-      if (existingUser && hasPin) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.CONFLICT,
-            code: 'ACCOUNT_EXISTS',
-            message: 'An account already exists with this mobile number. Please log in.',
-          },
-          HttpStatus.CONFLICT
-        );
-      }
-    }
-
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isTwilioConfigured = Boolean((this.otpProvider as any)?.isEnabled);
-    if (isProduction && this.devMockEnabled && isTwilioConfigured) {
-      throw new BadRequestException('Mock OTP provider cannot be enabled in production.');
-    }
-
-    // Cooldown check: 60 seconds
-    const recentChallenge = await this.prisma.otpChallenge.findFirst({
-      where: {
-        phone,
-        purpose,
-        isVerified: false,
-        createdAt: { gte: new Date(Date.now() - 60 * 1000) },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (recentChallenge) {
-      throw new BadRequestException('Please wait at least 60 seconds before requesting a new OTP.');
-    }
-
-    // Determine code: if SMS gateway (Twilio) is not configured, fall back to devDefaultCode (123456)
-    const otpCode = (!isTwilioConfigured || (!isProduction && this.devMockEnabled))
-      ? this.devDefaultCode
-      : Math.floor(100000 + Math.random() * 900000).toString();
-
-    const codeHash = this.hashCode(otpCode);
-    const expiresAt = new Date(Date.now() + this.otpExpirySeconds * 1000);
-
-    const challenge = await this.prisma.otpChallenge.create({
-      data: {
-        phone,
-        purpose,
-        codeHash,
-        maxAttempts: this.maxAttempts,
-        expiresAt,
-      },
-    });
-
-    // Also populate legacy otpRequest for backward compatibility
-    await this.prisma.otpRequest.create({
-      data: {
-        phone,
-        codeHash,
-        maxAttempts: this.maxAttempts,
-        expiresAt,
-      },
-    }).catch(() => {});
-
-    await this.otpProvider.sendOtp(phone, otpCode);
-
-    return {
-      challengeId: challenge.id,
-      expiresInSeconds: this.otpExpirySeconds,
-      message: `OTP sent successfully to ${phone}`,
-    };
+  public async requestOtpChallenge(rawPhone: string, purpose: OtpPurpose = OtpPurpose.REGISTRATION, email?: string) {
+    return this.emailOtp.request(rawPhone, purpose, email);
   }
 
-  public async verifyOtpChallenge(
-    rawPhone: string,
-    code: string,
-    purpose: OtpPurpose = OtpPurpose.REGISTRATION
-  ): Promise<{ verificationToken: string; tempToken: string; isNewUser: boolean; phone: string }> {
-    const phone = normalizePhone(rawPhone);
-    const codeHash = this.hashCode(code.trim());
+  public async verifyOtpChallenge(rawPhone: string, code: string, purpose: OtpPurpose = OtpPurpose.REGISTRATION, email?: string) {
+    const challenge = await this.emailOtp.verify(rawPhone, code.trim(), purpose, email);
+    const phone = challenge.phone;
+    const existingUser = await this.prisma.user.findUnique({ where: { phone }, include: { credentials: true } });
+    if (existingUser && (!existingUser.isActive || existingUser.deletedAt)) throw new ForbiddenException('Account unavailable. Please contact support.');
+    const verificationToken = this.jwtService.sign({ phone, email: challenge.email, challengeId: challenge.id, purpose, emailVerified: Boolean(challenge.email) }, { expiresIn: '15m' });
+    return { verificationToken, tempToken: verificationToken, isNewUser: !existingUser, phone };
+  }
 
-    const challenge = await this.prisma.otpChallenge.findFirst({
-      where: {
-        phone,
-        purpose,
-        isVerified: false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
+  public async requestLegacyEmail(userId: string, email: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return this.emailOtp.request(user.phone, OtpPurpose.EMAIL_VERIFICATION, email, user.id);
+  }
+
+  public async verifyLegacyEmail(userId: string, email: string, code: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.email) throw new BadRequestException('An existing account email cannot be overwritten.');
+    const challenge = await this.emailOtp.verify(user.phone, code, OtpPurpose.EMAIL_VERIFICATION, email);
+    await this.prisma.$transaction(async tx => {
+      const changed = await tx.user.updateMany({ where: { id: user.id, email: null }, data: { email: challenge.email, emailVerifiedAt: new Date() } });
+      if (changed.count !== 1) throw new BadRequestException('Account email has already been set.');
+      await tx.otpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } });
     });
-
-    if (!challenge) {
-      throw new BadRequestException('No active OTP request found. Please request a new OTP.');
-    }
-
-    if (challenge.attempts >= challenge.maxAttempts) {
-      throw new BadRequestException('Maximum OTP verification attempts exceeded. Please request a new OTP.');
-    }
-
-    if (challenge.codeHash !== codeHash) {
-      await this.prisma.otpChallenge.update({
-        where: { id: challenge.id },
-        data: { attempts: { increment: 1 } },
-      });
-      throw new BadRequestException('Invalid OTP entered. Please try again.');
-    }
-
-    // Mark challenge as verified
-    await this.prisma.otpChallenge.update({
-      where: { id: challenge.id },
-      data: { isVerified: true, verifiedAt: new Date() },
-    });
-
-    // Check if user exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { phone },
-      include: { credentials: true },
-    });
-
-    if (existingUser && (!existingUser.isActive || existingUser.deletedAt)) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.FORBIDDEN,
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Your account has been suspended. Please contact LetzShop Support.',
-        },
-        HttpStatus.FORBIDDEN
-      );
-    }
-
-    const isNewUser = !existingUser || !existingUser.credentials.some(c => c.credentialType === CredentialType.PIN);
-
-    // Issue ephemeral verification token (valid for 15 minutes)
-    const verificationToken = this.jwtService.sign(
-      { phone, challengeId: challenge.id, purpose },
-      { expiresIn: '15m' }
-    );
-
-    return {
-      verificationToken,
-      tempToken: verificationToken,
-      isNewUser,
-      phone,
-    };
+    return { verified: true };
   }
 
   public async setupPin(
@@ -239,6 +100,14 @@ export class AuthService {
     if (!/^\d{6}$/.test(data.pin)) {
       throw new BadRequestException('PIN must be exactly 6 numeric digits.');
     }
+
+    if (![OtpPurpose.REGISTRATION, OtpPurpose.RECOVERY].includes(tokenPayload.purpose) || !tokenPayload.challengeId) throw new UnauthorizedException('Invalid verification token.');
+    if (tokenPayload.purpose === OtpPurpose.REGISTRATION && (!tokenPayload.emailVerified || !tokenPayload.email)) throw new UnauthorizedException('Verified email is required.');
+    const consumed = await this.prisma.otpChallenge.updateMany({
+      where: { id: tokenPayload.challengeId, phone, purpose: tokenPayload.purpose, email: tokenPayload.email || null, isVerified: true, consumedAt: null, verifiedAt: { not: null }, deliveredAt: { not: null } },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) throw new UnauthorizedException('Verification has already been used or is invalid.');
 
     const pinHash = this.hashPin(data.pin);
 
@@ -278,7 +147,8 @@ export class AuthService {
         data: {
           phone,
           fullName: data.fullName || 'Merchant Seller',
-          email: data.email || null,
+          email: tokenPayload.email || null,
+          emailVerifiedAt: tokenPayload.email ? new Date() : null,
           role: UserRole.SELLER_OWNER,
         },
         include: {
@@ -297,12 +167,14 @@ export class AuthService {
           },
         },
       });
-    } else if (data.fullName && user.fullName === 'Merchant Seller') {
+    } else if ((data.fullName && user.fullName === 'Merchant Seller') || tokenPayload.email) {
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { fullName: data.fullName, ...(data.email ? { email: data.email } : {}) },
+        data: { ...(data.fullName && user.fullName === 'Merchant Seller' ? { fullName: data.fullName } : {}), ...(!user.email && tokenPayload.email ? { email: tokenPayload.email, emailVerifiedAt: new Date() } : {}), ...(user.email?.trim().toLowerCase() === tokenPayload.email ? { emailVerifiedAt: new Date() } : {}) },
       });
     }
+
+    if (!user.email && tokenPayload.email) user.email = tokenPayload.email;
 
     // 3. Upsert SellerCredential (PIN)
     await this.prisma.sellerCredential.upsert({
@@ -898,64 +770,9 @@ export class AuthService {
     ipAddress?: string
   ) {
     const phone = normalizePhone(rawPhone);
-    const codeHash = this.hashCode(code.trim());
-
-    // Check modern otpChallenge first, then fallback to legacy otpRequest
-    const challenge = await this.prisma.otpChallenge.findFirst({
-      where: {
-        phone,
-        isVerified: false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (challenge) {
-      if (challenge.attempts >= challenge.maxAttempts) {
-        throw new BadRequestException('Maximum OTP verification attempts exceeded. Please request a new OTP.');
-      }
-      if (challenge.codeHash !== codeHash) {
-        await this.prisma.otpChallenge.update({
-          where: { id: challenge.id },
-          data: { attempts: { increment: 1 } },
-        });
-        throw new BadRequestException('Invalid OTP entered. Please try again.');
-      }
-      await this.prisma.otpChallenge.update({
-        where: { id: challenge.id },
-        data: { isVerified: true, verifiedAt: new Date() },
-      });
-    } else {
-      const otpRequest = await this.prisma.otpRequest.findFirst({
-        where: {
-          phone,
-          isVerified: false,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!otpRequest) {
-        throw new BadRequestException('No active OTP request found. Please request a new OTP.');
-      }
-
-      if (otpRequest.attempts >= otpRequest.maxAttempts) {
-        throw new BadRequestException('Maximum OTP verification attempts exceeded. Please request a new OTP.');
-      }
-
-      if (otpRequest.codeHash !== codeHash) {
-        await this.prisma.otpRequest.update({
-          where: { id: otpRequest.id },
-          data: { attempts: { increment: 1 } },
-        });
-        throw new BadRequestException('Invalid OTP entered. Please try again.');
-      }
-
-      await this.prisma.otpRequest.update({
-        where: { id: otpRequest.id },
-        data: { isVerified: true, verifiedAt: new Date() },
-      });
-    }
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    if (!existing || !existing.isActive || existing.deletedAt) throw new UnauthorizedException('Use email registration to create an account.');
+    await this.emailOtp.verify(phone, code.trim(), OtpPurpose.LOGIN);
 
     let user = await this.prisma.user.findUnique({
       where: { phone },

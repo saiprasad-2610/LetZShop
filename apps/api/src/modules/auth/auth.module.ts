@@ -1,3 +1,5 @@
+import { NotificationsModule } from '../notifications/notifications.module';
+import { EmailOtpService } from './email-otp.service';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +12,7 @@ const OtpProviderFactory = {
   provide: 'OTP_PROVIDER',
   useFactory: (configService: ConfigService) => {
     const isMockEnabled = configService.get<string>('OTP_DEV_MOCK_ENABLED') === 'true';
-    if (!isMockEnabled) {
+    if (process.env.NODE_ENV !== 'test' || !isMockEnabled) {
       return new TwilioOtpProvider(configService);
     }
     return new DevOtpProvider();
@@ -19,6 +21,7 @@ const OtpProviderFactory = {
 };
 @Module({
   imports: [
+    NotificationsModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRET', 'default-dev-secret-change-me'),
@@ -30,7 +33,7 @@ const OtpProviderFactory = {
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, OtpProviderFactory],
+  providers: [EmailOtpService, AuthService, OtpProviderFactory],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

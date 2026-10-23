@@ -3,6 +3,20 @@ import { brandStudioMr } from './brand-studio';
 import { TranslationDictionary } from './en-IN';
 
 export const mrIN: TranslationDictionary = {
+  accountEmail: {
+    "title": "पुनर्प्राप्तीसाठी ईमेल सत्यापित करा",
+    "description": "सुरक्षित PIN पुनर्प्राप्तीसाठी सत्यापित ईमेल जोडा. सध्याच्या PIN ने लॉगिन करता येईल.",
+    "email": "ईमेल पत्ता",
+    "sent": "सत्यापन कोड {email} वर पाठवला",
+    "verify": "कोड सत्यापित करा",
+    "send": "सत्यापन OTP पाठवा",
+    "resend": "कोड पुन्हा पाठवा",
+    "wait": "{seconds} सेकंदांनंतर पुन्हा पाठवा",
+    "change": "ईमेल बदला",
+    "success": "ईमेल सत्यापित झाला.",
+    "sendError": "सत्यापन कोड पाठवता आला नाही.",
+    "verifyError": "कोड सत्यापित करता आला नाही."
+  },
   brandStudio: brandStudioMr,
   reviewReportStates: {"PENDING":"तक्रार नोंदवली — प्रशासकाच्या तपासणीची प्रतीक्षा","UNDER_REVIEW":"तपासणी सुरू आहे","RESOLVED":"निकाली काढले","DISMISSED":"तक्रार फेटाळली"},
   cartToast: { added: "कार्टमध्ये जोडले" },

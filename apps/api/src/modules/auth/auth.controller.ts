@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SendOtpDto, VerifyOtpDto, RefreshTokenDto, SetupPinDto, PinLoginDto, AdminLoginDto } from './dto/auth.dto';
+import { AccountEmailDto, VerifyAccountEmailDto, RegisterOtpDto, VerifyRegisterOtpDto, SendOtpDto, VerifyOtpDto, RefreshTokenDto, SetupPinDto, PinLoginDto, AdminLoginDto } from './dto/auth.dto';
 import { Public, CurrentUser } from '../../common/decorators';
 import { AuthenticatedUser, OtpPurpose } from '@simply/types';
 
@@ -23,6 +23,18 @@ import { AuthenticatedUser, OtpPurpose } from '@simply/types';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('email/request-otp')
+  @HttpCode(HttpStatus.OK)
+  async requestAccountEmail(@CurrentUser() user: AuthenticatedUser, @Body() dto: AccountEmailDto) {
+    return this.authService.requestLegacyEmail(user.userId, dto.email);
+  }
+
+  @Post('email/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyAccountEmail(@CurrentUser() user: AuthenticatedUser, @Body() dto: VerifyAccountEmailDto) {
+    return this.authService.verifyLegacyEmail(user.userId, dto.email, dto.code);
+  }
+
   // ============================================================================
   // CANONICAL SELLER AUTH (FIRST REGISTRATION)
   // ============================================================================
@@ -31,18 +43,18 @@ export class AuthController {
   @Post('register/request-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Step 1: Request OTP for seller mobile registration' })
-  async registerRequestOtp(@Body() dto: SendOtpDto) {
-    return this.authService.requestOtpChallenge(dto.phone, OtpPurpose.REGISTRATION as any);
+  async registerRequestOtp(@Body() dto: RegisterOtpDto) {
+    return this.authService.requestOtpChallenge(dto.phone, OtpPurpose.REGISTRATION as any, dto.email);
   }
 
   @Public()
   @Post('register/verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Step 2: Verify OTP for seller registration and obtain verificationToken' })
-  async registerVerifyOtp(@Body() dto: VerifyOtpDto) {
+  async registerVerifyOtp(@Body() dto: VerifyRegisterOtpDto) {
     const code = dto.code || dto.otp;
     if (!code) throw new BadRequestException('OTP code is required.');
-    return this.authService.verifyOtpChallenge(dto.phone, code, OtpPurpose.REGISTRATION as any);
+    return this.authService.verifyOtpChallenge(dto.phone, code, OtpPurpose.REGISTRATION as any, dto.email);
   }
 
   @Public()

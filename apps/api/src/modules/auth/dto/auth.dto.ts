@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, Matches, Length, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsOptional, IsString, Matches, Length, MaxLength, IsEmail } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { INDIAN_PHONE_REGEX } from '@simply/validation';
 
@@ -26,6 +27,25 @@ export class VerifyOtpDto {
   @IsOptional()
   @IsString()
   otp?: string;
+}
+
+export class RegisterOtpDto extends SendOtpDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail({}, { message: 'Invalid email address' }) @MaxLength(254)
+  email: string;
+}
+export class VerifyRegisterOtpDto extends VerifyOtpDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail({}, { message: 'Invalid email address' }) @MaxLength(254)
+  email: string;
+}
+
+export class AccountEmailDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail() @MaxLength(254) email: string;
+}
+export class VerifyAccountEmailDto extends AccountEmailDto {
+  @IsString() @Matches(/^\d{6}$/) code: string;
 }
 
 export class RefreshTokenDto {
