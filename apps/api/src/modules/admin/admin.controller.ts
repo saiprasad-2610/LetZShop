@@ -395,15 +395,15 @@ export class AdminController {
     @Param('docId') docId: string,
     @Res() res: any,
   ) {
-    const { filePath, mimeType, filename } =
+    const { filePath, stream, mimeType, filename } =
       await this.adminService.getMerchantDocumentStream(docId, id);
 
     res.header('Content-Type', mimeType);
     res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.header('Cache-Control', 'private, no-store');
 
-    const stream = fs.createReadStream(filePath);
-    return res.send(stream);
+    const responseStream = stream || (filePath ? fs.createReadStream(filePath) : null);
+    return res.send(responseStream);
   }
 
   @Get('merchants/:id/documents/:docId/view')
@@ -413,15 +413,15 @@ export class AdminController {
     @Param('docId') docId: string,
     @Res() res: any,
   ) {
-    const { filePath, mimeType, filename } =
+    const { filePath, stream, mimeType, filename } =
       await this.adminService.getMerchantDocumentStream(docId, id);
 
     res.header('Content-Type', mimeType);
     res.header('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
     res.header('Cache-Control', 'private, no-store');
 
-    const stream = fs.createReadStream(filePath);
-    return res.send(stream);
+    const responseStream = stream || (filePath ? fs.createReadStream(filePath) : null);
+    return res.send(responseStream);
   }
 
   @RequirePermission(AdminPermission.ORDERS_VIEW)

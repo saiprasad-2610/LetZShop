@@ -81,3 +81,19 @@ export async function compatibleAvifFile(
     pending.delete(output);
   }
 }
+
+export async function convertAvifBuffer(
+  buffer: Buffer,
+  format: 'webp' | 'png',
+): Promise<Buffer> {
+  const release = await conversionSlot();
+  try {
+    return await sharp(buffer, { limitInputPixels: 40000000, sequentialRead: true })
+      .rotate()
+      .toFormat(format)
+      .toBuffer();
+  } finally {
+    release();
+  }
+}
+

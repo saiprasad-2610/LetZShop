@@ -18,7 +18,7 @@ import { TenantContext } from '@simply/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isPublicMediaKey, localMediaRoot } from './local-media-root';
-import { avifFallbackFormat, compatibleAvifFile } from './compatible-image';
+import { avifFallbackFormat, compatibleAvifFile, convertAvifBuffer } from './compatible-image';
 
 @ApiTags('Media & Storage')
 @Controller('media')
@@ -133,28 +133,6 @@ export class MediaController {
       }
     }
 
-    // Path traversal defense
-    if (!absolutePath.startsWith(normalizedRoot) || !fs.existsSync(absolutePath)) {
-      throw new NotFoundException('Requested media file not found.');
-    }
-
-    try {
-      const stat = fs.statSync(absolutePath);
-      if (!stat.isFile()) {
-        throw new NotFoundException('Requested media file not found.');
-      }
-    } catch {
-      throw new NotFoundException('Requested media file not found.');
-    }
-
-    let responsePath = absolutePath;
-    if (path.extname(absolutePath).toLowerCase() === '.avif') {
-      const vary = String(res.getHeader('Vary') || '').split(',').map((value: string) => value.trim()).filter(Boolean);
-      res.header('Vary', [...new Set([...vary, 'Accept'])].join(', '));
-      const fallback = avifFallbackFormat(accept);
-      if (fallback) responsePath = await compatibleAvifFile(absolutePath, fallback);
-    }
-    const ext = path.extname(responsePath).toLowerCase();
     const mimeMap: Record<string, string> = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
@@ -164,15 +142,70 @@ export class MediaController {
       '.gif': 'image/gif',
       '.svg': 'image/svg+xml',
     };
-    if (mimeMap[ext]) {
-      res.header('Content-Type', mimeMap[ext]);
+
+    // 1. Check local disk first (preserves 100% backward compatibility for existing local files)
+    if (absolutePath.startsWith(normalizedRoot) && fs.existsSync(absolutePath)) {
+      try {
+        const stat = fs.statSync(absolutePath);
+        if (stat.isFile()) {
+          let responsePath = absolutePath;
+          if (path.extname(absolutePath).toLowerCase() === '.avif') {
+            const vary = String(res.getHeader('Vary') || '').split(',').map((value: string) => value.trim()).filter(Boolean);
+            res.header('Vary', [...new Set([...vary, 'Accept'])].join(', '));
+            const fallback = avifFallbackFormat(accept);
+            if (fallback) responsePath = await compatibleAvifFile(absolutePath, fallback);
+          }
+          const ext = path.extname(responsePath).toLowerCase();
+          if (mimeMap[ext]) {
+            res.header('Content-Type', mimeMap[ext]);
+          }
+
+          const stream = fs.createReadStream(responsePath);
+          res.header('Cache-Control', 'public, max-age=86400');
+          res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+          res.header('Access-Control-Allow-Origin', '*');
+          return res.send(stream);
+        }
+      } catch {
+        // Fall through to remote storage provider check
+      }
     }
 
-    const stream = fs.createReadStream(responsePath);
-    res.header('Cache-Control', 'public, max-age=86400');
-    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.header('Access-Control-Allow-Origin', '*');
-    return res.send(stream);
+    // 2. If not on local disk, check the storage provider (Cloudflare R2 / S3)
+    const storageProvider = this.mediaService.getStorageProvider();
+    if (storageProvider.getObject) {
+      const s3Object = await storageProvider.getObject(safeKey);
+      if (s3Object && s3Object.stream) {
+        const ext = path.extname(safeKey).toLowerCase();
+
+        // Handle AVIF fallback transcoding for browsers lacking AVIF support
+        if (ext === '.avif') {
+          const vary = String(res.getHeader('Vary') || '').split(',').map((value: string) => value.trim()).filter(Boolean);
+          res.header('Vary', [...new Set([...vary, 'Accept'])].join(', '));
+          const fallback = avifFallbackFormat(accept);
+          if (fallback) {
+            const chunks: Buffer[] = [];
+            for await (const chunk of s3Object.stream as any) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            }
+            const converted = await convertAvifBuffer(Buffer.concat(chunks), fallback);
+            res.header('Content-Type', fallback === 'webp' ? 'image/webp' : 'image/png');
+            res.header('Cache-Control', 'public, max-age=86400');
+            res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.header('Access-Control-Allow-Origin', '*');
+            return res.send(converted);
+          }
+        }
+
+        res.header('Content-Type', s3Object.contentType || mimeMap[ext] || 'application/octet-stream');
+        res.header('Cache-Control', 'public, max-age=86400');
+        res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.header('Access-Control-Allow-Origin', '*');
+        return res.send(s3Object.stream);
+      }
+    }
+
+    throw new NotFoundException('Requested media file not found.');
   }
 
   @Public()

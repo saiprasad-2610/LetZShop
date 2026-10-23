@@ -6,6 +6,7 @@ import {
   UploadFileInput,
   UploadFileResult,
   FileMetadata,
+  StorageObject,
 } from './storage-provider.interface';
 
 export interface LocalDiskStorageConfig {
@@ -38,6 +39,7 @@ const EXTENSION_MAP: Record<string, string> = {
 };
 
 export class LocalDiskStorageProvider implements StorageProvider {
+  public readonly type = 'LOCAL';
   private readonly rootDir: string;
   private readonly publicUrlPrefix: string;
   private readonly maxSizeBytes: number;
@@ -45,7 +47,7 @@ export class LocalDiskStorageProvider implements StorageProvider {
 
   constructor(config: LocalDiskStorageConfig) {
     this.rootDir = path.resolve(config.rootDir);
-    this.publicUrlPrefix = config.publicUrlPrefix.replace(/\/$/, '');
+    this.publicUrlPrefix = (config.publicUrlPrefix || '').replace(/\/+$/, '');
     this.maxSizeBytes = config.maxSizeBytes ?? 10 * 1024 * 1024; // 10 MB default
     this.allowedMimeTypes = config.allowedMimeTypes ?? DEFAULT_ALLOWED_MIME_TYPES;
 
@@ -73,15 +75,31 @@ export class LocalDiskStorageProvider implements StorageProvider {
     const filename = `${uniqueId}${safeExtension}`;
 
     // 4. Construct path and prevent directory traversal
-    const relativeKey = path.posix.join(
-      this.sanitizeSegment(tenantId),
-      this.sanitizeSegment(storeId),
-      this.sanitizeSegment(prefix),
-      filename
-    );
+    let relativeKey: string;
+    let absoluteFilePath: string;
+    let absoluteTargetDir: string;
 
-    const absoluteTargetDir = path.resolve(this.rootDir, tenantId, storeId, prefix);
-    const absoluteFilePath = path.resolve(absoluteTargetDir, filename);
+    if (input.storageKey) {
+      relativeKey = input.storageKey.replace(/^[\\\/]+/, '').replace(/\\/g, '/');
+      absoluteFilePath = path.resolve(this.rootDir, relativeKey);
+      absoluteTargetDir = path.dirname(absoluteFilePath);
+    } else {
+      const segments = [
+        this.sanitizeSegment(tenantId),
+        storeId ? this.sanitizeSegment(storeId) : '',
+        this.sanitizeSegment(prefix),
+        filename,
+      ].filter(Boolean);
+
+      relativeKey = path.posix.join(...segments);
+      absoluteTargetDir = path.resolve(
+        this.rootDir,
+        this.sanitizeSegment(tenantId),
+        ...(storeId ? [this.sanitizeSegment(storeId)] : []),
+        this.sanitizeSegment(prefix),
+      );
+      absoluteFilePath = path.resolve(absoluteTargetDir, filename);
+    }
 
     // Verify boundary confinement (Path Traversal defense)
     if (!absoluteFilePath.startsWith(this.rootDir)) {
@@ -92,7 +110,7 @@ export class LocalDiskStorageProvider implements StorageProvider {
     await fs.promises.mkdir(absoluteTargetDir, { recursive: true });
     await fs.promises.writeFile(absoluteFilePath, buffer);
 
-    const publicUrl = `${this.publicUrlPrefix}/${relativeKey}`;
+    const publicUrl = this.publicUrlPrefix ? `${this.publicUrlPrefix}/${relativeKey}` : '';
 
     return {
       storageKey: relativeKey,
@@ -116,12 +134,13 @@ export class LocalDiskStorageProvider implements StorageProvider {
         return true;
       }
       return false;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
 
   public getUrl(storageKey: string): string {
+    if (!this.publicUrlPrefix) return '';
     return `${this.publicUrlPrefix}/${storageKey.replace(/\\/g, '/')}`;
   }
 
@@ -145,6 +164,31 @@ export class LocalDiskStorageProvider implements StorageProvider {
   public async exists(storageKey: string): Promise<boolean> {
     const absolutePath = this.resolvePath(storageKey);
     return fs.existsSync(absolutePath);
+  }
+
+  public async getObject(storageKey: string): Promise<StorageObject | null> {
+    try {
+      const absolutePath = this.resolvePath(storageKey);
+      if (!fs.existsSync(absolutePath)) {
+        return null;
+      }
+      const stats = await fs.promises.stat(absolutePath);
+      const ext = path.extname(absolutePath).toLowerCase();
+      const mime = Object.keys(EXTENSION_MAP).find(k => EXTENSION_MAP[k] === ext) || 'application/octet-stream';
+      return {
+        stream: fs.createReadStream(absolutePath),
+        contentType: mime,
+        contentLength: stats.size,
+        lastModified: stats.mtime,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  public async getStream(storageKey: string): Promise<NodeJS.ReadableStream | null> {
+    const obj = await this.getObject(storageKey);
+    return obj ? obj.stream : null;
   }
 
   private resolvePath(storageKey: string): string {

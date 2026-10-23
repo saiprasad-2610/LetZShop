@@ -1,11 +1,13 @@
 import {
   Injectable,
+  Inject,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaClient, MerchantDocumentType, MerchantDocumentStatus } from '@prisma/client';
+import { StorageProvider } from '@simply/storage';
 import {
   BusinessType,
   BusinessVerificationStatus,
@@ -41,6 +43,8 @@ export function maskOwnerId(id?: string | null): string | null {
   return `•••• ${last4}`;
 }
 
+export const PRIVATE_STORAGE_PROVIDER_TOKEN = 'PRIVATE_STORAGE_PROVIDER';
+
 @Injectable()
 export class VerificationService {
   private readonly logger = new Logger(VerificationService.name);
@@ -49,6 +53,8 @@ export class VerificationService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly mailService: MailService,
+    @Inject(PRIVATE_STORAGE_PROVIDER_TOKEN)
+    private readonly storageProvider: StorageProvider,
   ) {
     const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
     this.storageRoot = path.resolve(baseStorage, 'private-documents');
@@ -272,89 +278,102 @@ export class VerificationService {
       }
     }
 
-    // Write file to private storage directory
-    const tenantDir = path.resolve(this.storageRoot, tenantId);
-    if (!tenantDir.startsWith(this.storageRoot)) {
-      throw new ForbiddenException('Invalid tenant path.');
-    }
-    if (!fs.existsSync(tenantDir)) {
-      fs.mkdirSync(tenantDir, { recursive: true });
-    }
-
     const uniqueId = crypto.randomUUID();
     const safeFilename = `${uniqueId}${detected.extension}`;
-    const absoluteFilePath = path.resolve(tenantDir, safeFilename);
-
-    if (!absoluteFilePath.startsWith(tenantDir)) {
-      throw new ForbiddenException('Directory traversal prevented.');
-    }
-
-    await fs.promises.writeFile(absoluteFilePath, buffer);
     const storageKey = `private-documents/${tenantId}/${safeFilename}`;
 
+    // Write file to private storage provider (Cloudflare R2 private bucket or local private disk)
+    try {
+      await this.storageProvider.upload({
+        tenantId,
+        storeId: '',
+        buffer,
+        originalFilename: data.filename || `document${detected.extension}`,
+        mimeType: detected.mimeType,
+        prefix: 'private-documents',
+        storageKey,
+      });
+    } catch (uploadError: any) {
+      this.logger.error(`Failed to upload private document to storage provider: ${uploadError.message}`);
+      throw new BadRequestException('Failed to upload document to storage provider.');
+    }
+
     // Transaction: archive previous document of same type and save new current document
-    const resultDoc = await this.prisma.$transaction(async (tx) => {
-      const existingDoc = await tx.merchantDocument.findFirst({
-        where: { tenantId, type: docType, isCurrent: true },
-      });
-
-      if (existingDoc) {
-        await tx.merchantDocument.update({
-          where: { id: existingDoc.id },
-          data: { isCurrent: false },
+    let resultDoc;
+    try {
+      resultDoc = await this.prisma.$transaction(async (tx) => {
+        const existingDoc = await tx.merchantDocument.findFirst({
+          where: { tenantId, type: docType, isCurrent: true },
         });
-      }
 
-      const newDoc = await tx.merchantDocument.create({
-        data: {
-          tenantId,
-          type: docType,
-          documentNumberMasked: maskedNumber,
-          storageKey,
-          originalFilename: data.filename || `document${detected.extension}`,
-          mimeType: detected.mimeType,
-          fileSizeBytes: buffer.length,
-          status: MerchantDocumentStatus.PENDING_REVIEW,
-          isCurrent: true,
-        },
-      });
+        if (existingDoc) {
+          await tx.merchantDocument.update({
+            where: { id: existingDoc.id },
+            data: { isCurrent: false },
+          });
+        }
 
-      // Update tenant document number if provided
-      if (docType === 'PAN' && data.documentNumber) {
-        await tx.tenant.update({
-          where: { id: tenantId },
-          data: { panNumber: data.documentNumber.trim().toUpperCase() },
-        });
-      } else if (docType === 'UDYAM' && data.documentNumber) {
-        await tx.tenant.update({
-          where: { id: tenantId },
-          data: { udyamNumber: data.documentNumber.trim().toUpperCase() },
-        });
-      } else if (docType === 'GST_CERTIFICATE' && data.documentNumber) {
-        await tx.tenant.update({
-          where: { id: tenantId },
-          data: { gstin: data.documentNumber.trim().toUpperCase() },
-        });
-      }
-
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          action: existingDoc ? 'DOCUMENT_REPLACED' : 'DOCUMENT_UPLOADED',
-          entityType: 'MerchantDocument',
-          entityId: newDoc.id,
-          tenantId,
-          metadata: {
-            documentType: docType,
-            previousDocumentId: existingDoc?.id || null,
-            filename: data.filename,
-            fileSize: buffer.length,
+        const newDoc = await tx.merchantDocument.create({
+          data: {
+            tenantId,
+            type: docType,
+            documentNumberMasked: maskedNumber,
+            storageKey,
+            originalFilename: data.filename || `document${detected.extension}`,
+            mimeType: detected.mimeType,
+            fileSizeBytes: buffer.length,
+            status: MerchantDocumentStatus.PENDING_REVIEW,
+            isCurrent: true,
           },
-        },
-      });
+        });
 
-      return newDoc;
-    });
+        // Update tenant document number if provided
+        if (docType === 'PAN' && data.documentNumber) {
+          await tx.tenant.update({
+            where: { id: tenantId },
+            data: { panNumber: data.documentNumber.trim().toUpperCase() },
+          });
+        } else if (docType === 'UDYAM' && data.documentNumber) {
+          await tx.tenant.update({
+            where: { id: tenantId },
+            data: { udyamNumber: data.documentNumber.trim().toUpperCase() },
+          });
+        } else if (docType === 'GST_CERTIFICATE' && data.documentNumber) {
+          await tx.tenant.update({
+            where: { id: tenantId },
+            data: { gstin: data.documentNumber.trim().toUpperCase() },
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: existingDoc ? 'DOCUMENT_REPLACED' : 'DOCUMENT_UPLOADED',
+            entityType: 'MerchantDocument',
+            entityId: newDoc.id,
+            tenantId,
+            metadata: {
+              documentType: docType,
+              previousDocumentId: existingDoc?.id || null,
+              filename: data.filename,
+              fileSize: buffer.length,
+            },
+          },
+        });
+
+        return newDoc;
+      });
+    } catch (dbError: any) {
+      this.logger.error(
+        `Database transaction failed for document ${storageKey}. Rolling back storage file: ${dbError.message}`,
+      );
+      await this.storageProvider.delete(storageKey).catch((cleanupError) => {
+        this.logger.error(
+          `Failed to clean up orphaned private document ${storageKey}: ${cleanupError.message}`,
+        );
+      });
+      throw dbError;
+    }
 
     // Recompute overall verification status
     const currentDocs = await this.prisma.merchantDocument.findMany({
@@ -388,7 +407,13 @@ export class VerificationService {
     documentId: string,
     requesterTenantId?: string,
     isAdmin = false,
-  ): Promise<{ filePath: string; mimeType: string; filename: string; document: AdminMerchantDocument }> {
+  ): Promise<{
+    filePath?: string;
+    stream?: NodeJS.ReadableStream;
+    mimeType: string;
+    filename: string;
+    document: AdminMerchantDocument;
+  }> {
     const document = await this.prisma.merchantDocument.findUnique({
       where: { id: documentId },
     });
@@ -402,23 +427,37 @@ export class VerificationService {
     const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
     const relativeKey = document.storageKey.replace(/^[\\\/]+/, '');
     let absolutePath = path.resolve(baseStorage, relativeKey);
+    let stream: NodeJS.ReadableStream | null = null;
 
-    if (!fs.existsSync(absolutePath)) {
+    // 1. Check local disk first (backward compatibility for legacy local documents)
+    if (fs.existsSync(absolutePath)) {
+      stream = fs.createReadStream(absolutePath);
+    } else if (this.storageProvider?.getObject) {
+      // 2. Check private storage provider (Cloudflare R2 private bucket)
+      const s3Obj = await this.storageProvider.getObject(document.storageKey);
+      if (s3Obj && s3Obj.stream) {
+        stream = s3Obj.stream;
+      }
+    }
+
+    if (!stream) {
       const candidates = [
         path.resolve(process.cwd(), 'apps/api/media-storage', relativeKey),
         path.resolve(process.cwd(), 'media-storage', relativeKey),
         path.resolve(process.cwd(), '..', 'media-storage', relativeKey),
         path.resolve(process.cwd(), '..', 'apps/api/media-storage', relativeKey),
+        path.resolve(this.storageRoot, relativeKey.replace(/^private-documents[\/\\]/, '')),
       ];
       for (const cand of candidates) {
         if (fs.existsSync(cand)) {
           absolutePath = cand;
+          stream = fs.createReadStream(cand);
           break;
         }
       }
     }
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!stream) {
       throw new NotFoundException('Document file missing or not found on storage.');
     }
 
@@ -439,6 +478,7 @@ export class VerificationService {
 
     return {
       filePath: absolutePath,
+      stream,
       mimeType: document.mimeType,
       filename: document.originalFilename,
       document: this.mapDocument(document),

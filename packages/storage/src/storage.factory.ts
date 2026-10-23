@@ -25,7 +25,10 @@ export class StorageFactory {
         if (!options.s3Config) {
           throw new Error(`S3StorageConfig is required when storage driver is "${options.driver}"`);
         }
-        return new S3StorageProvider(options.s3Config);
+        return new S3StorageProvider({
+          ...options.s3Config,
+          driver: options.s3Config.driver || (options.driver as any),
+        });
 
       default:
         throw new Error(`Unsupported storage driver: ${options.driver}`);

@@ -58,8 +58,11 @@ export function getSellerUrl(): string {
   }
 
   // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.VERCEL === '1') {
+  if (process.env.RENDER === 'true' || process.env.VERCEL === '1') {
     return 'https://let-z-shop.vercel.app';
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://seller.letzshop.store';
   }
 
   // 4. Fallback for local development only

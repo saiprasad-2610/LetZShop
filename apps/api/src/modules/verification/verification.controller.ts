@@ -75,15 +75,15 @@ export class VerificationController {
     @Param('id') id: string,
     @Res() res: any,
   ) {
-    const { filePath, mimeType, filename } =
+    const { filePath, stream, mimeType, filename } =
       await this.verificationService.getDocumentStream(id, tenant.tenantId, false);
 
     res.header('Content-Type', mimeType);
     res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.header('Cache-Control', 'private, no-store');
 
-    const stream = fs.createReadStream(filePath);
-    return res.send(stream);
+    const responseStream = stream || (filePath ? fs.createReadStream(filePath) : null);
+    return res.send(responseStream);
   }
 
   @ApiBearerAuth()
@@ -95,14 +95,14 @@ export class VerificationController {
     @Param('id') id: string,
     @Res() res: any,
   ) {
-    const { filePath, mimeType, filename } =
+    const { filePath, stream, mimeType, filename } =
       await this.verificationService.getDocumentStream(id, tenant.tenantId, false);
 
     res.header('Content-Type', mimeType);
     res.header('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
     res.header('Cache-Control', 'private, no-store');
 
-    const stream = fs.createReadStream(filePath);
-    return res.send(stream);
+    const responseStream = stream || (filePath ? fs.createReadStream(filePath) : null);
+    return res.send(responseStream);
   }
 }
