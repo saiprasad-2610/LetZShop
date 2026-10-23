@@ -48,16 +48,17 @@ try {
   const notification = page.locator('[data-action-notification]');
   const send = async () => {
     await page.locator('#register-phone').fill('9876543210');
+    await page.locator('#register-email').fill('test@example.test');
     await page.getByRole('button', { name: 'Send Verification OTP', exact: true }).click();
     await notification.waitFor();
-    assert.match(await notification.textContent(), /Verification OTP sent/);
+    assert.match(await notification.textContent(), /Verification code sent/);
   };
   await send();
   await page.clock.fastForward(3900);
   assert.equal(await notification.count(), 1, 'success lasts approximately four seconds');
   await page.clock.fastForward(200);
   assert.equal(await notification.count(), 0, 'success auto-dismisses');
-  await page.getByRole('button', { name: 'Change Mobile Number', exact: true }).click();
+  await page.getByRole('button', { name: 'Change Email / Mobile', exact: true }).click();
   await send();
   await page.locator('input[placeholder="••••••"]').fill('111111');
   await page.getByRole('button', { name: 'Verify Code', exact: true }).click();
@@ -88,7 +89,7 @@ try {
   await page.locator('input[type="tel"]').fill('9876543210');
   await page.locator('form button[type="submit"]').click();
   await notification.waitFor();
-  assert.match(await notification.textContent(), /Recovery OTP sent/);
+  assert.match(await notification.textContent(), /Recovery code sent|Verification code sent/);
   await page.locator('input[placeholder="••••••"]').fill('111111');
   await page.locator('form button[type="submit"]').click();
   await page.waitForFunction(() => document.querySelector('[data-action-notification]')?.textContent.includes('Invalid recovery'));
