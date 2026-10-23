@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { isPublicMediaKey, localMediaRoot } from './local-media-root';
 import { avifFallbackFormat, compatibleAvifFile, convertAvifBuffer } from './compatible-image';
+import { resolveSafeStoragePath } from '@simply/storage';
 
 @ApiTags('Media & Storage')
 @Controller('media')
@@ -120,17 +121,12 @@ export class MediaController {
     const normalizedRoot = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep;
 
     let safeKey = (storageKey || '').replace(/^[\/\\]+/, '');
-    if (safeKey.startsWith('file/')) safeKey = safeKey.slice(5);
+    if (safeKey.startsWith('file/')) safeKey = safeKey.slice(5).replace(/^[\/\\]+/, '');
     if (!isPublicMediaKey(safeKey)) throw new NotFoundException('Requested media file not found.');
-    let absolutePath = path.resolve(rootDir, safeKey);
 
-    // If file prefix was included in safeKey (e.g. /media/file/<key>), also resolve without it
-    if ((!fs.existsSync(absolutePath) || !absolutePath.startsWith(normalizedRoot)) && safeKey.startsWith('file/')) {
-      const strippedKey = safeKey.slice(5).replace(/^[\/\\]+/, '');
-      const altPath = path.resolve(rootDir, strippedKey);
-      if (altPath.startsWith(normalizedRoot) && fs.existsSync(altPath)) {
-        absolutePath = altPath;
-      }
+    const { isSafe, absolutePath } = resolveSafeStoragePath(rootDir, safeKey);
+    if (!isSafe) {
+      throw new NotFoundException('Requested media file not found.');
     }
 
     const mimeMap: Record<string, string> = {

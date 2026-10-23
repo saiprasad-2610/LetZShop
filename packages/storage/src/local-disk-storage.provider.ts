@@ -38,6 +38,71 @@ const EXTENSION_MAP: Record<string, string> = {
   'video/mp4': '.mp4',
 };
 
+/**
+ * Validates and safely resolves a storage key within rootDir.
+ * Defends against:
+ * 1. Standard directory traversal (../, ..\, mixed / and \)
+ * 2. Sibling-prefix bypasses (e.g. /media-storage-evil starting with /media-storage)
+ * 3. URL-encoded and double-encoded traversal (%2e%2e%2f, %252e%252e)
+ * 4. Unsafe filenames with null bytes (\0)
+ */
+export function resolveSafeStoragePath(
+  rootDir: string,
+  storageKey: string,
+): { isSafe: boolean; absolutePath: string } {
+  if (!storageKey || typeof storageKey !== 'string') {
+    return { isSafe: false, absolutePath: '' };
+  }
+
+  // 1. Reject null bytes and control characters
+  if (storageKey.includes('\0')) {
+    return { isSafe: false, absolutePath: '' };
+  }
+
+  // 2. Decode URL encoding (including recursive/double encoding)
+  let decoded = storageKey;
+  try {
+    decoded = decodeURIComponent(storageKey);
+    if (decoded.includes('%')) {
+      try {
+        decoded = decodeURIComponent(decoded);
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    return { isSafe: false, absolutePath: '' };
+  }
+
+  if (decoded.includes('\0')) {
+    return { isSafe: false, absolutePath: '' };
+  }
+
+  // 3. Cross-platform normalization: convert all backslashes to forward slashes
+  const normalizedKey = decoded.replace(/\\/g, '/').replace(/^\/+/, '');
+
+  // 4. Resolve absolute path against rootDir
+  const resolvedRoot = path.resolve(rootDir);
+  const normalizedRoot = resolvedRoot.endsWith(path.sep)
+    ? resolvedRoot
+    : resolvedRoot + path.sep;
+  const absolutePath = path.resolve(resolvedRoot, normalizedKey);
+
+  // 5. Boundary confinement & sibling-prefix defense:
+  // - absolutePath must be inside normalizedRoot (has trailing separator)
+  // - path.relative must not start with '..' and must not be an absolute path
+  const relative = path.relative(resolvedRoot, absolutePath);
+  const isContained =
+    (absolutePath === resolvedRoot || absolutePath.startsWith(normalizedRoot)) &&
+    !relative.startsWith('..') &&
+    !path.isAbsolute(relative);
+
+  return {
+    isSafe: isContained,
+    absolutePath,
+  };
+}
+
 export class LocalDiskStorageProvider implements StorageProvider {
   public readonly type = 'LOCAL';
   private readonly rootDir: string;
@@ -80,8 +145,12 @@ export class LocalDiskStorageProvider implements StorageProvider {
     let absoluteTargetDir: string;
 
     if (input.storageKey) {
-      relativeKey = input.storageKey.replace(/^[\\\/]+/, '').replace(/\\/g, '/');
-      absoluteFilePath = path.resolve(this.rootDir, relativeKey);
+      const { isSafe, absolutePath } = resolveSafeStoragePath(this.rootDir, input.storageKey);
+      if (!isSafe) {
+        throw new Error('Access denied: target path escapes media storage root boundary');
+      }
+      absoluteFilePath = absolutePath;
+      relativeKey = path.relative(this.rootDir, absolutePath).replace(/\\/g, '/');
       absoluteTargetDir = path.dirname(absoluteFilePath);
     } else {
       const segments = [
@@ -92,18 +161,12 @@ export class LocalDiskStorageProvider implements StorageProvider {
       ].filter(Boolean);
 
       relativeKey = path.posix.join(...segments);
-      absoluteTargetDir = path.resolve(
-        this.rootDir,
-        this.sanitizeSegment(tenantId),
-        ...(storeId ? [this.sanitizeSegment(storeId)] : []),
-        this.sanitizeSegment(prefix),
-      );
-      absoluteFilePath = path.resolve(absoluteTargetDir, filename);
-    }
-
-    // Verify boundary confinement (Path Traversal defense)
-    if (!absoluteFilePath.startsWith(this.rootDir)) {
-      throw new Error('Access denied: target path escapes media storage root boundary');
+      const { isSafe, absolutePath } = resolveSafeStoragePath(this.rootDir, relativeKey);
+      if (!isSafe) {
+        throw new Error('Access denied: target path escapes media storage root boundary');
+      }
+      absoluteFilePath = absolutePath;
+      absoluteTargetDir = path.dirname(absoluteFilePath);
     }
 
     // 5. Ensure directory exists and write file
@@ -122,8 +185,8 @@ export class LocalDiskStorageProvider implements StorageProvider {
   }
 
   public async delete(storageKey: string): Promise<boolean> {
-    const absolutePath = this.resolvePath(storageKey);
     try {
+      const absolutePath = this.resolvePath(storageKey);
       if (fs.existsSync(absolutePath)) {
         await fs.promises.unlink(absolutePath);
         for (const format of ['webp', 'png']) {
@@ -191,10 +254,9 @@ export class LocalDiskStorageProvider implements StorageProvider {
     return obj ? obj.stream : null;
   }
 
-  private resolvePath(storageKey: string): string {
-    const safeKey = storageKey.replace(/^[\/\\]+/, '');
-    const absolutePath = path.resolve(this.rootDir, safeKey);
-    if (!absolutePath.startsWith(this.rootDir)) {
+  public resolvePath(storageKey: string): string {
+    const { isSafe, absolutePath } = resolveSafeStoragePath(this.rootDir, storageKey);
+    if (!isSafe) {
       throw new Error('Access denied: Path traversal detected in storageKey');
     }
     return absolutePath;
