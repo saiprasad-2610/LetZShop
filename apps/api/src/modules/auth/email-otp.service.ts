@@ -169,7 +169,7 @@ export class EmailOtpService {
         where: { id },
         data: { consumedAt: new Date() },
       });
-      return this.sentResponse(id, email);
+      throw new BadRequestException('Registration is unavailable for these details. Please sign in or use account recovery.');
     }
     let sent = false;
     try {

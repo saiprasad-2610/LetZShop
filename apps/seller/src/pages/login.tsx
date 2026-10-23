@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getStorefrontUrl } from '../utils/config';
 import { useRouter } from 'next/router';
 import { useAuth, apiClient } from '../context/AuthContext';
 import { Smartphone, Lock, KeyRound, ArrowRight, Store, RefreshCw, ShieldCheck, CheckCircle, Eye, EyeOff } from 'lucide-react';
@@ -38,6 +39,8 @@ export default function LoginPage() {
 
   const { user, store, loading: authLoading, login } = useAuth();
   const router = useRouter();
+  const [homeUrl, setHomeUrl] = useState('/');
+  useEffect(() => setHomeUrl(`${getStorefrontUrl()}/`), []);
   useEffect(() => {
     const tick = () => setResendSeconds(Math.max(0, Math.ceil((resendUntil - Date.now()) / 1000)));
     tick(); const interval = setInterval(tick, 1000); return () => clearInterval(interval);
@@ -316,15 +319,9 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4">
         {/* Brand Logo & Header */}
         <div className="text-center">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-white shadow-lg mb-4"
-            style={{ backgroundColor: 'var(--merchant-primary)' }}
-          >
-            <Store className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--merchant-text)' }}>
-            Simply E-Commerce
-          </h1>
+          <a href={homeUrl} aria-label="Back to LetzShop home" className="inline-flex items-center justify-center rounded-xl bg-white p-2 mb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+            <img src="/images/letzshop-logo.png" alt="LetzShop" width={180} height={64} className="h-12 w-auto object-contain" />
+          </a>
           <p className="mt-1 text-sm" style={{ color: 'var(--merchant-text-muted)' }}>
             Merchant Operations Portal
           </p>

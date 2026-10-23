@@ -31,10 +31,10 @@ describe("email OTP delivery boundaries", () => {
   });
   it("sends the code only through SMTP and never includes it or SMTP errors in logs", async () => {
     const mail = Object.create(MailService.prototype);
-    const sendMail = jest.fn().mockResolvedValue({});
+    const sendMail = jest.fn().mockResolvedValue({ accepted: ["recipient@example.test"], rejected: [], messageId: "test-id", response: "250 accepted" });
     const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
     Object.assign(mail, {
-      transporter: { sendMail },
+      transporter: { sendMail, verify: jest.fn().mockResolvedValue(true) },
       fromAddress: "test@example.test",
       logger,
     });
@@ -45,6 +45,10 @@ describe("email OTP delivery boundaries", () => {
       subject: "Your LetzShop verification code",
       text: expect.stringContaining("654321"),
     });
+    sendMail.mockResolvedValueOnce({ accepted: [], rejected: ["recipient@example.test"], response: "550 rejected" });
+    expect(await mail.sendVerificationOtp("recipient@example.test", "654321", 10)).toBe(false);
+    sendMail.mockResolvedValueOnce({ accepted: ["other@example.test"], rejected: [] });
+    expect(await mail.sendVerificationOtp("recipient@example.test", "654321", 10)).toBe(false);
     sendMail.mockRejectedValue(new Error("SMTP password=secret code=654321"));
     expect(
       await mail.sendVerificationOtp("recipient@example.test", "654321", 10),
@@ -62,6 +66,22 @@ describe("email OTP delivery boundaries", () => {
     expect((await provider.sendOtp("+919876543210", "654321")).success).toBe(
       false,
     );
+  });
+  it('does not send when SMTP connection/authentication verification fails', async () => {
+    const mail = Object.create(MailService.prototype);
+    const sendMail = jest.fn();
+    Object.assign(mail, { transporter: { verify: jest.fn().mockRejectedValue(new Error('private provider detail')), sendMail }, logger: { error: jest.fn() } });
+    expect(await mail.sendVerificationOtp('recipient@example.test', '654321', 10)).toBe(false);
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(mail.verificationReady).toBeNull();
+    expect(JSON.stringify(mail.logger.error.mock.calls)).not.toContain('private provider detail');
+  });
+  it('admin diagnostics cannot report simulation or recipient rejection as success', async () => {
+    const mail = Object.create(MailService.prototype);
+    Object.assign(mail, { transporter: null, logger: { log: jest.fn(), error: jest.fn() } });
+    expect((await mail.testSmtpConnection('recipient@example.test')).success).toBe(false);
+    Object.assign(mail, { transporter: { verify: jest.fn().mockResolvedValue(true), sendMail: jest.fn().mockResolvedValue({ accepted: [], rejected: ['recipient@example.test'] }) } });
+    expect((await mail.testSmtpConnection('recipient@example.test')).success).toBe(false);
   });
   it("test provider is unusable outside NODE_ENV=test", async () => {
     const before = process.env.NODE_ENV;

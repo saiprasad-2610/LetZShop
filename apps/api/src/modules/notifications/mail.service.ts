@@ -6,6 +6,16 @@ const formatPaise = (paise: number) => {
   return '₹' + (paise / 100).toFixed(2);
 };
 
+export function smtpDeliveryEvidence(result: any, to: string) {
+  const address = (entry: any) => String(typeof entry === 'string' ? entry : entry?.address || '').trim().toLowerCase();
+  return {
+    accepted: (result.accepted || []).some((entry: any) => address(entry) === to.trim().toLowerCase()),
+    rejected: (result.rejected || []).some((entry: any) => address(entry) === to.trim().toLowerCase()),
+    messageIdExists: Boolean(result.messageId),
+    responseClass: /^[245]\d\d/.exec(String(result.response || ''))?.[0]?.slice(0, 1).concat('xx') || 'UNKNOWN',
+  };
+}
+
 export interface OrderEmailContext {
   order: any;
   store: {
@@ -57,42 +67,63 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
   private readonly fromAddress: string;
+  private verificationReady: Promise<boolean> | null = null;
+  public lastVerificationDelivery: { accepted: boolean; rejected: boolean; messageIdExists: boolean; responseClass: string } | null = null;
 
   constructor() {
     const host = process.env.SMTP_HOST || 'smtp.letzshop.com';
     const port = parseInt(process.env.SMTP_PORT || '587', 10);
     const user = process.env.SMTP_USER || '';
     const pass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
-    this.fromAddress = process.env.SMTP_FROM || '"Letzshop Orders" <orders@letzshop.com>';
+    this.fromAddress = process.env.SMTP_FROM || `"LetzShop" <${user}>`;
 
     if (user && pass) {
       try {
         this.transporter = nodemailer.createTransport({
           host,
           port,
-          secure: port === 465,
+          secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+          requireTLS: port === 587,
           auth: { user, pass },
           connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
         });
         this.logger.log(`[SMTP] Transporter configured for host: ${host}:${port}`);
       } catch (err: any) {
-        this.logger.warn(`[SMTP] Failed to initialize transporter: ${err.message}. Emails will be logged to console.`);
+        this.logger.warn('[SMTP] Unable to initialize mail transport.');
       }
     } else {
       this.logger.log('[SMTP] Transporter not configured. Running in development simulation mode (logging outgoing emails).');
     }
   }
 
-  public async sendVerificationOtp(to: string, code: string, minutes: number): Promise<boolean> {
+  public async verifyTransport(): Promise<boolean> {
     if (!this.transporter) return false;
+    if (!this.verificationReady) {
+      this.verificationReady = this.transporter.verify().then(() => true).catch(() => {
+        this.logger.error('[SMTP] Connection/authentication verification failed.');
+        this.verificationReady = null;
+        return false;
+      });
+    }
+    return this.verificationReady;
+  }
+
+  public async sendVerificationOtp(to: string, code: string, minutes: number): Promise<boolean> {
+    this.lastVerificationDelivery = null;
+    if (!this.transporter || !await this.verifyTransport()) return false;
     try {
-      await this.transporter.sendMail({
+      const result = await this.transporter.sendMail({
         from: this.fromAddress, to, subject: 'Your LetzShop verification code',
         text: `Your verification code is ${code}. It expires in ${minutes} minutes. If you did not request this, ignore the email.`,
         html: `<p>Your LetzShop verification code is <strong>${code}</strong>.</p><p>It expires in ${minutes} minutes.</p><p>If you did not request this, ignore the email.</p>`,
       });
-      return true;
-    } catch { this.logger.error('[SMTP] Unable to send verification email.'); return false; }
+      this.lastVerificationDelivery = smtpDeliveryEvidence(result, to);
+      this.logger.log(`[SMTP] Verification delivery ${JSON.stringify(this.lastVerificationDelivery)}`);
+      return this.lastVerificationDelivery.accepted && !this.lastVerificationDelivery.rejected;
+    } catch {
+      this.verificationReady = null;
+      this.logger.error('[SMTP] Unable to send verification email.'); return false;
+    }
   }
 
   private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
@@ -103,16 +134,17 @@ export class MailService {
 
     if (this.transporter) {
       try {
-        await this.transporter.sendMail({
+        const result = await this.transporter.sendMail({
           from: this.fromAddress,
           to,
           subject,
           html,
         });
-        this.logger.log(`[SMTP] Sent email to ${to} | Subject: "${subject}"`);
-        return true;
+        const evidence = smtpDeliveryEvidence(result, to);
+        this.logger.log(`[SMTP] Notification delivery ${JSON.stringify(evidence)}`);
+        return evidence.accepted && !evidence.rejected;
       } catch (err: any) {
-        this.logger.error(`[SMTP ERROR] Failed to deliver email to ${to}: ${err.message}`);
+        this.logger.error('[SMTP] Unable to send notification email.');
         return false;
       }
     } else {
@@ -953,9 +985,10 @@ export class MailService {
   }
 
   public async testSmtpConnection(targetEmail: string): Promise<{ success: boolean; message: string }> {
-    if (!targetEmail || !targetEmail.includes('@')) {
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail.trim())) {
       throw new Error('Valid target email is required for SMTP test.');
     }
+    if (!await this.verifyTransport()) return { success: false, message: 'SMTP connection/authentication failed. Check server configuration.' };
     const html = `
       <div style="font-family: sans-serif; padding: 20px;">
         <h2>LetzShop SMTP Test</h2>
@@ -967,7 +1000,7 @@ export class MailService {
     if (!sent) {
       return { success: false, message: 'Failed to deliver test email. Check server SMTP configuration.' };
     }
-    return { success: true, message: `Test email dispatched to ${targetEmail} successfully.` };
+    return { success: true, message: 'SMTP provider accepted the test destination. Confirm receipt in Inbox or Spam.' };
   }
 
   public async sendSubAdminInviteEmail(params: {
