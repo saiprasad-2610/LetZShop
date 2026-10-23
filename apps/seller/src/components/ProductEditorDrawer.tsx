@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Plus,
@@ -60,7 +61,7 @@ interface ProductEditorDrawerProps {
   isOpen: boolean;
   productId: string | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (product?: any) => void;
 }
 
 const COMMON_OPTION_SUGGESTIONS = [
@@ -87,6 +88,29 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const [publicationStatus, setPublicationStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const frame = requestAnimationFrame(() => dialogRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savingRef.current) { event.preventDefault(); onCloseRef.current(); }
+      if (event.key !== 'Tab') return;
+      const nodes = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]') || []).filter(el => el.getClientRects().length);
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = previousOverflow; previouslyFocused?.focus(); };
+  }, [isOpen]);
   const [categories, setCategories] = useState<any[]>([]);
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -115,6 +139,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
   // Field validation errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (Object.values(formErrors).some(Boolean)) errorSummaryRef.current?.focus();
+  }, [formErrors]);
   const [variantLimitError, setVariantLimitError] = useState<string | null>(null);
 
   // Options & Variants
@@ -173,6 +201,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   };
 
   const resetForm = () => {
+    setPublicationStatus('PUBLISHED');
     setName('');
     setDescription('');
     setTranslations({});
@@ -202,6 +231,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     setLoading(true);
     try {
       const product = await api.catalog.getProduct(id);
+      setPublicationStatus(product.status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED');
       setName(product.name || product.title || '');
       setDescription(product.description || '');
       if (Array.isArray(product.translations)) {
@@ -387,7 +417,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
       return {
         title: titlePart,
         optionValues: optionMap,
-        sku: `${prefix}-${skuSlug}`,
+        sku: '', // Server generates a collision-safe SKU unless the merchant supplies one.
         pricePaise: defaultPricePaise,
         compareAtPaise: defaultComparePaise,
         inventoryQuantity: Number(stock) || 10,
@@ -757,6 +787,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
   };
 
   const handleSave = async () => {
+    if (savingRef.current || uploadingImage || loading) return;
     const errors: Record<string, string> = {};
 
     const trimmedName = name.trim();
@@ -816,6 +847,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     }
     setFormErrors({});
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const basePaise =
@@ -857,6 +889,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         description: description.trim() || undefined,
         categoryId: categoryId ? categoryId : null,
         mode,
+        status: publicationStatus,
         pricePaise: basePaise,
         compareAtPricePaise: comparePaise,
         stock: Number(stock) || 0,
@@ -890,7 +923,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
 
           return {
             id: v.id,
-            sku: v.sku.trim() || `${trimmedName.slice(0, 4).toUpperCase()}-V${idx + 1}`,
+            sku: v.sku.trim() || undefined,
             pricePaise: v.pricePaise !== null ? v.pricePaise : (basePaise || 0),
             compareAtPricePaise: v.compareAtPaise !== null ? v.compareAtPaise : comparePaise,
             stock: Number(v.inventoryQuantity) || 0,
@@ -927,13 +960,10 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         payload.translations = translationEntries;
       }
 
-      if (productId) {
-        await api.catalog.updateProduct(productId, payload);
-      } else {
-        await api.catalog.createProduct(payload);
-      }
-
-      onSaved();
+      const savedProduct = productId
+        ? await api.catalog.updateProduct(productId, payload)
+        : await api.catalog.createProduct(payload);
+      onSaved(savedProduct);
       onClose();
     } catch (err: any) {
       console.error('Failed to save product', err);
@@ -946,18 +976,21 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
         setFormErrors({ general: msg || 'Error saving product. Please try again.' });
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-drawer-title"
-      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs"
+      className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-xs"
     >
       <div className="w-full sm:max-w-3xl md:max-w-4xl bg-[var(--merchant-surface)] h-full flex flex-col shadow-2xl overflow-hidden border-l border-[var(--merchant-border)] animate-in slide-in-from-right duration-200 text-[var(--merchant-text)]">
         {/* Header */}
@@ -971,23 +1004,29 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => { if (!savingRef.current) onClose(); }}
+            disabled={saving}
+            aria-label="Close product editor"
             className="p-2 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] rounded-xl hover:bg-[var(--merchant-surface-raised)] transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
-          {/* General Form Error Banner */}
-          {formErrors.general && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{formErrors.general}</span>
-            </div>
-          )}
+        {Object.values(formErrors).some(Boolean) && (
+          <div ref={errorSummaryRef} tabIndex={-1} role="alert" className="mx-4 mt-3 p-3 shrink-0 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{formErrors.general || Object.values(formErrors).find(Boolean)}</span>
+          </div>
+        )}
 
+        {/* Scrollable Form Body */}
+        <div data-testid="product-form-body" className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
+          <label className="block text-xs font-bold">{t('products.statusCol')}
+            <select aria-label="Publication status" value={publicationStatus} onChange={e => setPublicationStatus(e.target.value as 'PUBLISHED' | 'DRAFT')} className="ml-3 rounded-lg p-2 bg-[var(--merchant-surface)] border border-[var(--merchant-border)]">
+              <option value="PUBLISHED">{t('products.published')}</option><option value="DRAFT">{t('products.draft')}</option>
+            </select>
+          </label>
           {/* SECTION 1: BASIC INFORMATION */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-[var(--merchant-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
@@ -1530,6 +1569,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
+                  aria-label="Enable product variants"
                   checked={hasVariants}
                   onChange={(e) => {
                     const checked = e.target.checked;
@@ -1998,6 +2038,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="px-4 py-2 text-xs font-semibold text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] transition"
           >
             Cancel
@@ -2006,7 +2047,7 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploadingImage}
+            disabled={saving || uploadingImage || loading} aria-busy={saving}
             className="px-6 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? (
@@ -2020,6 +2061,6 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 };

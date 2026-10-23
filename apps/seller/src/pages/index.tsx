@@ -1169,7 +1169,8 @@ export default function CompactDashboardPage() {
       </div>
 
       {/* Product Editor Drawer for seamless Add Product */}
-      <ProductEditorDrawer
+      {productDrawerOpen && <ProductEditorDrawer
+        key={store?.id}
         isOpen={productDrawerOpen}
         productId={null}
         onClose={() => setProductDrawerOpen(false)}
@@ -1177,7 +1178,7 @@ export default function CompactDashboardPage() {
           setProductDrawerOpen(false);
           loadDashboard(selectedPeriod, true);
         }}
-      />
+      />}
     </Layout>
   );
 }

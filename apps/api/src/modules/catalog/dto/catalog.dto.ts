@@ -72,10 +72,10 @@ export class CreateProductVariantDto {
   @IsString()
   id?: string;
 
-  @ApiProperty({ example: 'AUR-LSH-NVY-S' })
-  @IsNotEmpty()
+  @ApiPropertyOptional({ example: 'AUR-LSH-NVY-S' })
+  @IsOptional()
   @IsString()
-  sku: string;
+  sku?: string;
 
   @ApiPropertyOptional({ example: '8901234567890' })
   @IsOptional()
@@ -285,6 +285,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @ArrayMaxSize(3)
   @Type(() => CreateProductOptionDto)
   options?: CreateProductOptionDto[];
 
@@ -292,6 +293,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @ArrayMaxSize(100)
   @Type(() => CreateProductVariantDto)
   variants?: CreateProductVariantDto[];
 
