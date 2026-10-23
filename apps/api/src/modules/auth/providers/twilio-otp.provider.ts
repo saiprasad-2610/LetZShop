@@ -27,14 +27,13 @@ export class TwilioOtpProvider implements OtpProvider {
         this.isEnabled = false;
       }
     } else {
-      this.logger.warn('⚠️ Twilio credentials missing or invalid. Defaulting to development OTP fallback.');
+      this.logger.warn('SMS OTP unavailable: Twilio is not configured.');
     }
   }
 
   async sendOtp(phone: string, code: string): Promise<SendOtpResult> {
     if (!this.isEnabled || !this.client) {
-      this.logger.warn(`[OTP] SMS not dispatched to ${phone} (Twilio not configured). Verification OTP code: ${code}`);
-      return { success: true, isMock: true };
+      return { success: false, isMock: false };
     }
 
     try {
@@ -51,7 +50,7 @@ export class TwilioOtpProvider implements OtpProvider {
         isMock: false,
       };
     } catch (error: any) {
-      this.logger.error(`Failed to send real SMS to ${phone}. Error: ${error.message}`);
+      this.logger.error('SMS verification delivery failed.');
       return {
         success: false,
         isMock: false,

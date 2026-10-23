@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -187,8 +188,8 @@ export default function OrderReviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="w-8 h-8 border-4 border-gray-300 dark:border-slate-700 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface dark:bg-[var(--store-button-bg)] store-inverse">
+        <div className="w-8 h-8 border-4 border-[var(--store-border)] dark:border-slate-700 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
       </div>
     );
   }
@@ -204,17 +205,17 @@ export default function OrderReviewPage() {
           <div className="w-14 h-14 bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
             <ShieldCheck className="w-7 h-7" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-xl font-bold text-[var(--store-text-primary)] dark:text-white">
             Verified Review Required
           </h1>
-          <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+          <p className="text-xs text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)] leading-relaxed">
             {authError ||
               'Only customers who have successfully received their delivered order can leave a verified product review. Please check your delivery confirmation email or WhatsApp link.'}
           </p>
           <div className="pt-2">
             <Link
-              href={`/store/${slug}`}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+              href={getPublicStoreUrl(String(slug))}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white text-xs font-semibold rounded-xl shadow-xs transition"
             >
               <span>Back to Store</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -232,7 +233,7 @@ export default function OrderReviewPage() {
         <title>Share Your Feedback | Order #{orderNumber} | {store?.name || 'Store'}</title>
       </Head>
 
-      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between">
+      <div className="min-h-screen bg-slate-50/70 dark:bg-[var(--store-button-bg)] store-inverse text-[var(--store-text-primary)] dark:text-[var(--store-text-secondary)] flex flex-col justify-between">
         <div>
           {store && <StoreHeader store={store} themeConfig={themeConfig} />}
 
@@ -243,20 +244,20 @@ export default function OrderReviewPage() {
             <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Order #{orderNumber} • Delivered</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--store-text-primary)] dark:text-white tracking-tight">
             Write a review for your recent purchase
           </h1>
           {eligibleData.items?.length > 0 && (
-            <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm font-medium text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)] max-w-lg mx-auto">
               {eligibleData.items.length === 1 ? (
                 <>
-                  Reviewing <span className="font-semibold text-gray-900 dark:text-white">{eligibleData.items[0].productName}</span> from{' '}
-                  <span className="font-semibold text-gray-900 dark:text-white">{store?.name}</span>
+                  Reviewing <span className="font-semibold text-[var(--store-text-primary)] dark:text-white">{eligibleData.items[0].productName}</span> from{' '}
+                  <span className="font-semibold text-[var(--store-text-primary)] dark:text-white">{store?.name}</span>
                 </>
               ) : (
                 <>
-                  Reviewing <span className="font-semibold text-gray-900 dark:text-white">{eligibleData.items.map((i) => i.productName).join(', ')}</span> from{' '}
-                  <span className="font-semibold text-gray-900 dark:text-white">{store?.name}</span>
+                  Reviewing <span className="font-semibold text-[var(--store-text-primary)] dark:text-white">{eligibleData.items.map((i) => i.productName).join(', ')}</span> from{' '}
+                  <span className="font-semibold text-[var(--store-text-primary)] dark:text-white">{store?.name}</span>
                 </>
               )}
             </p>
@@ -264,7 +265,7 @@ export default function OrderReviewPage() {
         </div>
 
         {/* Respectful Content Notice (Requirement 30) */}
-        <div className="p-3.5 sm:p-4 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700/80 rounded-2xl text-xs text-gray-600 dark:text-gray-300 flex items-start gap-3">
+        <div className="p-3.5 sm:p-4 bg-[var(--store-surface)] store-surface dark:bg-slate-800/60 border border-[var(--store-border)] dark:border-slate-700/80 rounded-2xl text-xs text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)] flex items-start gap-3">
           <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
             Please keep your review respectful and based on your genuine experience. Inappropriate, offensive, or abusive content may be removed according to our review guidelines.
@@ -286,18 +287,18 @@ export default function OrderReviewPage() {
             return (
               <div
                 key={item.orderItemId}
-                className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5"
+                className="bg-[var(--store-surface)] store-surface dark:bg-[var(--store-button-bg)] store-inverse border border-[var(--store-border)] dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5"
               >
                 {/* Product Snapshot */}
-                <div className="flex items-center gap-4 border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-4 border-b border-[var(--store-border)] dark:border-slate-800 pb-4">
                   {item.productImage ? (
                     <img
                       src={item.productImage}
                       alt={item.productName}
-                      className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-slate-700 shrink-0"
+                      className="w-16 h-16 rounded-xl object-cover border border-[var(--store-border)] dark:border-slate-700 shrink-0"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-400 shrink-0">
+                    <div className="w-16 h-16 rounded-xl bg-[var(--store-surface)] store-surface dark:bg-[var(--store-button-bg)] store-inverse flex items-center justify-center text-[var(--store-text-secondary)] shrink-0">
                       <Package className="w-7 h-7" />
                     </div>
                   )}
@@ -305,11 +306,11 @@ export default function OrderReviewPage() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                       Verified Purchase
                     </span>
-                    <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white truncate mt-1">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--store-text-primary)] dark:text-white truncate mt-1">
                       {item.productName}
                     </h3>
                     {item.variantTitle && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="text-xs text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)] truncate">
                         {item.variantTitle}
                       </p>
                     )}
@@ -331,16 +332,16 @@ export default function OrderReviewPage() {
                             className={`w-3.5 h-3.5 ${
                               star <= form.rating
                                 ? 'fill-amber-400 text-amber-400'
-                                : 'text-gray-300 dark:text-slate-600'
+                                : 'text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)]'
                             }`}
                           />
                         ))}
                       </div>
                     </div>
                     {form.title && (
-                      <p className="text-xs font-bold text-gray-900 dark:text-white">"{form.title}"</p>
+                      <p className="text-xs font-bold text-[var(--store-text-primary)] dark:text-white">"{form.title}"</p>
                     )}
-                    <p className="text-xs text-gray-700 dark:text-gray-300 italic">"{form.body}"</p>
+                    <p className="text-xs text-[var(--store-text-primary)] dark:text-[var(--store-text-secondary)] italic">"{form.body}"</p>
 
                     <div className="flex items-center gap-2 pt-2 border-t border-emerald-500/20">
                       <Link
@@ -357,7 +358,7 @@ export default function OrderReviewPage() {
                   <div className="space-y-4">
                     {/* Star Rating Selector */}
                     <div>
-                      <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
+                      <label className="text-xs font-bold text-[var(--store-text-primary)] dark:text-[var(--store-text-secondary)] block mb-1.5">
                         Your Rating <span className="text-rose-500">*</span>
                       </label>
                       <div className="flex items-center gap-1.5">
@@ -373,12 +374,12 @@ export default function OrderReviewPage() {
                               className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${
                                 star <= form.rating
                                   ? 'fill-amber-400 text-amber-400 drop-shadow-xs'
-                                  : 'text-gray-300 dark:text-slate-700 hover:text-amber-200'
+                                  : 'text-[var(--store-text-secondary)] dark:text-[var(--store-text-primary)] hover:text-amber-200'
                               }`}
                             />
                           </button>
                         ))}
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 ml-2">
+                        <span className="text-xs font-semibold text-[var(--store-text-secondary)] dark:text-[var(--store-text-secondary)] ml-2">
                           {form.rating === 5
                             ? 'Excellent'
                             : form.rating === 4
@@ -394,7 +395,7 @@ export default function OrderReviewPage() {
 
                     {/* Optional Review Title */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                      <label className="text-xs font-semibold text-[var(--store-text-primary)] dark:text-[var(--store-text-secondary)] block mb-1">
                         Headline / Title (Optional)
                       </label>
                       <input
@@ -402,13 +403,13 @@ export default function OrderReviewPage() {
                         placeholder="e.g. Great quality and fast delivery!"
                         value={form.title}
                         onChange={(e) => handleFieldChange(item.orderItemId, 'title', e.target.value)}
-                        className="w-full text-xs p-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full text-xs p-3 rounded-xl border border-[var(--store-border)] dark:border-slate-800 bg-[var(--store-surface)] store-surface dark:bg-[var(--store-button-bg)] store-inverse text-[var(--store-text-primary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
 
                     {/* Review Body Textarea */}
                     <div>
-                      <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
+                      <label className="text-xs font-bold text-[var(--store-text-primary)] dark:text-[var(--store-text-secondary)] block mb-1">
                         Your Review <span className="text-rose-500">*</span>
                       </label>
                       <textarea
@@ -416,7 +417,7 @@ export default function OrderReviewPage() {
                         placeholder="Share your genuine experience with this product..."
                         value={form.body}
                         onChange={(e) => handleFieldChange(item.orderItemId, 'body', e.target.value)}
-                        className="w-full text-xs p-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 leading-relaxed"
+                        className="w-full text-xs p-3 rounded-xl border border-[var(--store-border)] dark:border-slate-800 bg-[var(--store-surface)] store-surface dark:bg-[var(--store-button-bg)] store-inverse text-[var(--store-text-primary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 leading-relaxed"
                       />
                     </div>
 
@@ -455,10 +456,10 @@ export default function OrderReviewPage() {
         </div>
 
         {/* Bottom Actions */}
-        <div className="flex items-center justify-center pt-4 border-t border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-center pt-4 border-t border-[var(--store-border)] dark:border-slate-800">
           <Link
-            href={`/store/${slug}`}
-            className="w-full sm:w-auto px-8 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl text-center shadow-xs transition flex items-center justify-center gap-1.5"
+            href={getPublicStoreUrl(String(slug))}
+            className="w-full sm:w-auto px-8 py-2.5 bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white text-xs font-semibold rounded-xl text-center shadow-xs transition flex items-center justify-center gap-1.5"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
             <span>Continue Shopping</span>

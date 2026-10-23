@@ -1,872 +1,102 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import {
-  Store,
-  ArrowRight,
-  Sparkles,
-  ShieldCheck,
-  Smartphone,
-  Zap,
-  TrendingUp,
-  ShoppingBag,
-  CreditCard,
-  CheckCircle2,
-  ChevronDown,
-  Globe,
-  Truck,
-  Lock,
-  BarChart3,
-  Layers,
-  Eye,
-  MessageCircle,
-  Check,
-  Palette,
-  Clock,
-  DollarSign,
-  Share2
-} from 'lucide-react';
+import { fetchLaunchPlan, LaunchPlan } from '../utils/launch-plan';
 import { getSellerUrl } from '../utils/config';
-import { LandingLocaleProvider, useLandingI18n, LandingLanguageSelect } from '@simply/i18n';
+import { LandingLocaleProvider, useLandingI18n } from '@simply/i18n';
+import { LandingNavbar } from '../components/landing/LandingNavbar';
+import { Screen1Hero } from '../components/landing/Screen1Hero';
+import { Screen2Problem } from '../components/landing/Screen2Problem';
+import { Screen3System } from '../components/landing/Screen3System';
+import { Screen4Categories } from '../components/landing/Screen4Categories';
+import { Screen5CustomerJourney } from '../components/landing/Screen5CustomerJourney';
+import { Screen6BrandStudio } from '../components/landing/Screen6BrandStudio';
+import { Screen7Pricing } from '../components/landing/Screen7Pricing';
+import { Screen8StepsFaqCta } from '../components/landing/Screen8StepsFaqCta';
+import { LandingFooter } from '../components/landing/LandingFooter';
 
 /**
- * Letz Shop Platform Landing Page (Root `/`)
- * Domain: letzshop.store
+ * LetZshop Public Landing Page (Root `/`)
+ * Clean, modern white/warm-white visual identity with blue & orange branding.
  */
-function LandingPageInner() {
-  const { t } = useLandingI18n();
-  const [sellerUrl, setSellerUrl] = useState(getSellerUrl());
+interface LandingPageProps {
+  initialLaunchPlan: LaunchPlan | null;
+  initialSellerUrl: string;
+  sellerOriginConfigured: boolean;
+}
+
+function LandingPageInner({ initialSellerUrl, sellerOriginConfigured, initialLaunchPlan }: LandingPageProps) {
+  // Serialize the same initial origin into server HTML and the first browser render.
+  const [sellerUrl, setSellerUrl] = useState(initialSellerUrl);
 
   useEffect(() => {
-    setSellerUrl(getSellerUrl());
-  }, []);
-
-  const [storeHandle, setStoreHandle] = useState('');
-  const [activeThemeTab, setActiveThemeTab] = useState<'horizon' | 'canvas' | 'aura' | 'modern'>('horizon');
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  const cleanHandle = storeHandle
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '')
-    .slice(0, 30);
-
-  const handleClaimStore = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = cleanHandle ? `&storeName=${encodeURIComponent(cleanHandle)}` : '';
-    window.location.href = `${sellerUrl}/login?mode=register${query}`;
-  };
-
-  const themes = [
-    {
-      id: 'horizon',
-      name: t('landing.themeHorizonName'),
-      tagline: t('landing.themeHorizonTagline'),
-      description: t('landing.themeHorizonDesc'),
-      palette: ['#0f172a', '#3b82f6', '#f8fafc'],
-      badge: t('landing.themeHorizonBadge'),
-      features: ['Full-width 16:9 4K hero banners', 'Floating glass action header', 'Edge-to-edge product showcase']
-    },
-    {
-      id: 'canvas',
-      name: t('landing.themeCanvasName'),
-      tagline: t('landing.themeCanvasTagline'),
-      description: t('landing.themeCanvasDesc'),
-      palette: ['#451a03', '#d97706', '#fef3c7'],
-      badge: t('landing.themeCanvasBadge'),
-      features: ['Luxury serif typography pairings', 'Craft storytelling hero cards', 'Subtle amber & gold accent touches']
-    },
-    {
-      id: 'aura',
-      name: t('landing.themeAuraName'),
-      tagline: t('landing.themeAuraTagline'),
-      description: t('landing.themeAuraDesc'),
-      palette: ['#000000', '#10b981', '#18181b'],
-      badge: t('landing.themeAuraBadge'),
-      features: ['OLED deep-black background', 'Vibrant emerald glow indicators', 'Minimalist high-contrast card styling']
-    },
-    {
-      id: 'modern',
-      name: t('landing.themeModernName'),
-      tagline: t('landing.themeModernTagline'),
-      description: t('landing.themeModernDesc'),
-      palette: ['#1e1b4b', '#6366f1', '#e0e7ff'],
-      badge: t('landing.themeModernBadge'),
-      features: ['Instant add-to-bag with micro-animations', 'Sticky mobile navigation bar', 'Dynamic badge promotion filters']
-    }
-  ];
-
-  const faqs = [
-    {
-      question: t('landing.faqQ1'),
-      answer: t('landing.faqA1'),
-    },
-    {
-      question: t('landing.faqQ2'),
-      answer: t('landing.faqA2'),
-    },
-    {
-      question: t('landing.faqQ3'),
-      answer: t('landing.faqA3'),
-    },
-    {
-      question: t('landing.faqQ4'),
-      answer: t('landing.faqA4'),
-    },
-    {
-      question: t('landing.faqQ5'),
-      answer: t('landing.faqA5'),
-    }
-  ];
+    setSellerUrl(sellerOriginConfigured ? initialSellerUrl : getSellerUrl());
+  }, [initialSellerUrl, sellerOriginConfigured]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between font-sans antialiased selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
       <Head>
-        <title>Letz Shop — Next-Gen Digital Commerce Platform | letzshop.store</title>
+        <title>LetZshop — Build the Online Store Your Brand Deserves | letzshop.store</title>
         <meta
           name="description"
-          content="Launch your online store in 60 seconds with Letz Shop. Ultra-HD themes, 1-tap checkout, instant UPI payments, and your custom domain on letzshop.store."
+          content="Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — with the Launch plan on LetZshop."
         />
-        <meta property="og:title" content="Letz Shop — Launch Your Online Store in 60 Seconds" />
-        <meta property="og:description" content="Sell everywhere with Letz Shop on letzshop.store. High-converting storefronts, zero coding, and direct payouts." />
+        <meta property="og:title" content="LetZshop — Build the Online Store Your Brand Deserves" />
+        <meta
+          property="og:description"
+          content="Branded storefront, UPI payments, WhatsApp commerce, and connected order management for Indian merchants on LetZshop."
+        />
+        <meta property="og:type" content="website" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {/* Top Notification Announcement Bar */}
-      <div className="bg-gradient-to-r from-indigo-900 via-indigo-600 to-purple-700 text-white text-xs py-2 px-4 text-center font-medium relative z-40 border-b border-indigo-500/20 shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider backdrop-blur-xs">
-            <Sparkles className="w-3 h-3 text-amber-300" />
-            Letz Shop v2.0 Live
-          </span>
-          <span>{t('landing.announcement')}</span>
-          <a
-            href={`${sellerUrl}/login?mode=register`}
-            className="underline underline-offset-2 font-bold hover:text-amber-200 transition ml-1"
-          >
-            {t('landing.startFree')}
-          </a>
-        </div>
-      </div>
-
-      {/* Floating Glass Navigation Header */}
-      <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3.5 transition-all">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Brand Logo */}
-          <a href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 text-white flex items-center justify-center font-black text-base shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 group-hover:scale-105 transition-transform duration-300">
-              <span className="tracking-tighter">LS</span>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-white group-hover:text-indigo-300 transition">
-                  Letz Shop
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                  .store
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-medium tracking-wide">
-                Direct Merchant Commerce
-              </span>
-            </div>
-          </a>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-300">
-            <a href="#features" className="hover:text-white transition">{t('landing.features')}</a>
-            <a href="#themes" className="hover:text-white transition">{t('landing.themes')}</a>
-            <a href="#how-it-works" className="hover:text-white transition">{t('landing.howItWorks')}</a>
-            <a href="#faq" className="hover:text-white transition">{t('landing.faq')}</a>
-            <a
-              href={`${sellerUrl}/store-preview`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-slate-400 hover:text-indigo-400 transition"
-            >
-              <span>{t('landing.livePreview')}</span>
-              <Eye className="w-3.5 h-3.5" />
-            </a>
-          </nav>
-
-          {/* Action CTAs & Language Switcher */}
-          <div className="flex items-center gap-3">
-            <LandingLanguageSelect />
-            <a
-              href={`${sellerUrl}/login`}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white transition rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800"
-            >
-              {t('landing.merchantLogin')}
-            </a>
-            <a
-              href={`${sellerUrl}/login?mode=register`}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>{t('landing.createFreeStore')}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-      </header>
+      {/* Navigation Header */}
+      <LandingNavbar sellerUrl={sellerUrl} />
 
       {/* Main Content */}
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-4 sm:px-6 overflow-hidden">
-          {/* Subtle Ambient Glow Orbs */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/20 to-pink-600/10 rounded-full blur-3xl pointer-events-none -z-10" />
-          <div className="absolute top-10 left-10 w-72 h-72 bg-blue-600/10 rounded-full blur-2xl pointer-events-none -z-10" />
+      <main data-landing-main className="flex-1 w-full overflow-x-hidden">
+        {/* Screen 1: Hero */}
+        <Screen1Hero sellerUrl={sellerUrl} />
 
-          <div className="max-w-5xl mx-auto text-center space-y-8">
-            {/* Live Indicator Pill */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/90 border border-indigo-500/30 text-indigo-300 text-xs font-medium shadow-md shadow-indigo-950/40 backdrop-blur-md">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>Ultra-HD Commerce Engine • <strong>letzshop.store</strong></span>
-            </div>
+        {/* Screen 2: The Merchant Problem */}
+        <Screen2Problem />
 
-            {/* Headline */}
-            <div className="space-y-4 max-w-4xl mx-auto">
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
-                {t('landing.heroTitlePre')}{' '}
-                <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-                  {t('landing.heroTitleGradient')}
-                </span>
-              </h1>
-              <p className="text-base sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
-                {t('landing.heroSubtitle')}
-              </p>
-            </div>
+        {/* Screen 3: One Store, One System */}
+        <Screen3System />
 
-            {/* Interactive Domain Claimer Bar */}
-            <div className="pt-2 max-w-xl mx-auto">
-              <form
-                onSubmit={handleClaimStore}
-                className="p-2 sm:p-2.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl shadow-indigo-950/60 backdrop-blur-xl flex flex-col sm:flex-row items-center gap-2 text-left"
-              >
-                <div className="flex items-center flex-1 w-full px-3 py-2 bg-slate-950 rounded-xl border border-slate-800 text-sm">
-                  <span className="text-slate-500 text-xs font-mono shrink-0 select-none">
-                    https://
-                  </span>
-                  <input
-                    type="text"
-                    value={storeHandle}
-                    onChange={(e) => setStoreHandle(e.target.value)}
-                    placeholder="yourbrand"
-                    className="w-full bg-transparent px-1.5 py-0.5 text-white font-semibold text-sm placeholder:text-slate-600 focus:outline-none font-mono"
-                  />
-                  <span className="text-indigo-400 text-xs font-mono font-bold shrink-0 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 select-none">
-                    .letzshop.store
-                  </span>
-                </div>
+        {/* Screen 4: Your Business Goes Online (Interactive Category Showcase) */}
+        <Screen4Categories />
 
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>{t('landing.claimButton')}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </form>
+        {/* Screen 5: Customer Visit to Delivery */}
+        <Screen5CustomerJourney />
 
-              <div className="pt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-slate-400">
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.noCardNeeded')}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.instantSetup')}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> {t('landing.freeSsl')}
-                </span>
-              </div>
-            </div>
+        {/* Screen 6: Brand Studio / Make It Yours (Interactive Canonical Themes) */}
+        <Screen6BrandStudio sellerUrl={sellerUrl} />
 
-            {/* Visual SaaS Showcase & Device Mockups */}
-            <div className="pt-10 max-w-5xl mx-auto">
-              <div className="relative rounded-3xl p-3 sm:p-5 bg-gradient-to-b from-slate-800/80 via-slate-900/60 to-slate-950/90 border border-slate-700/80 shadow-2xl shadow-indigo-950/80 backdrop-blur-xl">
-                {/* Browser Top Window Chrome */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800 px-2 text-xs text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-                    <span className="ml-2 font-mono text-[11px] text-slate-400 hidden sm:inline">
-                      https://sairamtea.letzshop.store
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-mono text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span>Verified Letz Shop Store</span>
-                  </div>
-                </div>
+        {/* Screen 7: Value + ₹999 */}
+        <Screen7Pricing sellerUrl={sellerUrl} initialPlan={initialLaunchPlan} />
 
-                {/* Dashboard & Storefront Dual Mockup */}
-                <div className="pt-4 grid grid-cols-1 lg:grid-cols-12 gap-5 text-left">
-                  {/* Left: Merchant Command Telemetry (7 cols) */}
-                  <div className="lg:col-span-7 bg-slate-900/90 rounded-2xl p-5 border border-slate-800 space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
-                          Seller Telemetry Hub
-                        </span>
-                        <h2 className="text-base font-bold text-white">Live Store Performance</h2>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Live Sync
-                      </span>
-                    </div>
-
-                    {/* Stats Metric Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Today's Sales</span>
-                        <span className="text-lg font-black text-white">₹1,48,250</span>
-                        <span className="text-[10px] text-emerald-400 font-semibold block mt-0.5">
-                          ↑ +34.2% vs yesterday
-                        </span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Orders Placed</span>
-                        <span className="text-lg font-black text-white">284</span>
-                        <span className="text-[10px] text-indigo-400 font-semibold block mt-0.5">
-                          100% UPI & Razorpay
-                        </span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 col-span-2 sm:col-span-1">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Active Shoppers</span>
-                        <span className="text-lg font-black text-emerald-400">142 Live</span>
-                        <span className="text-[10px] text-slate-500 block mt-0.5">
-                          Browsing products now
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Recent Transaction Activity Stream */}
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Recent Orders Feed
-                      </span>
-                      <div className="space-y-1.5">
-                        <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                              ₹
-                            </div>
-                            <div>
-                              <p className="font-semibold text-white">Royal Darjeeling First Flush (250g)</p>
-                              <p className="text-[10px] text-slate-500 font-mono">Order #8942 • Bengaluru, IN</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-emerald-400">₹890</span>
-                            <span className="text-[10px] text-slate-500 block">UPI • Paid</span>
-                          </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs">
-                              ₹
-                            </div>
-                            <div>
-                              <p className="font-semibold text-white">Artisanal Ceramic Teapot Set</p>
-                              <p className="text-[10px] text-slate-500 font-mono">Order #8941 • Mumbai, IN</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-emerald-400">₹1,950</span>
-                            <span className="text-[10px] text-slate-500 block">Card • Paid</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Mobile Storefront Customer View (5 cols) */}
-                  <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 to-indigo-950/50 rounded-2xl p-4 border border-indigo-500/30 flex flex-col justify-between space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-4 h-4 text-indigo-400" />
-                        <span className="text-xs font-bold text-white">Customer Mobile Storefront</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-slate-400">Ultra-HD 16:9</span>
-                    </div>
-
-                    {/* Smartphone Preview Visual */}
-                    <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-lg space-y-2 p-2">
-                      {/* Store Header Mock */}
-                      <div className="flex items-center justify-between px-2 py-1 border-b border-slate-800 text-[11px]">
-                        <span className="font-bold text-white tracking-tight">SAIRAM TEA CO.</span>
-                        <div className="flex items-center gap-2 text-slate-400">
-                          <ShoppingBag className="w-3.5 h-3.5 text-indigo-400" />
-                          <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 px-1 rounded">2</span>
-                        </div>
-                      </div>
-
-                      {/* Mini Hero Banner */}
-                      <div className="relative h-28 rounded-lg overflow-hidden bg-gradient-to-r from-amber-950 via-stone-900 to-slate-900 flex items-center justify-center p-3 text-center border border-slate-800">
-                        <div className="absolute inset-0 bg-black/40" />
-                        <div className="relative z-10 space-y-1">
-                          <span className="text-[8px] font-mono uppercase tracking-widest text-amber-300">
-                            Heritage Collection 2026
-                          </span>
-                          <p className="text-xs font-black text-white leading-tight">
-                            Handpicked Estate Teas & Ceramics
-                          </p>
-                          <span className="inline-block text-[9px] bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded-full mt-1">
-                            Explore Catalog →
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Fast Product Card */}
-                      <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                          <div className="w-full h-14 rounded bg-stone-800/80 mb-1.5 flex items-center justify-center text-slate-500 font-mono text-[9px]">
-                            🍵 High-Res Asset
-                          </div>
-                          <span className="font-bold text-white block truncate">Assam Golden Tip</span>
-                          <span className="text-emerald-400 font-bold">₹490</span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                          <div className="w-full h-14 rounded bg-stone-800/80 mb-1.5 flex items-center justify-center text-slate-500 font-mono text-[9px]">
-                            🫖 High-Res Asset
-                          </div>
-                          <span className="font-bold text-white block truncate">Matcha Whisk Set</span>
-                          <span className="text-emerald-400 font-bold">₹750</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* WhatsApp Checkout Bar */}
-                    <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageCircle className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[11px] font-semibold">1-Click WhatsApp Ordering Active</span>
-                      </div>
-                      <span className="text-[10px] font-bold bg-emerald-500/20 px-2 py-0.5 rounded-full text-emerald-200">
-                        Enabled
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Live Social Proof / Category Strip */}
-        <section className="py-10 border-y border-slate-800/80 bg-slate-900/40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t('landing.categoryStripHeading')}
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-slate-300 font-medium">
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                {t('landing.catArtisanal')}
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                {t('landing.catFashion')}
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                {t('landing.catHandicrafts')}
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                {t('landing.catJewelry')}
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                {t('landing.catWellness')}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Why Choose Letz Shop — The Bento Grid Pillars */}
-        <section id="features" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto space-y-16">
-          <div className="text-center space-y-4 max-w-3xl mx-auto">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-              {t('landing.features')}
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              {t('landing.featuresHeading')}
-            </h2>
-            <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-              {t('landing.featuresSubtitle')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Feature 1: Ultra-HD Themes */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Palette className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature6Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature6Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-indigo-400 flex items-center gap-1 pt-1">
-                <span>Horizon • Canvas • Aura • Neo</span>
-              </div>
-            </div>
-
-            {/* Feature 2: 1-Tap Checkout */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Zap className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature1Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature1Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-purple-400 flex items-center gap-1 pt-1">
-                <span>UPI QR • Cards • NetBanking • COD</span>
-              </div>
-            </div>
-
-            {/* Feature 3: WhatsApp Commerce */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature2Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature2Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1 pt-1">
-                <span>Instant customer engagement</span>
-              </div>
-            </div>
-
-            {/* Feature 4: Subdomains on letzshop.store */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Globe className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature3Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature3Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-blue-400 flex items-center gap-1 pt-1">
-                <span>yourbrand.letzshop.store</span>
-              </div>
-            </div>
-
-            {/* Feature 5: Atomic Inventory Control */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature4Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature4Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-amber-400 flex items-center gap-1 pt-1">
-                <span>Automated stock protection</span>
-              </div>
-            </div>
-
-            {/* Feature 6: Bank-Grade PIN & Direct Payouts */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.feature5Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.feature5Desc')}
-              </p>
-              <div className="text-[11px] font-semibold text-rose-400 flex items-center gap-1 pt-1">
-                <span>Direct settlement to bank</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Interactive Theme Showcase */}
-        <section id="themes" className="py-24 px-4 sm:px-6 bg-slate-900/50 border-y border-slate-800/80">
-          <div className="max-w-6xl mx-auto space-y-12">
-            <div className="text-center space-y-3 max-w-2xl mx-auto">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                {t('landing.themes')}
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black text-white">
-                {t('landing.themesHeading')}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                {t('landing.themesSubtitle')}
-              </p>
-            </div>
-
-            {/* Theme Tabs */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {themes.map((theme) => (
-                <button
-                  key={theme.id}
-                  onClick={() => setActiveThemeTab(theme.id as any)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                    activeThemeTab === theme.id
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                  <span>{theme.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Active Theme Preview Card */}
-            {(() => {
-              const current = themes.find((t) => t.id === activeThemeTab) || themes[0];
-              return (
-                <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-10 shadow-2xl space-y-8">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                        {current.badge}
-                      </span>
-                      <h3 className="text-2xl font-black text-white mt-2">{current.tagline}</h3>
-                      <p className="text-xs sm:text-sm text-slate-400 max-w-xl mt-1">{current.description}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-950 border border-slate-800 text-xs">
-                        <span className="text-[10px] text-slate-400 font-mono">Palette:</span>
-                        {current.palette.map((c, i) => (
-                          <span
-                            key={i}
-                            className="w-4 h-4 rounded-full border border-white/20 inline-block shadow-xs"
-                            style={{ backgroundColor: c }}
-                          />
-                        ))}
-                      </div>
-
-                      <a
-                        href={`${sellerUrl}/login?mode=register`}
-                        className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-950 text-xs font-bold transition shadow-sm flex items-center gap-1.5 shrink-0"
-                      >
-                        <span>{t('landing.applyToStore')}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Highlights Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {current.features.map((feat, idx) => (
-                      <div key={idx} className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 flex items-start gap-3">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="text-xs font-semibold text-slate-300">{feat}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </section>
-
-        {/* How It Works (3 Steps) */}
-        <section id="how-it-works" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto space-y-16">
-          <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-              {t('landing.howItWorks')}
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              {t('landing.howItWorksHeading')}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {/* Step 1 */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-indigo-600/30">
-                1
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.step1Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.step1Desc')}
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-purple-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-purple-600/30">
-                2
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.step2Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.step2Desc')}
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-base flex items-center justify-center shadow-lg shadow-emerald-600/30">
-                3
-              </div>
-              <h3 className="text-lg font-bold text-white">{t('landing.step3Title')}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('landing.step3Desc')}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ Section */}
-        <section id="faq" className="py-24 px-4 sm:px-6 bg-slate-900/40 border-t border-slate-800/80">
-          <div className="max-w-4xl mx-auto space-y-12">
-            <div className="text-center space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                {t('landing.faq')}
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black text-white">{t('landing.faqHeading')}</h2>
-            </div>
-
-            <div className="space-y-3">
-              {faqs.map((faq, idx) => {
-                const isOpen = openFaq === idx;
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden transition"
-                  >
-                    <button
-                      onClick={() => setOpenFaq(isOpen ? null : idx)}
-                      className="w-full p-5 text-left flex items-center justify-between gap-4 text-sm font-bold text-white hover:text-indigo-300 transition"
-                    >
-                      <span>{faq.question}</span>
-                      <ChevronDown
-                        className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
-                          isOpen ? 'rotate-180 text-indigo-400' : ''
-                        }`}
-                      />
-                    </button>
-                    {isOpen && (
-                      <div className="px-5 pb-5 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* High-Impact Closing Call-to-Action */}
-        <section className="py-24 px-4 sm:px-6 relative overflow-hidden">
-          <div className="max-w-5xl mx-auto rounded-3xl p-8 sm:p-14 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 border border-indigo-500/40 shadow-2xl shadow-indigo-950/80 text-center space-y-6 relative">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-200 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>{t('landing.heroBadge')}</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-2xl mx-auto">
-              {t('landing.ctaHeading')}
-            </h2>
-
-            <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto leading-relaxed">
-              {t('landing.ctaSubtitle')}
-            </p>
-
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
-              <a
-                href={`${sellerUrl}/login?mode=register`}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-slate-100 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>{t('landing.ctaButton')}</span>
-                <ArrowRight className="w-4 h-4 text-slate-950" />
-              </a>
-
-              <a
-                href={`${sellerUrl}/login`}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-2"
-              >
-                <span>{t('landing.merchantLogin')}</span>
-              </a>
-            </div>
-
-            <div className="text-[11px] text-slate-400 pt-2">
-              {t('landing.noCardNeeded')} • {t('landing.instantSetup')}
-            </div>
-          </div>
-        </section>
+        {/* Screen 8: How It Works + FAQ + Final CTA */}
+        <Screen8StepsFaqCta sellerUrl={sellerUrl} />
       </main>
 
-      {/* Comprehensive Footer */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-12 px-4 sm:px-8 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8 text-left">
-          {/* Col 1: Brand Info */}
-          <div className="space-y-3 md:col-span-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                LS
-              </div>
-              <span className="font-extrabold text-base text-white tracking-tight">Letz Shop</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                letzshop.store
-              </span>
-            </div>
-            <p className="text-slate-500 text-[11px] leading-relaxed">
-              {t('landing.footerBuiltFor')}
-            </p>
-          </div>
-
-          {/* Col 2: Platform Links */}
-          <div className="space-y-2">
-            <p className="font-bold text-white uppercase tracking-wider text-[11px]">{t('landing.features')}</p>
-            <ul className="space-y-1.5 text-slate-400">
-              <li><a href="#features" className="hover:text-white transition">{t('landing.features')}</a></li>
-              <li><a href="#themes" className="hover:text-white transition">{t('landing.themes')}</a></li>
-              <li><a href="#how-it-works" className="hover:text-white transition">{t('landing.howItWorks')}</a></li>
-              <li><a href={`${sellerUrl}/store-preview`} target="_blank" rel="noreferrer" className="hover:text-white transition">{t('landing.livePreview')}</a></li>
-            </ul>
-          </div>
-
-          {/* Col 3: Merchant Portal */}
-          <div className="space-y-2">
-            <p className="font-bold text-white uppercase tracking-wider text-[11px]">{t('landing.merchantLogin')}</p>
-            <ul className="space-y-1.5 text-slate-400">
-              <li><a href={`${sellerUrl}/login?mode=register`} className="hover:text-white transition">{t('landing.createFreeStore')}</a></li>
-              <li><a href={`${sellerUrl}/login`} className="hover:text-white transition">{t('landing.merchantLogin')}</a></li>
-              <li><a href="#faq" className="hover:text-white transition">{t('landing.faq')}</a></li>
-            </ul>
-          </div>
-
-          {/* Col 4: Domain & Trust */}
-          <div className="space-y-2">
-            <p className="font-bold text-white uppercase tracking-wider text-[11px]">Domain & Security</p>
-            <p className="text-[11px] text-slate-500">
-              Store URL scheme: <code className="text-indigo-400 font-mono">yourbrand.letzshop.store</code>
-            </p>
-            <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>{t('landing.freeSsl')}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Copyright */}
-        <div className="pt-8 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
-          <p>© 2026 Letz Shop Inc. (letzshop.store). {t('landing.allRightsReserved')}</p>
-          <div className="flex items-center gap-4">
-            <a href="#features" className="hover:text-slate-300 transition">{t('landing.terms')}</a>
-            <a href="#features" className="hover:text-slate-300 transition">{t('landing.privacy')}</a>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+      <LandingFooter sellerUrl={sellerUrl} />
     </div>
   );
 }
 
-export default function PlatformLandingPage() {
+export async function getStaticProps() {
+  return { revalidate: 300, props: {
+    initialLaunchPlan: await fetchLaunchPlan(),
+    initialSellerUrl: getSellerUrl(),
+    sellerOriginConfigured: Boolean(process.env.NEXT_PUBLIC_SELLER_URL || process.env.SELLER_URL || process.env.SELLER_DASHBOARD_URL),
+  } };
+}
+
+export default function PlatformLandingPage(props: LandingPageProps) {
   return (
     <LandingLocaleProvider>
-      <LandingPageInner />
+      <LandingPageInner {...props} />
     </LandingLocaleProvider>
   );
 }

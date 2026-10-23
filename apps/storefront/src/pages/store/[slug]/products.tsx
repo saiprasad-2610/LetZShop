@@ -24,6 +24,7 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { formatPaise } from '@simply/ui';
+import { normalizeCatalogHeader } from '@simply/types';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
 
 export default function StoreProductsPage() {
@@ -40,6 +41,30 @@ export default function StoreProductsPage() {
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'newest'>('featured');
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogPages, setCatalogPages] = useState(1);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  useEffect(() => { setCatalogPage(1); }, [slug, activeCategory, searchQuery, sortBy]);
+  useEffect(() => {
+    if (!slug || !storeData?.store?.id) return;
+    let current = true;
+    setCatalogLoading(true);
+    const timer = setTimeout(() => {
+      api.stores.getPublicProducts(String(slug), { page: catalogPage, limit: 20, category: activeCategory === 'all' ? undefined : activeCategory, q: searchQuery, sort: sortBy, previewSecret: preview ? String(preview) : undefined }).then((res: any) => {
+        if (!current) return;
+        setStoreData((prev: any) => ({ ...prev, products: res.products }));
+        setCatalogPages(res.pagination.totalPages || 1);
+      }).catch((error: any) => { if (current) toast.error('Could not load products', error.message); }).finally(() => { if (current) setCatalogLoading(false); });
+    }, 250);
+    return () => { current = false; clearTimeout(timer); };
+  }, [slug, storeData?.store?.id, activeCategory, searchQuery, sortBy, catalogPage, preview]);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true' && !loading && storeData) {
+      window.parent.postMessage({ type: 'CATALOG_PREVIEW_READY' }, '*');
+    }
+  }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
@@ -77,7 +102,7 @@ export default function StoreProductsPage() {
               ...prev,
               themeConfig: {
                 ...prev.themeConfig,
-                ...event.data.themeConfig,
+                ...normalizeCatalogHeader(event.data.themeConfig),
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
@@ -97,7 +122,7 @@ export default function StoreProductsPage() {
     setLoading(true);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
-      setStoreData(res);
+      setStoreData({ ...res, themeConfig: normalizeCatalogHeader(res.themeConfig) });
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
@@ -154,7 +179,7 @@ export default function StoreProductsPage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
-      toast.success(t('cartToast.added'));
+      toast.cartAdded(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2000);
     } catch (err: any) {
       console.error('Quick add failed', err);
@@ -166,10 +191,10 @@ export default function StoreProductsPage() {
 
   if (loading || !storeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-medium text-gray-500">Loading catalog...</p>
+          <div className="w-10 h-10 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-medium text-[var(--store-text-secondary)]">Loading catalog...</p>
         </div>
       </div>
     );
@@ -179,37 +204,12 @@ export default function StoreProductsPage() {
   const themeCode = themeConfig?.themeId || 'atelier';
   const productsConfig = themeConfig?.pages?.products || {};
 
-  // Filter products by category & search
-  let processedProducts = [...products];
-
-  if (activeCategory !== 'all') {
-    processedProducts = processedProducts.filter((p: any) => p.categoryId === activeCategory);
-  }
-
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    processedProducts = processedProducts.filter(
-      (p: any) =>
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.title && p.title.toLowerCase().includes(q)) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        (p.category?.name && p.category.name.toLowerCase().includes(q))
-    );
-  }
-
-  // Sort products
-  if (sortBy === 'price_asc') {
-    processedProducts.sort((a, b) => (a.pricePaise || a.variants?.[0]?.pricePaise || 0) - (b.pricePaise || b.variants?.[0]?.pricePaise || 0));
-  } else if (sortBy === 'price_desc') {
-    processedProducts.sort((a, b) => (b.pricePaise || b.variants?.[0]?.pricePaise || 0) - (a.pricePaise || a.variants?.[0]?.pricePaise || 0));
-  } else if (sortBy === 'newest') {
-    processedProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }
+  const processedProducts = products;
 
   // Titles & text from vendor customization
-  const pageTitle = productsConfig.pageTitle || 'Our Collection';
-  const pageSubtitle = productsConfig.pageSubtitle || `Explore our complete selection of handcrafted offerings from ${store.name}.`;
-  const badgeText = productsConfig.badgeText || 'Direct from Merchant';
+  const pageTitle = productsConfig.pageTitle ?? 'Our Collection';
+  const pageSubtitle = productsConfig.pageSubtitle ?? `Explore our complete selection of handcrafted offerings from ${store.name}.`;
+  const badgeText = productsConfig.badgeText ?? 'Direct from Merchant';
 
   return (
     <ThemeWrapper themeConfig={themeConfig} branding={themeConfig?.branding}>
@@ -245,48 +245,48 @@ export default function StoreProductsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-5 sm:space-y-6">
 
         {/* Page Hero Header Banner */}
-        <div className="relative rounded-2xl overflow-hidden p-5 sm:p-7 border border-gray-200/80 shadow-xs bg-white text-left space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-gray-100 text-gray-700">
-            <Sparkles className="w-3 h-3 text-amber-500" />
-            <span className="font-bold text-gray-900">{store.name}</span>
-            <span className="text-gray-400">•</span>
-            <span>{badgeText}</span>
+        <div data-testid="catalog-header" className="relative rounded-2xl overflow-hidden p-5 sm:p-7 border border-gray-200/80 shadow-xs bg-[var(--store-surface)] store-surface text-left space-y-2 [overflow-wrap:anywhere]">
+          <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 px-3 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)]">
+            <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
+            <span className="font-bold text-[var(--store-text-primary)]">{store.name}</span>
+            <span className="text-[var(--store-text-secondary)]">•</span>
+            <span data-catalog-field="badgeText" className="min-w-0">{badgeText}</span>
           </div>
-          <h1 className={`text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight ${
+          <h1 className={`text-2xl sm:text-4xl font-bold text-[var(--store-text-primary)] tracking-tight ${
             themeCode === 'atelier' ? 'font-serif' :
             themeCode === 'pulse' ? 'font-black uppercase' :
             themeCode === 'foundry' ? 'font-mono' : ''
           }`}>
             <span className="text-amber-800 block text-xs sm:text-sm font-semibold tracking-wider uppercase font-mono mb-0.5">{store.name} Collection</span>
-            <span>{pageTitle}</span>
+            <span data-catalog-field="pageTitle" className="block text-balance">{pageTitle}</span>
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 max-w-2xl leading-relaxed">
+          <p data-catalog-field="pageSubtitle" className="text-xs sm:text-sm text-[var(--store-text-secondary)] max-w-2xl leading-relaxed">
             {pageSubtitle}
           </p>
         </div>
 
         {/* Search, Filter & Sort Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-[var(--store-surface)] store-surface p-3.5 rounded-xl border border-[var(--store-border)] shadow-xs">
           {/* Search Box */}
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[var(--store-text-secondary)] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search products by title, keyword..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-gray-900 transition"
+              className="w-full pl-9 pr-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-gray-900 transition"
             />
           </div>
 
           {/* Sort Selector */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-500 whitespace-nowrap">Sort by:</span>
+            <span className="text-[var(--store-text-secondary)] whitespace-nowrap">Sort by:</span>
             <select
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
               aria-label="Sort products by"
-              className="px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white font-medium text-gray-800 focus:outline-hidden focus:ring-2 focus:ring-gray-900"
+              className="px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs bg-[var(--store-surface)] store-surface font-medium text-[var(--store-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-gray-900"
             >
               <option value="featured">Featured First</option>
               <option value="price_asc">Price: Low to High</option>
@@ -303,8 +303,8 @@ export default function StoreProductsPage() {
               onClick={() => setActiveCategory('all')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                 activeCategory === 'all'
-                  ? 'bg-gray-900 text-white shadow-xs'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-[var(--store-button-bg)] store-inverse text-white shadow-xs'
+                  : 'bg-[var(--store-surface)] store-surface text-[var(--store-text-secondary)] border border-[var(--store-border)] hover:bg-[var(--store-surface)] store-surface'
               }`}
             >
               All Products ({products.length})
@@ -317,8 +317,8 @@ export default function StoreProductsPage() {
                   onClick={() => setActiveCategory(cat.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                     activeCategory === cat.id
-                      ? 'bg-gray-900 text-white shadow-xs'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-[var(--store-button-bg)] store-inverse text-white shadow-xs'
+                      : 'bg-[var(--store-surface)] store-surface text-[var(--store-text-secondary)] border border-[var(--store-border)] hover:bg-[var(--store-surface)] store-surface'
                   }`}
                 >
                   {cat.name} ({count})
@@ -330,12 +330,12 @@ export default function StoreProductsPage() {
 
         {/* Products Grid — Responsive 2-Columns on Mobile Like Home Page */}
         {processedProducts.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center space-y-3 max-w-lg mx-auto">
-            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400">
+          <div className="bg-[var(--store-surface)] store-surface border border-dashed border-[var(--store-border)] rounded-2xl p-12 text-center space-y-3 max-w-lg mx-auto">
+            <div className="w-14 h-14 bg-[var(--store-surface)] store-surface rounded-full flex items-center justify-center mx-auto text-[var(--store-text-secondary)]">
               <Package className="w-7 h-7" />
             </div>
-            <h3 className="text-sm font-bold text-gray-800">No products found</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <h3 className="text-sm font-bold text-[var(--store-text-primary)]">No products found</h3>
+            <p className="text-xs text-[var(--store-text-secondary)] leading-relaxed">
               {searchQuery
                 ? `No products match your search for "${searchQuery}". Try a different keyword.`
                 : 'No products are currently available in this category.'}
@@ -343,7 +343,7 @@ export default function StoreProductsPage() {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="px-3.5 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition"
+                className="px-3.5 py-1.5 bg-[var(--store-button-bg)] store-inverse text-white text-xs font-bold rounded-lg hover:bg-[var(--store-button-bg)] store-inverse transition"
               >
                 Clear Search
               </button>
@@ -377,11 +377,11 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-stone-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[3/4] bg-stone-100 overflow-hidden"
+                      className="block relative aspect-[3/4] bg-[var(--store-surface)] store-surface overflow-hidden"
                     >
                       <SafeImage
                         src={coverImage}
@@ -394,28 +394,28 @@ export default function StoreProductsPage() {
                       </span>
                     </Link>
 
-                    <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-stone-50/50">
+                    <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-[var(--store-surface)] store-surface">
                       <div>
                         {p.category?.name && (
-                          <span className="text-[9px] sm:text-[10px] font-mono text-stone-500 uppercase tracking-widest block mb-0.5">
+                          <span className="text-[9px] sm:text-[10px] font-mono text-[var(--store-text-secondary)] uppercase tracking-widest block mb-0.5">
                             {p.category.name}
                           </span>
                         )}
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif text-xs sm:text-base text-stone-900 hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
+                          className="font-serif text-xs sm:text-base text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
                         >
                           {title}
                         </Link>
                       </div>
 
-                      <div className="pt-2 sm:pt-3 border-t border-stone-200 flex items-center justify-between gap-1">
+                      <div className="pt-2 sm:pt-3 border-t border-[var(--store-border)] flex items-center justify-between gap-1">
                         <div>
-                          <div className="font-serif text-xs sm:text-base font-semibold text-stone-900">
+                          <div data-store-price="true" className="font-serif text-xs sm:text-base font-semibold text-[var(--store-text-primary)]">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
-                            <div className="text-[10px] text-stone-400 font-mono line-through">
+                            <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through">
                               {formatPaise(comparePaise)}
                             </div>
                           )}
@@ -424,9 +424,10 @@ export default function StoreProductsPage() {
                         <div className="flex items-center gap-1 sm:gap-2">
                           <button
                             type="button"
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                          onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-none bg-stone-900 hover:bg-stone-800 text-amber-200 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-none bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-amber-200 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
                           >
                             {isAdded ? (
                               <>
@@ -438,7 +439,7 @@ export default function StoreProductsPage() {
                             ) : (
                               <>
                                 <Plus className="w-3 h-3" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -454,11 +455,11 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-slate-900 border-2 border-slate-800 overflow-hidden shadow-lg hover:border-pink-500 transition-all flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border-2 border-slate-800 overflow-hidden shadow-lg hover:border-pink-500 transition-all flex flex-col justify-between group relative"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-square bg-slate-950 overflow-hidden"
+                      className="block relative aspect-square bg-[var(--store-button-bg)] store-inverse overflow-hidden"
                     >
                       <SafeImage
                         src={coverImage}
@@ -471,7 +472,7 @@ export default function StoreProductsPage() {
                       </span>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-slate-900">
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-[var(--store-button-bg)] store-inverse">
                       <div>
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
@@ -480,11 +481,11 @@ export default function StoreProductsPage() {
                           {title}
                         </Link>
                         <div className="flex items-baseline gap-1.5 mt-1">
-                          <span className="font-black text-xs sm:text-base text-pink-400 font-mono">
+                          <span data-store-price="true" className="font-black text-xs sm:text-base text-pink-400 font-mono">
                             {formatPaise(pricePaise)}
                           </span>
                           {comparePaise && (
-                            <span className="text-[10px] sm:text-xs text-slate-500 font-mono line-through">
+                            <span className="text-[10px] sm:text-xs text-[var(--store-text-secondary)] font-mono line-through">
                               {formatPaise(comparePaise)}
                             </span>
                           )}
@@ -493,9 +494,10 @@ export default function StoreProductsPage() {
 
                       <button
                         type="button"
-                        onClick={(e) => handleQuickAdd(e, p)}
+                        data-store-button="true"
+                          onClick={(e) => handleQuickAdd(e, p)}
                         disabled={isAdding}
-                        className="w-full py-1.5 sm:py-2 bg-white hover:bg-pink-500 hover:text-white text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1"
+                        className="w-full py-1.5 sm:py-2 bg-[var(--store-surface)] store-surface hover:bg-pink-500 hover:text-white text-[var(--store-text-primary)] font-black text-[10px] sm:text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1"
                       >
                         {isAdded ? (
                           <>
@@ -505,7 +507,7 @@ export default function StoreProductsPage() {
                         ) : (
                           <>
                             <ShoppingBag className="w-3 h-3" />
-                            <span>{isAdding ? 'ADDING...' : 'QUICK BAG'}</span>
+                            <span>{isAdding ? t('common.loading') : t('storefront.addToCart')}</span>
                           </>
                         )}
                       </button>
@@ -519,7 +521,7 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
@@ -545,22 +547,23 @@ export default function StoreProductsPage() {
                         )}
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif font-bold text-xs sm:text-sm text-stone-900 hover:text-emerald-800 transition line-clamp-2"
+                          className="font-serif font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2"
                         >
                           {title}
                         </Link>
-                        <div className="text-[10px] sm:text-[11px] text-stone-500 mt-1 line-clamp-1">
+                        <div className="text-[10px] sm:text-[11px] text-[var(--store-text-secondary)] mt-1 line-clamp-1">
                           Vacuum-sealed 500g pack
                         </div>
                       </div>
 
                       <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-1 sm:gap-2">
-                        <div className="font-bold text-xs sm:text-sm text-stone-900 font-mono">
+                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono">
                           {formatPaise(pricePaise)}
                         </div>
 
                         <button
                           type="button"
+                          data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
                           className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-[11px] sm:text-xs shadow-sm transition flex items-center gap-1 shrink-0"
@@ -573,7 +576,7 @@ export default function StoreProductsPage() {
                           ) : (
                             <>
                               <Plus className="w-3 h-3" />
-                              <span>Add</span>
+                              <span>{t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>
@@ -588,11 +591,11 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-slate-800 border border-slate-700 rounded-sm overflow-hidden shadow-md font-mono flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-slate-700 rounded-sm overflow-hidden shadow-md font-mono flex flex-col justify-between group relative"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[4/3] bg-slate-900 overflow-hidden border-b border-slate-700"
+                      className="block relative aspect-[4/3] bg-[var(--store-button-bg)] store-inverse overflow-hidden border-b border-slate-700"
                     >
                       <SafeImage
                         src={coverImage}
@@ -605,9 +608,9 @@ export default function StoreProductsPage() {
                       </div>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 text-slate-200">
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 text-[var(--store-text-secondary)]">
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[9px] text-slate-400">
+                        <div className="flex items-center justify-between text-[9px] text-[var(--store-text-secondary)]">
                           <span>PART ID: #PRD-{p.id.slice(0, 6).toUpperCase()}</span>
                           <span className="text-emerald-400 font-bold">IN STOCK</span>
                         </div>
@@ -621,15 +624,16 @@ export default function StoreProductsPage() {
                       </div>
 
                       <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
-                        <span className="text-sky-400 font-bold text-xs sm:text-sm">{formatPaise(pricePaise)}</span>
+                        <span data-store-price="true" className="text-sky-400 font-bold text-xs sm:text-sm">{formatPaise(pricePaise)}</span>
                         <button
                           type="button"
+                          data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
                           className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-sm transition flex items-center gap-1"
                         >
                           {isAdded ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                          <span>Add</span>
+                          <span>{t('storefront.addToCart')}</span>
                         </button>
                       </div>
                     </div>
@@ -642,11 +646,11 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[4/5] bg-stone-100 overflow-hidden"
+                      className="block relative aspect-[4/5] bg-[var(--store-surface)] store-surface overflow-hidden"
                     >
                       <SafeImage
                         src={coverImage}
@@ -663,25 +667,26 @@ export default function StoreProductsPage() {
                       <div>
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif text-xs sm:text-sm font-semibold text-stone-900 hover:text-stone-600 transition line-clamp-1"
+                          className="font-serif text-xs sm:text-sm font-semibold text-[var(--store-text-primary)] hover:text-[var(--store-text-secondary)] transition line-clamp-1"
                         >
                           {title}
                         </Link>
-                        <div className="text-[10px] text-stone-500">Solid Wood • Hand-Finished</div>
+                        <div className="text-[10px] text-[var(--store-text-secondary)]">Solid Wood • Hand-Finished</div>
                       </div>
 
-                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                        <div className="font-serif text-xs sm:text-sm font-bold text-stone-900">
+                      <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between">
+                        <div data-store-price="true" className="font-serif text-xs sm:text-sm font-bold text-[var(--store-text-primary)]">
                           {formatPaise(pricePaise)}
                         </div>
                         <button
                           type="button"
+                          data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="px-3 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-medium text-[11px] shadow-sm transition flex items-center gap-1"
+                          className="px-3 py-1 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-medium text-[11px] shadow-sm transition flex items-center gap-1"
                         >
                           {isAdded ? <Check className="w-3 h-3 text-emerald-400" /> : <Plus className="w-3 h-3" />}
-                          <span>Add</span>
+                          <span>{t('storefront.addToCart')}</span>
                         </button>
                       </div>
                     </div>
@@ -693,11 +698,11 @@ export default function StoreProductsPage() {
               return (
                 <div
                   key={p.id}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                  className="bg-[var(--store-surface)] store-surface rounded-xl border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
                 >
                   <Link
                     href={getLink(`/store/${slug}/product/${p.id}`)}
-                    className="block relative aspect-square bg-gray-100 overflow-hidden"
+                    className="block relative aspect-square bg-[var(--store-surface)] store-surface overflow-hidden"
                   >
                     <SafeImage
                       src={coverImage}
@@ -715,25 +720,25 @@ export default function StoreProductsPage() {
                   <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
                     <div>
                       {p.category?.name && (
-                        <span className="text-[9px] text-gray-400 uppercase font-mono block mb-0.5">
+                        <span className="text-[9px] text-[var(--store-text-secondary)] uppercase font-mono block mb-0.5">
                           {p.category.name}
                         </span>
                       )}
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="font-bold text-xs sm:text-sm text-gray-900 hover:text-blue-600 transition line-clamp-2"
+                        className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-blue-600 transition line-clamp-2"
                       >
                         {title}
                       </Link>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
+                    <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-1">
                       <div>
-                        <div className="font-bold text-xs sm:text-sm text-gray-900 font-mono">
+                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono">
                           {formatPaise(pricePaise)}
                         </div>
                         {hasDiscount && (
-                          <div className="text-[10px] text-gray-400 font-mono line-through">
+                          <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through">
                             {formatPaise(comparePaise)}
                           </div>
                         )}
@@ -741,9 +746,10 @@ export default function StoreProductsPage() {
 
                       <button
                         type="button"
-                        onClick={(e) => handleQuickAdd(e, p)}
+                        data-store-button="true"
+                          onClick={(e) => handleQuickAdd(e, p)}
                         disabled={isAdding}
-                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center gap-1 shrink-0"
+                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center gap-1 shrink-0"
                       >
                         {isAdded ? (
                           <>
@@ -755,7 +761,7 @@ export default function StoreProductsPage() {
                         ) : (
                           <>
                             <Plus className="w-3 h-3" />
-                            <span>Add</span>
+                            <span>{t('storefront.addToCart')}</span>
                           </>
                         )}
                       </button>
@@ -766,6 +772,11 @@ export default function StoreProductsPage() {
             })}
           </div>
         )}
+        <nav className="flex items-center justify-center gap-4 py-6" aria-label={t('storefront.products')} aria-busy={catalogLoading}>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage <= 1} onClick={() => setCatalogPage(page => page - 1)}>{t('common.previous')}</button>
+          <span className="text-sm tabular-nums">{catalogPage} / {catalogPages}</span>
+          <button type="button" className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40" disabled={catalogLoading || catalogPage >= catalogPages} onClick={() => setCatalogPage(page => page + 1)}>{t('common.next')}</button>
+        </nav>
       </main>
 
       <StoreFooter store={store} themeConfig={themeConfig} />

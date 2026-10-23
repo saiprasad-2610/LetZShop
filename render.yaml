@@ -24,6 +24,19 @@ services:
         generateValue: true
       - key: OTP_DEV_MOCK_ENABLED
         value: "false"
+      # Provide mailbox credentials securely in the deployment environment.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
       - key: MEDIA_STORAGE_DRIVER
         value: local
       - key: MEDIA_PUBLIC_URL_PREFIX

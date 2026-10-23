@@ -249,11 +249,13 @@ export class SimplyApiClient {
 
   // --- Canonical Seller Auth (OTP -> PIN -> Session) ---
   public auth = {
+    requestAccountEmailOtp: (email: string) => this.request('auth/email/request-otp', { method: 'POST', body: { email } }),
+    verifyAccountEmailOtp: (email: string, code: string) => this.request('auth/email/verify-otp', { method: 'POST', body: { email, code } }),
     // Canonical OTP + PIN
-    requestRegisterOtp: (phone: string) =>
-      this.request('auth/register/request-otp', { method: 'POST', body: { phone } }),
-    verifyRegisterOtp: (phone: string, otp: string) =>
-      this.request('auth/register/verify-otp', { method: 'POST', body: { phone, otp } }),
+    requestRegisterOtp: (phone: string, email: string) =>
+      this.request('auth/register/request-otp', { method: 'POST', body: { phone, email } }),
+    verifyRegisterOtp: (phone: string, otp: string, email: string) =>
+      this.request('auth/register/verify-otp', { method: 'POST', body: { phone, otp, email } }),
     setupPin: (pin: string, tempToken?: string) =>
       this.request('auth/pin/setup', {
         method: 'POST',
@@ -283,6 +285,11 @@ export class SimplyApiClient {
 
   // --- Stores ---
   public stores = {
+    getPublicProducts: (slug: string, params?: { page?: number; limit?: number; category?: string; q?: string; sort?: string; previewSecret?: string }) =>
+      this.request(`storefront/${encodeURIComponent(slug)}/products`, { params }),
+    getPublicProduct: (slug: string, productId: string, previewSecret?: string) =>
+      this.request(`storefront/${encodeURIComponent(slug)}/products/${encodeURIComponent(productId)}`, { params: { previewSecret } }),
+    slugAvailability: (name: string) => this.request('stores/slug-availability?name=' + encodeURIComponent(name)),
     onboard: (data: {
       businessName: string;
       category: string;

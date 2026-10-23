@@ -1,3 +1,4 @@
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { Controller, Post, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { EnquiriesService, CreateEnquiryInput } from './enquiries.service';
@@ -13,6 +14,8 @@ export class EnquiriesController {
 
   @Public()
   @Post()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Submit buyer B2B enquiry or RFQ (Public)' })
   async createEnquiry(@Body() input: CreateEnquiryInput) {
     return this.enquiriesService.createEnquiry(input);
@@ -20,6 +23,8 @@ export class EnquiriesController {
 
   @Public()
   @Post('whatsapp')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Record buyer WhatsApp click enquiry (Public)' })
   async recordWhatsappEnquiry(@Body() input: any) {
     return this.enquiriesService.recordWhatsappEnquiry(input);

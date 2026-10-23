@@ -8,6 +8,9 @@
     "build": "tsc",
     "dev": "tsc -w"
   },
+  "dependencies": {
+    "@simply/types": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.3"
   }

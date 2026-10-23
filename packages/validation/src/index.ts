@@ -3,6 +3,9 @@ export const INDIAN_PINCODE_REGEX = /^[1-9][0-9]{5}$/;
 export const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const RESERVED_SLUGS = new Set([
+  'merchant', 'logout', 'signup', 'register', 'payments', 'static', 'cdn',
+  'support', 'status', 'mail', 'system', 'docs', '_next', 'favicon',
+  'next', 'track', 'onboarding', 'favicon-ico', 'robots-txt', 'sitemap-xml',
   'admin',
   'api',
   'app',
@@ -56,9 +59,11 @@ export function isValidIndianPincode(pincode: string): boolean {
 
 export function normalizeSlug(rawSlug: string): string {
   return rawSlug
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '-')
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }

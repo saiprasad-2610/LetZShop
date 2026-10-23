@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -84,7 +85,7 @@ export default function DirectOrderTrackingPage() {
             </div>
             {order?.store?.slug && (
               <Link
-                href={`/store/${order.store.slug}`}
+                href={getPublicStoreUrl(order.store)}
                 className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
               >
                 Visit {order.store.name} &rarr;

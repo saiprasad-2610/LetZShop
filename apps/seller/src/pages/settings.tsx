@@ -1,3 +1,6 @@
+import { AccountEmailVerification } from '../components/AccountEmailVerification';
+import { getPublicStoreUrl } from '@simply/types';
+import { getStorefrontUrl } from '../utils/config';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
@@ -668,6 +671,8 @@ export default function SettingsPage() {
           </p>
         </div>
 
+        <AccountEmailVerification />
+
         {/* Top Store Setup Requirements Status Banner */}
         {(!razorpayConnected || (!isSelfDelivery && !shiprocketConnected)) ? (
           <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
@@ -779,11 +784,10 @@ export default function SettingsPage() {
               {t('settings.storeSlug')}
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--merchant-text-muted)] font-mono">letzshop.store/store/</span>
               <input
                 type="text"
                 disabled
-                value={store?.slug || ''}
+                value={store?.slug ? getPublicStoreUrl(store, getStorefrontUrl()) : ''}
                 className="w-full px-3 py-1.5 bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)] rounded text-xs font-mono text-[var(--merchant-text-muted)] cursor-not-allowed"
               />
             </div>

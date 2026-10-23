@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -94,7 +95,7 @@ export function MerchantActionMenu({
 
           {storeSlug && !isSuspended && !isArchived && (
             <a
-              href={`${getStorefrontUrl()}/store/${storeSlug}`}
+              href={getPublicStoreUrl(storeSlug, getStorefrontUrl())}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-admin-text hover:bg-admin-raised transition-colors"

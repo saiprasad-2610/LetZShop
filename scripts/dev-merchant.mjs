@@ -1,6 +1,6 @@
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import http from 'node:http';
+import { checkPortReady, DEV_SERVICES, waitForServicesReady } from './dev-service-health.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -248,6 +248,7 @@ async function checkPortPreflight(ports = CANONICAL_PORTS) {
   return true;
 }
 
+<<<<<<< HEAD
 // --- Health Checking ---
 
 function checkPortReady(port, pathname = '/') {
@@ -291,6 +292,8 @@ async function waitForServicesReady(
   return false;
 }
 
+=======
+>>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
 // --- CLI Commands: --status and --stop ---
 
 async function handleStatus() {
@@ -313,8 +316,8 @@ async function handleStatus() {
   console.log(`Launcher:   ${isLauncherAlive ? `Active (PID ${launcherPid})` : 'Offline'}\n`);
 
   const [apiOk, sellerOk, platformOk, adminOk] = await Promise.all([
-    checkPortReady(4000, '/health'),
-    checkPortReady(3001, '/'),
+    checkPortReady(4000, '/health', 3000),
+    checkPortReady(3001, '/login'),
     checkPortReady(3000, '/'),
     checkPortReady(3002, '/login')
   ]);
@@ -383,8 +386,7 @@ function isNoise(line) {
     content.startsWith('• Packages in scope') ||
     content.startsWith('• Running dev in') ||
     content.startsWith('• Remote caching') ||
-    content.includes('cache bypass, force executing') ||
-    content.includes('Starting...')
+    content.includes('cache bypass, force executing')
   ) {
     return true;
   }
@@ -417,8 +419,7 @@ function isNoise(line) {
     content.includes('Compiled /') ||
     content.includes('Compiling /') ||
     content.includes('Next.js 14') ||
-    content.includes('Local:        http://') ||
-    content.includes('Ready in ')
+    content.includes('Local:        http://')
   ) {
     return true;
   }
@@ -437,6 +438,12 @@ async function main() {
   if (process.argv.includes('--stop')) {
     await handleStop();
     return;
+  }
+
+  const startupTimeoutMs = Number(process.env.SIMPLY_DEV_STARTUP_TIMEOUT_MS || 300000);
+  if (!Number.isFinite(startupTimeoutMs) || startupTimeoutMs <= 0) {
+    console.error('SIMPLY_DEV_STARTUP_TIMEOUT_MS must be a positive number of milliseconds.');
+    process.exit(1);
   }
 
   // 1. Prevent duplicate launcher run
@@ -532,6 +539,8 @@ async function main() {
       env: {
         ...process.env,
         NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        // Keep optional online version checks from blocking local startup.
+        NEXT_TELEMETRY_DISABLED: process.env.NEXT_TELEMETRY_DISABLED || '1',
         FORCE_COLOR: '1',
       },
     });
@@ -545,6 +554,8 @@ async function main() {
       env: {
         ...process.env,
         NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        // Keep optional online version checks from blocking local startup.
+        NEXT_TELEMETRY_DISABLED: process.env.NEXT_TELEMETRY_DISABLED || '1',
         FORCE_COLOR: '1',
       },
     });
@@ -558,6 +569,8 @@ async function main() {
       env: {
         ...process.env,
         NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+        // Keep optional online version checks from blocking local startup.
+        NEXT_TELEMETRY_DISABLED: process.env.NEXT_TELEMETRY_DISABLED || '1',
         FORCE_COLOR: '1',
       },
     });
@@ -711,7 +724,7 @@ async function main() {
     console.log('==================================================\n');
   };
 
-  const processStream = (chunk, isStderr = false) => {
+  const processStream = (chunk, isStderr = false, service = '') => {
     const text = chunk.toString();
     const lines = text.split(/\r?\n/);
 
@@ -720,16 +733,16 @@ async function main() {
         continue;
       }
       if (isStderr) {
-        process.stderr.write(line + '\n');
+        process.stderr.write('[' + service.toUpperCase() + '] ' + line + '\n');
       } else {
-        process.stdout.write(line + '\n');
+        process.stdout.write('[' + service.toUpperCase() + '] ' + line + '\n');
       }
     }
   };
 
   for (const [name, child] of Object.entries(children)) {
-    child.stdout.on('data', (chunk) => processStream(chunk, false));
-    child.stderr.on('data', (chunk) => processStream(chunk, true));
+    child.stdout.on('data', (chunk) => processStream(chunk, false, name));
+    child.stderr.on('data', (chunk) => processStream(chunk, true, name));
 
     child.on('error', (err) => {
       console.error(`\n✗ ${name.toUpperCase()} failed: ${err.message}`);
@@ -747,14 +760,30 @@ async function main() {
   }
 
   // 8. Wait for active services to become healthy before declaring success
-  const allReady = await waitForServicesReady(
+  const readiness = await waitForServicesReady(
     { api: runApi, seller: runSeller, platform: runStorefront, admin: runAdmin },
+<<<<<<< HEAD
     240000
+=======
+    {
+      timeoutMs: startupTimeoutMs,
+      onProgress: ({ pending, elapsedMs }) => {
+        if (shuttingDown || !pending.length) return;
+        const waiting = pending.map((name) => DEV_SERVICES[name].label).join(', ');
+        console.log('Waiting for ' + waiting + ' (' + Math.round(elapsedMs / 1000) + 's; startup limit ' + Math.round(startupTimeoutMs / 1000) + 's)...');
+      },
+    }
+>>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
   );
-  if (allReady && !bannerPrinted && !shuttingDown) {
+  if (readiness.ready && !bannerPrinted && !shuttingDown) {
     printSummary();
-  } else if (!allReady && !shuttingDown) {
-    console.error('\n✗ Services failed to become healthy within timeout');
+  } else if (!readiness.ready && !shuttingDown) {
+    console.error('\n✗ Services failed to become healthy within ' + Math.round(startupTimeoutMs / 1000) + 's:');
+    for (const name of readiness.pending) {
+      const service = DEV_SERVICES[name];
+      const result = readiness.results[name];
+      console.error('  ' + service.label + ' (port ' + service.port + '): ' + (result?.error || (result?.statusCode ? 'HTTP ' + result.statusCode : 'No response')));
+    }
     await shutdown('health_timeout', 1);
   }
 }

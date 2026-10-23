@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -196,10 +197,10 @@ export default function StoreCartPage() {
 
   if (loading || !storeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-medium text-gray-500">Loading your cart...</p>
+          <div className="w-10 h-10 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-medium text-[var(--store-text-secondary)]">Loading your cart...</p>
         </div>
       </div>
     );
@@ -255,19 +256,19 @@ export default function StoreCartPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href={getLink(`/store/${slug}`)} className="hover:text-gray-900 flex items-center gap-1 transition">
+        <div className="flex items-center gap-2 text-xs text-[var(--store-text-secondary)]">
+          <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-[var(--store-text-primary)] flex items-center gap-1 transition">
             <ArrowLeft className="w-3.5 h-3.5" /> {t('storefront.continueShopping')}
           </Link>
-          <span className="text-gray-300">/</span>
-          <span className="font-semibold text-gray-800">{t('storefront.cart')}</span>
+          <span className="text-[var(--store-text-secondary)]">/</span>
+          <span className="font-semibold text-[var(--store-text-primary)]">{t('storefront.cart')}</span>
         </div>
 
         {/* Page Title */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('storefront.cart')}</h1>
-            <p className="text-xs text-gray-500 mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--store-text-primary)]">{t('storefront.cart')}</h1>
+            <p className="text-xs text-[var(--store-text-secondary)] mt-1">
               {itemCount === 0 
                 ? t('storefront.emptyCart')
                 : `${itemCount} ${itemCount === 1 ? 'item' : 'items'} ready for checkout`
@@ -286,22 +287,22 @@ export default function StoreCartPage() {
           /* ================================================================
              EMPTY CART STATE
           ================================================================ */
-          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center space-y-5 max-w-xl mx-auto animate-fadeIn">
-            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
+          <div className="bg-[var(--store-surface)] store-surface border border-dashed border-[var(--store-border)] rounded-2xl p-12 text-center space-y-5 max-w-xl mx-auto animate-fadeIn">
+            <div className="w-20 h-20 bg-[var(--store-surface)] store-surface rounded-full flex items-center justify-center mx-auto text-[var(--store-text-secondary)]">
               <ShoppingBag className="w-10 h-10" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-lg font-bold text-gray-800">{t('storefront.emptyCart')}</h2>
-              <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+              <h2 className="text-lg font-bold text-[var(--store-text-primary)]">{t('storefront.emptyCart')}</h2>
+              <p className="text-xs text-[var(--store-text-secondary)] max-w-sm mx-auto leading-relaxed">
                 {t('storefront.emptyCartDesc')}
               </p>
             </div>
             <div className="pt-2">
               <Link data-theme-tone="primary"
-                href={getLink(`/store/${slug}`)}
+                href={getLink(getPublicStoreUrl(String(slug)))}
                 data-theme-btn="true"
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90 hover:-translate-y-0.5"
-                style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
               >
                 <span>{t('storefront.exploreCatalog')}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -325,7 +326,7 @@ export default function StoreCartPage() {
               </div>
 
               {/* Item Cards */}
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
+              <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
                 {items.map((item: any, index: number) => {
                   const variant = item.variant || {};
                   const product = variant.product || {};
@@ -358,29 +359,29 @@ export default function StoreCartPage() {
                             <SafeImage
                               src={cover}
                               alt={productTitle}
-                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-gray-200 flex-shrink-0 hover:opacity-80 transition"
+                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-[var(--store-border)] flex-shrink-0 hover:opacity-80 transition"
                               fallbackTitle={productTitle}
                             />
                           </Link>
                           <div className="space-y-1.5 min-w-0">
                             <Link
                               href={getLink(`/store/${slug}/product/${product.id}`)}
-                              className="font-bold text-sm text-gray-900 hover:text-emerald-700 transition line-clamp-2"
+                              className="font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-700 transition line-clamp-2"
                             >
                               {productTitle}
                             </Link>
                             {variantLabel && (
-                              <p className="text-xs text-gray-600 font-medium flex items-center gap-1">
-                                <Package className="w-3.5 h-3.5 text-gray-400" />
+                              <p className="text-xs text-[var(--store-text-secondary)] font-medium flex items-center gap-1">
+                                <Package className="w-3.5 h-3.5 text-[var(--store-text-secondary)]" />
                                 {variantLabel}
                               </p>
                             )}
                             <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-bold font-mono text-gray-900">
+                              <span className="text-sm font-bold font-mono text-[var(--store-text-primary)]">
                                 {formatPaise(variant.pricePaise || 0)}
                               </span>
                               {hasCompare && (
-                                <span className="text-xs text-gray-400 font-mono line-through">
+                                <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through">
                                   {formatPaise(variant.compareAtPricePaise)}
                                 </span>
                               )}
@@ -391,29 +392,29 @@ export default function StoreCartPage() {
                               )}
                             </div>
                             {variant.sku && (
-                              <p className="text-[10px] text-gray-400 font-mono">SKU: {variant.sku}</p>
+                              <p className="text-[10px] text-[var(--store-text-secondary)] font-mono">SKU: {variant.sku}</p>
                             )}
                           </div>
                         </div>
 
                         {/* Quantity Controls & Actions */}
                         <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
-                          <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden shadow-sm">
+                          <div className="flex items-center border border-[var(--store-border)] rounded-xl bg-[var(--store-surface)] store-surface overflow-hidden shadow-sm">
                             <button
                               type="button"
                               onClick={() => handleQuantityChange(targetVariantId, item.quantity - 1, productTitle)}
-                              className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition"
+                              className="p-2 text-[var(--store-text-secondary)] hover:bg-[var(--store-surface)] store-surface hover:text-[var(--store-text-primary)] transition"
                               aria-label="Decrease quantity"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="px-4 py-1.5 text-xs font-mono font-bold text-gray-900 min-w-[3rem] text-center">
+                            <span className="px-4 py-1.5 text-xs font-mono font-bold text-[var(--store-text-primary)] min-w-[3rem] text-center">
                               {item.quantity}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleQuantityChange(targetVariantId, item.quantity + 1, productTitle)}
-                              className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition"
+                              className="p-2 text-[var(--store-text-secondary)] hover:bg-[var(--store-surface)] store-surface hover:text-[var(--store-text-primary)] transition"
                               aria-label="Increase quantity"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -421,14 +422,14 @@ export default function StoreCartPage() {
                           </div>
 
                           <div className="text-right space-y-1">
-                            <span className="font-mono font-bold text-base text-gray-900 block">
+                            <span className="font-mono font-bold text-base text-[var(--store-text-primary)] block">
                               {formatPaise(lineTotal)}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(targetVariantId, productTitle)}
                               disabled={isRemoving}
-                              className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-1 transition disabled:opacity-40"
+                              className="text-[11px] text-[var(--store-danger-text)] hover:text-red-700 flex items-center gap-1 transition disabled:opacity-40"
                             >
                               <Trash2 className="w-3 h-3" />
                               <span>{t('common.remove')}</span>
@@ -442,7 +443,7 @@ export default function StoreCartPage() {
               </div>
 
               {/* Coupon Section */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm animate-fadeIn">
+              <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-2xl p-5 shadow-sm animate-fadeIn">
                 {appliedCoupon ? (
                   /* Applied Coupon Display */
                   <div className="flex items-center justify-between">
@@ -457,7 +458,7 @@ export default function StoreCartPage() {
                           </span>
                           <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                         </div>
-                        <p className="text-xs text-gray-600 mt-0.5">{appliedCoupon.label}</p>
+                        <p className="text-xs text-[var(--store-text-secondary)] mt-0.5">{appliedCoupon.label}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -466,7 +467,7 @@ export default function StoreCartPage() {
                       </span>
                       <button
                         onClick={handleRemoveCoupon}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition"
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-[var(--store-text-secondary)] hover:text-[var(--store-danger-text)] transition"
                         title={t('common.remove')}
                       >
                         <X className="w-4 h-4" />
@@ -477,8 +478,8 @@ export default function StoreCartPage() {
                   /* Coupon Input Form */
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm font-bold text-gray-900">{t('checkout.applyCoupon')}</span>
+                      <Tag className="w-4 h-4 text-[var(--store-text-secondary)]" />
+                      <span className="text-sm font-bold text-[var(--store-text-primary)]">{t('checkout.applyCoupon')}</span>
                     </div>
                     <div className="flex gap-2">
                       <input
@@ -487,7 +488,7 @@ export default function StoreCartPage() {
                         onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                         onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
                         placeholder={t('checkout.couponPlaceholder')}
-                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-xs font-mono tracking-wider uppercase focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition coupon-input"
+                        className="flex-1 px-4 py-2.5 border border-[var(--store-border)] rounded-xl text-xs font-mono tracking-wider uppercase focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition coupon-input"
                         maxLength={20}
                         autoFocus
                       />
@@ -496,7 +497,7 @@ export default function StoreCartPage() {
                         disabled={applyingCoupon || !couponInput.trim()}
                         data-theme-btn="true"
                         className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5 shadow-sm"
-                        style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                        style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
                       >
                         {applyingCoupon ? (
                           <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -513,7 +514,7 @@ export default function StoreCartPage() {
                     )}
                     <button
                       onClick={() => { setShowCouponInput(false); setCouponInput(''); }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition"
+                      className="text-xs text-[var(--store-text-secondary)] hover:text-[var(--store-text-secondary)] transition"
                     >
                       {t('common.cancel')}
                     </button>
@@ -522,18 +523,18 @@ export default function StoreCartPage() {
                   /* Coupon Trigger Button */
                   <button
                     onClick={() => setShowCouponInput(true)}
-                    className="w-full flex items-center justify-between p-1 text-left hover:bg-gray-50 rounded-lg transition group"
+                    className="w-full flex items-center justify-between p-1 text-left hover:bg-[var(--store-surface)] store-surface rounded-lg transition group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-200 group-hover:bg-amber-100 transition">
                         <Tag className="w-5 h-5 text-amber-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">Have a coupon code?</p>
-                        <p className="text-[11px] text-gray-500">Apply discount to reduce your total</p>
+                        <p className="text-sm font-semibold text-[var(--store-text-primary)]">Have a coupon code?</p>
+                        <p className="text-[11px] text-[var(--store-text-secondary)]">Apply discount to reduce your total</p>
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition" />
+                    <ArrowRight className="w-4 h-4 text-[var(--store-text-secondary)] group-hover:text-[var(--store-text-secondary)] group-hover:translate-x-0.5 transition" />
                   </button>
                 )}
               </div>
@@ -541,8 +542,8 @@ export default function StoreCartPage() {
 
             {/* RIGHT: Order Summary */}
             <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-24">
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
-                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-2xl p-6 shadow-sm space-y-5">
+                <h2 className="text-base font-bold text-[var(--store-text-primary)] flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   {t('checkout.orderSummary')}
                 </h2>
@@ -569,7 +570,7 @@ export default function StoreCartPage() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full bg-gray-200/80 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-[var(--store-surface)] store-surface rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           isFreeDeliveryQualified ? 'bg-emerald-500' : 'bg-amber-500'
@@ -582,10 +583,10 @@ export default function StoreCartPage() {
                   </div>
                 )}
 
-                <div className="space-y-3 text-xs text-gray-600">
+                <div className="space-y-3 text-xs text-[var(--store-text-secondary)]">
                   <div className="flex justify-between">
                     <span>{t('common.subtotal')} ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-                    <span className="font-mono font-semibold text-gray-900">
+                    <span className="font-mono font-semibold text-[var(--store-text-primary)]">
                       {formatPaise(subtotalPaise)}
                     </span>
                   </div>
@@ -627,18 +628,18 @@ export default function StoreCartPage() {
                         )}
                       </span>
                     ) : (
-                      <span className="font-mono font-semibold text-gray-900">
+                      <span className="font-mono font-semibold text-[var(--store-text-primary)]">
                         {formatPaise(shippingPaise)}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex justify-between text-[11px] text-gray-400">
+                  <div className="flex justify-between text-[11px] text-[var(--store-text-secondary)]">
                     <span>Taxes</span>
                     <span>Included</span>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
+                  <div className="pt-3 border-t border-[var(--store-border)] flex justify-between text-base font-bold text-[var(--store-text-primary)]">
                     <span>{t('common.total')}</span>
                     <span className="font-mono text-lg">{formatPaise(grandTotalPaise)}</span>
                   </div>
@@ -658,7 +659,7 @@ export default function StoreCartPage() {
                     href={getLink(`/store/${slug}/checkout`)}
                     data-theme-btn="true"
                     className="w-full py-4 rounded-xl text-sm font-bold text-white shadow-lg transition hover:opacity-90 hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                    style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                    style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
                   >
                     <Lock className="w-4 h-4" />
                     <span>{t('storefront.checkout')}</span>
@@ -666,9 +667,9 @@ export default function StoreCartPage() {
                   </Link>
 
                   <Link
-                    href={getLink(`/store/${slug}`)}
+                    href={getLink(getPublicStoreUrl(String(slug)))}
                     data-theme-btn="true"
-                    className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition flex items-center justify-center gap-1 border border-gray-200"
+                    className="w-full py-2.5 rounded-xl text-xs font-semibold text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)] hover:bg-[var(--store-surface)] store-surface transition flex items-center justify-center gap-1 border border-[var(--store-border)]"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>{t('storefront.continueShopping')}</span>
@@ -677,20 +678,20 @@ export default function StoreCartPage() {
               </div>
 
               {/* Trust Badges */}
-              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center gap-2 text-[11px] text-gray-600">
+              <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-[11px] text-[var(--store-text-secondary)]">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <span>256-bit SSL encrypted payment processing</span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-gray-600">
+                <div className="flex items-center gap-2 text-[11px] text-[var(--store-text-secondary)]">
                   <Truck className="w-4 h-4 text-blue-500 flex-shrink-0" />
                   <span>Direct door-to-door courier with tracking</span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-gray-600">
+                <div className="flex items-center gap-2 text-[11px] text-[var(--store-text-secondary)]">
                   <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
                   <span>Estimated dispatch within 24-48 business hours</span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-gray-600">
+                <div className="flex items-center gap-2 text-[11px] text-[var(--store-text-secondary)]">
                   <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <span>100% genuine and quality guaranteed</span>
                 </div>

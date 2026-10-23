@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -23,6 +23,7 @@ import { StoreHeader } from '../../../components/StoreHeader';
 import { StoreFooter } from '../../../components/StoreFooter';
 import { SafeImage } from '../../../components/ui/SafeImage';
 import { getSellerStorePreviewUrl } from '../../../utils/config';
+import { normalizeBrandText, clampCatalogText, ABOUT_TEXT_LIMITS } from '@simply/types';
 
 export default function StoreAboutPage() {
   const router = useRouter();
@@ -31,6 +32,13 @@ export default function StoreAboutPage() {
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
+  const loadRevision = useRef(0);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true' && !loading && storeData) {
+      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, '*');
+    }
+  }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
@@ -62,7 +70,7 @@ export default function StoreAboutPage() {
               ...prev,
               themeConfig: {
                 ...prev.themeConfig,
-                ...event.data.themeConfig,
+                ...normalizeBrandText(event.data.themeConfig),
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
@@ -79,17 +87,20 @@ export default function StoreAboutPage() {
   }, [router.query.embedded]);
 
   const loadStorefront = async (storeSlug: string, previewSecret?: string) => {
+    const revision = ++loadRevision.current;
     setLoading(true);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
-      setStoreData(res);
+      if (revision !== loadRevision.current) return;
+      setStoreData({ ...res, themeConfig: normalizeBrandText(res.themeConfig) });
       if (res.store?.id) {
         setStoreId(res.store.id);
       }
     } catch (err: any) {
+      if (revision !== loadRevision.current) return;
       console.error('Failed to load store about page', err);
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
   };
 
@@ -115,10 +126,10 @@ export default function StoreAboutPage() {
 
   if (loading || !storeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-medium text-gray-500">Loading store story...</p>
+          <div className="w-10 h-10 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-medium text-[var(--store-text-secondary)]">Loading store story...</p>
         </div>
       </div>
     );
@@ -129,25 +140,25 @@ export default function StoreAboutPage() {
   const aboutConfig = themeConfig?.pages?.about || {};
 
   // Custom text with defaults
-  const pageTitle = aboutConfig.pageTitle || `About ${store.name}`;
-  const tagline = aboutConfig.tagline || 'Rooted in authentic tradition, crafted for everyday distinction.';
+  const pageTitle = aboutConfig.pageTitle ?? `About ${store.name}`;
+  const tagline = aboutConfig.tagline ?? 'Rooted in authentic tradition, crafted for everyday distinction.';
   const storyParagraph1 =
-    aboutConfig.storyParagraph1 ||
-    themeConfig?.storeStory ||
-    store.description ||
-    'Founded with a steadfast commitment to purity and heritage, our boutique brings you exceptional goods meticulously selected from trusted origins.';
+    aboutConfig.storyParagraph1 ??
+    themeConfig?.storeStory ??
+    (clampCatalogText(store.description, ABOUT_TEXT_LIMITS.storyParagraph1) ||
+    'Founded with a steadfast commitment to purity and heritage, our boutique brings you exceptional goods meticulously selected from trusted origins.');
   const storyParagraph2 =
-    aboutConfig.storyParagraph2 ||
+    aboutConfig.storyParagraph2 ??
     'Every offering is curated by experienced master specialists who value genuine craftsmanship, ethical supply chains, and transparent customer service.';
   
-  const missionTitle = aboutConfig.missionTitle || 'Our Mission';
+  const missionTitle = aboutConfig.missionTitle ?? 'Our Mission';
   const missionText =
-    aboutConfig.missionText ||
+    aboutConfig.missionText ??
     'To deliver genuine, authentic quality directly to discerning customers with zero compromise on integrity and craftsmanship.';
 
-  const visionTitle = aboutConfig.visionTitle || 'Our Vision';
+  const visionTitle = aboutConfig.visionTitle ?? 'Our Vision';
   const visionText =
-    aboutConfig.visionText ||
+    aboutConfig.visionText ??
     'Preserving authentic Indian heritage while making premium craftsmanship accessible across the country.';
 
   const values = Array.isArray(aboutConfig.values) && aboutConfig.values.length > 0
@@ -168,18 +179,18 @@ export default function StoreAboutPage() {
       ];
 
   const storeAddress =
-    aboutConfig.storeAddress ||
-    themeConfig?.physicalStoreAddress ||
-    store.businessAddress ||
-    'Heritage Arcade, MG Road, Pune, Maharashtra 411001';
+    aboutConfig.storeAddress ??
+    themeConfig?.physicalStoreAddress ??
+    (clampCatalogText(store.businessAddress, ABOUT_TEXT_LIMITS.storeAddress) ||
+    'Heritage Arcade, MG Road, Pune, Maharashtra 411001');
   
   const storeHours =
-    aboutConfig.storeHours ||
-    themeConfig?.physicalStoreTimings ||
+    aboutConfig.storeHours ??
+    themeConfig?.physicalStoreTimings ??
     'Monday – Saturday: 10:30 AM to 8:30 PM (IST)';
 
-  const contactPhone = aboutConfig.contactPhone || store.supportPhone || '+91 98220 12345';
-  const contactEmail = aboutConfig.contactEmail || store.supportEmail || 'contact@sairamteacompany.com';
+  const contactPhone = aboutConfig.contactPhone ?? (clampCatalogText(store.supportPhone, ABOUT_TEXT_LIMITS.contactPhone) || '+91 98220 12345');
+  const contactEmail = aboutConfig.contactEmail ?? (clampCatalogText(store.supportEmail, ABOUT_TEXT_LIMITS.contactEmail) || 'contact@sairamteacompany.com');
   const heroImage =
     aboutConfig.bannerUrl ||
     themeConfig?.branding?.bannerUrl ||
@@ -217,19 +228,19 @@ export default function StoreAboutPage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-8 sm:space-y-10">
+      <main className="[overflow-wrap:anywhere] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-8 sm:space-y-10">
         {/* 1. Hero Header */}
-        <section className="relative rounded-3xl overflow-hidden p-6 sm:p-10 border border-gray-200/80 shadow-xs bg-white text-left space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-gray-100 text-gray-700">
+        <section className="relative rounded-3xl overflow-hidden p-6 sm:p-10 border border-gray-200/80 shadow-xs bg-[var(--store-surface)] store-surface text-left space-y-4">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-wider uppercase rounded-full bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)]">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span className="font-bold text-gray-900">{store.name}</span>
-            <span className="text-gray-400">•</span>
+            <span className="font-bold text-[var(--store-text-primary)]">{store.name}</span>
+            <span className="text-[var(--store-text-secondary)]">•</span>
             <span>Heritage & Story</span>
           </div>
-          <h1 className="text-3xl sm:text-6xl font-bold font-theme-heading text-gray-900 tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-6xl font-bold font-theme-heading text-[var(--store-text-primary)] tracking-tight leading-tight">
             {pageTitle}
           </h1>
-          <p className="text-sm sm:text-lg text-gray-600 max-w-2xl leading-relaxed">
+          <p className="text-sm sm:text-lg text-[var(--store-text-secondary)] max-w-2xl leading-relaxed">
             {tagline}
           </p>
         </section>
@@ -239,13 +250,13 @@ export default function StoreAboutPage() {
           <div className="lg:col-span-7 space-y-6">
             <div className="space-y-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 uppercase">
-                {aboutConfig.storyBadge || 'Our Story'}
+                {aboutConfig.storyBadge ?? 'Our Story'}
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold font-theme-heading text-gray-900 tracking-tight">
-                {aboutConfig.storyHeading || 'Rooted in authentic tradition & passionate care'}
+              <h2 className="text-2xl sm:text-3xl font-bold font-theme-heading text-[var(--store-text-primary)] tracking-tight">
+                {aboutConfig.storyHeading ?? 'Rooted in authentic tradition & passionate care'}
               </h2>
             </div>
-            <div className="space-y-4 text-xs sm:text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-4 text-xs sm:text-sm text-[var(--store-text-secondary)] leading-relaxed">
               <p>{storyParagraph1}</p>
               <p>{storyParagraph2}</p>
             </div>
@@ -254,7 +265,7 @@ export default function StoreAboutPage() {
                 href={getLink(`/store/${slug}/products`)}
                 data-theme-btn="true"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold text-white shadow-md transition hover:opacity-90"
-                style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
               >
                 <span>Explore Our Products</span>
                 <ArrowRight className="w-4 h-4" />
@@ -263,7 +274,7 @@ export default function StoreAboutPage() {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-gray-100 relative">
+            <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-[var(--store-border)] shadow-md bg-[var(--store-surface)] store-surface relative">
               {heroImage ? (
                 <SafeImage
                   src={heroImage}
@@ -275,7 +286,7 @@ export default function StoreAboutPage() {
                 <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-gradient-to-br from-stone-900 to-stone-800 text-white">
                   <Building className="w-10 h-10 text-amber-400" />
                   <span className="font-serif text-2xl font-bold">{store.name}</span>
-                  <p className="text-xs text-stone-300 font-mono tracking-widest uppercase">Verified Merchant Partner</p>
+                  <p className="text-xs text-[var(--store-text-secondary)] font-mono tracking-widest uppercase">Verified Merchant Partner</p>
                 </div>
               )}
             </div>
@@ -284,56 +295,56 @@ export default function StoreAboutPage() {
 
         {/* 3. Mission & Vision */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-xs space-y-3">
+          <div className="bg-[var(--store-surface)] store-surface p-8 rounded-2xl border border-[var(--store-border)] shadow-xs space-y-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
               <Award className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">{missionTitle}</h3>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{missionText}</p>
+            <h3 className="text-lg font-bold text-[var(--store-text-primary)]">{missionTitle}</h3>
+            <p className="text-xs sm:text-sm text-[var(--store-text-secondary)] leading-relaxed">{missionText}</p>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-xs space-y-3">
+          <div className="bg-[var(--store-surface)] store-surface p-8 rounded-2xl border border-[var(--store-border)] shadow-xs space-y-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
               <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">{visionTitle}</h3>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{visionText}</p>
+            <h3 className="text-lg font-bold text-[var(--store-text-primary)]">{visionTitle}</h3>
+            <p className="text-xs sm:text-sm text-[var(--store-text-secondary)] leading-relaxed">{visionText}</p>
           </div>
         </section>
 
         {/* 4. Core Pillars / Values */}
         <section className="space-y-6">
           <div className="text-center max-w-xl mx-auto space-y-2">
-            <h2 className="text-xl sm:text-2xl font-bold font-theme-heading text-gray-900">
+            <h2 className="text-xl sm:text-2xl font-bold font-theme-heading text-[var(--store-text-primary)]">
               Why Customers Trust {store.name}
             </h2>
-            <p className="text-xs text-gray-500">Built on three unwavering principles of authentic commerce.</p>
+            <p className="text-xs text-[var(--store-text-secondary)]">Built on three unwavering principles of authentic commerce.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {values.map((val: any, idx: number) => (
               <div
                 key={idx}
-                className="bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs space-y-2 text-center"
+                className="bg-[var(--store-surface)] store-surface p-6 rounded-2xl border border-[var(--store-border)] shadow-xs space-y-2 text-center"
               >
-                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                <div className="w-10 h-10 rounded-full bg-[var(--store-surface)] store-surface border border-[var(--store-border)] text-emerald-600 flex items-center justify-center mx-auto mb-3">
                   <CheckCircle className="w-5 h-5" />
                 </div>
-                <h4 className="font-bold text-sm text-gray-900">{val.title}</h4>
-                <p className="text-xs text-gray-500 leading-relaxed">{val.desc}</p>
+                <h4 className="font-bold text-sm text-[var(--store-text-primary)]">{val.title}</h4>
+                <p className="text-xs text-[var(--store-text-secondary)] leading-relaxed">{val.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* 5. Physical Store / Contact Box */}
-        <section className="bg-white rounded-3xl border border-gray-200 p-8 sm:p-10 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
+        <section className="bg-[var(--store-surface)] store-surface rounded-3xl border border-[var(--store-border)] p-8 sm:p-10 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--store-border)] pb-6">
             <div>
-              <span className="text-xs font-mono font-bold text-gray-400 uppercase tracking-widest block mb-1">
+              <span className="text-xs font-mono font-bold text-[var(--store-text-secondary)] uppercase tracking-widest block mb-1">
                 Direct Contact & Store Location
               </span>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h3 className="text-xl sm:text-2xl font-bold text-[var(--store-text-primary)]">
                 Visit Our Store or Get in Touch
               </h3>
             </div>
@@ -350,31 +361,31 @@ export default function StoreAboutPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-xs">
             <div className="space-y-1.5">
-              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-gray-600" /> Store Address
+              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-[var(--store-text-secondary)]" /> Store Address
               </span>
-              <p className="font-medium text-gray-800 leading-relaxed">{storeAddress}</p>
+              <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeAddress}</p>
             </div>
 
             <div className="space-y-1.5">
-              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-gray-600" /> Operating Hours
+              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[var(--store-text-secondary)]" /> Operating Hours
               </span>
-              <p className="font-medium text-gray-800 leading-relaxed">{storeHours}</p>
+              <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeHours}</p>
             </div>
 
             <div className="space-y-1.5">
-              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-gray-600" /> Phone Support
+              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                <Phone className="w-4 h-4 text-[var(--store-text-secondary)]" /> Phone Support
               </span>
-              <p className="font-medium text-gray-800 font-mono">{contactPhone}</p>
+              <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactPhone}</p>
             </div>
 
             <div className="space-y-1.5">
-              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-gray-600" /> Support Email
+              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-[var(--store-text-secondary)]" /> Support Email
               </span>
-              <p className="font-medium text-gray-800 font-mono">{contactEmail}</p>
+              <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactEmail}</p>
             </div>
           </div>
         </section>

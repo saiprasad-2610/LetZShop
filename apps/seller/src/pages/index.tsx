@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -167,15 +168,15 @@ export default function CompactDashboardPage() {
   const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
     ? store.status === 'LIVE'
-      ? `${baseStorefrontUrl}/store/${store.slug}`
-      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`
+      ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
+      : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true })
     : '#';
 
   const handleShareStore = () => {
     if (!store?.slug) return;
     const url = store.status === 'LIVE'
-      ? `${baseStorefrontUrl}/store/${store.slug}`
-      : `${baseStorefrontUrl}/store/${store.slug}?preview=true`;
+      ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
+      : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true });
 
     if (navigator.share && store.status === 'LIVE') {
       navigator.share({ title: store.name, url }).catch(() => {});
@@ -571,7 +572,7 @@ export default function CompactDashboardPage() {
         label: t('dashboard.viewStore'),
         action: () => {
           if (activeStore?.slug) {
-            window.open(`${baseStorefrontUrl}/store/${activeStore.slug}`, '_blank');
+            window.open(getPublicStoreUrl(activeStore.slug, baseStorefrontUrl), '_blank');
           }
         },
       },
@@ -1168,7 +1169,8 @@ export default function CompactDashboardPage() {
       </div>
 
       {/* Product Editor Drawer for seamless Add Product */}
-      <ProductEditorDrawer
+      {productDrawerOpen && <ProductEditorDrawer
+        key={store?.id}
         isOpen={productDrawerOpen}
         productId={null}
         onClose={() => setProductDrawerOpen(false)}
@@ -1176,7 +1178,7 @@ export default function CompactDashboardPage() {
           setProductDrawerOpen(false);
           loadDashboard(selectedPeriod, true);
         }}
-      />
+      />}
     </Layout>
   );
 }

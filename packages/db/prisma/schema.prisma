@@ -24,6 +24,7 @@ enum CredentialType {
 }
 
 enum OtpPurpose {
+  EMAIL_VERIFICATION
   REGISTRATION
   LOGIN
   RECOVERY
@@ -232,6 +233,7 @@ model User {
   phone          String             @unique
   email          String?            @unique
   fullName       String
+  emailVerifiedAt DateTime? @map("email_verified_at")
   role           UserRole           @default(SELLER_OWNER)
   isSuperAdmin   Boolean            @default(false)
   isActive       Boolean            @default(true)
@@ -275,6 +277,9 @@ model SellerCredential {
 model OtpChallenge {
   id          String      @id @default(uuid())
   userId      String?     @map("user_id")
+  email       String?
+  deliveredAt DateTime? @map("delivered_at")
+  consumedAt  DateTime? @map("consumed_at")
   phone       String
   purpose     OtpPurpose  @default(REGISTRATION)
   codeHash    String      @map("code_hash")
@@ -288,6 +293,9 @@ model OtpChallenge {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([phone, purpose, isVerified, expiresAt])
+  @@index([email, purpose, createdAt])
+  @@index([phone, purpose, createdAt])
+  @@index([createdAt])
   @@map("otp_challenges")
 }
 

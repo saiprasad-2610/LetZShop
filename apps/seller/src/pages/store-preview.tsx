@@ -1,3 +1,5 @@
+import { getStorefrontUrl } from '../utils/config';
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -43,12 +45,10 @@ export default function StorePreviewPage() {
   const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
   const [customerPreviewUrl, setCustomerPreviewUrl] = useState('');
   const [publicShareUrl, setPublicShareUrl] = useState('');
-  const displayUrl = `letzshop.store/store/${storeSlug}`;
-
-  const customerPreviewPagePath =
-    activePreviewPage === 'products' ? '/products' : activePreviewPage === 'about' ? '/about' : '';
+  const displayUrl = getPublicStoreUrl(storeSlug, getStorefrontUrl());
 
   useEffect(() => {
+<<<<<<< HEAD
     setCustomerPreviewUrl(
       getStoreCustomerPreviewUrl(storeSlug, {
         previewSecret: store?.previewSecret,
@@ -57,6 +57,11 @@ export default function StorePreviewPage() {
     );
     setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive, store?.previewSecret));
   }, [storeSlug, isLive, customerPreviewPagePath, store?.previewSecret]);
+=======
+    setCustomerPreviewUrl(getStoreCustomerPreviewUrl(storeSlug, activePreviewPage === 'home' ? undefined : activePreviewPage));
+    setPublicShareUrl(getStorePublicShareUrl(storeSlug, isLive));
+  }, [storeSlug, isLive, activePreviewPage]);
+>>>>>>> 2a2efe73f7efc9e3585e9a28f7c6965f4804a5e5
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {

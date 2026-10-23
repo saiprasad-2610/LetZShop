@@ -31,21 +31,20 @@ body {
 }
 
 /* Explicit merchant choices win over a theme's decorative defaults. */
-[data-custom-primary] [data-theme-hero] :is(h1, h2, h1 *, h2 *, p),
-[data-custom-background] [data-theme-hero] :is(h1, h2, h1 *, h2 *, p) {
-  color: var(--theme-primary) !important;
+[data-store-theme] [data-theme-hero] :is(h1, h2, h1 *, h2 *, p) {
+  color: var(--store-text-primary);
 }
-[data-custom-background] [data-theme-hero] {
+[data-custom-background] [data-theme-hero]:not([data-store-overlay]) {
   background-color: var(--theme-background) !important;
-  background-image: none !important;
 }
-[data-custom-primary] :is([data-theme-tone="primary"], .store-product-grid button) {
+[data-store-theme] :is([data-theme-tone="primary"], [data-store-button]) {
   background-color: var(--theme-primary) !important;
   color: var(--theme-on-primary) !important;
 }
-[data-custom-primary] [data-theme-tone="secondary"] {
-  color: var(--theme-primary) !important;
-  border-color: var(--theme-primary) !important;
+[data-store-theme] [data-theme-tone="secondary"] {
+  color: var(--store-text-primary) !important;
+  background-color: var(--store-bg) !important;
+  border-color: var(--store-border) !important;
 }
 [data-custom-accent] [data-theme-accent] {
   background-color: var(--theme-accent) !important;
@@ -54,6 +53,52 @@ body {
 }
 [data-custom-accent] [data-theme-accent] * {
   color: var(--theme-on-accent) !important;
+}
+
+/* Semantic commerce surfaces. Status badges and color/image swatches retain their own pairs. */
+[data-store-theme] .store-surface {
+  color: var(--store-surface-text);
+  --store-text-primary: var(--store-surface-text);
+  --store-heading: var(--store-surface-text);
+  --store-text-secondary: var(--store-surface-muted);
+  --store-text-muted: var(--store-surface-muted);
+}
+[data-store-theme] input:not([type="radio"]):not([type="checkbox"]):not([type="color"]),
+[data-store-theme] select, [data-store-theme] textarea {
+  background-color: var(--store-surface); color: var(--store-surface-text);
+}
+[data-store-theme] input::placeholder, [data-store-theme] textarea::placeholder { color: var(--store-surface-muted); opacity: 1; }
+[data-store-inverse-hero] {
+  --store-bg: #0F172A; --store-text-primary: #FFFFFF; --store-text-secondary: #E2E8F0;
+}
+[data-store-theme] [data-theme-hero] .store-image-caption p { color: var(--store-overlay-text) !important; }
+[data-store-theme] .store-inverse {
+  --store-text-primary: var(--store-button-text);
+  --store-text-secondary: var(--store-button-text);
+  color: var(--store-button-text) !important;
+}
+[data-store-theme] .store-inverse * { color: var(--store-button-text) !important; }
+[data-store-theme] [data-store-button] *,
+[data-store-theme] [data-theme-tone="primary"] * { color: var(--store-button-text) !important; }
+[data-store-theme] .store-product-grid > div {
+  background-color: var(--store-surface);
+  --store-text-primary: var(--store-surface-text);
+  --store-text-secondary: var(--store-surface-muted);
+}
+[data-store-theme] .store-product-grid a[class*="line-clamp"],
+[data-store-theme] .store-product-grid [data-store-price] { color: var(--store-text-primary); }
+[data-store-theme] .store-product-grid [class*="line-through"] { color: var(--store-text-secondary); }
+[data-store-theme] [data-store-overlay] {
+  --store-text-primary: var(--store-overlay-text);
+  --store-text-secondary: var(--store-overlay-text);
+}
+[data-store-theme] [data-store-overlay]::after {
+  content: ''; position: absolute; inset: 0; background: var(--store-overlay-bg); pointer-events: none;
+}
+[data-store-theme] [data-store-overlay] > :not(.absolute) { position: relative; z-index: 1; }
+[data-store-theme] [data-store-overlay] :is(h1, h1 *, p) { color: var(--store-overlay-text) !important; }
+[data-store-theme] [data-store-overlay] [data-theme-tone="secondary"] {
+  color: var(--store-overlay-text) !important; background: var(--store-overlay-bg) !important;
 }
 [data-custom-typography] :is(h1, h2, h3, h4, h5, h6, .store-product-grid a[class*="line-clamp"]) {
   font-family: var(--theme-font-heading) !important;
@@ -293,3 +338,5 @@ a.store-btn,
   .announcement-marquee-copy { padding: 0; flex-shrink: 1; }
 }
 
+
+[data-landing-main] > section { scroll-margin-top: 84px; }

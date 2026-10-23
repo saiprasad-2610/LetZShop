@@ -1,5 +1,7 @@
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   Controller,
+  UseGuards,
   Get,
   Post,
   Param,
@@ -31,6 +33,8 @@ export class ReviewsController {
   }
 
   @Post(':slug/reviews')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Submit a verified purchase product review' })
   async submitReview(
     @Param('slug') slug: string,

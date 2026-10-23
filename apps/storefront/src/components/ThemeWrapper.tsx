@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Head from 'next/head';
-import { FOUNDATIONAL_THEMES, ThemeConfig, normalizeHexColor, getContrastRatio, STOREFRONT_FONT_FAMILIES, resolveStorefrontFont } from '@simply/ui';
+import { FOUNDATIONAL_THEMES, ThemeConfig, normalizeHexColor, getContrastRatio, storefrontColors, STOREFRONT_FONT_FAMILIES, resolveStorefrontFont } from '@simply/ui';
 
 interface ThemeWrapperProps {
   themeConfig?: any;
@@ -23,6 +23,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   const background = normalizeHexColor(themeConfig?.palette?.background) || themeArchetype.palette.background;
   const onPrimary = getContrastRatio(primary, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
   const onAccent = getContrastRatio(accent, '#FFFFFF') >= 4.5 ? '#FFFFFF' : '#000000';
+  const colors = useMemo(() => storefrontColors(themeArchetype.palette, { ...themeConfig?.palette, primary, accent, background }), [themeCode, primary, accent, background, themeConfig?.palette?.surface, themeConfig?.palette?.text, themeConfig?.palette?.muted, themeConfig?.palette?.border]);
 
   // Resolve typography: vendor selected preset > vendor custom heading/body > theme default
   const selectedPreset = resolveStorefrontFont(themeConfig?.typography?.preset || themeConfig?.typography?.fontHeading || '');
@@ -103,6 +104,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
   else if (announcementBarStyle === 'pill') announcementBorderRadius = '0 0 9999px 9999px';
 
   const styleVariables = {
+    ...colors,
     '--theme-primary': primary,
     '--theme-accent': accent,
     '--theme-background': background,
@@ -132,6 +134,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
         />
       </Head>
       <div
+        data-store-theme={themeCode}
         data-custom-primary={primary.toUpperCase() !== themeArchetype.palette.primary.toUpperCase() || undefined}
         data-custom-accent={accent.toUpperCase() !== themeArchetype.palette.accent.toUpperCase() || undefined}
         data-custom-background={background.toUpperCase() !== themeArchetype.palette.background.toUpperCase() || undefined}
@@ -139,7 +142,7 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
         style={{
           ...styleVariables,
           backgroundColor: 'var(--theme-background)',
-          color: 'var(--theme-primary)',
+          color: 'var(--store-text-primary)',
         }}
         className={`min-h-screen transition-colors duration-200 theme-${themeCode} font-theme-body`}
       >

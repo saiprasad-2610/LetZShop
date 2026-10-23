@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import type {
   AdminMerchantDetail,
   AdminCommunicationLog,
@@ -294,9 +295,9 @@ export default function MerchantDetailPage() {
 
   // Primary store URLs
   const isPrimaryLive = primaryStore?.status === 'LIVE' && primaryStore?.isPubliclyAccessible;
-  const primaryStoreUrl = primaryStore?.slug ? `${getStorefrontUrl()}/store/${primaryStore.slug}` : null;
+  const primaryStoreUrl = primaryStore?.slug ? getPublicStoreUrl(primaryStore.slug, getStorefrontUrl()) : null;
   const primaryPreviewUrl = primaryStore?.slug && primaryStore?.previewSecret
-    ? `${getStorefrontUrl()}/store/${primaryStore.slug}?previewSecret=${primaryStore.previewSecret}`
+    ? getPublicStoreUrl(primaryStore, getStorefrontUrl(), { previewSecret: primaryStore.previewSecret })
     : primaryStoreUrl;
 
   // Aggregated operational metrics across stores
@@ -949,7 +950,7 @@ export default function MerchantDetailPage() {
                       m.stores.map((s) => {
                         const isStoreLive = s.status === 'LIVE' && s.isPubliclyAccessible;
                         const isStoreSuspended = s.status === 'SUSPENDED';
-                        const sUrl = `${getStorefrontUrl()}/store/${s.slug}`;
+                        const sUrl = getPublicStoreUrl(s.slug, getStorefrontUrl());
                         const sPreviewUrl = s.previewSecret ? `${sUrl}?previewSecret=${s.previewSecret}` : sUrl;
 
                         return (

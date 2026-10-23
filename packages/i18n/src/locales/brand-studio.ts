@@ -1,4 +1,10 @@
 export const brandStudioEn = {
+  "socialInvalid": "Enter a valid platform link or supported handle.",
+  "socialSaveError": "Fix the social links in Footer & Links before saving. Invalid links are hidden from preview.",
+  "socialHelp": {"instagram":"Instagram URL, @username or username.","whatsapp":"International phone number (for example +919876543210), wa.me or api.whatsapp.com link.","facebook":"Facebook Page URL or page username.","youtube":"YouTube channel URL or @channelhandle.","twitter":"X / Twitter URL, @handle or handle (up to 15 characters).","linkedin":"LinkedIn company/profile URL or company slug."},
+  "pillarTitle": "Pillar {number} title",
+  "pillarDescription": "Pillar {number} description",
+  "characterCount": "Character count",
   "aboutPlaceholder": "About {store}",
   "copyrightPlaceholder": "© {year} {store}. All rights reserved.",
   "topAnnouncementBar": "Top Announcement Bar",
@@ -372,6 +378,12 @@ export const brandStudioEn = {
 };
 
 export const brandStudioMr = {
+  "socialInvalid": "योग्य प्लॅटफॉर्म लिंक किंवा समर्थित हँडल द्या.",
+  "socialSaveError": "जतन करण्यापूर्वी Footer & Links मधील सोशल लिंक्स दुरुस्त करा. अयोग्य लिंक्स पूर्वावलोकनात दिसणार नाहीत.",
+  "socialHelp": {"instagram":"Instagram URL, @username किंवा वापरकर्तानाव.","whatsapp":"आंतरराष्ट्रीय फोन क्रमांक (उदा. +919876543210), wa.me किंवा api.whatsapp.com लिंक.","facebook":"Facebook पेजची URL किंवा पेजचे वापरकर्तानाव.","youtube":"YouTube चॅनेलची URL किंवा @channelhandle.","twitter":"X / Twitter URL, @handle किंवा हँडल (कमाल 15 अक्षरे).","linkedin":"LinkedIn कंपनी/प्रोफाइलची URL किंवा कंपनीचा स्लग."},
+  "pillarTitle": "आधारस्तंभ {number} चे शीर्षक",
+  "pillarDescription": "आधारस्तंभ {number} चे वर्णन",
+  "characterCount": "अक्षरांची संख्या",
   "aboutPlaceholder": "{store} बद्दल",
   "copyrightPlaceholder": "© {year} {store}. सर्व हक्क राखीव.",
   "topAnnouncementBar": "वरची घोषणा पट्टी",
@@ -745,6 +757,12 @@ export const brandStudioMr = {
 };
 
 export const brandStudioHi = {
+  "socialInvalid": "सही प्लेटफ़ॉर्म लिंक या समर्थित हैंडल दर्ज करें।",
+  "socialSaveError": "सहेजने से पहले Footer & Links में सोशल लिंक ठीक करें। गलत लिंक पूर्वावलोकन में नहीं दिखेंगे।",
+  "socialHelp": {"instagram":"Instagram URL, @username या उपयोगकर्ता नाम।","whatsapp":"अंतरराष्ट्रीय फ़ोन नंबर (जैसे +919876543210), wa.me या api.whatsapp.com लिंक।","facebook":"Facebook पेज का URL या पेज का उपयोगकर्ता नाम।","youtube":"YouTube चैनल का URL या @channelhandle।","twitter":"X / Twitter URL, @handle या हैंडल (अधिकतम 15 अक्षर)।","linkedin":"LinkedIn कंपनी/प्रोफ़ाइल का URL या कंपनी स्लग।"},
+  "pillarTitle": "स्तंभ {number} का शीर्षक",
+  "pillarDescription": "स्तंभ {number} का विवरण",
+  "characterCount": "अक्षरों की संख्या",
   "aboutPlaceholder": "{store} के बारे में",
   "copyrightPlaceholder": "© {year} {store}। सर्वाधिकार सुरक्षित।",
   "topAnnouncementBar": "ऊपरी घोषणा पट्टी",

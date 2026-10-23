@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { getStorefrontUrl } from '../utils/config';
 import { useRouter } from 'next/router';
 import { useAuth, apiClient } from '../context/AuthContext';
 import { Smartphone, Lock, KeyRound, ArrowRight, Store, RefreshCw, ShieldCheck, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { IndianPhoneInput } from '../components/IndianPhoneInput';
 import { isValidIndianPhone, isValidPin } from '@simply/validation';
 import { ThemeToggle } from '../components/ui/MerchantUi';
+import { useActionNotification } from '../hooks/useActionNotification';
 
 type AuthMode =
   | 'PIN_LOGIN'
@@ -18,6 +20,10 @@ type AuthMode =
 export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>('PIN_LOGIN');
   const [phone, setPhone] = useState('');
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [resendUntil, setResendUntil] = useState(0);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [phoneValid, setPhoneValid] = useState(false);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -28,12 +34,17 @@ export default function LoginPage() {
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { notification, notify, clearNotification } = useActionNotification();
   const [accountExists, setAccountExists] = useState(false);
 
   const { user, store, loading: authLoading, login } = useAuth();
   const router = useRouter();
-  const isDev = process.env.NODE_ENV !== 'production';
+  const [homeUrl, setHomeUrl] = useState('/');
+  useEffect(() => setHomeUrl(`${getStorefrontUrl()}/`), []);
+  useEffect(() => {
+    const tick = () => setResendSeconds(Math.max(0, Math.ceil((resendUntil - Date.now()) / 1000)));
+    tick(); const interval = setInterval(tick, 1000); return () => clearInterval(interval);
+  }, [resendUntil]);
 
   // Route protection: authenticated users must not see login or registration again
   useEffect(() => {
@@ -55,8 +66,8 @@ export default function LoginPage() {
   // Clean PIN state on mode change
   const resetFormState = (newMode: AuthMode) => {
     setError(null);
+    clearNotification();
     setAccountExists(false);
-    setSuccessMsg(null);
     setPin('');
     setConfirmPin('');
     setShowPin(false);
@@ -76,6 +87,7 @@ export default function LoginPage() {
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
@@ -98,11 +110,11 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       if (err.code === 'PIN_LOCKED') {
-        setError(err.message || 'Account temporarily locked due to too many failed attempts. Please use PIN Recovery.');
+        notify('error', err.message || 'Account temporarily locked due to too many failed attempts. Please use PIN Recovery.');
       } else if (err.code === 'PIN_INVALID') {
-        setError(err.message || 'Invalid phone number or PIN. Please verify your credentials.');
+        notify('error', err.message || 'Invalid phone number or PIN. Please verify your credentials.');
       } else {
-        setError(err.message || 'Login failed. Please verify your credentials.');
+        notify('error', err.message || 'Login failed. Please verify your credentials.');
       }
     } finally {
       setLoading(false);
@@ -113,26 +125,33 @@ export default function LoginPage() {
   const handleRequestRegisterOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
       return;
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationEmail.trim())) { setError('Invalid email address'); return; }
+
     setLoading(true);
 
     try {
-      await apiClient.auth.requestRegisterOtp(phone);
+      const result = await apiClient.auth.requestRegisterOtp(phone, registrationEmail.trim().toLowerCase());
+      setMaskedEmail(result.maskedEmail || `${registrationEmail.trim()[0]}***@${registrationEmail.trim().split('@')[1]}`);
+      setResendUntil(Date.now() + (result.resendAfterSeconds || 60) * 1000);
+      setOtp('');
       setAccountExists(false);
       setMode('REGISTER_VERIFY');
-      setSuccessMsg(`Verification OTP sent to ${phone}`);
+      notify('success', result.message || 'Verification code sent to your email.');
     } catch (err: any) {
       if (err.code === 'ACCOUNT_EXISTS' || err.status === 409) {
         setAccountExists(true);
         setError(null);
+        clearNotification();
       } else {
         setAccountExists(false);
-        setError(err.message || 'Failed to send registration OTP.');
+        notify('error', err.message || 'Failed to send registration OTP.');
       }
     } finally {
       setLoading(false);
@@ -143,17 +162,18 @@ export default function LoginPage() {
   const handleVerifyRegisterOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
     setLoading(true);
 
     try {
-      const res = await apiClient.auth.verifyRegisterOtp(phone, otp);
+      const res = await apiClient.auth.verifyRegisterOtp(phone, otp, registrationEmail.trim().toLowerCase());
       setTempToken(res.tempToken || null);
       setPin('');
       setConfirmPin('');
       setMode('REGISTER_PIN');
-      setSuccessMsg(null);
+      clearNotification();
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired OTP.');
+      notify('error', err.message || 'Invalid or expired OTP.');
     } finally {
       setLoading(false);
     }
@@ -163,6 +183,7 @@ export default function LoginPage() {
   const handleSetupPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidPin(pin)) {
       setError('PIN must be exactly 6 digits.');
@@ -184,7 +205,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to setup PIN.');
+      notify('error', err.message || 'Failed to setup PIN.');
     } finally {
       setLoading(false);
     }
@@ -194,6 +215,7 @@ export default function LoginPage() {
   const handleRequestRecoveryOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidIndianPhone(phone)) {
       setError('Enter a valid 10-digit mobile number.');
@@ -203,11 +225,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await apiClient.auth.requestRecoveryOtp(phone);
+      const result = await apiClient.auth.requestRecoveryOtp(phone);
+      setMaskedEmail(result.maskedEmail || phone);
       setMode('RECOVERY_VERIFY');
-      setSuccessMsg(`Recovery OTP sent to ${phone}`);
+      notify('success', result.message || 'Recovery code sent to your registered contact.');
     } catch (err: any) {
-      setError(err.message || 'Failed to send recovery OTP.');
+      notify('error', err.message || 'Failed to send recovery OTP.');
     } finally {
       setLoading(false);
     }
@@ -217,6 +240,7 @@ export default function LoginPage() {
   const handleVerifyRecoveryOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
     setLoading(true);
 
     try {
@@ -225,9 +249,9 @@ export default function LoginPage() {
       setPin('');
       setConfirmPin('');
       setMode('RECOVERY_PIN');
-      setSuccessMsg(null);
+      clearNotification();
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired OTP.');
+      notify('error', err.message || 'Invalid or expired OTP.');
     } finally {
       setLoading(false);
     }
@@ -237,6 +261,7 @@ export default function LoginPage() {
   const handleResetPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    clearNotification();
 
     if (!isValidPin(pin)) {
       setError('PIN must be exactly 6 digits.');
@@ -258,7 +283,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to reset PIN.');
+      notify('error', err.message || 'Failed to reset PIN.');
     } finally {
       setLoading(false);
     }
@@ -294,15 +319,9 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4">
         {/* Brand Logo & Header */}
         <div className="text-center">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-white shadow-lg mb-4"
-            style={{ backgroundColor: 'var(--merchant-primary)' }}
-          >
-            <Store className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--merchant-text)' }}>
-            Simply E-Commerce
-          </h1>
+          <a href={homeUrl} aria-label="Back to LetzShop home" className="inline-flex items-center justify-center rounded-xl bg-white p-2 mb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+            <img src="/images/letzshop-logo.png" alt="LetzShop" width={180} height={64} className="h-12 w-auto object-contain" />
+          </a>
           <p className="mt-1 text-sm" style={{ color: 'var(--merchant-text-muted)' }}>
             Merchant Operations Portal
           </p>
@@ -314,15 +333,15 @@ export default function LoginPage() {
           style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)' }}
         >
           {error && (
-            <div className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium">
+            <div role="alert" data-field-validation className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium">
               {error}
             </div>
           )}
 
-          {successMsg && (
-            <div className="mb-5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>{successMsg}</span>
+          {notification && (
+            <div data-action-notification role={notification.type === 'error' ? 'alert' : 'status'} className={`mb-5 p-3 rounded-lg border text-xs font-medium flex items-center gap-2 ${notification.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+              {notification.type === 'success' && <CheckCircle className="w-4 h-4 shrink-0" />}
+              <span>{notification.message}</span>
             </div>
           )}
 
@@ -408,7 +427,7 @@ export default function LoginPage() {
                     className="font-semibold hover:underline"
                     style={{ color: 'var(--merchant-primary)' }}
                   >
-                    Register with Mobile OTP
+                    Register with Email OTP
                   </button>
                 </p>
               </div>
@@ -465,8 +484,15 @@ export default function LoginPage() {
                   required
                 />
                 <p className="mt-1.5 text-[11px]" style={{ color: 'var(--merchant-text-muted)' }}>
-                  A one-time verification code will be sent to your mobile.
+                  A one-time verification code will be sent to your email.
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="register-email" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>Email Address</label>
+                <input id="register-email" type="email" autoComplete="email" required maxLength={254}
+                  value={registrationEmail} onChange={e => setRegistrationEmail(e.target.value)}
+                  style={inputStyle} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
 
               <button
@@ -498,7 +524,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Enter 6-Digit OTP sent to {phone}
+                  Enter 6-Digit OTP sent to {maskedEmail}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: 'var(--merchant-text-muted)' }}>
@@ -517,12 +543,6 @@ export default function LoginPage() {
                     className="block w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm tracking-widest text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
-                {isDev && (
-                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center justify-between">
-                    <span className="font-medium" style={{ color: 'var(--merchant-text-secondary)' }}>Development code:</span>
-                    <span className="font-mono font-bold tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">123456</span>
-                  </div>
-                )}
               </div>
 
               <button
@@ -534,6 +554,11 @@ export default function LoginPage() {
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : 'Verify Code'}
               </button>
 
+              <p className="text-xs" data-testid="otp-sent-destination">Verification code sent to {maskedEmail}</p>
+              <button type="button" disabled={loading || resendSeconds > 0} onClick={handleRequestRegisterOtp}
+                className="text-xs disabled:opacity-50" style={{ color: 'var(--merchant-primary)' }}>
+                {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend code'}
+              </button>
               <div className="pt-3 text-center">
                 <button
                   type="button"
@@ -543,7 +568,7 @@ export default function LoginPage() {
                   className="text-xs hover:underline"
                   style={{ color: 'var(--merchant-text-muted)' }}
                 >
-                  Change Mobile Number
+                  Change Email / Mobile
                 </button>
               </div>
             </form>
@@ -702,7 +727,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyRecoveryOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--merchant-text-secondary)' }}>
-                  Enter 6-Digit Recovery OTP sent to {phone}
+                  Enter 6-Digit Recovery OTP sent to {maskedEmail || phone}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: 'var(--merchant-text-muted)' }}>
@@ -721,12 +746,6 @@ export default function LoginPage() {
                     className="block w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm tracking-widest text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--merchant-focus-ring)]"
                   />
                 </div>
-                {isDev && (
-                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center justify-between">
-                    <span className="font-medium" style={{ color: 'var(--merchant-text-secondary)' }}>Development code:</span>
-                    <span className="font-mono font-bold tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">123456</span>
-                  </div>
-                )}
               </div>
 
               <button

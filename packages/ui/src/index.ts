@@ -3,6 +3,7 @@ export * from './fallbacks';
 export * from './quick-designer';
 export * from './money';
 export * from './tokens';
+export * from './storefront-colors';
 export * from './trust-badges';
 export * from './media';
 export * from './payment';

@@ -23,6 +23,17 @@ export class SubscriptionVisibilityService {
 
   constructor(private readonly prisma: PrismaClient) {}
 
+  /** Seller status uses the exact public gateway, including grace, tenant and publication rules. */
+  public async getEffectivePublicStatus(storeId: string) {
+    try {
+      await this.evaluateVisibility(storeId);
+      return { isPublic: true, evaluatedAt: new Date().toISOString() };
+    } catch (error) {
+      if (!(error instanceof DomainException)) throw error;
+      return { isPublic: false, evaluatedAt: new Date().toISOString() };
+    }
+  }
+
   /**
    * Evaluates server-side store visibility according to critical subscription rules.
    * NEVER trust client state. Enforced strictly at backend gateway.

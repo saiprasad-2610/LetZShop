@@ -1,3 +1,4 @@
+import { getPublicStoreUrl } from '@simply/types';
 import type {
   AdminPage,
   AdminReview,
@@ -1540,7 +1541,7 @@ export default function ReviewsPage() {
                         </Link>
                       )}
                       <a
-                        href={`${getStorefrontUrl()}/store/${selectedReview.store.slug}`}
+                        href={getPublicStoreUrl(selectedReview.store.slug, getStorefrontUrl())}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="admin-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 font-semibold"

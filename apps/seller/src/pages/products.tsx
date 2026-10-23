@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
+import { useActionNotification } from '../hooks/useActionNotification';
 import { useRouter } from 'next/router';
 import {
   Package,
@@ -35,7 +36,10 @@ import { formatPaise } from '@simply/ui';
 import { useSellerI18n } from '@simply/i18n';
 
 export default function ProductsPage() {
-  const { api } = useAuth();
+  const { api, store } = useAuth();
+  const { notification, notify } = useActionNotification();
+  const loadRevision = useRef(0);
+  const duplicating = useRef(false);
   const { t } = useSellerI18n();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'inventory'>('products');
@@ -68,20 +72,30 @@ export default function ProductsPage() {
   const [stockReason, setStockReason] = useState<string>('RESTOCK');
 
   useEffect(() => {
-    if (router.query.action === 'add') {
+    if (router.isReady && router.query.action === 'add' && store?.id) {
       setEditingProductId(null);
       setEditorOpen(true);
+      const { action, ...query } = router.query;
+      router.replace({ pathname: router.pathname, query }, undefined, { shallow: true });
     }
     if (router.query.tab === 'inventory') {
       setActiveTab('inventory');
     }
-  }, [router.query]);
+  }, [router.isReady, router.query.action, router.query.tab, store?.id]);
 
+  useEffect(() => { loadData(); }, [activeTab, store?.id]);
+  const previousStoreId = useRef(store?.id);
   useEffect(() => {
-    loadData();
-  }, [activeTab]);
+    if (previousStoreId.current && previousStoreId.current !== store?.id) { setEditorOpen(false); setEditingProductId(null); }
+    previousStoreId.current = store?.id;
+  }, [store?.id]);
+  const openNewProduct = () => {
+    if (!store?.id) { notify('error', t('products.storeRequired')); return; }
+    setEditingProductId(null); setEditorOpen(true);
+  };
 
   const loadData = async (searchOverride?: string, categoryOverride?: string) => {
+    const revision = ++loadRevision.current;
     setLoading(true);
     try {
       if (activeTab === 'products') {
@@ -94,6 +108,7 @@ export default function ProductsPage() {
           }),
           api.catalog.getCategories(),
         ]);
+        if (revision !== loadRevision.current) return;
         setProducts(prodRes?.items || prodRes || []);
         setCategories(catRes || []);
       } else if (activeTab === 'categories') {
@@ -108,9 +123,9 @@ export default function ProductsPage() {
         setCategories(catRes || []);
       }
     } catch (err) {
-      console.error('Failed to load catalog data', err);
+      if (revision === loadRevision.current) notify('error', t('products.loadError'));
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
   };
 
@@ -155,12 +170,16 @@ export default function ProductsPage() {
   });
 
   const handleDuplicate = async (id: string) => {
+    if (duplicating.current) return;
+    duplicating.current = true;
     try {
       await api.catalog.duplicateProduct(id);
-      loadData();
+      setSearchQuery(''); setCategoryFilter(''); setStockFilter('ALL');
+      await loadData('', '');
+      notify('success', t('products.duplicatedAsDraft'));
     } catch (err: any) {
-      alert(err.message || 'Failed to duplicate product');
-    }
+      notify('error', err.message || t('products.duplicateError'));
+    } finally { duplicating.current = false; }
   };
 
   const handleDelete = async (id: string) => {
@@ -262,6 +281,7 @@ export default function ProductsPage() {
         <title>{t('products.title')} | LetzShop Merchant Portal</title>
       </Head>
 
+      {notification && <div role={notification.type === 'error' ? 'alert' : 'status'} className="fixed top-4 right-4 z-[110] max-w-sm rounded-xl border border-[var(--merchant-border)] bg-[var(--merchant-surface)] p-4 shadow-lg">{notification.message}</div>}
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -286,8 +306,7 @@ export default function ProductsPage() {
             </button>
             <button
               onClick={() => {
-                setEditingProductId(null);
-                setEditorOpen(true);
+                openNewProduct();
               }}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--merchant-primary)] hover:bg-[var(--merchant-primary-hover)] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
             >
@@ -456,8 +475,7 @@ export default function ProductsPage() {
                   description={t('products.noProductsInCatalogDesc')}
                   actionText={t('products.addProduct')}
                   onAction={() => {
-                    setEditingProductId(null);
-                    setEditorOpen(true);
+                    openNewProduct();
                   }}
                 />
               )
@@ -619,7 +637,7 @@ export default function ProductsPage() {
                                 </button>
                                 <button
                                   onClick={() => handleDuplicate(p.id)}
-                                  title={t('products.duplicate')}
+                                  title={t('products.duplicateAsDraft')} aria-label={t('products.duplicateAsDraft')}
                                   className="p-1.5 text-[var(--merchant-text-muted)] hover:text-[var(--merchant-text)] hover:bg-[var(--merchant-surface-raised)] rounded-lg transition"
                                 >
                                   <Copy className="w-4 h-4" />
@@ -1291,12 +1309,13 @@ export default function ProductsPage() {
       )}
 
       {/* Product Drawer */}
-      <ProductEditorDrawer
+      {editorOpen && <ProductEditorDrawer
+        key={`${store?.id}:${editingProductId || 'new'}`}
         isOpen={editorOpen}
         productId={editingProductId}
         onClose={() => setEditorOpen(false)}
-        onSaved={() => loadData(searchQuery, categoryFilter)}
-      />
+        onSaved={() => { setActiveTab('products'); setSearchQuery(''); setCategoryFilter(''); setStockFilter('ALL'); loadData('', ''); notify('success', t('products.savedSuccess')); }}
+      />}
     </Layout>
   );
 }

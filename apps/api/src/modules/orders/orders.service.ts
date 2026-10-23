@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   PrismaClient,
+  Prisma,
   OrderStatus,
   PaymentStatus,
   ShipmentStatus,
@@ -260,9 +261,42 @@ export class OrdersService {
     // 1. Enforce Server-Side Subscription Check: Store MUST be LIVE with active paid subscription
     const { store } = await this.visibilityService.evaluateVisibility(dto.storeId);
 
-    // 2. Load Cart
-    const cart = await this.prisma.cart.findUnique({
-      where: { id: dto.cartId },
+    // Direct checkout reuses the existing order transaction without a persistent cart.
+    if (Boolean(dto.cartId) === Boolean(dto.directItems)) throw new BadRequestException('Provide either a cart or one direct checkout item.');
+    let cart: any;
+    if (dto.directItems) {
+      if (dto.directItems.length !== 1) throw new BadRequestException('One direct item is required.');
+      const item = dto.directItems[0];
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) throw new BadRequestException('Invalid quantity.');
+      const variant = await this.prisma.productVariant.findFirst({
+        where: { id: item.variantId, productId: item.productId, storeId: store.id, tenantId: store.tenantId, status: 'ACTIVE', deletedAt: null, product: { storeId: store.id, tenantId: store.tenantId, status: 'PUBLISHED', deletedAt: null, mode: { not: 'ENQUIRY_ONLY' } } },
+
+              include: {
+                product: {
+                  include: {
+                    media: {
+                      include: { optionValue: true },
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
+                },
+                optionValues: {
+                  include: {
+                    optionValue: {
+                      include: {
+                        option: true,
+                      },
+                    },
+                  },
+                },
+                media: true,
+              },
+      });
+      if (!variant || item.quantity < variant.product.minOrderQuantity) throw new BadRequestException('Product variant is unavailable or quantity is below the minimum.');
+      cart = { id: `direct_${crypto.randomUUID()}`, storeId: store.id, items: [{ variantId: variant.id, quantity: item.quantity, unitPricePaise: variant.pricePaise, variant }] };
+    } else {
+      cart = await this.prisma.cart.findUnique({
+        where: { id: dto.cartId },
       include: {
         items: {
           include: {
@@ -291,7 +325,8 @@ export class OrdersService {
           },
         },
       },
-    });
+      });
+    }
 
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Shopping cart is empty or not found.');
@@ -406,8 +441,6 @@ export class OrdersService {
           throw new BadRequestException(valRes.reason || 'Invalid coupon code');
         }
         discountPaise = valRes.coupon?.discountPaise || 0;
-      } else if (typeof dto.discountPaise === 'number' && dto.discountPaise > 0) {
-        discountPaise = Math.min(dto.discountPaise, subtotalPaise);
       }
 
       const taxableAmount = Math.max(0, subtotalPaise - discountPaise);
@@ -465,7 +498,7 @@ export class OrdersService {
           totalPaise,
           currency: 'INR',
           notes: fullNotes,
-          deliveryAddress: dto.deliveryAddress as any,
+          deliveryAddress: dto.deliveryAddress ? dto.deliveryAddress as any : Prisma.JsonNull,
           paymentMethod: isZeroAmount ? 'PROMOTIONAL_CREDIT' : chosenPaymentMethod,
           guestCheckout: true,
         },
@@ -547,7 +580,7 @@ export class OrdersService {
       });
 
       // Step H: Clear cart items
-      await tx.cartItem.deleteMany({
+      if (!dto.directItems) await tx.cartItem.deleteMany({
         where: { cartId: cart.id },
       });
 

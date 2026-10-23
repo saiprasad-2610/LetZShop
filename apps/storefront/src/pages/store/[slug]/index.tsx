@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -35,6 +35,7 @@ import { getSellerStorePreviewUrl } from '../../../utils/config';
 import { useStorefrontI18n } from '@simply/i18n';
 import { logWhatsappEnquiry } from '../../../utils/enquiry';
 import { getProductTranslation } from '../../../utils/productTranslation';
+import { normalizeBrandText } from '@simply/types';
 
 export default function StoreHomePage() {
   const router = useRouter();
@@ -45,11 +46,18 @@ export default function StoreHomePage() {
 
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
+  const loadRevision = useRef(0);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (router.query.embedded === 'true' && !loading && storeData) {
+      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, '*');
+    }
+  }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
@@ -80,7 +88,7 @@ export default function StoreHomePage() {
               ...prev,
               themeConfig: {
                 ...prev.themeConfig,
-                ...event.data.themeConfig,
+                ...normalizeBrandText(event.data.themeConfig),
                 branding: {
                   ...prev.themeConfig?.branding,
                   ...event.data.branding,
@@ -97,12 +105,14 @@ export default function StoreHomePage() {
   }, [router.query.embedded]);
 
   const loadStorefront = async (storeSlug: string, previewSecret?: string) => {
+    const revision = ++loadRevision.current;
     setLoading(true);
     setErrorCode(null);
     setErrorMsg(null);
     try {
       const res = await api.stores.getPublicStorefront(storeSlug, previewSecret);
-      setStoreData(res);
+      if (revision !== loadRevision.current) return;
+      setStoreData({ ...res, themeConfig: normalizeBrandText(res.themeConfig) });
       if (res.store && initStoreLocales) {
         initStoreLocales(res.store.storefrontDefaultLocale, res.store.enabledStorefrontLocales);
       }
@@ -110,12 +120,13 @@ export default function StoreHomePage() {
         setStoreId(res.store.id);
       }
     } catch (err: any) {
+      if (revision !== loadRevision.current) return;
       console.error('Failed to load storefront', err);
       const code = err.code || (err.status === 404 ? 'STORE_NOT_FOUND' : 'INTERNAL_ERROR');
       setErrorCode(code);
       setErrorMsg(err.message || 'Store unavailable');
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
   };
 
@@ -151,7 +162,7 @@ export default function StoreHomePage() {
         sku: variant.sku || '',
       });
       setAddedId(product.id);
-      toast.success(t('cartToast.added'));
+      toast.cartAdded(t('cartToast.added'));
       setTimeout(() => setAddedId(null), 2000);
     } catch (err: any) {
       console.error('Quick add failed', err);
@@ -215,7 +226,7 @@ export default function StoreHomePage() {
             {icon}
           </div>
           <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
+          <p className="text-xs text-[var(--store-text-secondary)] leading-relaxed">{description}</p>
           <div className="pt-2">
             <Link
               href="/"
@@ -304,7 +315,8 @@ export default function StoreHomePage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="space-y-8 sm:space-y-12 pb-16">
+      <main data-brand-page="home" className="[overflow-wrap:anywhere] space-y-8 sm:space-y-12 pb-16">
+        <style jsx global>{`[data-brand-page="home"] [data-theme-accent] { max-width: 100%; flex-wrap: wrap; } [data-brand-page="home"] [data-theme-accent] span { min-width: 0; } [data-brand-page="home"] [data-theme-hero] a { max-width: 100%; }`}</style>
         {/* =========================================================================
             1. HERO COMPOSITION (GENUINELY DISTINCT ACROSS 6 THEMES)
         ========================================================================= */}
@@ -318,7 +330,7 @@ export default function StoreHomePage() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span className="font-bold">{store.name}</span>
                   <span className="text-amber-500/60">•</span>
-                  <span>{heroBadge || 'Artisanal Atelier'}</span>
+                  <span>{heroBadge ?? 'Artisanal Atelier'}</span>
                 </div>
 
                 <div className="space-y-1">
@@ -337,7 +349,7 @@ export default function StoreHomePage() {
                 </div>
 
                 <p className="text-sm sm:text-base max-w-xl font-light leading-relaxed opacity-90">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.'}
                 </p>
 
@@ -347,7 +359,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-amber-400 text-stone-950 font-semibold text-xs tracking-widest uppercase hover:bg-amber-300 transition shadow-lg flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'Explore Haute Collection'}</span>
+                    <span>{heroCtaText ?? 'Explore Haute Collection'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
@@ -356,7 +368,7 @@ export default function StoreHomePage() {
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border border-stone-600 text-stone-200 text-xs font-semibold tracking-widest uppercase hover:border-amber-400 hover:text-amber-300 transition"
                   >
-                    {heroSecondaryCtaText || 'About Our Story'}
+                    {heroSecondaryCtaText ?? 'About Our Story'}
                   </Link>
                 </div>
               </div>
@@ -378,7 +390,7 @@ export default function StoreHomePage() {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4 p-4 border border-amber-500/20 bg-stone-950/70 backdrop-blur-sm">
+                  <div className="absolute bottom-4 left-4 right-4 p-4 border border-amber-500/20 bg-stone-950/70 store-image-caption backdrop-blur-sm">
                     <p className="text-[11px] font-serif tracking-wider text-amber-200 text-center uppercase">Verified 100% Authentic • Certified Craftsmanship</p>
                   </div>
                 </div>
@@ -396,16 +408,16 @@ export default function StoreHomePage() {
                   <Zap className="w-4 h-4 fill-pink-500 text-pink-500" />
                   <span className="text-pink-400">{store.name}</span>
                   <span>•</span>
-                  <span>{heroBadge || 'OFFICIAL DROP'}</span>
+                  <span>{heroBadge ?? 'OFFICIAL DROP'}</span>
                 </div>
 
                 <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none font-theme-heading">
                   <span className="text-pink-500 block">{store.name}</span>
-                  <span>{heroTitle || 'ONLINE DROP CATALOG'}</span>
+                  <span>{heroTitle ?? 'ONLINE DROP CATALOG'}</span>
                 </h1>
 
                 <p className="text-sm sm:text-lg text-slate-300 max-w-2xl font-medium">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'High-octane apparel, trending accessories, and limited releases. Once sold out, they never restock.'}
                 </p>
 
@@ -415,14 +427,14 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-sm uppercase tracking-wider transition shadow-lg transform hover:-translate-y-0.5"
                   >
-                    {heroCtaText || 'SHOP THE DROP NOW'}
+                    {heroCtaText ?? 'SHOP THE DROP NOW'}
                   </a>
                   <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider border border-white/20 transition"
                   >
-                    {heroSecondaryCtaText || 'ABOUT THE BRAND'}
+                    {heroSecondaryCtaText ?? 'ABOUT THE BRAND'}
                   </Link>
                 </div>
 
@@ -468,17 +480,17 @@ export default function StoreHomePage() {
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-5'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-5' : 'space-y-5'}>
                 <span data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
-                  <span>🌿 Pure & Handcrafted by</span>
+                  <span>{heroBadge ?? '🌿 Pure & Handcrafted by'}</span>
                   <strong className="text-emerald-800 font-extrabold">{store.name}</strong>
                 </span>
 
                 <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight font-theme-heading">
                   <span className="block text-amber-800 font-bold mb-1 underline decoration-amber-300 decoration-wavy underline-offset-4">{store.name}</span>
-                  <span>{heroTitle || 'Authentic Homemade Delicacies & Fresh Daily Batches'}</span>
+                  <span>{heroTitle ?? 'Authentic Homemade Delicacies & Fresh Daily Batches'}</span>
                 </h1>
 
                 <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Made using traditional recipes, pure ingredients, and zero artificial preservatives. Fresh batches prepared daily and vacuum-sealed for doorstep delivery.'}
                 </p>
 
@@ -488,7 +500,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-6 py-3 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'Order Fresh Batch'}</span>
+                    <span>{heroCtaText ?? 'Order Fresh Batch'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
                   <Link data-theme-tone="secondary"
@@ -497,7 +509,7 @@ export default function StoreHomePage() {
                     className="px-6 py-3 rounded-full bg-white border border-stone-300 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-sm flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4 text-emerald-600" />
-                    <span>{heroSecondaryCtaText || 'Our Kitchen Story'}</span>
+                    <span>{heroSecondaryCtaText ?? 'Our Kitchen Story'}</span>
                   </Link>
                 </div>
 
@@ -539,7 +551,7 @@ export default function StoreHomePage() {
 
         {/* --- FOUNDRY: Technical B2B Industrial Hero --- */}
         {themeCode === 'foundry' && (
-          <section data-theme-hero="true" className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
+          <section data-theme-hero="true" data-store-inverse-hero="true" className="relative overflow-hidden bg-slate-900 text-slate-100 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-2 border-slate-700 font-mono">
             {/* Background Grid Pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 pointer-events-none" />
 
@@ -547,7 +559,7 @@ export default function StoreHomePage() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div data-theme-accent="true" className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
                   <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
-                  <span>{store.name.toUpperCase()} // {heroBadge || 'OEM B2B SUPPLY DIVISION'}</span>
+                  <span>{store.name.toUpperCase()} // {heroBadge ?? 'OEM B2B SUPPLY DIVISION'}</span>
                 </div>
                 <div className="text-xs text-slate-400">
                   STANDARD: <span className="text-white font-bold">ISO 9001:2015</span> | QC: <span className="text-emerald-400 font-bold">PASS 100%</span>
@@ -556,11 +568,11 @@ export default function StoreHomePage() {
 
               <h1 className="text-3xl sm:text-5xl font-mono font-bold text-white tracking-tight leading-tight font-theme-heading">
                 <span className="text-sky-400 block">{store.name}</span>
-                <span>{heroTitle || '// PRECISION COMPONENTS & WHOLESALE'}</span>
+                <span>{heroTitle ?? '// PRECISION COMPONENTS & WHOLESALE'}</span>
               </h1>
 
               <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
-                {heroSubtitle ||
+                {heroSubtitle ??
                   'Direct factory manufacturing, precision engineering components, and bulk industrial wholesale. Technical specifications compliant with domestic and export standards.'}
               </p>
 
@@ -591,7 +603,7 @@ export default function StoreHomePage() {
                   className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-sm transition shadow flex items-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>{heroCtaText || 'Browse Technical Catalog'}</span>
+                  <span>{heroCtaText ?? 'Browse Technical Catalog'}</span>
                 </a>
                 <Link data-theme-tone="secondary"
                   data-theme-btn="true"
@@ -599,7 +611,7 @@ export default function StoreHomePage() {
                   className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider border border-slate-600 rounded-sm transition flex items-center gap-2"
                 >
                   <Building className="w-4 h-4 text-emerald-400" />
-                  <span>{heroSecondaryCtaText || 'Factory Infrastructure'}</span>
+                  <span>{heroSecondaryCtaText ?? 'Factory Infrastructure'}</span>
                 </Link>
               </div>
             </div>
@@ -612,7 +624,7 @@ export default function StoreHomePage() {
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-6'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
                 <span data-theme-accent="true" className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
-                  THE {store.name.toUpperCase()} STUDIO • {heroBadge || 'BESPOKE LIVING SPACES'}
+                  THE {store.name.toUpperCase()} STUDIO • {heroBadge ?? 'BESPOKE LIVING SPACES'}
                 </span>
 
                 <h1 className="text-4xl sm:text-6xl font-serif text-stone-900 tracking-tight leading-tight font-theme-heading">
@@ -624,7 +636,7 @@ export default function StoreHomePage() {
                 </h1>
 
                 <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed font-light">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Handcrafted solid wood furniture, bespoke living objects, and organic textures. Curated to bring harmony, warmth, and enduring beauty into your sanctuary.'}
                 </p>
 
@@ -634,14 +646,14 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-stone-900 text-stone-50 font-serif text-xs uppercase tracking-widest hover:bg-stone-800 transition"
                   >
-                    {heroCtaText || 'View Living Pieces'}
+                    {heroCtaText ?? 'View Living Pieces'}
                   </a>
                   <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-8 py-3.5 border border-stone-400 text-stone-800 font-serif text-xs uppercase tracking-widest hover:bg-white transition"
                   >
-                    {heroSecondaryCtaText || 'Our Design Ethos'}
+                    {heroSecondaryCtaText ?? 'Our Design Ethos'}
                   </Link>
                 </div>
               </div>
@@ -664,21 +676,21 @@ export default function StoreHomePage() {
 
         {/* --- LOCAL: High Density Instant Commerce Hero --- */}
         {themeCode === 'local' && (
-          <section data-theme-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
+          <section data-theme-hero="true" data-store-inverse-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-3">
                 <div data-theme-accent="true" className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
                   <Truck className="w-3.5 h-3.5 text-green-400" />
                   <strong className="text-white font-bold">{store.name}</strong>
                   <span>•</span>
-                  <span>{heroBadge || 'Fast Neighborhood Dispatch'}</span>
+                  <span>{heroBadge ?? 'Fast Neighborhood Dispatch'}</span>
                 </div>
                 <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-theme-heading">
                   <span className="text-yellow-300 block">{store.name} Superstore</span>
-                  <span className="text-lg sm:text-2xl font-medium text-blue-100">{heroTitle || 'Daily Groceries & Essentials'}</span>
+                  <span className="text-lg sm:text-2xl font-medium text-blue-100">{heroTitle ?? 'Daily Groceries & Essentials'}</span>
                 </h1>
                 <p className="text-xs sm:text-sm text-blue-200 max-w-xl">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.'}
                 </p>
                 <div className="pt-2 flex items-center gap-3">
@@ -687,14 +699,14 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-lg shadow-sm hover:bg-blue-50 transition"
                   >
-                    {heroCtaText || 'Order Online'}
+                    {heroCtaText ?? 'Order Online'}
                   </a>
                   <Link data-theme-tone="secondary"
                     data-theme-btn="true"
                     href={heroSecondaryCtaLink}
                     className="px-4 py-2.5 border border-blue-400 text-white font-medium text-xs rounded-lg hover:bg-blue-800 transition"
                   >
-                    {heroSecondaryCtaText || 'Store Location'}
+                    {heroSecondaryCtaText ?? 'Store Location'}
                   </Link>
                 </div>
               </div>
@@ -749,7 +761,7 @@ export default function StoreHomePage() {
                   <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                   <strong className="font-bold text-rose-950">{store.name}</strong>
                   <span className="text-rose-400">•</span>
-                  <span>{heroBadge || 'Luminous Clean Actives'}</span>
+                  <span>{heroBadge ?? 'Luminous Clean Actives'}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -768,7 +780,7 @@ export default function StoreHomePage() {
                 </div>
 
                 <p className="text-sm sm:text-base text-slate-600 max-w-xl leading-relaxed font-light">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Antioxidant-dense botanical serums, barrier-restoring moisture creams, and clean cosmetic pigments. Clinically formulated for radiant everyday distinction.'}
                 </p>
 
@@ -778,7 +790,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs tracking-wider uppercase rounded-full transition shadow-lg flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'Explore Clean Beauty'}</span>
+                    <span>{heroCtaText ?? 'Explore Clean Beauty'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
@@ -787,7 +799,7 @@ export default function StoreHomePage() {
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-rose-300 text-rose-900 font-semibold text-xs tracking-wider uppercase rounded-full hover:bg-rose-100/60 transition"
                   >
-                    {heroSecondaryCtaText || 'Our Clean Story'}
+                    {heroSecondaryCtaText ?? 'Our Clean Story'}
                   </Link>
                 </div>
 
@@ -837,7 +849,7 @@ export default function StoreHomePage() {
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
                 <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>{store.name.toUpperCase()} // {heroBadge || 'LIMITED MONOLITH RUN'}</span>
+                  <span>{store.name.toUpperCase()} // {heroBadge ?? 'LIMITED MONOLITH RUN'}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -846,12 +858,12 @@ export default function StoreHomePage() {
                   </div>
                   <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black uppercase tracking-tighter text-white leading-none font-theme-heading">
                     <span className="text-emerald-400 block tracking-normal">{store.name}</span>
-                    <span>{heroTitle || 'THE MONOLITH ARCHIVE'}</span>
+                    <span>{heroTitle ?? 'THE MONOLITH ARCHIVE'}</span>
                   </h1>
                 </div>
 
                 <p className="text-xs sm:text-sm text-zinc-400 max-w-xl font-mono leading-relaxed">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Precision engineered textiles, stealth utilitarian accessories, and architectural minimalism. Manufactured without excess, calibrated for performance.'}
                 </p>
 
@@ -861,7 +873,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-4 bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs uppercase tracking-wider transition shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'BROWSE ARCHIVE'}</span>
+                    <span>{heroCtaText ?? 'BROWSE ARCHIVE'}</span>
                     <ArrowRight className="w-4 h-4 text-black" />
                   </a>
 
@@ -870,7 +882,7 @@ export default function StoreHomePage() {
                     href={heroSecondaryCtaLink}
                     className="px-6 py-4 border border-zinc-700 hover:border-emerald-400 text-zinc-300 hover:text-white font-mono text-xs uppercase tracking-wider transition"
                   >
-                    {heroSecondaryCtaText || 'BRAND MANIFESTO'}
+                    {heroSecondaryCtaText ?? 'BRAND MANIFESTO'}
                   </Link>
                 </div>
 
@@ -919,7 +931,7 @@ export default function StoreHomePage() {
                   <Award className="w-3.5 h-3.5 text-amber-700" />
                   <strong>{store.name}</strong>
                   <span className="text-amber-400">•</span>
-                  <span>{heroBadge || 'Master Artisan Heritage'}</span>
+                  <span>{heroBadge ?? 'Master Artisan Heritage'}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -938,7 +950,7 @@ export default function StoreHomePage() {
                 </div>
 
                 <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed font-normal">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Celebrating indigenous artisanal lineages, natural sun-cured textures, and ethical craft communities. Each offering is made with patient attention and zero shortcuts.'}
                 </p>
 
@@ -948,7 +960,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-md flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'Explore Artisan Works'}</span>
+                    <span>{heroCtaText ?? 'Explore Artisan Works'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
@@ -957,7 +969,7 @@ export default function StoreHomePage() {
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#9A3412]/40 text-[#9A3412] hover:bg-orange-50 font-serif font-bold text-xs tracking-wider uppercase rounded-xl transition"
                   >
-                    {heroSecondaryCtaText || 'The Heritage Craft'}
+                    {heroSecondaryCtaText ?? 'The Heritage Craft'}
                   </Link>
                 </div>
 
@@ -1003,17 +1015,17 @@ export default function StoreHomePage() {
             <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
                 <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
-                  <span>🍫 Fresh Batch Crafted Daily •</span>
+                  <span>{heroBadge ?? '🍫 Fresh Batch Crafted Daily •'}</span>
                   <strong>{store.name}</strong>
                 </div>
 
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#451A03] tracking-tight leading-[1.15] font-theme-heading">
                   <span className="text-amber-800 block">{store.name}</span>
-                  <span>{heroTitle || 'Artisanal Confections & Fresh Delicacies'}</span>
+                  <span>{heroTitle ?? 'Artisanal Confections & Fresh Delicacies'}</span>
                 </h1>
 
                 <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'Prepared in small batches using pure ingredients, gourmet recipes, and zero artificial preservatives. Vacuum sealed and shipped fresh to your doorstep.'}
                 </p>
 
@@ -1023,7 +1035,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-[#78350F] hover:bg-[#5E290C] text-white font-bold text-xs uppercase tracking-wider rounded-full transition shadow-md flex items-center gap-2"
                   >
-                    <span>{heroCtaText || 'Order Fresh Now'}</span>
+                    <span>{heroCtaText ?? 'Order Fresh Now'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
 
@@ -1032,7 +1044,7 @@ export default function StoreHomePage() {
                     href={heroSecondaryCtaLink}
                     className="px-6 py-3.5 border-2 border-[#78350F]/40 text-[#78350F] hover:bg-amber-100/50 font-bold text-xs uppercase tracking-wider rounded-full transition"
                   >
-                    {heroSecondaryCtaText || 'Kitchen Story'}
+                    {heroSecondaryCtaText ?? 'Kitchen Story'}
                   </Link>
                 </div>
               </div>
@@ -1076,7 +1088,7 @@ export default function StoreHomePage() {
                 {/* Legacy Shield Trust Badge */}
                 <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
                   <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>{heroBadge || 'Built from 65 years of legacy'}</span>
+                  <span>{heroBadge ?? 'Built from 65 years of legacy'}</span>
                 </div>
 
                 {/* Monumental Dual-Color Headline */}
@@ -1096,7 +1108,7 @@ export default function StoreHomePage() {
 
                 {/* Subtitle */}
                 <p className="text-sm sm:text-base text-slate-700 max-w-xl font-normal leading-relaxed">
-                  {heroSubtitle ||
+                  {heroSubtitle ??
                     'The same family that mastered the precision of textile manufacturing for 65 years now builds the technology infrastructure that businesses run on, oil fields depend on, and global supply chains trust.'}
                 </p>
 
@@ -1134,7 +1146,7 @@ export default function StoreHomePage() {
                     href={heroCtaLink}
                     className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2 group cursor-pointer"
                   >
-                    <span>{heroCtaText || 'Explore Our Story'}</span>
+                    <span>{heroCtaText ?? 'Explore Our Story'}</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </a>
 
@@ -1144,7 +1156,7 @@ export default function StoreHomePage() {
                     className="px-6 py-3.5 bg-white/90 hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4 text-blue-600" />
-                    <span>{heroSecondaryCtaText || 'Our Services'}</span>
+                    <span>{heroSecondaryCtaText ?? 'Our Services'}</span>
                   </Link>
                 </div>
               </div>
@@ -1154,7 +1166,7 @@ export default function StoreHomePage() {
 
         {/* --- CANVAS: Full-Front Cinematic Showcase Hero --- */}
         {themeCode === 'canvas' && (
-          <section data-theme-hero="true" className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
+          <section data-theme-hero="true" data-store-overlay="true" className="relative overflow-hidden min-h-[640px] lg:min-h-[720px] flex items-center justify-center border-b border-zinc-800 bg-black text-white text-center">
             {/* Full-Bleed Panoramic Background Image */}
             <div className="absolute inset-0 z-0">
               <SafeImage
@@ -1174,7 +1186,7 @@ export default function StoreHomePage() {
               {/* Floating Monolith Pill */}
               <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>{store.name.toUpperCase()} // {heroBadge || 'CINEMATIC PANORAMA 2026'}</span>
+                <span>{store.name.toUpperCase()} // {heroBadge ?? 'CINEMATIC PANORAMA 2026'}</span>
               </div>
 
               {/* Monumental Headline */}
@@ -1192,7 +1204,7 @@ export default function StoreHomePage() {
 
               {/* Subtitle */}
               <p className="text-sm sm:text-base lg:text-lg text-slate-200 max-w-2xl mx-auto font-light leading-relaxed drop-shadow">
-                {heroSubtitle ||
+                {heroSubtitle ??
                   'Edge-to-edge visual excellence, archival material rigor, and timeless silhouettes. Experience the entire collection in full cinematic scale.'}
               </p>
 
@@ -1203,7 +1215,7 @@ export default function StoreHomePage() {
                   href={heroCtaLink}
                   className="px-9 py-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-widest rounded-full transition shadow-xl shadow-amber-500/20 flex items-center gap-2 group cursor-pointer"
                 >
-                  <span>{heroCtaText || 'Explore Showcase'}</span>
+                  <span>{heroCtaText ?? 'Explore Showcase'}</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </a>
 
@@ -1212,7 +1224,7 @@ export default function StoreHomePage() {
                   href={heroSecondaryCtaLink}
                   className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs uppercase tracking-widest rounded-full backdrop-blur-md border border-white/25 transition shadow-lg"
                 >
-                  {heroSecondaryCtaText || 'Archival Film'}
+                  {heroSecondaryCtaText ?? 'Archival Film'}
                 </Link>
               </div>
 
@@ -1251,7 +1263,7 @@ export default function StoreHomePage() {
                    themeCode === 'habitat' ? 'Shop by Space' :
                    themeCode === 'pulse' ? 'DROP CATEGORIES' : 'Featured Collections'}
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--store-text-secondary)]">
                   {themeCode === 'foundry' ? 'Select equipment classification' : 'Explore products by category'}
                 </p>
               </div>
@@ -1297,7 +1309,7 @@ export default function StoreHomePage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {c.name} ({c._count?.products ?? 0})
+                      {c.name} ({c.visibleProductCount ?? c._count?.products ?? 0})
                     </button>
                   ))}
                 </>
@@ -1329,7 +1341,7 @@ export default function StoreHomePage() {
                         <span className={`text-[10px] font-mono block ${
                           isSelected ? 'text-gray-300' : 'text-gray-400'
                         }`}>
-                          {c._count?.products ?? 0}
+                          {c.visibleProductCount ?? c._count?.products ?? 0}
                         </span>
                       </div>
                       <span className={`text-[11px] block line-clamp-1 ${
@@ -1351,7 +1363,7 @@ export default function StoreHomePage() {
         <section id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-4">
             <div>
-              <h2 className={`text-xl sm:text-2xl font-bold text-gray-900 ${
+              <h2 className={`text-xl sm:text-2xl font-bold text-[var(--store-text-primary)] ${
                 themeCode === 'atelier' ? 'font-serif tracking-wide text-2xl' :
                 themeCode === 'foundry' ? 'font-mono uppercase text-lg' :
                 themeCode === 'pulse' ? 'font-black uppercase tracking-tight' : ''
@@ -1361,7 +1373,7 @@ export default function StoreHomePage() {
                  themeCode === 'harvest' ? `Handcrafted by ${store.name}` :
                  themeCode === 'habitat' ? `${store.name} Living Pieces` : `${store.name} Collection`}
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--store-text-secondary)]">
                 Showing {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} ready for dispatch
               </p>
             </div>
@@ -1434,16 +1446,16 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-stone-50/50">
+                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           {p.category?.name && (
-                            <span className="text-[10px] font-mono text-stone-500 uppercase tracking-widest block mb-1">
+                            <span className="text-[10px] font-mono text-[var(--store-text-secondary)] uppercase tracking-widest block mb-1">
                               {p.category.name}
                             </span>
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-base text-stone-900 hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
+                            className="font-serif text-base text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
                           >
                             {title}
                           </Link>
@@ -1451,11 +1463,11 @@ export default function StoreHomePage() {
 
                         <div className="pt-3 border-t border-stone-200 flex items-center justify-between">
                           <div>
-                            <div className="font-serif text-base font-semibold text-stone-900">
+                            <div data-store-price="true" className="font-serif text-base font-semibold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && (
-                              <div className="text-[11px] text-stone-400 font-mono line-through">
+                              <div className="text-[11px] text-[var(--store-text-secondary)] font-mono line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -1463,10 +1475,11 @@ export default function StoreHomePage() {
 
                           <div className="flex items-center gap-2">
                             <button
+                              data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3 py-1.5 rounded-none bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
-                              title="Add to shopping bag"
+                              className="px-3 py-1.5 rounded-none bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                              title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
@@ -1478,13 +1491,13 @@ export default function StoreHomePage() {
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>Add</span>
+                                  <span>{t('storefront.addToCart')}</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-semibold text-stone-900 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
+                              className="text-xs font-semibold text-[var(--store-text-primary)] hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
                               title="View full piece"
                             >
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -1518,20 +1531,20 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-slate-900">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-black text-sm uppercase tracking-tight text-white hover:text-pink-400 transition line-clamp-1"
+                            className="font-black text-sm uppercase tracking-tight text-[var(--store-text-primary)] hover:text-pink-400 transition line-clamp-1"
                           >
                             {title}
                           </Link>
                           <div className="flex items-baseline gap-2 mt-1">
-                            <span className="font-black text-base text-pink-400 font-mono">
+                            <span data-store-price="true" className="font-black text-base text-pink-400 font-mono">
                               {formatPaise(pricePaise)}
                             </span>
                             {comparePaise && (
-                              <span className="text-xs text-slate-500 font-mono line-through">
+                              <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through">
                                 {formatPaise(comparePaise)}
                               </span>
                             )}
@@ -1539,9 +1552,10 @@ export default function StoreHomePage() {
                         </div>
 
                         <button
-                          onClick={(e) => handleQuickAdd(e, p)}
+                          data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="w-full py-2 bg-white hover:bg-pink-500 hover:text-white text-slate-950 font-black text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1.5"
+                          className="w-full py-2 bg-[var(--store-surface)] hover:bg-pink-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-black text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1.5"
                         >
                           {isAdded ? (
                             <>
@@ -1551,7 +1565,7 @@ export default function StoreHomePage() {
                           ) : (
                             <>
                               <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>{isAdding ? 'ADDING...' : 'QUICK BAG'}</span>
+                              <span>{isAdding ? t('common.loading') : t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>
@@ -1591,24 +1605,25 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif font-bold text-sm text-stone-900 hover:text-emerald-800 transition line-clamp-2"
+                            className="font-serif font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2"
                           >
                             {title}
                           </Link>
-                          <div className="text-[11px] text-stone-500 mt-1">
+                          <div className="text-[11px] text-[var(--store-text-secondary)] mt-1">
                             Vacuum-sealed 500g pack
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-2">
-                          <div className="font-bold text-sm text-stone-900 font-mono">
+                          <div data-store-price="true" className="font-bold text-sm text-[var(--store-text-primary)] font-mono">
                             {formatPaise(pricePaise)}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-sm transition flex items-center gap-1"
+                            className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-[var(--store-text-primary)] font-bold text-xs shadow-sm transition flex items-center gap-1"
                           >
                             {isAdded ? (
                               <>
@@ -1618,7 +1633,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1650,33 +1665,33 @@ export default function StoreHomePage() {
                         </div>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 text-slate-200">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 text-[var(--store-text-primary)]">
                         <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <div className="flex items-center justify-between text-[10px] text-[var(--store-text-secondary)]">
                             <span>PART ID: #PRD-{p.id.slice(0, 6).toUpperCase()}</span>
                             <span className="text-emerald-400 font-bold">IN STOCK</span>
                           </div>
 
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-bold text-sm text-white hover:text-sky-300 transition line-clamp-2 block"
+                            className="font-bold text-sm text-[var(--store-text-primary)] hover:text-sky-300 transition line-clamp-2 block"
                           >
                             {title}
                           </Link>
 
                           {/* Technical Specification Matrix */}
-                          <div className="bg-slate-900 p-2.5 rounded-sm border border-slate-700/80 space-y-1 text-[11px]">
+                          <div className="bg-[var(--store-surface)] p-2.5 rounded-sm border border-slate-700/80 space-y-1 text-[11px]">
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Standard MOQ:</span>
-                              <span className="text-white font-bold">25 Units</span>
+                              <span className="text-[var(--store-text-secondary)]">Standard MOQ:</span>
+                              <span className="text-[var(--store-text-primary)] font-bold">25 Units</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Lead Time:</span>
-                              <span className="text-white font-bold">3-5 Business Days</span>
+                              <span className="text-[var(--store-text-secondary)]">Lead Time:</span>
+                              <span className="text-[var(--store-text-primary)] font-bold">3-5 Business Days</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Unit Base:</span>
-                              <span className="text-sky-400 font-bold">{formatPaise(pricePaise)}</span>
+                              <span className="text-[var(--store-text-secondary)]">Unit Base:</span>
+                              <span data-store-price="true" className="text-sky-400 font-bold">{formatPaise(pricePaise)}</span>
                             </div>
                           </div>
                         </div>
@@ -1698,7 +1713,7 @@ export default function StoreHomePage() {
                               }
                             }}
                             data-theme-btn="true"
-                            className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                            className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <MessageSquare className="w-3 h-3" />
                             <span>RFQ Quote</span>
@@ -1707,7 +1722,7 @@ export default function StoreHomePage() {
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
                             data-theme-btn="true"
-                            className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                            className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
                           >
                             <span>Full Spec</span>
                             <ArrowRight className="w-3 h-3" />
@@ -1744,25 +1759,26 @@ export default function StoreHomePage() {
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-semibold text-stone-900 hover:text-stone-600 transition line-clamp-1"
+                            className="font-serif text-sm font-semibold text-[var(--store-text-primary)] hover:text-[var(--store-text-secondary)] transition line-clamp-1"
                           >
                             {title}
                           </Link>
-                          <div className="text-[11px] text-stone-500">
+                          <div className="text-[11px] text-[var(--store-text-secondary)]">
                             Solid Wood • Hand-Finished
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                          <div className="font-serif text-sm font-bold text-stone-900">
+                          <div data-store-price="true" className="font-serif text-sm font-bold text-[var(--store-text-primary)]">
                             {formatPaise(pricePaise)}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
+                              data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs shadow-sm transition flex items-center gap-1"
-                              title="Add to shopping bag"
+                              className="px-3.5 py-1.5 rounded-lg bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-[var(--store-text-primary)] font-medium text-xs shadow-sm transition flex items-center gap-1"
+                              title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
@@ -1774,13 +1790,13 @@ export default function StoreHomePage() {
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>Add</span>
+                                  <span>{t('storefront.addToCart')}</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-serif uppercase tracking-wider text-stone-600 hover:text-stone-900"
+                              className="text-xs font-serif uppercase tracking-wider text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
                               title="View piece details"
                             >
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -1823,7 +1839,7 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-semibold text-slate-900 hover:text-rose-800 transition line-clamp-2 leading-snug"
+                            className="font-serif text-sm font-semibold text-[var(--store-text-primary)] hover:text-rose-800 transition line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -1831,20 +1847,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-rose-100 flex items-center justify-between">
                           <div>
-                            <div className="font-serif text-base font-bold text-rose-950">
+                            <div data-store-price="true" className="font-serif text-base font-bold text-rose-950">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-slate-400 line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-white font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -1854,7 +1871,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1886,28 +1903,29 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-zinc-900 text-zinc-200">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)] text-[var(--store-text-primary)]">
                         <div>
-                          <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-1">
+                          <div className="flex items-center justify-between text-[10px] text-[var(--store-text-secondary)] mb-1">
                             <span>#{p.id.slice(0, 6).toUpperCase()}</span>
                             <span className="text-emerald-400 font-bold">RESERVE RUN</span>
                           </div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans font-bold text-sm text-white hover:text-emerald-300 transition line-clamp-1"
+                            className="font-sans font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-300 transition line-clamp-1"
                           >
                             {title}
                           </Link>
                         </div>
 
                         <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-                          <div className="font-mono text-sm font-bold text-emerald-400">
+                          <div data-store-price="true" className="font-mono text-sm font-bold text-emerald-400">
                             {formatPaise(pricePaise)}
                           </div>
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3 py-1.5 rounded-sm bg-white hover:bg-zinc-200 text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3 py-1.5 rounded-sm bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -1917,7 +1935,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>ACQUIRE</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -1965,13 +1983,14 @@ export default function StoreHomePage() {
                         </div>
 
                         <div className="pt-2.5 border-t border-amber-200/60 flex items-center justify-between">
-                          <div className="font-serif text-base font-bold text-[#9A3412]">
+                          <div data-store-price="true" className="font-serif text-base font-bold text-[#9A3412]">
                             {formatPaise(pricePaise)}
                           </div>
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-[var(--store-text-primary)] font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2019,7 +2038,7 @@ export default function StoreHomePage() {
                         ) : null}
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           {p.category?.name && (
                             <span className="text-[10px] font-sans font-bold text-blue-600 uppercase tracking-wider block mb-1">
@@ -2028,7 +2047,7 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans text-sm font-bold text-slate-900 hover:text-blue-600 transition line-clamp-2 leading-snug"
+                            className="font-sans text-sm font-bold text-[var(--store-text-primary)] hover:text-blue-600 transition line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -2036,20 +2055,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
+                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-slate-400 line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2059,7 +2079,7 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Add</span>
+                                <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
                           </button>
@@ -2097,11 +2117,11 @@ export default function StoreHomePage() {
                         ) : null}
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-[var(--store-surface)]">
                         <div>
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-sans text-sm font-bold text-slate-900 hover:text-amber-600 transition-colors line-clamp-2 leading-snug"
+                            className="font-sans text-sm font-bold text-[var(--store-text-primary)] hover:text-amber-600 transition-colors line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
@@ -2109,20 +2129,21 @@ export default function StoreHomePage() {
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <div className="font-sans text-base sm:text-lg font-bold text-slate-900">
+                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[11px] text-slate-400 line-through">
+                              <div className="text-[11px] text-[var(--store-text-secondary)] line-through">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
                           <button
-                            onClick={(e) => handleQuickAdd(e, p)}
+                            data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[var(--store-surface)] hover:bg-amber-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2182,7 +2203,7 @@ export default function StoreHomePage() {
 
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
                         <div>
-                          <div className="font-mono font-bold text-xs text-gray-900">
+                          <div data-store-price="true" className="font-mono font-bold text-xs text-gray-900">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
@@ -2193,7 +2214,8 @@ export default function StoreHomePage() {
                         </div>
 
                         <button
-                          onClick={(e) => handleQuickAdd(e, p)}
+                          data-store-button="true"
+                              onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
                           className="px-2.5 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-bold text-[11px] transition shadow-sm flex items-center gap-1"
                         >
@@ -2205,7 +2227,7 @@ export default function StoreHomePage() {
                           ) : (
                             <>
                               <Plus className="w-3 h-3" />
-                              <span>Add</span>
+                              <span>{t('storefront.addToCart')}</span>
                             </>
                           )}
                         </button>
@@ -2310,7 +2332,7 @@ export default function StoreHomePage() {
         {(themeCode === 'habitat' || themeCode === 'local' || themeCode === 'pulse') && (
           <section className="bg-gray-50 border-y border-gray-200 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center space-y-4">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h3 className="text-xl sm:text-2xl font-bold text-[var(--store-text-primary)]">
                 Direct From {store.name}
               </h3>
               <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-2xl mx-auto">

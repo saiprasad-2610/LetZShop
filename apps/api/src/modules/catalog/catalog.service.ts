@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { visibleCategoryCount } from './category-counts';
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, ProductStatus, VariantStatus, ProductMode } from '@prisma/client';
 import { CreateProductDto, ProductMediaItemDto } from './dto/catalog.dto';
@@ -75,48 +77,50 @@ export class CatalogService {
       throw new BadRequestException('A maximum of 3 images is allowed per product.');
     }
 
-    // Enforce subscription plan maxProducts limit if defined
-    const activeSub = await this.prisma.subscription.findFirst({
-      where: { tenantId: tenant.tenantId, status: { in: ['ACTIVE', 'TRIALING'] } },
-      orderBy: { createdAt: 'desc' },
-      include: { plan: true },
-    });
-    if (activeSub?.plan?.maxProducts && activeSub.plan.maxProducts > 0) {
-      const currentProductCount = await this.prisma.product.count({
-        where: { tenantId: tenant.tenantId, deletedAt: null },
-      });
-      if (currentProductCount >= activeSub.plan.maxProducts) {
-        throw new BadRequestException(
-          `Product limit reached. Your ${activeSub.plan.name} plan allows up to ${activeSub.plan.maxProducts} products. Please upgrade your plan to add more products.`,
-        );
-      }
-    }
-
-    // Derive unique slug within store
-    let baseSlug = normalizeSlug(dto.slug || dto.name);
-    if (!baseSlug) baseSlug = 'product';
-    let slug = baseSlug;
-    let counter = 1;
-    while (
-      await this.prisma.product.findFirst({
-        where: { storeId: tenant.storeId, slug, deletedAt: null },
-      })
-    ) {
-      counter++;
-      slug = `${baseSlug}-${counter}`;
-    }
-
-    // Validate category belongs to this store if provided
-    if (dto.categoryId) {
-      const categoryExists = await this.prisma.category.findFirst({
-        where: { id: dto.categoryId, storeId: tenant.storeId },
-      });
-      if (!categoryExists) {
-        throw new BadRequestException(`Category with ID "${dto.categoryId}" does not exist in this store.`);
-      }
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      // Serialize catalogue writes for this tenant: plan limits and slug/SKU checks are atomic.
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenant.tenantId} FOR UPDATE`;
+      // Enforce subscription plan maxProducts limit if defined
+      const activeSub = await tx.subscription.findFirst({
+        where: { tenantId: tenant.tenantId, status: { in: ['ACTIVE', 'TRIALING'] } },
+        orderBy: { createdAt: 'desc' },
+        include: { plan: true },
+      });
+      if (activeSub?.plan?.maxProducts && activeSub.plan.maxProducts > 0) {
+        const currentProductCount = await tx.product.count({
+          where: { tenantId: tenant.tenantId, deletedAt: null },
+        });
+        if (currentProductCount >= activeSub.plan.maxProducts) {
+          throw new BadRequestException(
+            `Product limit reached. Your ${activeSub.plan.name} plan allows up to ${activeSub.plan.maxProducts} products. Please upgrade your plan to add more products.`,
+          );
+        }
+      }
+
+      // Derive unique slug within store
+      let baseSlug = normalizeSlug(dto.slug || dto.name);
+      if (!baseSlug) baseSlug = 'product';
+      let slug = baseSlug;
+      let counter = 0;
+      while (
+        await tx.product.findFirst({
+          where: { storeId: tenant.storeId, slug, },
+        })
+      ) {
+        if (++counter >= 8) throw new ConflictException('Unable to reserve product identity. Please try another name.');
+        slug = `${baseSlug}-${randomUUID()}`;
+      }
+
+      // Validate category belongs to this store if provided
+      if (dto.categoryId) {
+        const categoryExists = await tx.category.findFirst({
+          where: { id: dto.categoryId, storeId: tenant.storeId },
+        });
+        if (!categoryExists) {
+          throw new BadRequestException(`Category with ID "${dto.categoryId}" does not exist in this store.`);
+        }
+      }
+
       // 1. Create Product root
       const product = await tx.product.create({
         data: {
@@ -127,7 +131,7 @@ export class CatalogService {
           slug,
           description: dto.description,
           mode: dto.mode as any,
-          status: ProductStatus.PUBLISHED,
+          status: dto.status || ProductStatus.PUBLISHED,
           minOrderQuantity: dto.minOrderQuantity || 1,
           leadTimeDays: dto.leadTimeDays,
           brochureUrl: dto.brochureUrl,
@@ -140,7 +144,8 @@ export class CatalogService {
 
       // 2. Create Options and Option Values if provided
       const optionValueMap = new Map<string, string>(); // valueString -> OptionValueId
-      const optionValueByIdMap = new Map<string, string>(); // optionValueId -> OptionValueId
+      const optionValueByIdMap = new Map<string, string>();
+      const dimensionValues: Map<string, string>[] = []; // optionValueId -> OptionValueId
 
       if (dto.options && dto.options.length > 0) {
         if (dto.options.length > 3) {
@@ -183,9 +188,13 @@ export class CatalogService {
             `This combination would create ${totalCombos} variants. Reduce option values to continue.`
           );
         }
+        if (dto.variants?.length !== totalCombos) {
+          throw new BadRequestException('Provide every product option combination exactly once.');
+        }
 
         for (let i = 0; i < dto.options.length; i++) {
           const optDto = dto.options[i];
+          dimensionValues[i] = new Map();
           const opt = await tx.productOption.create({
             data: {
               tenantId: tenant.tenantId,
@@ -208,6 +217,7 @@ export class CatalogService {
               },
             });
             const valTrimmed = valDto.value.trim();
+            dimensionValues[i].set(valTrimmed.toLowerCase(), optVal.id);
             optionValueMap.set(valTrimmed, optVal.id);
             optionValueMap.set(valTrimmed.toLowerCase(), optVal.id);
             optionValueByIdMap.set(optVal.id, optVal.id);
@@ -221,13 +231,22 @@ export class CatalogService {
       // 3. Create Variants & Initial Inventory
       const variantMediaMap = new Map<string, string>(); // mediaAssetId -> variantId
 
+      const combinations = new Set<string>();
       if (dto.variants && dto.variants.length > 0) {
         for (let i = 0; i < dto.variants.length; i++) {
           const varDto = dto.variants[i];
 
-          // Check SKU uniqueness within store
+          const variantSku = varDto.sku?.trim() || `SKU-${randomUUID()}`;
+          const selectedValues = (varDto.optionValues || []).map((value, dimension) =>
+            dimensionValues[dimension]?.get(value.trim().toLowerCase()));
+          if (dimensionValues.length && (selectedValues.length !== dimensionValues.length || selectedValues.some(id => !id)))
+            throw new BadRequestException('Each variant must select one valid value from every option.');
+          const combination = selectedValues.join(':');
+          if (combinations.has(combination)) throw new BadRequestException('Duplicate variant combination.');
+          combinations.add(combination);
+          // Check SKU uniqueness within store, including archived variants retained by the unique index.
           const existingSku = await tx.productVariant.findFirst({
-            where: { storeId: tenant.storeId, sku: varDto.sku, deletedAt: null },
+            where: { storeId: tenant.storeId, sku: variantSku },
           });
           if (existingSku) {
             throw new ConflictException(`SKU "${varDto.sku}" already exists in this store.`);
@@ -243,7 +262,7 @@ export class CatalogService {
               tenantId: tenant.tenantId,
               storeId: tenant.storeId,
               productId: product.id,
-              sku: varDto.sku,
+              sku: variantSku,
               barcode: varDto.barcode,
               pricePaise,
               compareAtPricePaise: compareAtPaise,
@@ -254,22 +273,8 @@ export class CatalogService {
 
           if (i === 0) baseVariantId = variant.id;
 
-          // Link variant to option values
-          if (varDto.optionValues && Array.isArray(varDto.optionValues)) {
-            for (const valString of varDto.optionValues) {
-              const optValId =
-                optionValueMap.get(valString.trim()) ||
-                optionValueMap.get(valString.trim().toLowerCase()) ||
-                optionValueByIdMap.get(valString.trim());
-              if (optValId) {
-                await tx.productVariantOptionValue.create({
-                  data: {
-                    variantId: variant.id,
-                    optionValueId: optValId,
-                  },
-                });
-              }
-            }
+          for (const optValId of selectedValues) {
+            if (optValId) await tx.productVariantOptionValue.create({ data: { variantId: variant.id, optionValueId: optValId } });
           }
 
           // Initialize inventory
@@ -288,21 +293,10 @@ export class CatalogService {
           }
         }
       } else {
-        // Base single-product variant
-        let sku = (dto.sku || '').trim().toUpperCase();
-        if (!sku) {
-          const prefix = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'PROD';
-          sku = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
-        }
-        const existingSku = await tx.productVariant.findFirst({
-          where: { storeId: tenant.storeId, sku, deletedAt: null },
-        });
-        if (existingSku) {
-          if (dto.sku) {
-            throw new ConflictException(`SKU "${dto.sku}" already exists in this store.`);
-          }
-          sku = `${sku}-${Math.floor(100 + Math.random() * 900)}`;
-        }
+        // Server-generated identities never reuse a name-based or tiny random SKU space.
+        const sku = dto.sku?.trim().toUpperCase() || `SKU-${randomUUID()}`;
+        if (await tx.productVariant.findFirst({ where: { storeId: tenant.storeId, sku } }))
+          throw new ConflictException('SKU already exists in this store. Choose a different SKU.');
 
         const initialStock = dto.stock !== undefined ? dto.stock : 0;
         const basePrice = dto.pricePaise !== undefined ? dto.pricePaise : 0;
@@ -337,12 +331,13 @@ export class CatalogService {
       for (let i = 0; i < mediaInputs.length; i++) {
         const item = mediaInputs[i];
         const asset = await tx.mediaAsset.findFirst({
-          where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
+          where: { id: item.mediaAssetId, tenantId: tenant.tenantId, storeId: tenant.storeId },
         });
+        if (!asset) throw new BadRequestException("Product image is unavailable in this store. Please upload it again.");
         if (asset) {
           let resolvedOptionValueId: string | null = null;
           if (item.optionValueId && optionValueByIdMap.has(item.optionValueId)) {
-            resolvedOptionValueId = item.optionValueId;
+            resolvedOptionValueId = optionValueByIdMap.get(item.optionValueId)!;
           } else if (item.optionValue) {
             resolvedOptionValueId =
               optionValueMap.get(item.optionValue.trim()) ||
@@ -351,6 +346,9 @@ export class CatalogService {
           }
 
           const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+          if (resolvedVariantId && !await tx.productVariant.findFirst({ where: { id: resolvedVariantId, productId: product.id, tenantId: tenant.tenantId, storeId: tenant.storeId } })) {
+            throw new BadRequestException('Media variant does not belong to this product.');
+          }
 
           await tx.productMedia.create({
             data: {
@@ -466,6 +464,9 @@ export class CatalogService {
           translations: true,
         },
       });
+    }, { timeout: 15000, maxWait: 10000 }).catch(error => {
+      if (error?.code === 'P2002') throw new ConflictException('Product identity or SKU already exists in this store. Choose a different value.');
+      throw error;
     });
   }
 
@@ -770,7 +771,7 @@ export class CatalogService {
               await tx.productVariant.update({
                 where: { id: matched.id },
                 data: {
-                  sku: varDto.sku,
+                  sku: varDto.sku?.trim() || matched.sku,
                   pricePaise,
                   compareAtPricePaise: compareAtPaise,
                   status: varDto.status || VariantStatus.ACTIVE,
@@ -810,8 +811,9 @@ export class CatalogService {
               });
             } else {
               // Check SKU uniqueness
+              const newSku = varDto.sku?.trim() || `SKU-${randomUUID()}`;
               const existingSku = await tx.productVariant.findFirst({
-                where: { storeId: tenant.storeId, sku: varDto.sku, deletedAt: null },
+                where: { storeId: tenant.storeId, sku: newSku },
               });
               if (existingSku) {
                 throw new ConflictException(`SKU "${varDto.sku}" already exists in this store.`);
@@ -822,7 +824,7 @@ export class CatalogService {
                   tenantId: tenant.tenantId,
                   storeId: tenant.storeId,
                   productId: product.id,
-                  sku: varDto.sku,
+                  sku: newSku,
                   pricePaise,
                   compareAtPricePaise: compareAtPaise,
                   status: varDto.status || VariantStatus.ACTIVE,
@@ -958,6 +960,9 @@ export class CatalogService {
           }
 
           const resolvedVariantId = item.variantId || variantMediaMap.get(item.mediaAssetId) || null;
+          if (resolvedVariantId && !await tx.productVariant.findFirst({ where: { id: resolvedVariantId, productId: product.id, tenantId: tenant.tenantId, storeId: tenant.storeId } })) {
+            throw new BadRequestException('Media variant does not belong to this product.');
+          }
           const sortOrder = item.sortOrder !== undefined ? item.sortOrder : i;
 
           const existingMedias = await tx.productMedia.findMany({
@@ -987,7 +992,7 @@ export class CatalogService {
             }
           } else {
             const asset = await tx.mediaAsset.findFirst({
-              where: { id: item.mediaAssetId, tenantId: tenant.tenantId },
+              where: { id: item.mediaAssetId, tenantId: tenant.tenantId, storeId: tenant.storeId },
             });
             if (asset) {
               await tx.productMedia.create({
@@ -1159,92 +1164,71 @@ export class CatalogService {
 
   public async duplicateProduct(tenant: TenantContext, productId: string, actorId?: string) {
     const original = await this.getProductById(tenant, productId);
-
-    const baseSlug = `${original.slug}-copy`;
-    let newSlug = baseSlug;
-    let counter = 1;
-    while (await this.prisma.product.findFirst({ where: { storeId: tenant.storeId, slug: newSlug } })) {
-      newSlug = `${baseSlug}-${counter++}`;
-    }
-
     return this.prisma.$transaction(async (tx) => {
-      const duplicated = await tx.product.create({
-        data: {
-          tenantId: tenant.tenantId,
-          storeId: tenant.storeId,
-          categoryId: original.categoryId,
-          name: `${original.name} (Copy)`,
-          slug: newSlug,
-          description: original.description,
-          mode: original.mode,
-          status: ProductStatus.DRAFT,
-          minOrderQuantity: original.minOrderQuantity,
-          leadTimeDays: original.leadTimeDays,
-          brochureUrl: original.brochureUrl,
-          specifications: original.specifications || undefined,
-          enquiryCtaText: original.enquiryCtaText,
-        },
-      });
-
-      // Clone variants
-      for (const v of original.variants) {
-        const newSku = `${v.sku}-COPY-${Math.floor(100 + Math.random() * 900)}`;
-        const newVariant = await tx.productVariant.create({
-          data: {
-            tenantId: tenant.tenantId,
-            storeId: tenant.storeId,
-            productId: duplicated.id,
-            sku: newSku,
-            barcode: v.barcode,
-            pricePaise: v.pricePaise,
-            compareAtPricePaise: v.compareAtPricePaise,
-            status: VariantStatus.ACTIVE,
-            sortOrder: v.sortOrder,
-          },
-        });
-
-        // Initialize inventory
-        await tx.inventory.create({
-          data: {
-            tenantId: tenant.tenantId,
-            storeId: tenant.storeId,
-            variantId: newVariant.id,
-            stockOnHand: v.inventory?.stockOnHand || 0,
-            stockReserved: 0,
-          },
-        });
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenant.tenantId} FOR UPDATE`;
+      const sub = await tx.subscription.findFirst({ where: { tenantId: tenant.tenantId, status: { in: ['ACTIVE', 'TRIALING'] } }, orderBy: { createdAt: 'desc' }, include: { plan: true } });
+      if (sub?.plan.maxProducts && await tx.product.count({ where: { tenantId: tenant.tenantId, deletedAt: null } }) >= sub.plan.maxProducts)
+        throw new BadRequestException('Product limit reached. Upgrade your plan before duplicating a product.');
+      const duplicated = await tx.product.create({ data: {
+        tenantId: tenant.tenantId, storeId: tenant.storeId, categoryId: original.categoryId,
+        name: `${original.name} (Copy)`, slug: `${original.slug}-copy-${randomUUID()}`,
+        description: original.description, mode: original.mode, status: ProductStatus.DRAFT,
+        minOrderQuantity: original.minOrderQuantity, leadTimeDays: original.leadTimeDays,
+        brochureUrl: original.brochureUrl, specifications: original.specifications || undefined,
+        enquiryCtaText: original.enquiryCtaText,
+      } });
+      const values = new Map<string, string>(), variants = new Map<string, string>();
+      for (const option of original.options) {
+        const created = await tx.productOption.create({ data: { tenantId: tenant.tenantId, storeId: tenant.storeId, productId: duplicated.id, name: option.name, type: option.type, sortOrder: option.sortOrder } });
+        for (const value of option.values) {
+          const next = await tx.productOptionValue.create({ data: { optionId: created.id, value: value.value, colorHex: value.colorHex, sortOrder: value.sortOrder } });
+          values.set(value.id, next.id);
+        }
       }
-
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          tenantId: tenant.tenantId,
-          storeId: tenant.storeId,
-          action: 'PRODUCT_DUPLICATED',
-          entityType: 'Product',
-          entityId: duplicated.id,
-          metadata: { originalId: original.id, newName: duplicated.name },
-        },
-      });
-
+      for (const v of original.variants) {
+        const created = await tx.productVariant.create({ data: {
+          tenantId: tenant.tenantId, storeId: tenant.storeId, productId: duplicated.id,
+          sku: `COPY-${randomUUID()}`, barcode: v.barcode, pricePaise: v.pricePaise, compareAtPricePaise: v.compareAtPricePaise,
+          costPricePaise: v.costPricePaise, status: v.status, sortOrder: v.sortOrder,
+          weightGrams: v.weightGrams, lengthCm: v.lengthCm, widthCm: v.widthCm, heightCm: v.heightCm,
+        } });
+        variants.set(v.id, created.id);
+        for (const link of v.optionValues) {
+          const id = values.get(link.optionValueId);
+          if (id) await tx.productVariantOptionValue.create({ data: { variantId: created.id, optionValueId: id } });
+        }
+        await tx.inventory.create({ data: { tenantId: tenant.tenantId, storeId: tenant.storeId, variantId: created.id, stockOnHand: v.inventory?.stockOnHand || 0, stockReserved: 0 } });
+      }
+      for (const m of original.media) {
+        await tx.productMedia.create({ data: {
+          tenantId: tenant.tenantId, storeId: tenant.storeId, productId: duplicated.id,
+          variantId: m.variantId ? variants.get(m.variantId) : null,
+          optionValueId: m.optionValueId ? values.get(m.optionValueId) : null,
+          mediaAssetId: m.mediaAssetId, storageKey: m.storageKey, publicUrl: m.publicUrl,
+          filePath: m.filePath, mimeType: m.mimeType, sizeBytes: m.sizeBytes,
+          width: m.width, height: m.height, altText: m.altText, sortOrder: m.sortOrder,
+        } });
+      }
+      for (const attr of original.attributes) await tx.productAttribute.create({ data: { productId: duplicated.id, name: attr.name, value: attr.value, type: attr.type, sortOrder: attr.sortOrder } });
+      for (const doc of original.documents) await tx.productDocument.create({ data: { tenantId: tenant.tenantId, storeId: tenant.storeId, productId: duplicated.id, mediaAssetId: doc.mediaAssetId, title: doc.title, docType: doc.docType, fileUrl: doc.fileUrl, fileSizeMb: doc.fileSizeMb, sortOrder: doc.sortOrder } });
+      for (const tr of original.translations) await tx.productTranslation.create({ data: { productId: duplicated.id, locale: tr.locale, name: tr.name, description: tr.description, seoTitle: tr.seoTitle, seoDescription: tr.seoDescription } });
+      await tx.auditLog.create({ data: { actorId, tenantId: tenant.tenantId, storeId: tenant.storeId, action: 'PRODUCT_DUPLICATED', entityType: 'Product', entityId: duplicated.id, metadata: { originalId: original.id, status: 'DRAFT' } } });
       return duplicated;
-    });
+    }, { timeout: 15000, maxWait: 10000 });
   }
 
   public async getCategories(tenant: TenantContext) {
-    return this.prisma.category.findMany({
-      where: { storeId: tenant.storeId, isActive: true },
+    const categories = await this.prisma.category.findMany({
+      where: { storeId: tenant.storeId, tenantId: tenant.tenantId, isActive: true },
       orderBy: { sortOrder: 'asc' },
-      include: {
-        _count: {
-          select: {
-            products: {
-              where: { deletedAt: null },
-            },
-          },
-        },
-      },
+      include: { _count: { select: { products: { where: { storeId: tenant.storeId, tenantId: tenant.tenantId, deletedAt: null } } } } },
     });
+    const visible = await this.prisma.category.findMany({
+      where: { id: { in: categories.map(c => c.id) }, storeId: tenant.storeId, tenantId: tenant.tenantId },
+      select: { id: true, _count: { select: visibleCategoryCount(tenant.storeId, tenant.tenantId) } },
+    });
+    const counts = new Map(visible.map(c => [c.id, c._count.products]));
+    return categories.map(c => ({ ...c, totalProductCount: c._count.products, visibleProductCount: counts.get(c.id) || 0 }));
   }
 
   public async createCategory(tenant: TenantContext, dto: { name: string; description?: string }) {

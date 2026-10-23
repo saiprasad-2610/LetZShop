@@ -5,6 +5,8 @@ import {
   StoreStatus,
 } from '@prisma/client';
 
+export const MONTHLY_SUBSCRIPTION_DAYS = 30;
+
 @Injectable()
 export class SubscriptionService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -62,6 +64,8 @@ export class SubscriptionService {
       .filter((p) => p.isPublic || (p.code || '').toUpperCase().includes('CUSTOM') || (p.code || '').toUpperCase().includes('GROWTH'))
       .map((p) => ({
         ...p,
+        // Current subscription activation and renewal use a 30-day monthly period.
+        billingPeriodDays: p.billingCycle === 'MONTHLY' ? MONTHLY_SUBSCRIPTION_DAYS : null,
         ...planAvailability(p),
       }));
   }
@@ -73,7 +77,7 @@ export class SubscriptionService {
   public async activateOrRenewSubscription(
     tenantId: string,
     planId: string,
-    durationDays = 30,
+    durationDays = MONTHLY_SUBSCRIPTION_DAYS,
     actorId?: string
   ) {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
@@ -157,7 +161,7 @@ export class SubscriptionService {
   public async devActivateSubscription(
     tenantId: string,
     planId: string,
-    durationDays = 30,
+    durationDays = MONTHLY_SUBSCRIPTION_DAYS,
     actorId?: string
   ) {
     const result = await this.activateOrRenewSubscription(tenantId, planId, durationDays, actorId);

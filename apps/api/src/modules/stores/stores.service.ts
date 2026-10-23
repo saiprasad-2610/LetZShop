@@ -1,14 +1,18 @@
+import { visibleCategoryCount } from '../catalog/category-counts';
+import { storeSlugBase, storeSlugCandidate, withUniqueStoreSlug } from './store-identity';
+import { publicProduct } from './public-product';
+import { normalizePublicMedia } from '../media/public-media-reference';
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, StoreStatus } from '@prisma/client';
 import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
-import { AuthenticatedUser } from '@simply/types';
+import { AuthenticatedUser, normalizeBrandText, normalizeThemeSocialLinks, normalizeSocialLinks } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 export interface CreateStoreInput {
   tenantId: string;
   name: string;
-  slug: string;
+  slug?: string;
   description?: string;
 }
 
@@ -20,26 +24,20 @@ export class StoresService {
   ) {}
 
   public async createStore(input: CreateStoreInput, actorId?: string) {
-    const cleanSlug = normalizeSlug(input.slug);
+    if (typeof input.name !== 'string' || input.name.trim().length < 2 || input.name.trim().length > 100) throw new BadRequestException('Business name must contain 2–100 characters.');
+    if (input.slug !== undefined && typeof input.slug !== 'string') throw new BadRequestException('Store slug must be a string.');
+    const cleanSlug = normalizeSlug(input.slug || '');
 
     if (isReservedSlug(cleanSlug)) {
       throw new BadRequestException(`The slug "${cleanSlug}" is reserved by the platform. Please choose another.`);
     }
 
-    const existing = await this.prisma.store.findUnique({
-      where: { slug: cleanSlug },
-    });
-
-    if (existing) {
-      throw new ConflictException(`Store slug "${cleanSlug}" is already taken.`);
-    }
-
-    return this.prisma.$transaction(async (tx) => {
+    return withUniqueStoreSlug(cleanSlug || input.name, (slug) => this.prisma.$transaction(async (tx) => {
       const store = await tx.store.create({
         data: {
           tenantId: input.tenantId,
-          name: input.name,
-          slug: cleanSlug,
+          name: input.name.trim(),
+          slug,
           description: input.description,
           status: StoreStatus.DRAFT,
           isPubliclyAccessible: false,
@@ -71,7 +69,20 @@ export class StoresService {
       });
 
       return store;
-    });
+    }));
+  }
+
+  public async suggestSlug(name: string) {
+    const base = storeSlugBase(name);
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const slug = storeSlugCandidate(base, attempt);
+      const [store, tenant] = await Promise.all([
+        this.prisma.store.findUnique({ where: { slug }, select: { id: true } }),
+        this.prisma.tenant.findUnique({ where: { slug }, select: { id: true } }),
+      ]);
+      if (!store && !tenant) return { slug, available: attempt === 0 && !isReservedSlug(normalizeSlug(name)), suggested: attempt > 0 || isReservedSlug(normalizeSlug(name)) };
+    }
+    throw new ConflictException('Please try checking the store URL again.');
   }
 
   public async getStoreByTenantId(tenantId: string) {
@@ -86,7 +97,11 @@ export class StoresService {
     });
 
     if (!store) throw new NotFoundException('Store not found for this merchant.');
-    return store;
+    return { ...store, publicVisibility: await this.visibilityService.getEffectivePublicStatus(store.id) };
+  }
+
+  public evaluatePublicVisibility(slug: string, options?: { previewSecret?: string; authenticatedUser?: AuthenticatedUser | null }) {
+    return this.visibilityService.evaluateVisibility(slug, options);
   }
 
   public async getPublicStorefront(
@@ -108,8 +123,10 @@ export class StoresService {
         themeConfiguration: { include: { themeDefinition: true } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
         businessHours: { orderBy: { dayOfWeek: 'asc' } },
-        categories: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
+        categories: { where: { isActive: true, tenantId: store.tenantId }, orderBy: { sortOrder: 'asc' }, take: 100, include: { _count: { select: visibleCategoryCount(store.id, store.tenantId) } } },
         products: {
+          take: 100,
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
           where: { status: 'PUBLISHED', deletedAt: null },
           include: {
             media: {
@@ -177,11 +194,11 @@ export class StoresService {
     const activeLegacyConfig = fullStore?.themeConfigs?.[0];
     const themeKey = activeThemeDef?.key || (activeLegacyConfig?.theme?.code ? activeLegacyConfig.theme.code.toUpperCase() : 'ATELIER');
     const themeVersion = activeThemeDef?.version || fullStore?.themeConfiguration?.themeVersion || '1.0.0';
-    const themeJson = (fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {};
+    const themeJson = normalizePublicMedia(normalizeThemeSocialLinks(normalizeBrandText((fullStore?.themeConfiguration?.configuration as any) || (activeLegacyConfig?.configJson as any) || activeThemeDef?.defaultConfig || {})));
 
     const sanitizedBranding = {
-      logoUrl: fullStore?.branding?.logoUrl || null,
-      faviconUrl: fullStore?.branding?.faviconUrl || null,
+      logoUrl: normalizePublicMedia({ logoUrl: fullStore?.branding?.logoUrl || null }).logoUrl,
+      faviconUrl: normalizePublicMedia({ faviconUrl: fullStore?.branding?.faviconUrl || null }).faviconUrl,
       bannerUrl: themeJson?.pages?.home?.heroBannerUrl || (themeJson as any)?.branding?.bannerUrl || null,
       primaryColor: fullStore?.branding?.primaryColor || themeJson.palette?.primary || '#1C1917',
       accentColor: fullStore?.branding?.accentColor || themeJson.palette?.accent || '#D4AF37',
@@ -203,7 +220,7 @@ export class StoresService {
       whatsappNumber: fullStore?.whatsappNumber,
       businessAddress: fullStore?.businessAddress,
       mapsUrl: fullStore?.mapsUrl,
-      socialLinks: fullStore?.socialLinks || {},
+      socialLinks: normalizeSocialLinks(fullStore?.socialLinks),
       fulfillmentMode: fullStore?.fulfillmentMode || 'DELIVERY',
       storefrontDefaultLocale: fullStore?.storefrontDefaultLocale || 'en-IN',
       enabledStorefrontLocales: fullStore?.enabledStorefrontLocales || ['en-IN', 'mr-IN', 'hi-IN'],
@@ -246,9 +263,11 @@ export class StoresService {
         slug: c.slug,
         description: c.description,
         mediaAssetId: c.mediaAssetId,
+        visibleProductCount: c._count.products,
+        _count: c._count,
         sortOrder: c.sortOrder,
       })),
-      products: fullStore?.products || [],
+      products: (fullStore?.products || []).map(publicProduct),
       isPreview,
     };
   }
@@ -287,16 +306,15 @@ export class StoresService {
       };
     }
 
-    const baseSlug = normalizeSlug(input.businessName);
-    let candidateSlug = isReservedSlug(baseSlug) ? `${baseSlug}-store` : baseSlug;
+    return withUniqueStoreSlug(input.businessName, (candidateSlug) => this.prisma.$transaction(async (tx) => {
+      // Serialize duplicate setup requests for one account, while different merchants proceed independently.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.userId} FOR UPDATE`;
+      const currentMembership = await tx.tenantMembership.findFirst({
+        where: { userId: user.userId, isActive: true },
+        include: { tenant: { include: { stores: { where: { deletedAt: null }, take: 1, orderBy: { createdAt: 'asc' } } } } },
+      });
+      if (currentMembership?.tenant.stores[0]) return { tenant: currentMembership.tenant, store: currentMembership.tenant.stores[0] };
 
-    // Ensure unique slug
-    let counter = 1;
-    while (await this.prisma.store.findUnique({ where: { slug: candidateSlug } })) {
-      candidateSlug = `${baseSlug}-${counter++}`;
-    }
-
-    return this.prisma.$transaction(async (tx) => {
       // 1. Create Tenant
       const tenant = await tx.tenant.create({
         data: {
@@ -396,7 +414,7 @@ export class StoresService {
         tenant,
         store,
       };
-    });
+    }));
   }
 
   public async getStoreMetrics(tenantId: string, storeId: string) {

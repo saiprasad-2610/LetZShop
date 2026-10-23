@@ -1,3 +1,5 @@
+import { getPublicStoreUrl } from '@simply/types';
+import { getStorefrontUrl } from '../utils/config';
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -316,7 +318,7 @@ export default function MoreSettingsPage() {
               <div className="space-y-0.5">
                 <h3 className="text-sm font-bold text-slate-900">{store?.name || 'Business Info'}</h3>
                 <p className="text-xs text-slate-500">
-                  Category: {store?.category || 'Retail'} · Slug: letzshop.store/store/{store?.slug || ''}
+                  Category: {store?.category || 'Retail'} · Slug: <span className="break-all">{store?.slug ? getPublicStoreUrl(store, getStorefrontUrl()) : ''}</span>
                 </p>
               </div>
               <button

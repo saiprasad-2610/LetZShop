@@ -4,6 +4,8 @@ const apiUrl = rawApiUrl.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
 
 const nextConfig = {
   reactStrictMode: true,
+  // Bound static-generation workers on development/CI machines with limited commit memory.
+  experimental: { cpus: 1 },
   transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config'],
   images: {
     remotePatterns: [

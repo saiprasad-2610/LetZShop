@@ -53,6 +53,7 @@ describe('Platform administrator authentication', () => {
       } as any,
       { get: () => undefined } as any,
       {} as any,
+      {} as any,
     );
     (service as any).createSessionAndIssueTokens = jest
       .fn()

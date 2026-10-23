@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { TenantContext } from '@simply/types';
+import { TenantContext, brandTextErrors, normalizeBrandText, themeSocialLinkErrors, normalizeThemeSocialLinks } from '@simply/types';
+import { publicMediaErrors } from '@simply/types';
 
 @Injectable()
 export class ThemesService {
@@ -26,6 +27,9 @@ export class ThemesService {
       bannerUrl?: string;
     }
   ) {
+    const announcementErrors = brandTextErrors(dto.announcement === undefined ? {} : { announcement: { text: dto.announcement } });
+    const mediaErrors = publicMediaErrors(dto);
+    if (announcementErrors.length || mediaErrors.length) throw new BadRequestException([...announcementErrors, ...mediaErrors]);
     const validData: any = {};
     if (dto.primaryColor !== undefined) validData.primaryColor = dto.primaryColor;
     if (dto.accentColor !== undefined) validData.accentColor = dto.accentColor;
@@ -72,7 +76,7 @@ export class ThemesService {
 
     return {
       activeTheme,
-      configJson: activeConfig?.configJson || activeTheme?.configJson || {},
+      configJson: normalizeBrandText(activeConfig?.configJson || activeTheme?.configJson || {}),
       branding,
       sections,
     };
@@ -101,6 +105,14 @@ export class ThemesService {
       }>;
     }
   ) {
+    const errors = [
+      ...publicMediaErrors(dto),
+      ...brandTextErrors(dto.configJson),
+      ...themeSocialLinkErrors(dto.configJson),
+      ...brandTextErrors(dto.branding?.announcement === undefined ? {} : { announcement: { text: dto.branding.announcement } }),
+    ];
+    if (errors.length) throw new BadRequestException(errors);
+
     return this.prisma.$transaction(async (tx) => {
       // 1. Update branding if provided
       if (dto.branding) {
@@ -145,13 +157,13 @@ export class ThemesService {
               },
             },
             update: {
-              configJson: dto.configJson || theme.configJson || {},
+              configJson: normalizeThemeSocialLinks(normalizeBrandText(dto.configJson || theme.configJson || {})),
               updatedAt: new Date(),
             },
             create: {
               storeId: tenant.storeId,
               themeId: theme.id,
-              configJson: dto.configJson || theme.configJson || {},
+              configJson: normalizeThemeSocialLinks(normalizeBrandText(dto.configJson || theme.configJson || {})),
             },
           });
         }

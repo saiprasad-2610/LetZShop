@@ -1,3 +1,5 @@
+import { useDirectCheckout } from '../../../hooks/useDirectCheckout';
+import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -92,35 +94,18 @@ export default function StoreCheckoutPage() {
   const toast = useToast();
   const { locale, t, initStoreLocales } = useStorefrontI18n();
 
-  const { 
-    cart, 
-    guestToken, 
-    itemCount, 
-    subtotalPaise, 
-    api, 
-    setStoreId, 
-    clearCart,
-    appliedCoupon,
-    couponError,
-    isCheckingCoupon,
-    applyCoupon,
-    removeCoupon,
-    discountPaise,
-    grandTotalPaise,
-    shippingPaise,
-    flatRatePaise,
-    freeShippingThresholdPaise,
-    freeDeliveryRemainingPaise,
-    isFreeDeliveryQualified,
-    setShippingSettings,
-    orderNotes,
-    setOrderNotes
-  } = useCart();
-
+  const persistent = useCart();
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isPreviewMode = Boolean(storeData?.isPreview || preview === 'true');
+  const directToken = typeof router.query.direct === 'string' ? router.query.direct : '';
+  const direct = useDirectCheckout(directToken, storeData, preview ? String(preview) : undefined);
+  const { setStoreId, setShippingSettings } = persistent;
+  const { cart, guestToken, itemCount, subtotalPaise, api, clearCart, appliedCoupon, couponError,
+    isCheckingCoupon, applyCoupon, removeCoupon, discountPaise, grandTotalPaise, shippingPaise,
+    flatRatePaise, freeShippingThresholdPaise, freeDeliveryRemainingPaise, isFreeDeliveryQualified,
+    orderNotes, setOrderNotes } = directToken ? direct : persistent;
 
   // Preview flow completion state
   const [previewCompleted, setPreviewCompleted] = useState(false);
@@ -371,7 +356,7 @@ export default function StoreCheckoutPage() {
     try {
       const payload = {
         storeId: storeData.store.id,
-        cartId: cart.id,
+        ...(directToken ? { directItems: direct.selection ? [{ productId: direct.selection.productId, variantId: direct.selection.variantId, quantity: direct.selection.quantity }] : [] } : { cartId: cart.id }),
         fullName: name.trim(),
         phone: cleanPhone,
         email: email.trim() || undefined,
@@ -462,8 +447,8 @@ export default function StoreCheckoutPage() {
 
   if (loading || !storeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--store-surface)] store-surface">
+        <div className="w-8 h-8 border-4 border-[var(--store-border)] border-t-gray-900 rounded-full animate-spin" />
       </div>
     );
   }
@@ -481,10 +466,10 @@ export default function StoreCheckoutPage() {
 
       {/* Merchant Preview Top Banner */}
       {isPreviewMode && !isEmbedded && (
-        <div className="bg-slate-900 text-white text-xs py-2 px-4 flex items-center justify-between sticky top-0 z-50 shadow">
+        <div className="bg-[var(--store-button-bg)] store-inverse text-white text-xs py-2 px-4 flex items-center justify-between sticky top-0 z-50 shadow">
           <div className="flex items-center gap-2">
             <span className="font-bold text-amber-400">Merchant Preview</span>
-            <span className="text-slate-300">You are experiencing the exact buyer checkout flow.</span>
+            <span className="text-[var(--store-text-secondary)]">You are experiencing the exact buyer checkout flow.</span>
           </div>
           <a
             href={getSellerStorePreviewUrl()}
@@ -501,7 +486,7 @@ export default function StoreCheckoutPage() {
         {/* PREVIEW COMPLETED CONFIRMATION VIEW */}
         {previewCompleted && completedOrderSnapshot ? (
           <div className="max-w-2xl mx-auto space-y-6 py-6 animate-fadeIn">
-            <div className="bg-white p-8 rounded-2xl border border-emerald-200 shadow-sm text-center space-y-4">
+            <div className="bg-[var(--store-surface)] store-surface p-8 rounded-2xl border border-emerald-200 shadow-sm text-center space-y-4">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle className="w-9 h-9" />
               </div>
@@ -509,23 +494,23 @@ export default function StoreCheckoutPage() {
                 <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
                   Preview Mode
                 </span>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-[var(--store-text-primary)]">
                   Customer checkout preview complete
                 </h1>
-                <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto">
+                <p className="text-sm text-[var(--store-text-secondary)] mt-2 max-w-md mx-auto">
                   This simulated checkout confirmed all buyer flows. No real order was created and inventory remained untouched.
                 </p>
               </div>
 
               {/* Simulated Order Snapshot */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left space-y-3 text-xs">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <span className="text-gray-500">Preview Order ID:</span>
-                  <span className="font-mono font-bold text-gray-900">{completedOrderSnapshot.previewOrderNumber}</span>
+              <div className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-xl p-4 text-left space-y-3 text-xs">
+                <div className="flex justify-between items-center border-b border-[var(--store-border)] pb-2">
+                  <span className="text-[var(--store-text-secondary)]">Preview Order ID:</span>
+                  <span className="font-mono font-bold text-[var(--store-text-primary)]">{completedOrderSnapshot.previewOrderNumber}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Customer:</span>
-                  <span className="font-medium text-gray-900">{completedOrderSnapshot.customerName} (+91 {completedOrderSnapshot.customerPhone})</span>
+                  <span className="text-[var(--store-text-secondary)]">Customer:</span>
+                  <span className="font-medium text-[var(--store-text-primary)]">{completedOrderSnapshot.customerName} (+91 {completedOrderSnapshot.customerPhone})</span>
                 </div>
                 {completedOrderSnapshot.couponCode && (
                   <div className="flex justify-between items-center text-emerald-700 font-semibold">
@@ -534,8 +519,8 @@ export default function StoreCheckoutPage() {
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Fulfillment:</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-[var(--store-text-secondary)]">Fulfillment:</span>
+                  <span className="font-medium text-[var(--store-text-primary)]">
                     {completedOrderSnapshot.fulfillmentType === 'DELIVERY' 
                       ? `Home Delivery to ${completedOrderSnapshot.shippingAddress?.city}, ${completedOrderSnapshot.shippingAddress?.postalCode}`
                       : `Store Pickup (${store.name})`
@@ -543,12 +528,12 @@ export default function StoreCheckoutPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Payment:</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-[var(--store-text-secondary)]">Payment:</span>
+                  <span className="font-medium text-[var(--store-text-primary)]">
                     {completedOrderSnapshot.paymentMethod === 'COD' ? 'Cash on Delivery (Doorstep)' : 'Online Payment (Simulated)'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200 font-bold text-sm text-gray-900">
+                <div className="flex justify-between items-center pt-2 border-t border-[var(--store-border)] font-bold text-sm text-[var(--store-text-primary)]">
                   <span>Simulated Total:</span>
                   <span className="font-mono text-emerald-700">{formatPaise(completedOrderSnapshot.totalPaise)}</span>
                 </div>
@@ -557,16 +542,16 @@ export default function StoreCheckoutPage() {
               {/* Action Buttons */}
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
-                  href={getLink(`/store/${slug}`)}
+                  href={getLink(getPublicStoreUrl(String(slug)))}
                   data-theme-btn="true"
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition flex items-center justify-center gap-1.5"
+                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-[var(--store-button-bg)] store-inverse text-white hover:bg-[var(--store-button-bg)] store-inverse transition flex items-center justify-center gap-1.5"
                 >
                   <ShoppingBag className="w-4 h-4" /> Back to Store
                 </Link>
                 <a
                   href={getSellerStorePreviewUrl()}
                   data-theme-btn="true"
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center justify-center gap-1.5"
+                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-[var(--store-surface)] store-surface text-[var(--store-text-primary)] hover:bg-[var(--store-surface)] store-surface transition flex items-center justify-center gap-1.5"
                 >
                   Exit Preview
                 </a>
@@ -576,22 +561,22 @@ export default function StoreCheckoutPage() {
         ) : (
           <>
             {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Link href={getLink(`/store/${slug}/cart`)} className="hover:text-gray-900 flex items-center gap-1 transition">
+            <div className="flex items-center gap-2 text-xs text-[var(--store-text-secondary)]">
+              <Link href={getLink(`/store/${slug}/cart`)} className="hover:text-[var(--store-text-primary)] flex items-center gap-1 transition">
                 <ArrowLeft className="w-3.5 h-3.5" /> Back to Cart
               </Link>
               <span>/</span>
-              <span className="font-semibold text-gray-800">
+              <span className="font-semibold text-[var(--store-text-primary)]">
                 {isPreviewMode ? 'Preview Checkout' : 'Express Guest Checkout'}
               </span>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[var(--store-text-primary)] tracking-tight">
                   {isPreviewMode ? 'Store Checkout Preview' : t('storefront.checkout')}
                 </h1>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-[var(--store-text-secondary)] mt-0.5">
                   Fast, encrypted checkout without mandatory password creation.
                 </p>
               </div>
@@ -607,39 +592,39 @@ export default function StoreCheckoutPage() {
               <div className="lg:col-span-8 space-y-6">
                 
                 {/* STEP 1: Contact Information */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="bg-[var(--store-surface)] store-surface p-6 rounded-2xl border border-[var(--store-border)] shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">1</span>
-                      {t('storefront.contactInfo')}
+                    <h2 className="text-sm font-bold text-[var(--store-text-primary)] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-[var(--store-button-bg)] store-inverse text-white flex items-center justify-center text-xs">1</span>
+                      {t('checkout.contactInfo')}
                     </h2>
-                    <span className="text-[11px] text-gray-400 font-medium">OTP-free guest flow</span>
+                    <span className="text-[11px] text-[var(--store-text-secondary)] font-medium">OTP-free guest flow</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.fullName')} <span className="text-red-500">*</span>
+                      <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
+                        {t('checkout.fullName')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <User className="w-4 h-4 text-[var(--store-text-secondary)] absolute left-3 top-2.5" />
                         <input
                           type="text"
                           required
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="e.g. Anand Sharma"
-                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
+                          className="w-full pl-9 pr-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.mobileNumber')} <span className="text-red-500">*</span>
+                      <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
+                        {t('checkout.phone')} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-xs font-mono text-gray-500 font-bold">+91</span>
+                        <span className="absolute left-3 top-2.5 text-xs font-mono text-[var(--store-text-secondary)] font-bold">+91</span>
                         <input
                           type="tel"
                           required
@@ -647,23 +632,23 @@ export default function StoreCheckoutPage() {
                           onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                           placeholder="9876543210"
                           maxLength={10}
-                          className="w-full pl-11 pr-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 font-medium"
+                          className="w-full pl-11 pr-3 py-2 border border-[var(--store-border)] rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 font-medium"
                         />
                       </div>
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        {t('storefront.email')} <span className="text-gray-400 text-[11px] font-normal">(Optional, for digital receipt)</span>
+                      <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
+                        {t('checkout.email')} <span className="text-[var(--store-text-secondary)] text-[11px] font-normal">(Optional, for digital receipt)</span>
                       </label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <Mail className="w-4 h-4 text-[var(--store-text-secondary)] absolute left-3 top-2.5" />
                         <input
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="anand@example.com"
-                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                          className="w-full pl-9 pr-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
@@ -671,20 +656,20 @@ export default function StoreCheckoutPage() {
                 </div>
 
                 {/* STEP 2: Fulfillment & Address */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="bg-[var(--store-surface)] store-surface p-6 rounded-2xl border border-[var(--store-border)] shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">2</span>
-                      {t('storefront.delivery')}
+                    <h2 className="text-sm font-bold text-[var(--store-text-primary)] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-[var(--store-button-bg)] store-inverse text-white flex items-center justify-center text-xs">2</span>
+                      {t('checkout.delivery')}
                     </h2>
 
                     {supportsPickup && supportsDelivery && (
-                      <div className="flex p-0.5 bg-gray-100 rounded-xl text-xs font-semibold">
+                      <div className="flex p-0.5 bg-[var(--store-surface)] store-surface rounded-xl text-xs font-semibold">
                         <button
                           type="button"
                           onClick={() => setFulfillmentType('DELIVERY')}
                           className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                            fulfillmentType === 'DELIVERY' ? 'bg-white shadow-sm text-gray-900 font-bold' : 'text-gray-600 hover:text-gray-900'
+                            fulfillmentType === 'DELIVERY' ? 'bg-[var(--store-surface)] store-surface shadow-sm text-[var(--store-text-primary)] font-bold' : 'text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]'
                           }`}
                         >
                           <Truck className="w-3.5 h-3.5" /> Home Delivery
@@ -693,7 +678,7 @@ export default function StoreCheckoutPage() {
                           type="button"
                           onClick={() => setFulfillmentType('PICKUP')}
                           className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                            fulfillmentType === 'PICKUP' ? 'bg-white shadow-sm text-gray-900 font-bold' : 'text-gray-600 hover:text-gray-900'
+                            fulfillmentType === 'PICKUP' ? 'bg-[var(--store-surface)] store-surface shadow-sm text-[var(--store-text-primary)] font-bold' : 'text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]'
                           }`}
                         >
                           <StoreIcon className="w-3.5 h-3.5" /> Store Pickup
@@ -703,18 +688,18 @@ export default function StoreCheckoutPage() {
                   </div>
 
                   {fulfillmentType === 'PICKUP' ? (
-                    <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+                    <div className="p-4 bg-[var(--store-surface)] store-surface border border-emerald-200 rounded-xl space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
                         <StoreIcon className="w-4 h-4 text-emerald-700" /> Store Pickup Location
                       </div>
-                      <p className="text-xs text-gray-900 font-bold">
+                      <p className="text-xs text-[var(--store-text-primary)] font-bold">
                         {store.name}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-[var(--store-text-secondary)]">
                         {store.businessAddress || 'Address will be provided upon pickup confirmation'}
                       </p>
                       {store.contactPhone && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-[var(--store-text-secondary)]">
                           Direct Contact: +91 {store.contactPhone}
                         </p>
                       )}
@@ -727,14 +712,14 @@ export default function StoreCheckoutPage() {
                       {/* Country & State Selection */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
                             Country
                           </label>
-                          <div className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-gray-50 border border-gray-200 text-gray-700 flex items-center justify-between">
+                          <div className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--store-surface)] store-surface border border-[var(--store-border)] text-[var(--store-text-primary)] flex items-center justify-between">
                             <span className="flex items-center gap-1.5">
                               <span>🇮🇳</span> India
                             </span>
-                            <span className="text-[10px] text-gray-400 font-normal">Preselected</span>
+                            <span className="text-[10px] text-[var(--store-text-secondary)] font-normal">Preselected</span>
                           </div>
                         </div>
 
@@ -770,7 +755,7 @@ export default function StoreCheckoutPage() {
 
                         {/* PIN Code */}
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
                             PIN Code <span className="text-red-500">*</span>
                           </label>
                           <input
@@ -780,15 +765,15 @@ export default function StoreCheckoutPage() {
                             value={postalCode}
                             onChange={(e) => handlePincodeChange(e.target.value)}
                             placeholder="e.g. 413001"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 text-gray-900"
+                            className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 text-[var(--store-text-primary)]"
                           />
-                          <p className="text-[10px] text-gray-400 mt-1">6-digit Indian Postal Code</p>
+                          <p className="text-[10px] text-[var(--store-text-secondary)] mt-1">6-digit Indian Postal Code</p>
                         </div>
                       </div>
 
                       {/* Address Line 1 */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
                           Address Line 1 (Flat, House No., Building, Street) <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -797,27 +782,27 @@ export default function StoreCheckoutPage() {
                           value={addressLine1}
                           onChange={(e) => setAddressLine1(e.target.value)}
                           placeholder="e.g. Flat 402, Lotus Residency, 5th Cross Road"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
+                          className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
                         />
                       </div>
 
                       {/* Address Line 2 / Landmark */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Address Line 2 / Landmark <span className="text-gray-400 text-[11px] font-normal">(Optional)</span>
+                        <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
+                          Address Line 2 / Landmark <span className="text-[var(--store-text-secondary)] text-[11px] font-normal">(Optional)</span>
                         </label>
                         <input
                           type="text"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
                           placeholder="e.g. Near HDFC Bank / Behind Metro Station"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
 
                       {/* Delivery Instructions */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
                           Delivery Instructions / Special Notes
                         </label>
                         <input
@@ -825,7 +810,7 @@ export default function StoreCheckoutPage() {
                           value={orderNotes}
                           onChange={(e) => setOrderNotes(e.target.value)}
                           placeholder="e.g. Please ring doorbell twice, leave at reception, or gate code 1234"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
@@ -833,11 +818,11 @@ export default function StoreCheckoutPage() {
                 </div>
 
                 {/* STEP 3: Payment Method */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="bg-[var(--store-surface)] store-surface p-6 rounded-2xl border border-[var(--store-border)] shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">3</span>
-                      {t('storefront.paymentMethod')}
+                    <h2 className="text-sm font-bold text-[var(--store-text-primary)] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-[var(--store-button-bg)] store-inverse text-white flex items-center justify-center text-xs">3</span>
+                      {t('checkout.paymentMethod')}
                     </h2>
                     <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Verified Secure
@@ -851,8 +836,8 @@ export default function StoreCheckoutPage() {
                         onClick={() => setPaymentMethod('COD')}
                         className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
                           paymentMethod === 'COD'
-                            ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-emerald-600 bg-[var(--store-surface)] store-surface ring-2 ring-emerald-500/20'
+                            : 'border-[var(--store-border)] hover:border-[var(--store-border)]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -864,18 +849,18 @@ export default function StoreCheckoutPage() {
                             className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
                           />
                           <div>
-                            <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              {t('storefront.cod')}
+                            <p className="text-xs font-bold text-[var(--store-text-primary)] flex items-center gap-1.5">
+                              {t('checkout.cod')}
                               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
                                 Most Popular
                               </span>
                             </p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
+                            <p className="text-[11px] text-[var(--store-text-secondary)] mt-0.5">
                               Pay in cash directly upon package delivery at your doorstep or store collection.
                             </p>
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                        <span className="text-[10px] font-bold text-[var(--store-text-primary)] bg-[var(--store-surface)] store-surface px-2 py-1 rounded">
                           Pay on Delivery
                         </span>
                       </label>
@@ -885,8 +870,8 @@ export default function StoreCheckoutPage() {
                       onClick={() => setPaymentMethod('RAZORPAY')}
                       className={`p-4 rounded-xl border flex flex-col gap-2 cursor-pointer transition ${
                         paymentMethod === 'RAZORPAY'
-                          ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-emerald-600 bg-[var(--store-surface)] store-surface ring-2 ring-emerald-500/20'
+                          : 'border-[var(--store-border)] hover:border-[var(--store-border)]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -899,15 +884,15 @@ export default function StoreCheckoutPage() {
                             className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
                           />
                           <div>
-                            <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                              {t('storefront.onlinePayment')}
+                            <p className="text-xs font-bold text-[var(--store-text-primary)] flex items-center gap-1.5">
+                              {t('checkout.online')}
                               {isPreviewMode && (
                                 <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
                                   Preview Mode Simulation
                                 </span>
                               )}
                             </p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
+                            <p className="text-[11px] text-[var(--store-text-secondary)] mt-0.5">
                               {isPreviewMode 
                                 ? 'Preview simulation — tested safely without real live credit deductions.'
                                 : 'Instant digital checkout via UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards & Netbanking.'
@@ -933,12 +918,12 @@ export default function StoreCheckoutPage() {
               </div>
 
               {/* RIGHT: Order Summary Sidebar */}
-              <div className="lg:col-span-4 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6 sticky top-24">
+              <div className="lg:col-span-4 bg-[var(--store-surface)] store-surface border border-[var(--store-border)] rounded-2xl p-6 shadow-sm space-y-6 sticky top-24">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-bold text-gray-900">
+                  <h2 className="text-base font-bold text-[var(--store-text-primary)]">
                     Order Summary
                   </h2>
-                  <span className="text-xs text-gray-500 font-mono">
+                  <span className="text-xs text-[var(--store-text-secondary)] font-mono">
                     {itemCount} {itemCount === 1 ? 'item' : 'items'}
                   </span>
                 </div>
@@ -946,9 +931,9 @@ export default function StoreCheckoutPage() {
                 {/* Items list */}
                 {items.length === 0 ? (
                   <div className="py-6 text-center space-y-2">
-                    <p className="text-xs text-gray-500">Your cart is empty.</p>
+                    <p className="text-xs text-[var(--store-text-secondary)]">Your cart is empty.</p>
                     <Link
-                      href={getLink(`/store/${slug}`)}
+                      href={getLink(getPublicStoreUrl(String(slug)))}
                       className="text-xs font-semibold text-emerald-700 hover:underline"
                     >
                       Browse Store Catalog
@@ -957,7 +942,7 @@ export default function StoreCheckoutPage() {
                 ) : (
                   <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-gray-100">
                     {items.map((item: any) => {
-                      const title = item.productName || item.variant?.product?.title || item.variant?.title || 'Product';
+                      const title = item.productName || item.variant?.product?.name || item.variant?.product?.title || item.variant?.title || 'Product';
                       const variantLabel = formatItemVariantLabel(item);
                       const sku = item.sku || item.variant?.sku;
                       const unitPrice = item.unitPricePaise || item.variant?.pricePaise || 0;
@@ -973,28 +958,28 @@ export default function StoreCheckoutPage() {
                         <div key={item.id} className="pt-3 first:pt-0 flex items-start justify-between text-xs gap-3">
                           <div className="flex items-start gap-2.5 min-w-0">
                             {img && (
-                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-[var(--store-surface)] store-surface flex-shrink-0 border border-[var(--store-border)]">
                                 <SafeImage src={img} alt={title} className="w-full h-full object-cover" />
                               </div>
                             )}
                             <div className="min-w-0 space-y-0.5">
-                              <p className="font-semibold text-gray-900 truncate">{title}</p>
+                              <p className="font-semibold text-[var(--store-text-primary)] truncate">{title}</p>
                               {variantLabel && (
-                                <p className="text-[11px] font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded inline-block">
+                                <p className="text-[11px] font-medium text-[var(--store-text-primary)] bg-[var(--store-surface)] store-surface px-1.5 py-0.5 rounded inline-block">
                                   {variantLabel}
                                 </p>
                               )}
                               {sku && (
-                                <p className="text-[10px] font-mono text-gray-400">
+                                <p className="text-[10px] font-mono text-[var(--store-text-secondary)]">
                                   SKU: {sku}
                                 </p>
                               )}
-                              <p className="text-[11px] text-gray-500 font-mono">
+                              <p className="text-[11px] text-[var(--store-text-secondary)] font-mono">
                                 Qty: {item.quantity} × {formatPaise(unitPrice)}
                               </p>
                             </div>
                           </div>
-                          <div className="font-mono font-bold text-gray-900 flex-shrink-0 pt-0.5">
+                          <div className="font-mono font-bold text-[var(--store-text-primary)] flex-shrink-0 pt-0.5">
                             {formatPaise(lineTotal)}
                           </div>
                         </div>
@@ -1025,7 +1010,7 @@ export default function StoreCheckoutPage() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full bg-gray-200/80 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-[var(--store-surface)] store-surface rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           isFreeDeliveryQualified ? 'bg-emerald-500' : 'bg-amber-500'
@@ -1039,9 +1024,9 @@ export default function StoreCheckoutPage() {
                 )}
 
                 {/* Coupon Code Section */}
-                <div className="pt-3 border-t border-gray-100 space-y-2">
+                <div className="pt-3 border-t border-[var(--store-border)] space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="font-bold text-[var(--store-text-primary)] flex items-center gap-1.5">
                       <Tag className="w-3.5 h-3.5 text-emerald-600" /> Promo / Coupon Code
                     </span>
                   </div>
@@ -1078,13 +1063,13 @@ export default function StoreCheckoutPage() {
                           }
                         }}
                         placeholder="Enter coupon code"
-                        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono uppercase focus:ring-2 focus:ring-emerald-500"
+                        className="flex-1 px-3 py-1.5 border border-[var(--store-border)] rounded-lg text-xs font-mono uppercase focus:ring-2 focus:ring-emerald-500"
                       />
                       <button
                         type="button"
                         onClick={() => handleApplyCoupon()}
                         disabled={isCheckingCoupon || !couponInput.trim()}
-                        className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+                        className="px-3 py-1.5 bg-[var(--store-button-bg)] store-inverse text-white rounded-lg text-xs font-semibold hover:bg-[var(--store-button-bg)] store-inverse transition disabled:opacity-50"
                       >
                         {isCheckingCoupon ? 'Checking...' : 'Apply'}
                       </button>
@@ -1096,7 +1081,7 @@ export default function StoreCheckoutPage() {
                 </div>
 
                 {/* Price Breakdown */}
-                <div className="pt-3 border-t border-gray-200 space-y-2 text-xs text-gray-600">
+                <div className="pt-3 border-t border-[var(--store-border)] space-y-2 text-xs text-[var(--store-text-secondary)]">
                   <div className="flex justify-between">
                     <span>Items Subtotal</span>
                     <span className="font-mono">{formatPaise(subtotalPaise)}</span>
@@ -1117,20 +1102,20 @@ export default function StoreCheckoutPage() {
                       ) : (fulfillmentType === 'DELIVERY' ? shippingPaise : 0) === 0 ? (
                         <span className="text-emerald-700 font-bold">FREE DELIVERY</span>
                       ) : (
-                        <span className="font-mono text-gray-900">{formatPaise(shippingPaise)}</span>
+                        <span className="font-mono text-[var(--store-text-primary)]">{formatPaise(shippingPaise)}</span>
                       )}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span>Taxes & GST (5% Est.)</span>
-                    <span className="font-mono text-gray-500">
+                    <span className="font-mono text-[var(--store-text-secondary)]">
                       {formatPaise(Math.round(Math.max(0, subtotalPaise - discountPaise) * 0.05))}
                     </span>
                   </div>
 
-                  <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-bold text-gray-900">
-                    <span>{t('storefront.totalAmount')}</span>
+                  <div className="pt-2 border-t border-[var(--store-border)] flex justify-between text-base font-bold text-[var(--store-text-primary)]">
+                    <span>{t('common.total')}</span>
                     <span className="font-mono text-emerald-800">
                       {formatPaise(calculatedGrandTotalPaise)}
                     </span>
@@ -1140,10 +1125,11 @@ export default function StoreCheckoutPage() {
                 {/* Submit Order Button */}
                 <button data-theme-tone="primary"
                   type="submit"
+                  data-testid="place-order-button"
                   disabled={submitting || items.length === 0}
                   data-theme-btn="true"
                   className="w-full py-4 rounded-xl text-xs font-bold text-white shadow-lg transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
+                  style={{ backgroundColor: 'var(--theme-primary, #111827)', color: 'var(--theme-on-primary)' }}
                 >
                   {submitting ? (
                     <span className="flex items-center gap-2">
@@ -1157,14 +1143,14 @@ export default function StoreCheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <span>{t('storefront.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
+                      <span>{t('checkout.placeOrder')} • {formatPaise(calculatedGrandTotalPaise)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
 
                 {/* Trust and Policy Badges */}
-                <div className="space-y-2 pt-2 border-t border-gray-100 text-[11px] text-gray-500">
+                <div className="space-y-2 pt-2 border-t border-[var(--store-border)] text-[11px] text-[var(--store-text-secondary)]">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                     <span>100% Genuine Quality Guarantee</span>
@@ -1180,7 +1166,7 @@ export default function StoreCheckoutPage() {
                     ✦ Merchant Preview Simulation: Order creation runs safely without changing inventory or triggering real bank charges.
                   </p>
                 ) : (
-                  <div className="text-center text-[10px] text-gray-400">
+                  <div className="text-center text-[10px] text-[var(--store-text-secondary)]">
                     By confirming this order, you accept the store's terms of service. Digital order receipt will be generated.
                   </div>
                 )}

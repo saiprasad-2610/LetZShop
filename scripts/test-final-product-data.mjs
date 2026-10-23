@@ -1,0 +1,126 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { randomUUID, randomInt } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+import { PrismaClient } from '../packages/db/node_modules/@prisma/client/index.js';
+process.loadEnvFile('.env');
+assert.ok(['localhost','127.0.0.1','[::1]'].includes(new URL(process.env.DATABASE_URL).hostname));
+const require=createRequire(import.meta.url);
+const { JwtService }=require('../apps/api/node_modules/@nestjs/jwt');
+const db=new PrismaClient(), out='artifacts/final-hardening';
+const run=`final-hardening-${Date.now()}`, tenants=[], users=[], assets=[], ownedPlans=[];
+fs.mkdirSync(out,{recursive:true});
+const result={matrix:[],failures:[]};
+const before=await db.store.findMany({select:{id:true,slug:true,name:true},orderBy:{id:'asc'}});
+try {
+  const plan=await db.plan.findUniqueOrThrow({where:{code:'STARTER_MONTHLY'}});
+  result.plan={code:plan.code,pricePaise:plan.pricePaise,billingCycle:plan.billingCycle,activationPeriodDays:30};
+  const tenant=await db.tenant.create({data:{name:run,slug:run}});tenants.push(tenant.id);
+  const store=await db.store.create({data:{tenantId:tenant.id,name:'Product Workflow Test',slug:run,status:'LIVE',isPubliclyAccessible:true}});
+  const subscription=await db.subscription.create({data:{tenantId:tenant.id,planId:plan.id,status:'ACTIVE',currentPeriodStart:new Date(),currentPeriodEnd:new Date(Date.now()+86400000)}});
+  const user=await db.user.create({data:{phone:`+919${randomInt(0,1e9).toString().padStart(9,'0')}`,fullName:run,role:'SELLER_OWNER'}});users.push(user.id);
+  await db.tenantMembership.create({data:{tenantId:tenant.id,userId:user.id,role:'SELLER_OWNER',isActive:true}});
+  const session=await db.session.create({data:{userId:user.id,tenantId:tenant.id,storeId:store.id,tokenHash:randomUUID(),expiresAt:new Date(Date.now()+3600000)}});
+  const token=new JwtService({secret:process.env.JWT_ACCESS_SECRET}).sign({sub:user.id,phone:user.phone,role:user.role,tenantId:tenant.id,storeId:store.id,sessionId:session.id},{expiresIn:'1h'});
+  const request=async (url,body,method=body?'POST':'GET',expected=200) => {
+    const response=await fetch(`http://localhost:4000/${url}`,{method,headers:{authorization:`Bearer ${token}`,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+    const json=await response.json();
+    if(expected===200) assert.ok(response.ok,`${method} ${url}: ${response.status} ${JSON.stringify(json)}`);
+    else assert.equal(response.status,expected,JSON.stringify(json));
+    return json.data ?? json;
+  };
+  const category=await request('catalog/categories',{name:'Workflow category'});
+  for(let i=0;i<3;i++) assets.push(await request('media/asset',{filename:`fixture-${i}.png`,mimeType:'image/png',base64Data:fs.readFileSync('apps/storefront/public/images/letzshop-icon.png').toString('base64')}));
+  const base={name:'Repeated name',mode:'SELL_ONLINE',pricePaise:79900,stock:0,mediaAssetIds:[assets[0].id]};
+  const simple=await request('catalog/products',base);
+  result.matrix.push({case:'simple published + no optional category + stock 0',status:simple.status,variants:simple.variants.length});
+  assert.equal(simple.status,'PUBLISHED');assert.equal(simple.variants[0].inventory.stockOnHand,0);
+  const draft=await request('catalog/products',{...base,status:'DRAFT',stock:12,categoryId:category.id,compareAtPricePaise:99900});
+  assert.equal(draft.status,'DRAFT');assert.equal(draft.categoryId,category.id);assert.equal(draft.variants[0].compareAtPricePaise,99900);
+  result.matrix.push({case:'simple draft + category + compare price + stock 12',status:draft.status});
+  const matrix={...base,name:'Colour Size Shirt',options:[{name:'Colour',type:'COLOUR',values:[{value:'Black'},{value:'White'}]},{name:'Size',values:[{value:'S'},{value:'M'},{value:'L'}]}],variants:['Black','White'].flatMap(c=>['S','M','L'].map(size=>({optionValues:[c,size],pricePaise:79900,compareAtPricePaise:99900,stock:10}))),mediaAssetIds:assets.map(a=>a.id),media:assets.map((a,i)=>({mediaAssetId:a.id,optionValue:i===0?'Black':'White',sortOrder:i}))};
+  // Run the old service against these same owned fixtures to establish the pre-fix defect.
+  const ts=require('../apps/api/node_modules/typescript');
+  const {runInNewContext}=await import('node:vm');
+  const oldSource=execFileSync('git',['show','9e01750:apps/api/src/modules/catalog/catalog.service.ts'],{encoding:'utf8'});
+  const compiled=ts.transpileModule(oldSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,experimentalDecorators:true,emitDecoratorMetadata:true}}).outputText;
+  const mod={exports:{}};
+  const apiRequire=createRequire(new URL('../apps/api/dist/modules/catalog/catalog.service.js',import.meta.url));
+  runInNewContext(compiled,{require:apiRequire,module:mod,exports:mod.exports});
+  const oldCatalog=new mod.exports.CatalogService(db);
+  const oldPayload={...matrix,status:'DRAFT',variants:matrix.variants.map((v,i)=>({...v,sku:`PROD-BASELINE-${i}`}))};
+  const oldCreated=await oldCatalog.createProduct({tenantId:tenant.id,storeId:store.id},oldPayload,user.id);
+  assert.equal(oldCreated.status,'PUBLISHED','Baseline ignores the requested draft status.');
+  await assert.rejects(oldCatalog.createProduct({tenantId:tenant.id,storeId:store.id},oldPayload,user.id),/SKU.*already exists/);
+  const oldCopy=await oldCatalog.duplicateProduct({tenantId:tenant.id,storeId:store.id},oldCreated.id,user.id);
+  assert.equal(await db.productOption.count({where:{productId:oldCopy.id}}),0);
+  assert.equal(await db.productMedia.count({where:{productId:oldCopy.id}}),0);
+  result.baselineReproduced={repeatedGeneratedVariantSku:'YES',draftIgnored:'YES',duplicateLosesOptionsAndMedia:'YES'};
+  for(const status of ['PUBLISHED','DRAFT']) {
+    const created=await request('catalog/products',{...matrix,status});
+    assert.equal(created.status,status);assert.equal(created.variants.length,6);assert.equal(new Set(created.variants.map(v=>v.sku)).size,6);
+    assert.equal(created.options.length,2);assert.equal(created.media.length,3);assert.ok(created.media.every(m=>m.optionValueId));
+    assert.ok(created.variants.every(v=>v.optionValues.length===2));
+    result.matrix.push({case:`six variants ${status} + multiple colour-associated images`,status,variants:6});
+  }
+  const one=await request('catalog/products',{...base,name:'Size Shirt',options:[{name:'Size',values:[{value:'S'},{value:'M'}]}],variants:[{optionValues:['S'],stock:0,pricePaise:70000},{optionValues:['M'],stock:2,pricePaise:80000}]});
+  assert.equal(one.variants.length,2);result.matrix.push({case:'one option',variants:2});
+  const concurrent=await Promise.all(Array.from({length:5},()=>request('catalog/products',matrix)));
+  assert.equal(new Set(concurrent.flatMap(p=>p.variants.map(v=>v.sku))).size,30);
+  assert.equal(new Set(concurrent.map(p=>p.slug)).size,5);
+  result.concurrentGeneratedSkuAndSlug='PASS';
+  await request('catalog/products',{...base,sku:'MERCHANT-SKU'});
+  const countBefore=await db.product.count({where:{storeId:store.id}});
+  await request('catalog/products',{...base,sku:'MERCHANT-SKU'},'POST',409);
+  await request('catalog/products',{...base,mediaAssetIds:[]},'POST',400);
+  await request('catalog/products',{...matrix,variants:[matrix.variants[0],matrix.variants[0]]},'POST',400);
+  await request('catalog/products',{...matrix,variants:[{...matrix.variants[0],optionValues:['Not a colour','S']}]},'POST',400);
+  await request('catalog/products',{...base,mediaAssetIds:['missing-asset']},'POST',400);
+  assert.equal(await db.product.count({where:{storeId:store.id}}),countBefore);
+  result.failedRequestsRollback='PASS';result.merchantSkuConflict='PASS';result.missingImageVisibleValidation='PASS';
+  const original=concurrent[0];
+  const copy=await request(`catalog/products/${original.id}/duplicate`,{});
+  const detail=await request(`catalog/products/${copy.id}`);
+  assert.equal(detail.status,'DRAFT');assert.notEqual(detail.id,original.id);
+  assert.equal(detail.options.length,2);assert.equal(detail.variants.length,6);assert.equal(detail.media.length,3);
+  assert.ok(detail.variants.every(v=>!original.variants.some(o=>o.id===v.id||o.sku===v.sku)&&v.optionValues.length===2));
+  assert.equal(await db.productReview.count({where:{productId:detail.id}}),0);
+  assert.equal(await db.orderItem.count({where:{productId:detail.id}}),0);
+  result.duplicateAsDraft={newIds:'PASS',newSkus:'PASS',optionsAndMedia:'PASS',historyNotCopied:'PASS'};
+  const publicState=async()=> (await request('stores/my-store')).publicVisibility.isPublic;
+  assert.equal(await publicState(),true);
+  await db.subscription.update({where:{id:subscription.id},data:{status:'EXPIRED',currentPeriodEnd:new Date(Date.now()-86400000*365)}});
+  assert.equal(await publicState(),false);
+  await db.subscription.update({where:{id:subscription.id},data:{status:'ACTIVE',currentPeriodEnd:new Date(Date.now()+86400000)}});
+  assert.equal(await publicState(),true);
+  await db.store.update({where:{id:store.id},data:{status:'PRIVATE_PREVIEW',isPubliclyAccessible:false}});
+  assert.equal(await publicState(),false);
+  await db.store.update({where:{id:store.id},data:{status:'LIVE',isPubliclyAccessible:true}});
+  result.subscriptionVisibilityLifecycle='PASS';
+  const limitPlan=await db.plan.create({data:{code:run,name:'Owned limit test',pricePaise:99900,maxProducts:1,isPublic:false}});ownedPlans.push(limitPlan.id);
+  await db.subscription.update({where:{id:subscription.id},data:{planId:limitPlan.id}});
+  await request('catalog/products',base,'POST',400);
+  await db.subscription.update({where:{id:subscription.id},data:{planId:plan.id}});
+  result.productLimitProvidesReason='PASS';
+  if(process.env.RUN_FINAL_SELLER_UI==='1') {
+    const {testSellerWorkflow}=await import('./test-final-seller-ui.mjs');
+    result.ui=await testSellerWorkflow({token,user,store,assets,request,db,subscription,limitPlan});
+  }
+  fs.writeFileSync(`${out}/product-data-results.json`,JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+} finally {
+  const stored=await db.mediaAsset.findMany({where:{tenantId:{in:tenants}},select:{storageKey:true}});
+  await db.auditLog.deleteMany({where:{tenantId:{in:tenants}}});
+  await db.tenant.deleteMany({where:{id:{in:tenants},name:run}});
+  await db.user.deleteMany({where:{id:{in:users}}});
+  await db.plan.deleteMany({where:{id:{in:ownedPlans}}});
+  const root=path.resolve('apps/api/media-storage');
+  for(const asset of stored) {
+    const target=path.resolve(root,asset.storageKey);
+    assert.ok(target.startsWith(root+path.sep));
+    if(tenants.some(id=>asset.storageKey.startsWith(id+'/'))) fs.rmSync(target,{force:true});
+  }
+  assert.deepEqual(await db.store.findMany({where:{id:{in:before.map(s=>s.id)}},select:{id:true,slug:true,name:true},orderBy:{id:'asc'}}),before);
+  await db.$disconnect();
+}

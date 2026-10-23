@@ -210,6 +210,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  useEffect(() => {
+    if (!token || !store?.id) return;
+    let busy = false, lastChecked = 0, active = true;
+    const refreshVisibility = async () => {
+      if (busy || Date.now() - lastChecked < 30_000 || document.visibilityState === 'hidden') return;
+      busy = true; lastChecked = Date.now();
+      try {
+        const current = await apiClient.stores.getMyStore();
+        if (active) { setStore(current); localStorage.setItem('simply_seller_store', JSON.stringify(current)); }
+      } catch { /* Keep the last server state; access enforcement remains server-side. */ }
+      finally { busy = false; }
+    };
+    const interval = setInterval(refreshVisibility, 60_000);
+    window.addEventListener('focus', refreshVisibility);
+    return () => { active = false; clearInterval(interval); window.removeEventListener('focus', refreshVisibility); };
+  }, [token, store?.id]);
+
   return (
     <AuthContext.Provider
       value={{
