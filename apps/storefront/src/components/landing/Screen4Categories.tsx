@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS } from './anchors';
 import React, { useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -455,7 +456,7 @@ export const Screen4Categories: React.FC = () => {
 
   return (
     <section
-      id="categories"
+      id={LANDING_ANCHORS.themes}
       data-testid="screen4-showcase"
       className="relative overflow-hidden border-b border-slate-100 bg-[#FCFDFE] px-4 py-10 sm:px-6 lg:py-8"
     >

@@ -1,6 +1,8 @@
+import { pricingEn } from './pricing-value';
 import { customerJourneyEn } from './customer-journey';
 import { brandStudioEn } from './brand-studio';
 export const enIN = {
+  pricingValue: pricingEn,
   accountEmail: {
     "title": "Verify your recovery email",
     "description": "Add a verified email for secure PIN recovery. Your current PIN login stays available.",
@@ -80,6 +82,9 @@ export const enIN = {
     filters: 'Filters',
   },
   navigation: {
+    storePublic: "Store Public",
+    storePrivate: "Store Private",
+
     dashboard: 'Dashboard',
     storePreview: 'My Store Preview',
     inventory: 'Inventory',
@@ -199,6 +204,13 @@ export const enIN = {
     completeOf: '{completed} of {total} complete',
   },
   products: {
+    duplicateAsDraft: "Duplicate as Draft",
+    duplicatedAsDraft: "Product duplicated as draft.",
+    duplicateError: "Could not duplicate product.",
+    storeRequired: "Select a store before adding a product.",
+    loadError: "Could not load products. Refresh to try again.",
+    savedSuccess: "Product saved successfully.",
+
     title: 'Products & Inventory',
     subtitle: 'Manage your catalogue, categories, and variant inventory',
     addProduct: 'Add Product',
@@ -1147,33 +1159,6 @@ export const enIN = {
     stripMultilingual: 'English & Marathi Localization',
     stripShipping: 'Live Shipping & Tracking',
     stripCheckout: 'Trusted SSL Checkout',
-
-    // Screen 7: Value + ₹999
-    pricingEyebrow: 'TRANSPARENT VALUE',
-    pricingTitle: 'A premium online store shouldn’t cost a fortune.',
-    pricingSupporting: 'Build your branded ecommerce storefront, manage your catalogue, take orders and use LetZshop’s connected commerce tools — starting at ₹999.',
-    pricingLeftTitle: 'Doing it separately',
-    pricingLeftSubtitle: 'Typical separate setup may require:',
-    pricingSeparate1: 'website/store development',
-    pricingSeparate2: 'product catalogue setup',
-    pricingSeparate3: 'payment integration',
-    pricingSeparate4: 'hosting/SSL/maintenance',
-    pricingSeparate5: 'order/admin tooling',
-    pricingSeparate6: 'manual WhatsApp workflow',
-    pricingDisclaimer: 'Typical illustrative setup costs — provider pricing varies.',
-    pricingRightTitle: 'With LetZshop',
-    pricingPrice: '₹999',
-    pricingPeriod: 'starting plan',
-    pricingF1: 'Branded online storefront on yourbrand.letzshop.store',
-    pricingF2: 'Product catalogue management',
-    pricingF3: 'Product variants (sizes, colors, weights)',
-    pricingF4: 'UPI, Razorpay, Cards, NetBanking & COD payments',
-    pricingF5: 'Integrated order management dashboard',
-    pricingF6: 'Shareable store link & QR code access',
-    pricingF7: 'Brand Studio & canonical theme engine',
-    pricingF8: 'WhatsApp enquiry & product sharing workflow',
-    pricingF9: 'Multilingual storefront capabilities (English & Marathi)',
-    pricingCta: 'Create Store',
 
     // Screen 8: How It Works + FAQ + Final CTA
     howItWorksEyebrow: 'GETTING STARTED',

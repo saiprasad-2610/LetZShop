@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS } from './anchors';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -366,7 +367,7 @@ export function Screen5CustomerJourney() {
   };
   return (
     <section
-      id="journey"
+      id={LANDING_ANCHORS.journey}
       data-testid="screen5-journey"
       aria-labelledby="customer-journey-title"
       className={styles.section}

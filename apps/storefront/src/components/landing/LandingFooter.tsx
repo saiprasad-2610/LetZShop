@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS, scrollToLandingAnchor } from './anchors';
 import React from 'react';
 import { ShieldCheck, Mail, Globe } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
@@ -11,10 +12,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ sellerUrl }) => {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+    scrollToLandingAnchor(href);
   };
 
   return (
@@ -45,27 +43,27 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ sellerUrl }) => {
             </p>
             <ul className="space-y-2 text-slate-600">
               <li>
-                <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.features}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.features}`)} className="hover:text-blue-600 transition">
                   {t('landing.navFeatures')}
                 </a>
               </li>
               <li>
-                <a href="#themes" onClick={(e) => handleNavClick(e, '#themes')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.themes}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.themes}`)} className="hover:text-blue-600 transition">
                   {t('landing.navThemes')}
                 </a>
               </li>
               <li>
-                <a href="#how-it-works" onClick={(e) => handleNavClick(e, '#how-it-works')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.journey}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.journey}`)} className="hover:text-blue-600 transition">
                   {t('landing.navHowItWorks')}
                 </a>
               </li>
               <li>
-                <a href="#pricing" onClick={(e) => handleNavClick(e, '#pricing')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.pricing}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.pricing}`)} className="hover:text-blue-600 transition">
                   {t('landing.navPricing')}
                 </a>
               </li>
               <li>
-                <a href="#faq" onClick={(e) => handleNavClick(e, '#faq')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.faq}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.faq}`)} className="hover:text-blue-600 transition">
                   {t('landing.navFaq')}
                 </a>
               </li>
@@ -89,7 +87,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ sellerUrl }) => {
                 </a>
               </li>
               <li>
-                <a href="#faq" onClick={(e) => handleNavClick(e, '#faq')} className="hover:text-blue-600 transition">
+                <a href={`#${LANDING_ANCHORS.faq}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.faq}`)} className="hover:text-blue-600 transition">
                   {t('landing.navFaq')}
                 </a>
               </li>
@@ -144,11 +142,11 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ sellerUrl }) => {
             </div>
 
             <div className="flex items-center gap-3">
-              <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-slate-700 transition">
+              <a href={`#${LANDING_ANCHORS.features}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.features}`)} className="hover:text-slate-700 transition">
                 {t('landing.terms')}
               </a>
               <span>•</span>
-              <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-slate-700 transition">
+              <a href={`#${LANDING_ANCHORS.features}`} onClick={(e) => handleNavClick(e, `#${LANDING_ANCHORS.features}`)} className="hover:text-slate-700 transition">
                 {t('landing.privacy')}
               </a>
             </div>

@@ -87,8 +87,8 @@ export default function SubscriptionPage() {
   const isLive = (store?.status === 'LIVE' || store?.status === 'ACTIVE') && currentSub?.status === 'ACTIVE';
   const isExpired = currentSub?.status === 'EXPIRED' || store?.status === 'SUSCRIPTION_EXPIRED' || store?.status === 'SUSPENDED';
 
-  // Find authoritative starter/launch plan from backend (pricePaise: 99900 = ₹999)
-  const launchPlan = plans.find((p) => p.pricePaise === 99900) || plans[0];
+  // Find the canonical Launch plan by identity; its price comes from the backend.
+  const launchPlan = plans.find((p) => p.code === 'STARTER_MONTHLY') || plans.find((p) => p.purchasable);
 
   const handleActivatePlan = async (plan: any) => {
     if (activating) return;
@@ -277,7 +277,7 @@ export default function SubscriptionPage() {
               const isCurrent = currentSub?.planId === p.id && isLive;
               const isComingSoon = p.availability === 'COMING_SOON' || (p.code || '').toUpperCase().includes('GROWTH');
               const isCustom = p.availability === 'CONTACT' || p.pricePaise <= 0 || (p.code || '').toUpperCase().includes('CUSTOM');
-              const isPopular = p.pricePaise === 99900 && !isCurrent;
+              const isPopular = p.code === 'STARTER_MONTHLY' && !isCurrent;
 
               return (
                 <div

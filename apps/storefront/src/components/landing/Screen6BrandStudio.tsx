@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS } from './anchors';
 import React, { useState } from 'react';
 import { Palette, Sparkles, Check, ChevronLeft, ChevronRight, Laptop, Smartphone, Sliders, Type, Image as ImageIcon, LayoutGrid, Layers } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
@@ -86,7 +87,7 @@ export const Screen6BrandStudio: React.FC<Screen6BrandStudioProps> = ({ sellerUr
   };
 
   return (
-    <section id="themes" className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 bg-slate-50/60 border-b border-slate-100 scroll-mt-16">
+    <section id={LANDING_ANCHORS.customize} className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 bg-slate-50/60 border-b border-slate-100 scroll-mt-16">
       <div className="max-w-7xl mx-auto space-y-12">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto space-y-4">

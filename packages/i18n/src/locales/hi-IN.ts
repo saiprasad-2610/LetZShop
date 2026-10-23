@@ -1,8 +1,10 @@
+import { pricingHi } from './pricing-value';
 import { customerJourneyHi } from './customer-journey';
 import { brandStudioHi } from './brand-studio';
 import { enIN, TranslationDictionary } from './en-IN';
 
 export const hiIN: TranslationDictionary = {
+  pricingValue: pricingHi,
   accountEmail: {
     "title": "रिकवरी ईमेल सत्यापित करें",
     "description": "सुरक्षित PIN रिकवरी के लिए सत्यापित ईमेल जोड़ें। मौजूदा PIN से लॉगिन उपलब्ध रहेगा।",
@@ -82,6 +84,9 @@ export const hiIN: TranslationDictionary = {
     filters: 'फ़िल्टर्स',
   },
   navigation: {
+    storePublic: "स्टोर सार्वजनिक",
+    storePrivate: "स्टोर निजी",
+
     dashboard: 'डैशबोर्ड',
     storePreview: 'मेरा स्टोर पूर्वावलोकन',
     inventory: 'इन्वेंटरी',
@@ -201,6 +206,13 @@ export const hiIN: TranslationDictionary = {
     completeOf: '{completed} / {total} पूर्ण',
   },
   products: {
+    duplicateAsDraft: "ड्राफ्ट के रूप में कॉपी करें",
+    duplicatedAsDraft: "उत्पाद की ड्राफ्ट कॉपी बन गई।",
+    duplicateError: "उत्पाद की कॉपी नहीं बन सकी।",
+    storeRequired: "उत्पाद जोड़ने से पहले स्टोर चुनें।",
+    loadError: "उत्पाद लोड नहीं हुए। फिर से प्रयास करें।",
+    savedSuccess: "उत्पाद सफलतापूर्वक सहेजा गया।",
+
     title: 'उत्पाद और इन्वेंटरी',
     subtitle: 'अपनी कैटलॉग, श्रेणियां और वैरिएंट इन्वेंट्री प्रबंधित करें',
     addProduct: 'उत्पाद जोड़ें',

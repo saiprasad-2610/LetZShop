@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS, scrollToLandingAnchor } from './anchors';
 import React, { useState } from 'react';
 import { Menu, X, ArrowRight, Store, Globe } from 'lucide-react';
 import { useLandingI18n } from '@simply/i18n';
@@ -12,20 +13,17 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({ sellerUrl }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: '#features', label: t('landing.navFeatures') },
-    { href: '#themes', label: t('landing.navThemes') },
-    { href: '#how-it-works', label: t('landing.navHowItWorks') },
-    { href: '#pricing', label: t('landing.navPricing') },
-    { href: '#faq', label: t('landing.navFaq') },
+    { href: `#${LANDING_ANCHORS.features}`, label: t('landing.navFeatures') },
+    { href: `#${LANDING_ANCHORS.themes}`, label: t('landing.navThemes') },
+    { href: `#${LANDING_ANCHORS.journey}`, label: t('landing.navHowItWorks') },
+    { href: `#${LANDING_ANCHORS.pricing}`, label: t('landing.navPricing') },
+    { href: `#${LANDING_ANCHORS.faq}`, label: t('landing.navFaq') },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
     setMobileMenuOpen(false);
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+    scrollToLandingAnchor(href);
   };
 
   return (

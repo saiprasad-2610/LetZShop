@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { fetchLaunchPlan, LaunchPlan } from '../utils/launch-plan';
 import { getSellerUrl } from '../utils/config';
 import { LandingLocaleProvider, useLandingI18n } from '@simply/i18n';
 import { LandingNavbar } from '../components/landing/LandingNavbar';
@@ -18,11 +19,12 @@ import { LandingFooter } from '../components/landing/LandingFooter';
  * Clean, modern white/warm-white visual identity with blue & orange branding.
  */
 interface LandingPageProps {
+  initialLaunchPlan: LaunchPlan | null;
   initialSellerUrl: string;
   sellerOriginConfigured: boolean;
 }
 
-function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingPageProps) {
+function LandingPageInner({ initialSellerUrl, sellerOriginConfigured, initialLaunchPlan }: LandingPageProps) {
   // Serialize the same initial origin into server HTML and the first browser render.
   const [sellerUrl, setSellerUrl] = useState(initialSellerUrl);
 
@@ -36,7 +38,7 @@ function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingP
         <title>LetZshop — Build the Online Store Your Brand Deserves | letzshop.store</title>
         <meta
           name="description"
-          content="Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — starting at ₹999 on LetZshop."
+          content="Create a beautiful branded ecommerce store, showcase products, accept payments, manage orders and sell through a professional online storefront — with the Launch plan on LetZshop."
         />
         <meta property="og:title" content="LetZshop — Build the Online Store Your Brand Deserves" />
         <meta
@@ -50,8 +52,8 @@ function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingP
       {/* Navigation Header */}
       <LandingNavbar sellerUrl={sellerUrl} />
 
-      {/* Main Content: Exactly 8 Screens */}
-      <main className="flex-1 w-full overflow-x-hidden">
+      {/* Main Content */}
+      <main data-landing-main className="flex-1 w-full overflow-x-hidden">
         {/* Screen 1: Hero */}
         <Screen1Hero sellerUrl={sellerUrl} />
 
@@ -71,7 +73,7 @@ function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingP
         <Screen6BrandStudio sellerUrl={sellerUrl} />
 
         {/* Screen 7: Value + ₹999 */}
-        <Screen7Pricing sellerUrl={sellerUrl} />
+        <Screen7Pricing sellerUrl={sellerUrl} initialPlan={initialLaunchPlan} />
 
         {/* Screen 8: How It Works + FAQ + Final CTA */}
         <Screen8StepsFaqCta sellerUrl={sellerUrl} />
@@ -83,8 +85,9 @@ function LandingPageInner({ initialSellerUrl, sellerOriginConfigured }: LandingP
   );
 }
 
-export function getStaticProps() {
-  return { props: {
+export async function getStaticProps() {
+  return { revalidate: 300, props: {
+    initialLaunchPlan: await fetchLaunchPlan(),
     initialSellerUrl: getSellerUrl(),
     sellerOriginConfigured: Boolean(process.env.NEXT_PUBLIC_SELLER_URL || process.env.SELLER_URL || process.env.SELLER_DASHBOARD_URL),
   } };

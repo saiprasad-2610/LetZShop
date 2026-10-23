@@ -1,3 +1,4 @@
+import { LANDING_ANCHORS } from './anchors';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Layers,
@@ -131,7 +132,7 @@ export const Screen3System: React.FC = () => {
 
   return (
     <section
-      id="features"
+      id={LANDING_ANCHORS.features}
       className="screen3 relative bg-[#FAFBFC] border-b border-slate-100 overflow-hidden py-8 lg:py-10 scroll-mt-16"
     >
       <div className="screen3Inner max-w-[1720px] mx-auto px-3 sm:px-4 lg:px-4 xl:px-3 space-y-6">

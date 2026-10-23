@@ -43,7 +43,7 @@ export const Screen8StepsFaqCta: React.FC<Screen8StepsFaqCtaProps> = ({ sellerUr
   return (
     <div className="bg-white">
       {/* 1. How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-16 scroll-mt-16">
+      <section id="legacy-steps" className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-16 scroll-mt-16">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold tracking-wide">
             <span>{t('landing.howItWorksEyebrow')}</span>

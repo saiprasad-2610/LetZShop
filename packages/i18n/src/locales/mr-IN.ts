@@ -1,8 +1,10 @@
+import { pricingMr } from './pricing-value';
 import { customerJourneyMr } from './customer-journey';
 import { brandStudioMr } from './brand-studio';
 import { TranslationDictionary } from './en-IN';
 
 export const mrIN: TranslationDictionary = {
+  pricingValue: pricingMr,
   accountEmail: {
     "title": "पुनर्प्राप्तीसाठी ईमेल सत्यापित करा",
     "description": "सुरक्षित PIN पुनर्प्राप्तीसाठी सत्यापित ईमेल जोडा. सध्याच्या PIN ने लॉगिन करता येईल.",
@@ -82,6 +84,9 @@ export const mrIN: TranslationDictionary = {
     filters: 'फिल्टर्स',
   },
   navigation: {
+    storePublic: "स्टोअर सार्वजनिक",
+    storePrivate: "स्टोअर खाजगी",
+
     dashboard: 'डॅशबोर्ड',
     storePreview: 'माझे स्टोअर पूर्वावलोकन',
     inventory: 'इन्व्हेंटरी',
@@ -201,6 +206,13 @@ export const mrIN: TranslationDictionary = {
     completeOf: '{completed} / {total} पूर्ण',
   },
   products: {
+    duplicateAsDraft: "मसुदा म्हणून प्रत तयार करा",
+    duplicatedAsDraft: "उत्पादनाची मसुदा प्रत तयार झाली.",
+    duplicateError: "उत्पादनाची प्रत तयार करता आली नाही.",
+    storeRequired: "उत्पादन जोडण्यापूर्वी स्टोअर निवडा.",
+    loadError: "उत्पादने लोड झाली नाहीत. पुन्हा प्रयत्न करा.",
+    savedSuccess: "उत्पादन यशस्वीपणे जतन झाले.",
+
     title: 'उत्पादने आणि इन्व्हेंटरी',
     subtitle: 'तुमचे कॅटलॉग, श्रेणी आणि प्रकार इन्व्हेंटरी व्यवस्थापित करा',
     addProduct: 'उत्पादन जोडा',
@@ -1149,33 +1161,6 @@ export const mrIN: TranslationDictionary = {
     stripMultilingual: 'इंग्रजी व मराठी स्थानिक भाषा',
     stripShipping: 'थेट शिपिंग आणि ट्रॅकिंग',
     stripCheckout: 'सुरक्षित SSL चेकआउट',
-
-    // Screen 7: Value + ₹999
-    pricingEyebrow: 'पारदर्शक किंमत',
-    pricingTitle: 'प्रीमियम ऑनलाइन स्टोअरसाठी लाखो रुपये खर्च करण्याची गरज नाही.',
-    pricingSupporting: 'तुमचे ब्रँडेड ई-कॉमर्स स्टोअरफ्रंट तयार करा, कॅटलॉग व्यवस्थापित करा, ऑर्डर्स घ्या आणि LetZshop ची सर्व साधने वापरा — फक्त ₹९९९ पासून.',
-    pricingLeftTitle: 'वेगवेगळे काम केल्यास',
-    pricingLeftSubtitle: 'स्वतंत्र सेटअपमध्ये सामान्यतः खालील गोष्टी लागू शकतात:',
-    pricingSeparate1: 'वेबसाइट किंवा स्टोअर डेव्हलपमेंट',
-    pricingSeparate2: 'उत्पादन कॅटलॉग सेटअप',
-    pricingSeparate3: 'पेमेंट गेटवे इंटिग्रेशन',
-    pricingSeparate4: 'होस्टिंग सर्व्हर, SSL व देखभाल',
-    pricingSeparate5: 'ऑर्डर मॅनेजमेंट व ॲडमिन टूल्स',
-    pricingSeparate6: 'मॅन्युअल WhatsApp वर्कफ्लो',
-    pricingDisclaimer: 'सर्वसाधारण मार्गदर्शक खर्च — वेगवेगळ्या सेवा प्रदात्यांनुसार दर बदलू शकतात.',
-    pricingRightTitle: 'LetZshop सोबत',
-    pricingPrice: '₹९९९',
-    pricingPeriod: 'सुरुवातीचा प्लॅन',
-    pricingF1: 'yourbrand.letzshop.store वर ब्रँडेड ऑनलाइन स्टोअरफ्रंट',
-    pricingF2: 'उत्पादन कॅटलॉग व्यवस्थापन',
-    pricingF3: 'उत्पादन व्हेरियंट्स (आकार, रंग, वजन)',
-    pricingF4: 'UPI, Razorpay, कार्ड्स, नेटबँकिंग व COD पेमेंट्स',
-    pricingF5: 'एकात्मिक ऑर्डर व्यवस्थापन डॅशबोर्ड',
-    pricingF6: 'शेअर करता येणारी स्टोअर लिंक आणि QR कोड',
-    pricingF7: 'ब्रँड स्टुडिओ व सुंदर थीम इंजिन',
-    pricingF8: 'WhatsApp चौकशी व उत्पादन शेअरिंग',
-    pricingF9: 'बहुभाषिक स्टोअरफ्रंट सुविधा (इंग्रजी व मराठी)',
-    pricingCta: 'स्टोअर तयार करा',
 
     // Screen 8: How It Works + FAQ + Final CTA
     howItWorksEyebrow: 'सुरुवात कशी करावी',

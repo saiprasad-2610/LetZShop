@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { generateInvoicePdfBuffer } from '../admin/invoice-pdf.util';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { SubscriptionService } from './subscription.service';
+import { SubscriptionService, MONTHLY_SUBSCRIPTION_DAYS } from './subscription.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CurrentUser, CurrentTenant, Roles, Public } from '../../common/decorators';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -204,7 +204,7 @@ export class SubscriptionController {
     return this.subscriptionService.activateOrRenewSubscription(
       tenant.tenantId,
       body.planId,
-      body.durationDays ?? 30,
+      body.durationDays ?? MONTHLY_SUBSCRIPTION_DAYS,
       user.userId
     );
   }
@@ -233,7 +233,7 @@ export class SubscriptionController {
     return this.subscriptionService.devActivateSubscription(
       tenant.tenantId,
       body.planId,
-      body.durationDays ?? 30,
+      body.durationDays ?? MONTHLY_SUBSCRIPTION_DAYS,
       user.userId
     );
   }
