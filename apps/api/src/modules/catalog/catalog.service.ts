@@ -1,3 +1,4 @@
+import { visibleCategoryCount } from './category-counts';
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, ProductStatus, VariantStatus, ProductMode } from '@prisma/client';
 import { CreateProductDto, ProductMediaItemDto } from './dto/catalog.dto';
@@ -1238,19 +1239,17 @@ export class CatalogService {
   }
 
   public async getCategories(tenant: TenantContext) {
-    return this.prisma.category.findMany({
-      where: { storeId: tenant.storeId, isActive: true },
+    const categories = await this.prisma.category.findMany({
+      where: { storeId: tenant.storeId, tenantId: tenant.tenantId, isActive: true },
       orderBy: { sortOrder: 'asc' },
-      include: {
-        _count: {
-          select: {
-            products: {
-              where: { deletedAt: null },
-            },
-          },
-        },
-      },
+      include: { _count: { select: { products: { where: { storeId: tenant.storeId, tenantId: tenant.tenantId, deletedAt: null } } } } },
     });
+    const visible = await this.prisma.category.findMany({
+      where: { id: { in: categories.map(c => c.id) }, storeId: tenant.storeId, tenantId: tenant.tenantId },
+      select: { id: true, _count: { select: visibleCategoryCount(tenant.storeId, tenant.tenantId) } },
+    });
+    const counts = new Map(visible.map(c => [c.id, c._count.products]));
+    return categories.map(c => ({ ...c, totalProductCount: c._count.products, visibleProductCount: counts.get(c.id) || 0 }));
   }
 
   public async createCategory(tenant: TenantContext, dto: { name: string; description?: string }) {

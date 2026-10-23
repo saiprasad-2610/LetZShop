@@ -1297,7 +1297,7 @@ export default function StoreHomePage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {c.name} ({c._count?.products ?? 0})
+                      {c.name} ({c.visibleProductCount ?? c._count?.products ?? 0})
                     </button>
                   ))}
                 </>
@@ -1329,7 +1329,7 @@ export default function StoreHomePage() {
                         <span className={`text-[10px] font-mono block ${
                           isSelected ? 'text-gray-300' : 'text-gray-400'
                         }`}>
-                          {c._count?.products ?? 0}
+                          {c.visibleProductCount ?? c._count?.products ?? 0}
                         </span>
                       </div>
                       <span className={`text-[11px] block line-clamp-1 ${

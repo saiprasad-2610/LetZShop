@@ -1,3 +1,4 @@
+import { visibleCategoryCount } from '../catalog/category-counts';
 import {
   Controller,
   Get,
@@ -72,7 +73,7 @@ export class StorefrontController {
   async getCategories(@Param('slug') slug: string, @Req() req?: any) {
     const store = await this.getStoreBySlug(slug, req);
     const categories = await this.prisma.category.findMany({
-      where: { storeId: store.id, isActive: true },
+      where: { storeId: store.id, tenantId: store.tenantId, isActive: true },
       orderBy: { sortOrder: 'asc' },
       take: 100,
       select: {
@@ -82,9 +83,10 @@ export class StorefrontController {
         description: true,
         mediaAssetId: true,
         sortOrder: true,
+        _count: { select: visibleCategoryCount(store.id, store.tenantId) },
       },
     });
-    return { categories };
+    return { categories: categories.map(c => ({ ...c, visibleProductCount: c._count.products })) };
   }
 
   @Get(':slug/products')

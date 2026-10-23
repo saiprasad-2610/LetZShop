@@ -1,3 +1,4 @@
+import { visibleCategoryCount } from '../catalog/category-counts';
 import { storeSlugBase, storeSlugCandidate, withUniqueStoreSlug } from './store-identity';
 import { publicProduct } from './public-product';
 import { normalizePublicMedia } from '../media/public-media-reference';
@@ -122,7 +123,7 @@ export class StoresService {
         themeConfiguration: { include: { themeDefinition: true } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
         businessHours: { orderBy: { dayOfWeek: 'asc' } },
-        categories: { where: { isActive: true }, orderBy: { sortOrder: 'asc' }, take: 100 },
+        categories: { where: { isActive: true, tenantId: store.tenantId }, orderBy: { sortOrder: 'asc' }, take: 100, include: { _count: { select: visibleCategoryCount(store.id, store.tenantId) } } },
         products: {
           take: 100,
           orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -262,6 +263,8 @@ export class StoresService {
         slug: c.slug,
         description: c.description,
         mediaAssetId: c.mediaAssetId,
+        visibleProductCount: c._count.products,
+        _count: c._count,
         sortOrder: c.sortOrder,
       })),
       products: (fullStore?.products || []).map(publicProduct),
