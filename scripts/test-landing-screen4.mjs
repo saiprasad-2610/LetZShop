@@ -73,7 +73,7 @@ try{
         const expected=frozen[locale+'-'+width];
         const current=await page.evaluate(()=>{
           const g=e=>{const r=e.getBoundingClientRect();return{html:e.outerHTML,text:e.textContent,x:r.x,y:r.y+scrollY,width:r.width,height:r.height}};
-          const section=document.querySelector('#categories');
+          const section=document.querySelector('#themes');
           return {screens:[...document.querySelectorAll('main > section')].slice(0,3).map(g),heading:g(section.querySelector('h2').parentElement),selector:g(section.querySelector('[data-category]').parentElement.parentElement),preview:g(section.querySelector('#business-store-preview'))};
         });
         for(const key of ['heading','selector','preview']){
@@ -145,7 +145,7 @@ try{
 
       await page.getByTestId('screen4-showcase').screenshot({path:path.join(out,'screen4-'+locale+'-'+width+'.png')});
       if(locale==='en-IN'){
-        await page.evaluate(()=>scrollTo({top:document.querySelector('#categories').getBoundingClientRect().top+scrollY-68,behavior:'instant'}));
+        await page.evaluate(()=>scrollTo({top:document.querySelector('#themes').getBoundingClientRect().top+scrollY-68,behavior:'instant'}));
         await page.waitForTimeout(150);
         await page.screenshot({path:path.join(out,'screen4-viewport-'+width+'x'+height+'.png')});
       }

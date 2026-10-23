@@ -45,7 +45,7 @@ try {
         ['01', '02', '03', '04', '05', '06', '07', '08'],
       );
       assert.equal(await section.locator('[data-journey-phone]').count(), 8);
-      assert.equal(await page.locator('#journey').count(), 1);
+      assert.equal(await page.locator('#how-it-works').count(), 1);
       assert.equal(
         await section
           .getByRole('heading', {
@@ -99,7 +99,7 @@ try {
           badPhones,
           badText,
           longCopy,
-          placement: main[4] === section && main[3].id === 'categories',
+          placement: main[4] === section && main[3].id === 'themes',
           widths: phones.map((p) => p.getBoundingClientRect().width),
           heights: phones.map((p) => p.getBoundingClientRect().height),
           benefits,

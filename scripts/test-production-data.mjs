@@ -27,7 +27,7 @@ const {
 const {
   InventoryService,
 } = require("../apps/api/dist/modules/inventory/inventory.service.js");
-const out = "artifacts/production-hardening";
+const out = process.env.HARDENING_ARTIFACTS || "artifacts/production-hardening";
 fs.mkdirSync(out, { recursive: true });
 const db = new PrismaClient();
 const run = `hardening-${Date.now()}`;
@@ -259,30 +259,11 @@ try {
   );
   await ageChallenges(accountPhone);
   const unrelatedPhone = await newPhone();
-  const privateResponse = await auth.requestOtpChallenge(
-    unrelatedPhone,
-    "REGISTRATION",
-    accountEmail,
-  );
-  assert.equal(
-    privateResponse.message,
-    `Verification code sent to ${accountEmail[0]}***@example.test`,
-  );
-  const suppressed = await db.otpChallenge.findUniqueOrThrow({
-    where: { id: privateResponse.challengeId },
-  });
+  await assert.rejects(auth.requestOtpChallenge(unrelatedPhone, "REGISTRATION", accountEmail), /Registration is unavailable/);
+  const suppressed = await db.otpChallenge.findFirstOrThrow({ where: { phone: unrelatedPhone } });
   assert.equal(suppressed.deliveredAt, null);
   assert.ok(suppressed.consumedAt);
-  await assert.rejects(
-    auth.verifyOtpChallenge(
-      unrelatedPhone,
-      "111111",
-      "REGISTRATION",
-      accountEmail,
-    ),
-    /Incorrect OTP/,
-  );
-  results.otp.duplicateEmailResponseDoesNotEnumerate = "PASS";
+  results.otp.conflictingRegistrationNeverClaimsSent = "PASS";
   const legacyPhone = await newPhone();
   const legacy = await db.user.create({
     data: {

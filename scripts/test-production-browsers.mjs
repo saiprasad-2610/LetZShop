@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromium, firefox, webkit } from "playwright";
 import { createTranslator } from "../packages/i18n/dist/index.js";
-const out = "artifacts/production-hardening";
+const out = process.env.HARDENING_ARTIFACTS || "artifacts/production-hardening";
 const base = process.env.STOREFRONT_URL || "http://localhost:3000";
 assert.ok(
   ["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname),
@@ -33,7 +33,7 @@ const image =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#cedada"/></svg>',
   );
-const product = {
+export const product = {
   id: "direct-product",
   name: "Direct Buy Shirt",
   slug: "direct-shirt",
@@ -79,7 +79,7 @@ const product = {
     ],
   })),
 };
-const fixture = {
+export const fixture = {
   store: {
     id: "direct-test-store",
     slug: "direct-test-shop",
@@ -242,6 +242,10 @@ export async function verifyProductionBrowsers(fixtures, merchantCategories) {
                 .first()
                 .click();
               await page.waitForURL("**/checkout?direct=*");
+              // The product name is already present on the previous page. Wait for
+              // checkout itself before inspecting variant details or navigating back.
+              await page.getByTestId("place-order-button").waitFor();
+              await page.waitForLoadState("networkidle");
               await page
                 .getByText(product.name, { exact: true })
                 .first()

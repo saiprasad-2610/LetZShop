@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromium } from "playwright";
-const out = "artifacts/production-hardening";
+const out = process.env.HARDENING_ARTIFACTS || "artifacts/production-hardening";
 export async function verifySellerProductionUI(fixture, categories) {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
