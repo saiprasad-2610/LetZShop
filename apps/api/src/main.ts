@@ -31,6 +31,7 @@ import fastifyCors from '@fastify/cors';
 import { AppModule } from './app.module';
 import { getBrandConfig } from '@simply/config';
 import { validateProductionSecrets } from './common/config/security-audit';
+import { createCorsOptions } from './common/config/cors.config';
 import { PrismaService } from './prisma/prisma.service';
 
 /**
@@ -89,11 +90,8 @@ async function bootstrap() {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 
-  await app.register(fastifyCors as any, {
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  });
+  const corsOptions = createCorsOptions();
+  await app.register(fastifyCors as any, corsOptions);
 
   await app.register(fastifyCookie as any, {
     secret: process.env.COOKIE_SECRET || 'dev-cookie-secret-change-in-prod-32!',

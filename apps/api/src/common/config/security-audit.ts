@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { parseAndValidateCorsOrigins } from './cors.config';
 
 const logger = new Logger('SecurityAudit');
 
@@ -41,6 +42,12 @@ export function validateProductionSecrets(): void {
 
     if (process.env.DATABASE_URL?.includes('postgres:postgres@localhost')) {
       violations.push('DATABASE_URL must not use default local development credentials in production.');
+    }
+
+    try {
+      parseAndValidateCorsOrigins(process.env.CORS_ALLOWED_ORIGINS, true);
+    } catch (corsErr: any) {
+      violations.push(`CORS configuration invalid: ${corsErr.message}`);
     }
 
     if (violations.length > 0) {
