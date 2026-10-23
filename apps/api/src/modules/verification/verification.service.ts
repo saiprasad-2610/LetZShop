@@ -58,9 +58,28 @@ export class VerificationService {
   ) {
     const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
     this.storageRoot = path.resolve(baseStorage, 'private-documents');
-    if (!fs.existsSync(this.storageRoot)) {
-      fs.mkdirSync(this.storageRoot, { recursive: true });
+
+    // Only create local directory when using the local storage driver (not in R2/S3 mode or read-only production)
+    if (this.isLocalStorage()) {
+      try {
+        if (!fs.existsSync(this.storageRoot)) {
+          fs.mkdirSync(this.storageRoot, { recursive: true });
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to initialize local private document directory ${this.storageRoot}: ${err.message}`,
+        );
+      }
     }
+  }
+
+  private isLocalStorage(): boolean {
+    if (this.storageProvider?.type) {
+      const type = this.storageProvider.type.toUpperCase();
+      return type === 'LOCAL';
+    }
+    const driver = (process.env.MEDIA_STORAGE_DRIVER || 'local').toLowerCase();
+    return driver === 'local';
   }
 
   public async getVerification(tenantId: string): Promise<AdminBusinessVerification> {
@@ -424,35 +443,68 @@ export class VerificationService {
       throw new ForbiddenException('Access denied. You do not have permission to view this document.');
     }
 
-    const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
-    const relativeKey = document.storageKey.replace(/^[\\\/]+/, '');
-    let absolutePath = path.resolve(baseStorage, relativeKey);
+    let absolutePath: string | undefined = undefined;
     let stream: NodeJS.ReadableStream | null = null;
 
-    // 1. Check local disk first (backward compatibility for legacy local documents)
-    if (fs.existsSync(absolutePath)) {
-      stream = fs.createReadStream(absolutePath);
-    } else if (this.storageProvider?.getObject) {
-      // 2. Check private storage provider (Cloudflare R2 private bucket)
-      const s3Obj = await this.storageProvider.getObject(document.storageKey);
-      if (s3Obj && s3Obj.stream) {
-        stream = s3Obj.stream;
+    if (!this.isLocalStorage()) {
+      // 1. Cloudflare R2 / S3 mode: retrieve directly from private storage provider
+      if (this.storageProvider?.getObject) {
+        const s3Obj = await this.storageProvider.getObject(document.storageKey);
+        if (s3Obj && s3Obj.stream) {
+          stream = s3Obj.stream;
+        }
       }
-    }
 
-    if (!stream) {
-      const candidates = [
-        path.resolve(process.cwd(), 'apps/api/media-storage', relativeKey),
-        path.resolve(process.cwd(), 'media-storage', relativeKey),
-        path.resolve(process.cwd(), '..', 'media-storage', relativeKey),
-        path.resolve(process.cwd(), '..', 'apps/api/media-storage', relativeKey),
-        path.resolve(this.storageRoot, relativeKey.replace(/^private-documents[\/\\]/, '')),
-      ];
-      for (const cand of candidates) {
-        if (fs.existsSync(cand)) {
-          absolutePath = cand;
-          stream = fs.createReadStream(cand);
-          break;
+      // Backward-compatibility fallback for legacy local documents (non-destructive stat)
+      if (!stream) {
+        const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
+        const relativeKey = document.storageKey.replace(/^[\\\/]+/, '');
+        const legacyPath = path.resolve(baseStorage, relativeKey);
+        try {
+          if (fs.existsSync(legacyPath)) {
+            absolutePath = legacyPath;
+            stream = fs.createReadStream(legacyPath);
+          }
+        } catch {
+          // Ignore read-only / filesystem access errors
+        }
+      }
+    } else {
+      // 2. Local disk storage mode: check storage provider / local disk
+      const baseStorage = path.resolve(process.env.MEDIA_STORAGE_LOCAL_ROOT || './media-storage');
+      const relativeKey = document.storageKey.replace(/^[\\\/]+/, '');
+      const directPath = path.resolve(baseStorage, relativeKey);
+
+      try {
+        if (this.storageProvider?.getObject) {
+          const obj = await this.storageProvider.getObject(document.storageKey);
+          if (obj && obj.stream) {
+            stream = obj.stream;
+          }
+        }
+      } catch {
+        // Fallback to local file lookup
+      }
+
+      if (!stream) {
+        if (fs.existsSync(directPath)) {
+          absolutePath = directPath;
+          stream = fs.createReadStream(directPath);
+        } else {
+          const candidates = [
+            path.resolve(process.cwd(), 'apps/api/media-storage', relativeKey),
+            path.resolve(process.cwd(), 'media-storage', relativeKey),
+            path.resolve(process.cwd(), '..', 'media-storage', relativeKey),
+            path.resolve(process.cwd(), '..', 'apps/api/media-storage', relativeKey),
+            path.resolve(this.storageRoot, relativeKey.replace(/^private-documents[\/\\]/, '')),
+          ];
+          for (const cand of candidates) {
+            if (fs.existsSync(cand)) {
+              absolutePath = cand;
+              stream = fs.createReadStream(cand);
+              break;
+            }
+          }
         }
       }
     }
