@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, Matches, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, Matches, ValidateNested, IsInt, Min, Max, IsArray, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { INDIAN_PHONE_REGEX, INDIAN_PINCODE_REGEX } from '@simply/validation';
@@ -41,16 +41,26 @@ export class CheckoutAddressDto {
   country?: string;
 }
 
+export class DirectCheckoutItemDto {
+  @IsString() @IsNotEmpty() productId: string;
+  @IsString() @IsNotEmpty() variantId: string;
+  @IsInt() @Min(1) @Max(999) quantity: number;
+}
+
 export class GuestCheckoutDto {
+  @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(1)
+  @ValidateNested({ each: true }) @Type(() => DirectCheckoutItemDto)
+  directItems?: DirectCheckoutItemDto[];
+
   @ApiProperty({ example: 'a3000000-0000-0000-0000-000000000001' })
   @IsNotEmpty()
   @IsString()
   storeId: string;
 
   @ApiProperty({ example: 'c1000000-0000-0000-0000-000000000001' })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  cartId: string;
+  cartId?: string;
 
   @ApiProperty({ example: 'Rohan Mehta' })
   @IsNotEmpty()

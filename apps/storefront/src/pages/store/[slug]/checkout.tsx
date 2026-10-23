@@ -1,3 +1,4 @@
+import { useDirectCheckout } from '../../../hooks/useDirectCheckout';
 import { getPublicStoreUrl } from '@simply/types';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -93,35 +94,18 @@ export default function StoreCheckoutPage() {
   const toast = useToast();
   const { locale, t, initStoreLocales } = useStorefrontI18n();
 
-  const { 
-    cart, 
-    guestToken, 
-    itemCount, 
-    subtotalPaise, 
-    api, 
-    setStoreId, 
-    clearCart,
-    appliedCoupon,
-    couponError,
-    isCheckingCoupon,
-    applyCoupon,
-    removeCoupon,
-    discountPaise,
-    grandTotalPaise,
-    shippingPaise,
-    flatRatePaise,
-    freeShippingThresholdPaise,
-    freeDeliveryRemainingPaise,
-    isFreeDeliveryQualified,
-    setShippingSettings,
-    orderNotes,
-    setOrderNotes
-  } = useCart();
-
+  const persistent = useCart();
   const [loading, setLoading] = useState(true);
   const [storeData, setStoreData] = useState<any | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isPreviewMode = Boolean(storeData?.isPreview || preview === 'true');
+  const directToken = typeof router.query.direct === 'string' ? router.query.direct : '';
+  const direct = useDirectCheckout(directToken, storeData, preview ? String(preview) : undefined);
+  const { setStoreId, setShippingSettings } = persistent;
+  const { cart, guestToken, itemCount, subtotalPaise, api, clearCart, appliedCoupon, couponError,
+    isCheckingCoupon, applyCoupon, removeCoupon, discountPaise, grandTotalPaise, shippingPaise,
+    flatRatePaise, freeShippingThresholdPaise, freeDeliveryRemainingPaise, isFreeDeliveryQualified,
+    orderNotes, setOrderNotes } = directToken ? direct : persistent;
 
   // Preview flow completion state
   const [previewCompleted, setPreviewCompleted] = useState(false);
@@ -353,7 +337,7 @@ export default function StoreCheckoutPage() {
     try {
       const payload = {
         storeId: storeData.store.id,
-        cartId: cart.id,
+        ...(directToken ? { directItems: direct.selection ? [{ productId: direct.selection.productId, variantId: direct.selection.variantId, quantity: direct.selection.quantity }] : [] } : { cartId: cart.id }),
         fullName: name.trim(),
         phone: cleanPhone,
         email: email.trim() || undefined,
@@ -939,7 +923,7 @@ export default function StoreCheckoutPage() {
                 ) : (
                   <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-gray-100">
                     {items.map((item: any) => {
-                      const title = item.productName || item.variant?.product?.title || item.variant?.title || 'Product';
+                      const title = item.productName || item.variant?.product?.name || item.variant?.product?.title || item.variant?.title || 'Product';
                       const variantLabel = formatItemVariantLabel(item);
                       const sku = item.sku || item.variant?.sku;
                       const unitPrice = item.unitPricePaise || item.variant?.pricePaise || 0;
@@ -1122,6 +1106,7 @@ export default function StoreCheckoutPage() {
                 {/* Submit Order Button */}
                 <button data-theme-tone="primary"
                   type="submit"
+                  data-testid="place-order-button"
                   disabled={submitting || items.length === 0}
                   data-theme-btn="true"
                   className="w-full py-4 rounded-xl text-xs font-bold text-white shadow-lg transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"

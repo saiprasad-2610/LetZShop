@@ -1,3 +1,4 @@
+import { beginDirectCheckout } from '../../../../utils/direct-checkout';
 import { getPublicStoreUrl } from '@simply/types';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
@@ -415,18 +416,10 @@ export default function ProductDetailPage() {
     }
 
     try {
-      const currentMain = activeGallery.find((m) => m.id === selectedMediaId) || activeGallery[0];
-      const primaryImg = currentMain?.url || product.images?.[0]?.url;
-      await addItem(variant.id, quantity, {
-        productId: product.id,
-        productName: product.title || product.name || 'Product',
-        variantName: variant.title || variant.name || 'Standard',
-        pricePaise: variant.pricePaise || product.basePricePaise || 0,
-        compareAtPricePaise: variant.compareAtPricePaise || product.compareAtPricePaise,
-        imageUrl: primaryImg,
-        sku: variant.sku || '',
-      });
-      router.push(getLink(`/store/${slug}/checkout`));
+      if (isOutOfStock || variant.status !== 'ACTIVE') return;
+      const token = beginDirectCheckout({ storeId: storeData.store.id, productId: product.id, variantId: variant.id, quantity });
+      const checkoutUrl = getLink(`/store/${slug}/checkout`);
+      router.push(`${checkoutUrl}${checkoutUrl.includes('?') ? '&' : '?'}direct=${token}`);
     } catch (err: any) {
       toast.error('Checkout Error', err.message || 'Failed to initiate checkout');
     }
@@ -882,6 +875,7 @@ export default function ProductDetailPage() {
                     <button data-theme-tone="primary"
                       type="button"
                       disabled={isOutOfStock}
+                      data-testid="buy-now-button"
                       onClick={handleBuyNow}
                       data-theme-btn="true"
                       className="w-full py-3.5 px-4 text-white font-bold rounded-xl text-xs shadow-md transition hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
@@ -1130,7 +1124,8 @@ export default function ProductDetailPage() {
               <button data-theme-tone="primary"
                 type="button"
                 disabled={isOutOfStock}
-                onClick={handleBuyNow}
+                data-testid="buy-now-button"
+                      onClick={handleBuyNow}
                 data-theme-btn="true"
                 className="px-4 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition"
                 style={{ backgroundColor: 'var(--theme-primary, #111827)' }}
