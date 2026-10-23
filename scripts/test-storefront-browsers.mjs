@@ -175,10 +175,10 @@ try {
                 });
               else {
                 if (mode === 'hard-refresh')
-                  await page.setExtraHTTPHeaders({
-                    'Cache-Control': 'no-cache',
-                    Pragma: 'no-cache',
-                  });
+                  // Playwright routing disables the browser HTTP cache. Adding
+                  // no-cache headers globally instead triggers cross-origin font
+                  // preflights that a normal browser hard refresh never sends.
+                  await context.route(`${base}/**`, route => route.continue());
                 await page.reload({ waitUntil: 'networkidle', timeout: 90000 });
               }
               const state = await inspect(page);
