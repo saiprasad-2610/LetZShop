@@ -28,8 +28,9 @@ try {
       .click();
     const t = createTranslator(locale);
     for (const [width, height] of [
-      [1680, 1050],
+      [1680, 945],
       [1440, 900],
+      [1280, 900],
       [1024, 900],
       [768, 1024],
       [430, 900],
@@ -137,6 +138,7 @@ try {
         Math.max(...geometry.benefits) - Math.min(...geometry.benefits) < 1,
         'equal-height benefits at every viewport',
       );
+      assert.equal(await page.getByTestId('journey-benefits').locator(':scope > div').count(), 6);
       const rail = page.getByTestId('journey-rail');
       const layout = await rail.evaluate((e) => ({
         display: getComputedStyle(e).display,
@@ -182,6 +184,7 @@ try {
       );
       await page.waitForTimeout(100);
       assert.equal(await page.getByTestId('journey-next').isDisabled(), true);
+      if (width === 1680 && locale === 'en-IN') await page.getByTestId('journey-benefits').screenshot({path:path.join(out, 'six-benefits.png')});
       if (width === 1680)
         await section.screenshot({
           path: path.join(out, `screen5-${locale}-1680-end.png`),
@@ -208,7 +211,7 @@ try {
       }
       results.push({ locale, width, result: 'PASS' });
     }
-    console.log(locale + ': journey at six viewport sizes passed.');
+    console.log(locale + ': journey at seven viewport sizes passed.');
   }
   // Native mobile touch, using the actual CSS scroll container.
   const touch = await browser.newContext({
@@ -253,7 +256,7 @@ try {
       2,
     ),
   );
-  console.log('Screen 5: 18 layout/language checks and native touch passed.');
+  console.log(`Screen 5: ${results.length} layout/language checks and native touch passed.`);
 } finally {
   await browser.close();
 }

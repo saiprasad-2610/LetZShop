@@ -91,6 +91,7 @@ export const customerJourneyEn = {
     reviewThanks: 'Your feedback helps others.',
   },
   benefits: {
+    tracking: { title: 'Live Order Tracking', body: 'Keep customers updated from order confirmation to delivery.' },
     payments: {
       title: 'Multiple Payment Options',
       body: 'UPI, Cards, Net Banking and Cash on Delivery.',
@@ -205,6 +206,7 @@ export const customerJourneyMr: typeof customerJourneyEn = {
     reviewThanks: 'तुमचा अभिप्राय इतरांना मदत करतो.',
   },
   benefits: {
+    tracking: { title: 'ऑर्डरचा थेट मागोवा', body: 'ऑर्डरची पुष्टी झाल्यापासून डिलिव्हरीपर्यंत ग्राहकांना माहिती देत राहा.' },
     payments: {
       title: 'पेमेंटचे अनेक पर्याय',
       body: 'UPI, कार्ड, नेट बँकिंग आणि कॅश ऑन डिलिव्हरी.',
@@ -319,6 +321,7 @@ export const customerJourneyHi: typeof customerJourneyEn = {
     reviewThanks: 'आपकी प्रतिक्रिया दूसरों की मदद करती है।',
   },
   benefits: {
+    tracking: { title: 'ऑर्डर की लाइव ट्रैकिंग', body: 'ऑर्डर की पुष्टि से डिलीवरी तक ग्राहकों को जानकारी देते रहें.' },
     payments: {
       title: 'पेमेंट के कई विकल्प',
       body: 'UPI, कार्ड, नेट बैंकिंग और कैश ऑन डिलिवरी।',

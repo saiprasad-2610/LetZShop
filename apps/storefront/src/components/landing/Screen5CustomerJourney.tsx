@@ -36,6 +36,7 @@ const BENEFITS = [
   { id: 'languages', icon: Globe2 },
   { id: 'security', icon: ShieldCheck },
   { id: 'shipping', icon: Truck },
+  { id: 'tracking', icon: Package },
 ] as const;
 
 function ProductArt({ small = false }: { small?: boolean }) {
