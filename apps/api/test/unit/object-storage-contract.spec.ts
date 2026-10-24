@@ -18,7 +18,7 @@ describe('S3/R2 public media adapter contract (isolated SDK transport)', () => {
         default: throw Error('Unexpected SDK command');
       }
     });
-    const storage = new S3StorageProvider({ bucket: 'owned', region: 'auto', endpoint: 'https://storage.example.test', accessKeyId: 'fixture', secretAccessKey: 'fixture', publicUrlPrefix: 'https://media.example.test' }, { send } as any);
+    const storage = new S3StorageProvider({ bucket: 'owned', region: 'auto', endpoint: 'https://storage.example.test', accessKeyId: 'fixture', secretAccessKey: 'fixture', publicUrlPrefix: 'https://media.example.test', s3Client: { send } as any });
     for (const prefix of ['products', 'branding']) {
       const first = await storage.upload({ tenantId: 'tenant-a', storeId: 'store-a', prefix, originalFilename: 'original.png', mimeType: 'image/png', buffer: Buffer.from('actual-original-bytes') });
       const replacement = await storage.upload({ tenantId: 'tenant-a', storeId: 'store-a', prefix, originalFilename: 'replacement.png', mimeType: 'image/png', buffer: Buffer.from('actual-replacement-bytes') });

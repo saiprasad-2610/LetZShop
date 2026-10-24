@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from '@simply/validation';
+import { resolveSafeStoragePath } from '../../../../packages/storage/src/local-disk-storage.provider';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -98,10 +99,8 @@ describe('Media URL Resolution & Safe Image Rendering (Unit Tests)', () => {
       ];
 
       for (const key of maliciousKeys) {
-        const safeKey = key.replace(/^[\/\\]+/, '');
-        const absolutePath = path.resolve(rootDir, safeKey);
-        const isSafe = absolutePath.startsWith(normalizedRoot);
-        expect(isSafe).toBe(false);
+        const result = resolveSafeStoragePath(rootDir, key);
+        expect(result.isSafe).toBe(false);
       }
     });
   });

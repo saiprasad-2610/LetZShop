@@ -48,7 +48,7 @@ export const FALLBACK_PACKAGES: LandingPlanPackage[] = [
     purchasable: true,
     badge: 'Available',
     features: [
-      'Sell unlimited products & variants',
+      'List up to 50 products with variants',
       'Direct WhatsApp checkout & enquiries',
       'Razorpay card, UPI & netbanking + COD',
       'Automated buyer email notifications',

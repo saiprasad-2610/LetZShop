@@ -93,6 +93,18 @@ export class S3StorageProvider implements StorageProvider {
   public async upload(input: UploadFileInput): Promise<UploadFileResult> {
     const { tenantId, storeId, buffer, mimeType, prefix = 'media' } = input;
 
+    // Block private document categories from public storage.
+    if (this.config.publicUrlPrefix) {
+      const category = prefix.toLowerCase();
+      if (
+        category === 'kyc' ||
+        category === 'private-documents' ||
+        category === 'documents'
+      ) {
+        throw new Error('Invalid public storage category');
+      }
+    }
+
     // 1. Validate MIME type if configured
     if (this.allowedMimeTypes.length > 0 && !this.allowedMimeTypes.includes(mimeType)) {
       throw new Error(
@@ -175,6 +187,14 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   public getUrl(storageKey: string): string {
+    if (
+      !storageKey ||
+      storageKey.includes('..') ||
+      storageKey.includes('\\') ||
+      storageKey.startsWith('/')
+    ) {
+      throw new Error('Invalid storage key');
+    }
     const safeKey = storageKey.replace(/^[\\\/]+/, '').replace(/\\/g, '/');
     const publicUrlPrefix = (this.config.publicUrlPrefix || '').replace(/\/+$/, '');
     if (!publicUrlPrefix) return '';

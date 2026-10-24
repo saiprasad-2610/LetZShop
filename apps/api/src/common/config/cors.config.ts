@@ -147,11 +147,8 @@ export function parseAndValidateCorsOrigins(
   }
 
   if (isProduction) {
-    // Approved canonical LetzShop production domains
-    allowed.add('https://letzshop.store');
-    allowed.add('https://www.letzshop.store');
-    allowed.add('https://seller.letzshop.store');
-    allowed.add('https://admin.letzshop.store');
+    // Production origins must be explicitly configured.
+    // Never silently add domains or permit an empty allowlist.
     if (allowed.size === 0) {
       throw new Error(
         'CORS_ALLOWED_ORIGINS environment variable is required in production and must contain at least one valid HTTPS origin.',

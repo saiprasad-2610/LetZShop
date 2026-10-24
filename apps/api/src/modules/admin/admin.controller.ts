@@ -453,6 +453,7 @@ export class AdminController {
     return this.adminService.retryOutboxEvent(id, user.userId);
   }
 
+  @RequirePermission(AdminPermission.PAYMENTS_RECONCILE)
   @Post('operations/reconcile-payment/:id')
   @ApiOperation({
     summary: 'Reconcile payment order against gateway with audit trail',
