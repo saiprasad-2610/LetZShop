@@ -1,6 +1,6 @@
 import { useDirectCheckout } from '../../../hooks/useDirectCheckout';
 import { getPublicStoreUrl } from '@simply/types';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -89,7 +89,7 @@ function formatItemVariantLabel(item: any): string | null {
 
 export default function StoreCheckoutPage() {
   const router = useRouter();
-  const { slug, preview, previewSecret } = router.query;
+  const { slug, preview } = router.query;
   const isEmbedded = router.query.embedded === 'true';
   const toast = useToast();
   const { locale, t, initStoreLocales } = useStorefrontI18n();
@@ -115,6 +115,7 @@ export default function StoreCheckoutPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [fulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
@@ -123,6 +124,20 @@ export default function StoreCheckoutPage() {
   const [postalCode, setPostalCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'RAZORPAY'>('COD');
   const [couponInput, setCouponInput] = useState('');
+  const checkoutKeyRef = useRef<string>('');
+  const checkoutStorageKey = `simply_checkout_key:${String(slug || '')}:${directToken || cart?.id || guestToken || ''}`;
+
+  useEffect(() => {
+    try {
+      checkoutKeyRef.current = sessionStorage.getItem(checkoutStorageKey) || `chk_${crypto.randomUUID()}`;
+      sessionStorage.setItem(checkoutStorageKey, checkoutKeyRef.current);
+    } catch { checkoutKeyRef.current = `chk_${crypto.randomUUID()}`; }
+  }, [checkoutStorageKey]);
+
+  const handlePaymentMethodChange = (method: 'COD' | 'RAZORPAY') => {
+    if (submitting) return;
+    setPaymentMethod(method);
+  };
 
   const taxableAmountPaise = Math.max(0, subtotalPaise - discountPaise);
   const taxPaise = Math.round(taxableAmountPaise * 0.05);
@@ -132,11 +147,6 @@ export default function StoreCheckoutPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (preview === 'true' || storeData?.isPreview) params.set('preview', 'true');
-    const secret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const queryString = params.toString();
     return queryString ? `${path}?${queryString}` : path;
@@ -144,27 +154,13 @@ export default function StoreCheckoutPage() {
 
   useEffect(() => {
     if (!slug) return;
-    if (preview === 'true') {
-      try {
-        sessionStorage.setItem('simply_merchant_preview', 'true');
-      } catch {}
-    }
-    const effectiveSecret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (effectiveSecret) {
-      try {
-        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
-      } catch {}
-    }
-    loadStore(effectiveSecret);
-  }, [slug, preview, previewSecret]);
+    loadStore();
+  }, [slug, preview]);
 
-  const loadStore = async (previewSecret?: string) => {
+  const loadStore = async () => {
     setLoading(true);
     try {
-      const res = await api.stores.getPublicStorefront(String(slug), previewSecret);
+      const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
       if (res.store && initStoreLocales) {
         initStoreLocales(res.store.storefrontDefaultLocale, res.store.enabledStorefrontLocales);
@@ -254,6 +250,15 @@ export default function StoreCheckoutPage() {
       toast.error('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
       return;
     }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setEmailError('Please enter a valid email address (e.g. name@example.com)');
+      toast.error('Valid Email Required', 'Please enter a valid email address for order confirmation and tracking.');
+      return;
+    }
+    setEmailError(null);
 
     if (fulfillmentType === 'DELIVERY') {
       if (!state.trim()) {
@@ -356,10 +361,11 @@ export default function StoreCheckoutPage() {
     try {
       const payload = {
         storeId: storeData.store.id,
+        checkoutKey: checkoutKeyRef.current || undefined,
         ...(directToken ? { directItems: direct.selection ? [{ productId: direct.selection.productId, variantId: direct.selection.variantId, quantity: direct.selection.quantity }] : [] } : { cartId: cart.id }),
         fullName: name.trim(),
         phone: cleanPhone,
-        email: email.trim() || undefined,
+        email: cleanEmail,
         deliveryAddress: fulfillmentType === 'DELIVERY' ? {
           addressLine1: addressLine1.trim(),
           addressLine2: addressLine2.trim() || undefined,
@@ -385,10 +391,11 @@ export default function StoreCheckoutPage() {
           if (typeof window === 'undefined') return resolve(false);
           if ((window as any).Razorpay) return resolve(true);
           const script = document.createElement('script');
+          const timeout = window.setTimeout(() => resolve(false), 15000);
           script.src = 'https://checkout.razorpay.com/v1/checkout.js';
           script.async = true;
-          script.onload = () => resolve(true);
-          script.onerror = () => resolve(false);
+          script.onload = () => { window.clearTimeout(timeout); resolve(Boolean((window as any).Razorpay)); };
+          script.onerror = () => { window.clearTimeout(timeout); resolve(false); };
           document.body.appendChild(script);
         });
 
@@ -405,35 +412,44 @@ export default function StoreCheckoutPage() {
           name: storeData.store.name,
           description: `Order ${orderResult.orderNumber}`,
           order_id: paymentOrder.providerOrderId,
-          prefill: { name, email, contact: cleanPhone },
+          prefill: { name: name.trim(), email: cleanEmail, contact: cleanPhone },
           theme: { color: '#0f172a' },
+          modal: {
+            ondismiss: function () {
+              setSubmitting(false);
+              toast.info('Payment Not Completed', 'Online payment was closed. You can retry or switch to Cash on Delivery.');
+            },
+          },
           handler: async function (response: any) {
             try {
               await api.payments.verify({
-                paymentOrderId: paymentOrder.id,
+                paymentOrderId: paymentOrder.paymentOrderId,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_signature: response.razorpay_signature,
               });
               clearCart();
+              try { sessionStorage.removeItem(checkoutStorageKey); } catch {}
               toast.success('Order Placed Successfully!', `Order #${orderResult.orderNumber}`);
               const tokenParam = orderResult.trackingToken ? `?t=${orderResult.trackingToken}` : '';
               router.push(`/store/${slug}/order/${orderResult.orderNumber}${tokenParam}`);
-            } catch (err) {
-              toast.error('Payment Verification Failed', 'Contact store support if money was debited.');
+            } catch (err: any) {
+              setSubmitting(false);
+              toast.error('Payment Verification Failed', err?.message || 'Contact store support if money was debited.');
             }
-          }
+          },
         };
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (errResp: any) {
-          toast.error('Payment Cancelled', errResp.error?.description || 'Payment was not completed.');
+          toast.error('Payment Cancelled', errResp.error?.description || 'Payment was not completed. You can try again or switch to Cash on Delivery.');
           setSubmitting(false);
         });
         rzp.open();
       } else {
         // COD Success
         clearCart();
+        try { sessionStorage.removeItem(checkoutStorageKey); } catch {}
         toast.success('Order Placed!', `Your order #${orderResult.orderNumber} is confirmed.`);
         const tokenParam = orderResult.trackingToken ? `?t=${orderResult.trackingToken}` : '';
         router.push(`/store/${slug}/order/${orderResult.orderNumber}${tokenParam}`);
@@ -639,18 +655,39 @@ export default function StoreCheckoutPage() {
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-[var(--store-text-primary)] mb-1">
-                        {t('checkout.email')} <span className="text-[var(--store-text-secondary)] text-[11px] font-normal">(Optional, for digital receipt)</span>
+                        {t('checkout.email')} <span className="text-red-500 font-bold">*</span>{' '}
+                        <span className="text-[var(--store-text-secondary)] text-[11px] font-normal">
+                          (Required for order confirmation & tracking)
+                        </span>
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-[var(--store-text-secondary)] absolute left-3 top-2.5" />
                         <input
                           type="email"
+                          required
+                          data-testid="checkout-email-input"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (emailError) setEmailError(null);
+                          }}
+                          onBlur={() => {
+                            const trimmed = email.trim().toLowerCase();
+                            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                              setEmailError('Please enter a valid email address (e.g. name@example.com).');
+                            } else {
+                              setEmailError(null);
+                            }
+                          }}
                           placeholder="anand@example.com"
-                          className="w-full pl-9 pr-3 py-2 border border-[var(--store-border)] rounded-lg text-xs focus:ring-2 focus:ring-emerald-500"
+                          className={`w-full pl-9 pr-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 font-medium ${
+                            emailError ? 'border-red-500 bg-red-50/10' : 'border-[var(--store-border)]'
+                          }`}
                         />
                       </div>
+                      {emailError && (
+                        <p className="text-[11px] text-red-600 mt-1 font-medium">{emailError}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -833,7 +870,7 @@ export default function StoreCheckoutPage() {
                     {/* Cash on Delivery (only rendered if enabled by store) */}
                     {storeData?.store?.paymentSettings?.codEnabled !== false && (
                       <label
-                        onClick={() => setPaymentMethod('COD')}
+                        onClick={() => handlePaymentMethodChange('COD')}
                         className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
                           paymentMethod === 'COD'
                             ? 'border-emerald-600 bg-[var(--store-surface)] store-surface ring-2 ring-emerald-500/20'
@@ -845,7 +882,7 @@ export default function StoreCheckoutPage() {
                             type="radio"
                             name="paymentMethod"
                             checked={paymentMethod === 'COD'}
-                            onChange={() => setPaymentMethod('COD')}
+                            onChange={() => handlePaymentMethodChange('COD')}
                             className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
                           />
                           <div>
@@ -867,7 +904,7 @@ export default function StoreCheckoutPage() {
                     )}
 
                     <label
-                      onClick={() => setPaymentMethod('RAZORPAY')}
+                      onClick={() => handlePaymentMethodChange('RAZORPAY')}
                       className={`p-4 rounded-xl border flex flex-col gap-2 cursor-pointer transition ${
                         paymentMethod === 'RAZORPAY'
                           ? 'border-emerald-600 bg-[var(--store-surface)] store-surface ring-2 ring-emerald-500/20'
@@ -880,7 +917,7 @@ export default function StoreCheckoutPage() {
                             type="radio"
                             name="paymentMethod"
                             checked={paymentMethod === 'RAZORPAY'}
-                            onChange={() => setPaymentMethod('RAZORPAY')}
+                            onChange={() => handlePaymentMethodChange('RAZORPAY')}
                             className="text-emerald-600 focus:ring-emerald-600 h-4 w-4"
                           />
                           <div>

@@ -10,6 +10,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { OrdersService } from './orders.service';
 import { GuestCheckoutDto } from './dto/checkout.dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -23,6 +24,8 @@ export class OrdersController {
 
   // 1. Guest-First Checkout (Public)
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: Number(process.env.CHECKOUT_RATE_LIMIT) || (process.env.NODE_ENV === 'test' ? 50000 : 20), ttl: 60000 } })
   @Post('checkout')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Guest-first checkout with address and stock reservation' })
@@ -55,6 +58,12 @@ export class OrdersController {
   }
 
   // 2. Merchant Order Management (Backward Compatibility - Canonical is /seller/orders)
+  @UseGuards(TenantGuard)
+  @Post(':id/out-for-delivery')
+  async markOutForDelivery(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.ordersService.markOutForDelivery(id, tenant);
+  }
+
   @ApiBearerAuth()
   @UseGuards(TenantGuard)
   @Get()

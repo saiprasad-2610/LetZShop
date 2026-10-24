@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
 import { PrismaClient, OrderStatus, PaymentStatus, ProductStatus, StoreStatus, VariantStatus } from '@prisma/client';
 import { normalizeIndianState, normalizeCityName } from '@simply/validation';
 import {
@@ -16,7 +17,7 @@ export interface DashboardQueryParams {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly visibility: SubscriptionVisibilityService) {}
 
   public async getDashboardAnalytics(
     tenantId: string,
@@ -375,10 +376,8 @@ export class DashboardService {
 
     // 10. Needs Attention genuine actionable posture
     const activeSub = store.tenant.subscriptions[0];
-    const isSubscriptionValid =
-      activeSub &&
-      activeSub.status === 'ACTIVE' &&
-      new Date(activeSub.currentPeriodEnd) > new Date();
+    const publicVisibility = await this.visibility.getEffectivePublicStatus(store.id);
+    const isSubscriptionValid = !publicVisibility.requiresPayment;
 
     const attention = {
       pendingOrders: pendingOrdersCount,
@@ -387,7 +386,7 @@ export class DashboardService {
         shippingProfilesCount === 0 || store.tenant.shippingAccounts.length === 0,
       paymentSetupIncomplete: store.tenant.paymentAccounts.length === 0,
       subscriptionRequiresAction: !isSubscriptionValid,
-      publicStoreUnavailable: store.status !== StoreStatus.LIVE || !store.isPubliclyAccessible,
+      publicStoreUnavailable: !publicVisibility.isPublic,
     };
 
     // Store state
@@ -432,6 +431,19 @@ export class DashboardService {
         timezone: store.timezone,
         branding: store.branding,
         themeConfigs: store.themeConfigs,
+        subscription: activeSub ? {
+          id: activeSub.id,
+          status: activeSub.status,
+          currentPeriodStart: activeSub.currentPeriodStart,
+          currentPeriodEnd: activeSub.currentPeriodEnd,
+          plan: activeSub.plan ? {
+            id: activeSub.plan.id,
+            code: activeSub.plan.code,
+            name: activeSub.plan.name,
+            pricePaise: activeSub.plan.pricePaise,
+          } : null,
+        } : null,
+        publicVisibility,
       },
     };
   }

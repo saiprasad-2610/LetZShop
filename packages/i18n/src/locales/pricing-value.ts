@@ -14,6 +14,7 @@ export const pricingEn = {
   "s6": "WhatsApp selling workflow",
   "with": "With LetzShop",
   "connected": "Everything you need in one simple system.",
+  "taxSuffix": "+ GST",
   "period": "every {days} days",
   "f1": "Branded online storefront",
   "f2": "Product catalogue & variants",
@@ -27,7 +28,15 @@ export const pricingEn = {
   "cta": "Create Your Store",
   "how": "See How It Works",
   "fees": "Payment gateway transaction charges, shipping charges and third-party service fees may apply separately.",
-  "unavailable": "See current Launch plan"
+  "unavailable": "See current Launch plan",
+  "solopreneur": "Solopreneur",
+  "professional": "Professional",
+  "scale": "Scale",
+  "comingSoon": "Coming Soon",
+  "contactSales": "Contact Sales",
+  "totalPrice": "Total",
+  "inclGst": "incl. 18% GST",
+  "customPrice": "Custom Pricing"
 };
 export const pricingMr = {
   "eyebrow": "किंमत आणि मूल्य",
@@ -45,6 +54,7 @@ export const pricingMr = {
   "s6": "WhatsApp विक्री प्रक्रिया",
   "with": "LetzShop सोबत",
   "connected": "आवश्यक सुविधा, एकाच सोप्या प्रणालीत.",
+  "taxSuffix": "+ GST",
   "period": "दर {days} दिवसांनी",
   "f1": "ब्रँडेड ऑनलाइन स्टोअर",
   "f2": "उत्पादन कॅटलॉग आणि व्हेरियंट",
@@ -58,7 +68,15 @@ export const pricingMr = {
   "cta": "तुमचे स्टोअर तयार करा",
   "how": "हे कसे काम करते ते पहा",
   "fees": "पेमेंट गेटवे व्यवहार शुल्क, शिपिंग शुल्क आणि तृतीय-पक्ष सेवा शुल्क वेगळे लागू शकते.",
-  "unavailable": "सध्याचा Launch प्लॅन पहा"
+  "unavailable": "सध्याचा Launch प्लॅन पहा",
+  "solopreneur": "Solopreneur",
+  "professional": "Professional",
+  "scale": "Scale",
+  "comingSoon": "लवकरच येत आहे",
+  "contactSales": "विक्री विभागाशी संपर्क",
+  "totalPrice": "एकूण",
+  "inclGst": "१८% GST सह",
+  "customPrice": "सानुकूल किंमत"
 };
 export const pricingHi = {
   "eyebrow": "कीमत और मूल्य",
@@ -76,6 +94,7 @@ export const pricingHi = {
   "s6": "WhatsApp बिक्री प्रक्रिया",
   "with": "LetzShop के साथ",
   "connected": "ज़रूरी सुविधाएं, एक आसान प्रणाली में।",
+  "taxSuffix": "+ GST",
   "period": "हर {days} दिनों में",
   "f1": "ब्रांडेड ऑनलाइन स्टोर",
   "f2": "उत्पाद कैटलॉग और वेरिएंट",
@@ -89,5 +108,13 @@ export const pricingHi = {
   "cta": "अपना स्टोर बनाएं",
   "how": "देखें यह कैसे काम करता है",
   "fees": "पेमेंट गेटवे लेनदेन शुल्क, शिपिंग शुल्क और थर्ड-पार्टी सेवा शुल्क अलग से लागू हो सकते हैं।",
-  "unavailable": "वर्तमान Launch प्लान देखें"
+  "unavailable": "वर्तमान Launch प्लान देखें",
+  "solopreneur": "Solopreneur",
+  "professional": "Professional",
+  "scale": "Scale",
+  "comingSoon": "जल्द आ रहा है",
+  "contactSales": "सेल्स से संपर्क",
+  "totalPrice": "कुल",
+  "inclGst": "१८% GST सहित",
+  "customPrice": "कस्टम मूल्य"
 };

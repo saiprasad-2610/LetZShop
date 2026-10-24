@@ -62,7 +62,7 @@ function formatItemVariantLabel(item: any): string | null {
 
 export default function StoreCartPage() {
   const router = useRouter();
-  const { slug, preview, previewSecret } = router.query;
+  const { slug, preview } = router.query;
   const { t, locale, formatPrice, initStoreLocales } = useStorefrontI18n();
   const { 
     cart, itemCount, subtotalPaise, updateQuantity, removeItem, 
@@ -90,11 +90,6 @@ export default function StoreCartPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
-    const secret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
@@ -102,27 +97,13 @@ export default function StoreCartPage() {
 
   useEffect(() => {
     if (!slug) return;
-    if (preview === 'true') {
-      try {
-        sessionStorage.setItem('simply_merchant_preview', 'true');
-      } catch {}
-    }
-    const effectiveSecret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (effectiveSecret) {
-      try {
-        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
-      } catch {}
-    }
-    loadStore(effectiveSecret);
-  }, [slug, preview, previewSecret]);
+    loadStore();
+  }, [slug, preview]);
 
-  const loadStore = async (previewSecret?: string) => {
+  const loadStore = async () => {
     setLoading(true);
     try {
-      const res = await api.stores.getPublicStorefront(String(slug), previewSecret);
+      const res = await api.stores.getPublicStorefront(String(slug), preview ? String(preview) : undefined);
       setStoreData(res);
       if (res.store) {
         initStoreLocales({

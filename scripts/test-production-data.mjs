@@ -547,6 +547,7 @@ try {
       { productId: product.id, variantId: variant.id, quantity: 3 },
     ],
     fullName: "Test Buyer",
+    email: `buyer-${run}@example.test`,
     phone: await newPhone(),
     paymentMethod: "COD",
     fulfillmentMode: "PICKUP",
@@ -676,6 +677,14 @@ try {
     category: c.name,
     visibleProductCount: c._count.products,
   }));
+  if (process.env.RUN_GLOBAL_FOOTER === '1') {
+    const { verifyGlobalFooters } = await import('./test-global-footers.mjs');
+    await verifyGlobalFooters(fixtures, out);
+  }
+  if (process.env.RUN_LAUNCH_SMOKE === '1') {
+    const { verifyLaunchBrowser } = await import('./test-launch-browser-smoke.mjs');
+    await verifyLaunchBrowser(fixtures, db, out);
+  }
   if (process.env.RUN_LOCAL_LOAD === "1") {
     const { loadStorefront } = await import("./load-storefront.mjs");
     await loadStorefront(
@@ -718,6 +727,7 @@ try {
   console.log(JSON.stringify(results));
 } finally {
   // Delete only this run's owned test tenants and phone challenges. Never reset the DB.
+  await db.outboxEvent.deleteMany({ where: { tenantId: { in: tenantIds } } });
   await db.auditLog.deleteMany({ where: { tenantId: { in: tenantIds } } });
   await db.tenant.deleteMany({ where: { id: { in: tenantIds }, name: run } });
   await db.otpChallenge.deleteMany({ where: { phone: { in: phones } } });

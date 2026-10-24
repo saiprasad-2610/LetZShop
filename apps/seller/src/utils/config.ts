@@ -3,13 +3,13 @@ import { getPublicStoreUrl } from '@simply/types';
 /**
  * Environment-safe URL configuration helpers for Seller Portal.
  * Resolves origins without hardcoding localhost in production
- * and without routing to suspended or deprecated endpoints.
  */
 
 export function getStorefrontUrl(): string {
   // 1. Explicit build/runtime environment variable
   const envStorefront =
     process.env.NEXT_PUBLIC_STOREFRONT_URL ||
+    process.env.STOREFRONT_PUBLIC_URL ||
     process.env.STOREFRONT_URL ||
     process.env.STOREFRONT_BASE_URL;
 
@@ -17,61 +17,34 @@ export function getStorefrontUrl(): string {
     return envStorefront.trim().replace(/\/+$/, '');
   }
 
-  // 2. Client-side dynamic origin resolution
+  // 2. Client-side runtime detection
   if (typeof window !== 'undefined' && window.location) {
-    const host = window.location.hostname.toLowerCase();
+    const host = window.location.host.toLowerCase();
 
     // Local development
-    if (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host.startsWith('192.168.') ||
-      host.startsWith('10.') ||
-      host.endsWith('.local')
-    ) {
-      return `http://${host}:3000`;
-    }
-
-    // Letz Shop production domain
-    if (host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
-      return 'https://letzshop.store';
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      const port = window.location.port ? ':3000' : '';
+      return `${window.location.protocol}//${window.location.hostname}${port}`;
     }
 
     // Dynamic sibling resolution if deployed on a custom domain with subdomains
     if (host.includes('.')) {
       const parts = host.split('.');
-      if (parts.length >= 2 && !host.includes('vercel.app') && !host.includes('onrender.com')) {
+      if (parts.length >= 2) {
         return `${window.location.protocol}//${parts.slice(-2).join('.')}`;
       }
     }
-
-    // Vercel deployment detection
-    if (host.includes('vercel.app')) {
-      return 'https://letzshop-storefront.vercel.app';
-    }
-
-    // Render cloud deployment (fallback)
-    if (host.includes('onrender.com')) {
-      return 'https://letzshop-storefront.vercel.app';
-    }
-
-    // Any other live production domain or public IP
-    return 'https://letzshop-storefront.vercel.app';
   }
 
-  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed storefront URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.VERCEL === '1') {
-    return 'https://letzshop-storefront.vercel.app';
-  }
-
-  // 4. Fallback for local development
-  return 'http://localhost:3000';
+  // 3. Server-side SSR / SSG build fallback
+  return process.env.NODE_ENV === 'production' ? 'https://www.letzshop.store' : 'http://localhost:3000';
 }
 
 export function getSellerUrl(): string {
   // 1. Explicit build/runtime environment variable
   const envSeller =
     process.env.NEXT_PUBLIC_SELLER_URL ||
+    process.env.SELLER_PUBLIC_URL ||
     process.env.SELLER_URL ||
     process.env.SELLER_DASHBOARD_URL;
 
@@ -79,55 +52,27 @@ export function getSellerUrl(): string {
     return envSeller.trim().replace(/\/+$/, '');
   }
 
-  // 2. Client-side dynamic origin resolution
+  // 2. Client-side runtime detection
   if (typeof window !== 'undefined' && window.location) {
-    const host = window.location.hostname.toLowerCase();
+    const host = window.location.host.toLowerCase();
 
     // Local development
-    if (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host.startsWith('192.168.') ||
-      host.startsWith('10.') ||
-      host.endsWith('.local')
-    ) {
-      return `http://${host}:3001`;
-    }
-
-    // Letz Shop production domain
-    if (host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
-      return 'https://seller.letzshop.store';
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      const port = window.location.port ? ':3001' : '';
+      return `${window.location.protocol}//${window.location.hostname}${port}`;
     }
 
     // Dynamic sibling resolution if deployed on a custom domain with subdomains
     if (host.includes('.')) {
       const parts = host.split('.');
-      if (parts.length >= 2 && !host.includes('vercel.app') && !host.includes('onrender.com')) {
+      if (parts.length >= 2) {
         return `${window.location.protocol}//seller.${parts.slice(-2).join('.')}`;
       }
     }
-
-    // Vercel deployment detection
-    if (host.includes('vercel.app')) {
-      return 'https://let-z-shop.vercel.app';
-    }
-
-    // Render cloud deployment
-    if (host.includes('onrender.com')) {
-      return 'https://let-z-shop.vercel.app';
-    }
-
-    // Any other live production domain or public IP
-    return 'https://let-z-shop.vercel.app';
   }
 
-  // 3. Server-side SSR / SSG build fallback: in production or cloud builds, default to deployed seller URL
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.VERCEL === '1') {
-    return 'https://let-z-shop.vercel.app';
-  }
-
-  // 4. Fallback for local development
-  return 'http://localhost:3001';
+  // 3. Server-side SSR / SSG build fallback
+  return process.env.NODE_ENV === 'production' ? 'https://seller.letzshop.store' : 'http://localhost:3001';
 }
 
 export interface StorePreviewOptions {
@@ -138,35 +83,17 @@ export interface StorePreviewOptions {
 
 export function getStoreCustomerPreviewUrl(
   slug: string,
-  options?: StorePreviewOptions | string
+  options?: StorePreviewOptions | 'products' | 'about'
 ): string {
   const origin = getStorefrontUrl();
-  let subpath = '';
-  let previewSecret: string | undefined;
-
   if (typeof options === 'string') {
-    if (options === 'products' || options === 'about') {
-      return getPublicStoreUrl(slug, origin, { preview: true, page: options });
-    }
-    subpath = options;
-  } else if (options) {
-    if (options.page) {
-      return getPublicStoreUrl(slug, origin, {
-        preview: true,
-        previewSecret: options.previewSecret,
-        page: options.page,
-      });
-    }
-    subpath = options.subpath || '';
-    previewSecret = options.previewSecret;
+    return getPublicStoreUrl(slug, origin, { preview: true, page: options });
   }
-
-  const cleanSubpath = subpath ? (subpath.startsWith('/') ? subpath : `/${subpath}`) : '';
-  const params = new URLSearchParams({ preview: 'true' });
-  if (previewSecret && previewSecret.trim()) {
-    params.set('previewSecret', previewSecret.trim());
-  }
-  return `${origin}/store/${slug}${cleanSubpath}?${params.toString()}`;
+  return getPublicStoreUrl(slug, origin, {
+    preview: true,
+    previewSecret: options?.previewSecret,
+    page: options?.page,
+  });
 }
 
 export function getStorePublicShareUrl(
@@ -176,11 +103,33 @@ export function getStorePublicShareUrl(
 ): string {
   const origin = getStorefrontUrl();
   if (isLive) {
-    return `${origin}/store/${slug}`;
+    return getPublicStoreUrl(slug, origin);
   }
-  const params = new URLSearchParams({ preview: 'true' });
-  if (previewSecret && previewSecret.trim()) {
-    params.set('previewSecret', previewSecret.trim());
+  return getPublicStoreUrl(slug, origin, { preview: true, previewSecret });
+}
+
+export function getApiUrl(): string {
+  const envApi =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.API_PUBLIC_URL ||
+    process.env.API_URL;
+  if (envApi && envApi.trim() !== '') {
+    return envApi.trim().replace(/\/+$/, '');
   }
-  return `${origin}/store/${slug}?${params.toString()}`;
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname.toLowerCase();
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.endsWith('.local')
+    ) {
+      return `http://${host}:4000`;
+    }
+    if (host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
+      return 'https://api.letzshop.store';
+    }
+  }
+  return process.env.NODE_ENV === 'production' ? 'https://api.letzshop.store' : 'http://localhost:4000';
 }

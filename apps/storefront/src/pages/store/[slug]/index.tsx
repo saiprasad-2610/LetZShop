@@ -1,3 +1,4 @@
+import { getSellerUrl as getPreviewSellerOrigin } from '../../../utils/config';
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -55,7 +56,7 @@ export default function StoreHomePage() {
 
   useEffect(() => {
     if (router.query.embedded === 'true' && !loading && storeData) {
-      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, '*');
+      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, new URL(getPreviewSellerOrigin()).origin);
     }
   }, [router.query.embedded, loading, Boolean(storeData)]);
 
@@ -68,20 +69,14 @@ export default function StoreHomePage() {
     }
     const effectiveSecret =
       (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (effectiveSecret) {
-      try {
-        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
-      } catch {}
-    }
+      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined);
     loadStorefront(String(slug), effectiveSecret);
   }, [slug, preview, previewSecret]);
 
   useEffect(() => {
     if (router.query.embedded === 'true') {
       const handleMessage = (event: MessageEvent) => {
-        if (event.data?.type === 'UPDATE_THEME_PREVIEW' && event.data.themeConfig) {
+        if (event.origin === new URL(getPreviewSellerOrigin()).origin && event.source === window.parent && event.data?.type === 'UPDATE_THEME_PREVIEW' && event.data.themeConfig) {
           setStoreData((prev: any) => {
             if (!prev) return prev;
             return {
@@ -252,11 +247,6 @@ export default function StoreHomePage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
-    const secret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
@@ -298,7 +288,6 @@ export default function StoreHomePage() {
             onClick={() => {
               try {
                 sessionStorage.removeItem('simply_merchant_preview');
-                sessionStorage.removeItem('simply_merchant_preview_secret');
               } catch {}
               if (window.opener) {
                 window.close();

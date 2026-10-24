@@ -116,9 +116,11 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
             })}
           </nav>
         </aside>
-        <main className="min-w-0 flex-1 max-w-7xl mx-auto p-4 lg:p-7">
-          {children}
-        </main>
+        <div className="min-w-0 flex-1 flex flex-col min-h-[calc(100dvh-4rem)]">
+          <main className="min-w-0 flex-1 max-w-7xl w-full mx-auto p-4 lg:p-7">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

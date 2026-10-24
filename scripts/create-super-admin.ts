@@ -1,7 +1,13 @@
 import crypto from 'node:crypto';
 import readline from 'node:readline';
 import { PrismaClient, UserRole, CredentialType } from '@prisma/client';
-import { normalizePhone } from '@simply/validation';
+// Self-contained phone normalizer ensuring zero external workspace resolution failures
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  return phone.startsWith('+') ? phone : `+${digits}`;
+}
 
 /**
  * Masks sensitive credentials inside a database connection string for safe console output.

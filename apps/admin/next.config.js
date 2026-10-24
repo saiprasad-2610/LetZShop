@@ -4,25 +4,17 @@ const apiUrl = rawApiUrl.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
 
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config'],
-  experimental: {
-    workerThreads: false,
-    cpus: 1,
+  output: process.env.NEXT_OUTPUT_STANDALONE === 'true' ? 'standalone' : undefined,
+  transpilePackages: ['@simply/ui', '@simply/api-contracts', '@simply/types', '@simply/config', '@simply/i18n'],
+  images: {
+    unoptimized: true,
   },
-  webpack: (config, { dev }) => {
-    if (dev && config.cache && typeof config.cache === 'object') {
-      config.cache.compression = false;
-    }
+  webpack(config) {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
     return config;
-  },
-  async redirects() {
-    return [
-      {
-        source: '/commerce',
-        destination: '/orders',
-        permanent: false,
-      },
-    ];
   },
   async rewrites() {
     return [
@@ -31,8 +23,12 @@ const nextConfig = {
         destination: `${apiUrl}/:path*`,
       },
       {
+        source: '/media/:path*',
+        destination: `${apiUrl}/media/:path*`,
+      },
+      {
         source: '/api/admin/invoices/:path*',
-        destination: '/api/platform/admin/invoices/:path*',
+        destination: `${apiUrl}/admin/invoices/:path*`,
       },
     ];
   },

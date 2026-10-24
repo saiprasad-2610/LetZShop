@@ -16,7 +16,7 @@ import { getProductTranslation } from '../../../utils/productTranslation';
 
 export default function StoreSearchPage() {
   const router = useRouter();
-  const { slug, q, category, preview, previewSecret, embedded } = router.query;
+  const { slug, q, category, preview, embedded } = router.query;
   const { api, setStoreId, addItem } = useCart();
   const { locale, t } = useStorefrontI18n();
   const toast = useToast();
@@ -57,11 +57,6 @@ export default function StoreSearchPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
-    const secret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
@@ -69,32 +64,18 @@ export default function StoreSearchPage() {
 
   useEffect(() => {
     if (!slug) return;
-    if (preview === 'true') {
-      try {
-        sessionStorage.setItem('simply_merchant_preview', 'true');
-      } catch {}
-    }
-    const effectiveSecret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (effectiveSecret) {
-      try {
-        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
-      } catch {}
-    }
-    loadStore(effectiveSecret);
-  }, [slug, preview, previewSecret]);
+    loadStore();
+  }, [slug]);
 
   useEffect(() => {
     if (q) setSearchTerm(String(q));
     if (category) setSelectedCategory(String(category));
   }, [q, category]);
 
-  const loadStore = async (previewSecret?: string) => {
+  const loadStore = async () => {
     setLoading(true);
     try {
-      const res = await api.stores.getPublicStorefront(String(slug), previewSecret);
+      const res = await api.stores.getPublicStorefront(String(slug));
       setStoreData(res);
       setProducts(res.products || []);
       setCategories(res.categories || []);

@@ -248,7 +248,6 @@ async function checkPortPreflight(ports = CANONICAL_PORTS) {
   return true;
 }
 
-
 // --- CLI Commands: --status and --stop ---
 
 async function handleStatus() {

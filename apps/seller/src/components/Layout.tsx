@@ -22,7 +22,7 @@ import {
   Star,
 } from 'lucide-react';
 import { ThemeToggle } from './ui/MerchantUi';
-import { getStorefrontUrl, getStorePublicShareUrl } from '../utils/config';
+import { getStorefrontUrl } from '../utils/config';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -117,7 +117,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, actions }) => {
 
   const baseStorefrontUrl = getStorefrontUrl();
   const storefrontUrl = store?.slug
-    ? getStorePublicShareUrl(store.slug, isStorePublic, store?.previewSecret)
+    ? isStorePublic
+      ? getPublicStoreUrl(store.slug, baseStorefrontUrl)
+      : getPublicStoreUrl(store.slug, baseStorefrontUrl, { preview: true })
     : null;
 
   return (

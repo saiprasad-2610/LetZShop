@@ -1,6 +1,6 @@
+import { getPublicStoreUrl } from '@simply/types';
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import { 
   Heart, 
   MapPin, 
@@ -24,27 +24,8 @@ interface StoreFooterProps {
 }
 
 export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) => {
-  const router = useRouter();
   const wordmark = getWordmark(store.name || 'Store');
   const slug = store.slug;
-
-  const getQueryPath = (path: string) => {
-    const params = new URLSearchParams();
-    if (
-      router.query.preview === 'true' ||
-      (typeof window !== 'undefined' && sessionStorage.getItem('simply_merchant_preview') === 'true')
-    ) {
-      params.set('preview', 'true');
-    }
-    const secret =
-      (typeof router.query.previewSecret === 'string' && router.query.previewSecret.trim() ? router.query.previewSecret.trim() : undefined) ||
-      (typeof router.query.preview === 'string' && router.query.preview !== 'true' && router.query.preview.trim() ? router.query.preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
-    if (router.query.embedded === 'true') params.set('embedded', 'true');
-    const qs = params.toString();
-    return qs ? `${path}?${qs}` : path;
-  };
 
   const footerConfig = themeConfig?.footer || {};
   const socialLinks = normalizeSocialLinks(footerConfig.socialLinks !== undefined ? footerConfig.socialLinks : store.socialLinks);
@@ -224,22 +205,22 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
             <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Navigation</p>
             <ul className="space-y-1.5 text-xs text-[var(--store-footer-muted)]">
               <li>
-                <Link href={getQueryPath(`/store/${slug}`)} className="hover:text-white transition">
+                <Link href={getPublicStoreUrl(String(slug))} className="hover:text-white transition">
                   Home
                 </Link>
               </li>
               <li>
-                <Link href={getQueryPath(`/store/${slug}/products`)} className="hover:text-white transition">
+                <Link href={`/store/${slug}/products`} className="hover:text-white transition">
                   All Products
                 </Link>
               </li>
               <li>
-                <Link href={getQueryPath(`/store/${slug}/about`)} className="hover:text-white transition">
+                <Link href={`/store/${slug}/about`} className="hover:text-white transition">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link href={getQueryPath(`/store/${slug}/cart`)} className="hover:text-white transition">
+                <Link href={`/store/${slug}/cart`} className="hover:text-white transition">
                   Shopping Cart
                 </Link>
               </li>

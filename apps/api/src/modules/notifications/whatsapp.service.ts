@@ -5,6 +5,7 @@ import {
   buildOrderDispatchedBuyerMessage,
   buildOrderDeliveredMessage,
   buildOrderCancelledMessage,
+  buildOrderOutForDeliveryMessage,
   buildRiderAssignmentMessage,
   buildWhatsAppDeepLink,
   normalizeIndianPhone,
@@ -149,10 +150,10 @@ export class WhatsAppService {
    */
   public generateOrderStatusUpdateMessage(ctx: WhatsAppOrderContext, status: string): { url: string; text: string } {
     let text = '';
-    if (status === 'DISPATCHED') {
+    if (status === 'DISPATCHED' || status === 'SHIPPED') {
       return this.generateOrderDispatchedMessage(ctx);
     }
-    if (status === 'COMPLETED') {
+    if (status === 'COMPLETED' || status === 'DELIVERED') {
       return this.generateOrderDeliveredMessage(ctx);
     }
     if (status === 'ACCEPTED' || status === 'CONFIRMED') {
@@ -169,7 +170,7 @@ export class WhatsAppService {
         trackingUrl: ctx.trackingUrl,
         customMessage: ctx.customMessage,
       });
-    } else if (status === 'READY') {
+    } else if (status === 'READY' || status === 'READY_TO_SHIP') {
       text = buildOrderReadyMessage({
         orderNumber: ctx.orderNumber,
         storeName: ctx.storeName,
@@ -183,6 +184,8 @@ export class WhatsAppService {
         trackingUrl: ctx.trackingUrl,
         customMessage: ctx.customMessage,
       });
+    } else if (status === 'OUT_FOR_DELIVERY') {
+      text = buildOrderOutForDeliveryMessage(ctx);
     } else if (status === 'CANCELLED') {
       text = buildOrderCancelledMessage({
         orderNumber: ctx.orderNumber,
@@ -249,7 +252,7 @@ export class WhatsAppService {
         });
 
         if (response.ok) {
-          this.logger.log(`[WHATSAPP CLOUD API] Message delivered directly to +${cleanTo}`);
+          this.logger.log(`[WHATSAPP CLOUD API] Message accepted by provider`);
           return true;
         } else {
           const errData = await response.text();
@@ -279,11 +282,8 @@ export class WhatsAppService {
       }
     }
 
-    // Option 3: Development / Headless Mode (Server-side direct automated dispatch)
-    this.logger.log(
-      `[DIRECT WHATSAPP DISPATCH] To: +${cleanTo} | Automated Direct Message:\n${text}`
-    );
-    return true;
+    this.logger.log('[WHATSAPP] No automatic messaging provider configured; use the explicit deep link.');
+    return false;
   }
 
   /**

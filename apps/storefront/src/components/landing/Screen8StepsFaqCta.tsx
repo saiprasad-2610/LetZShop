@@ -25,10 +25,12 @@ export const Screen8StepsFaqCta: React.FC<Screen8StepsFaqCtaProps> = ({ sellerUr
     },
     {
       num: '3',
-      title: t('landing.step3Title'),
-      desc: t('landing.step3Desc'),
+      title: t('landing.launchStep3Title'),
+      desc: t('landing.launchStep3Desc'),
       color: 'bg-emerald-600',
     },
+    { num: '4', title: t('landing.launchStep4Title'), desc: t('landing.launchStep4Desc'), color: 'bg-blue-600' },
+    { num: '5', title: t('landing.launchStep5Title'), desc: t('landing.launchStep5Desc'), color: 'bg-orange-600' },
   ];
 
   const faqs = [
@@ -50,7 +52,7 @@ export const Screen8StepsFaqCta: React.FC<Screen8StepsFaqCtaProps> = ({ sellerUr
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
-            {t('landing.howItWorksTitle')}
+            {t('landing.launchStepsTitle')}
           </h2>
         </div>
 
@@ -144,7 +146,7 @@ export const Screen8StepsFaqCta: React.FC<Screen8StepsFaqCtaProps> = ({ sellerUr
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto">
               <a
-                href={`${sellerUrl}/login?mode=register`}
+                href={`${sellerUrl}/register`}
                 className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white hover:bg-slate-100 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <span>{t('landing.finalCtaCreate')}</span>

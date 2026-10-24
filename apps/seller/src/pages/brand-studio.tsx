@@ -71,7 +71,7 @@ import {
   getWordmark,
 } from '@simply/ui';
 import { SafeImage } from '../components/ui/SafeImage';
-import { getStorefrontUrl, getStoreCustomerPreviewUrl } from '../utils/config';
+import { getStorefrontUrl } from '../utils/config';
 import { useSellerI18n } from '@simply/i18n';
 
 export default function BrandStudioPage() {
@@ -98,7 +98,7 @@ export default function BrandStudioPage() {
   // A newly navigated catalog requests current edits after its data is ready.
   useEffect(() => {
     const ready = (event: MessageEvent) => {
-      if (event.source === iframeRef.current?.contentWindow && ['CATALOG_PREVIEW_READY', 'BRAND_PREVIEW_READY'].includes(event.data?.type)) {
+      if (event.origin === new URL(getStorefrontUrl()).origin && event.source === iframeRef.current?.contentWindow && ['CATALOG_PREVIEW_READY', 'BRAND_PREVIEW_READY'].includes(event.data?.type)) {
         setPreviewRevision((revision) => revision + 1);
       }
     };
@@ -500,7 +500,7 @@ export default function BrandStudioPage() {
             storeNameSize,
           },
         },
-        '*'
+        new URL(getStorefrontUrl()).origin
       );
     }
   }, [
@@ -2455,7 +2455,7 @@ export default function BrandStudioPage() {
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             {store?.slug && (
               <a
-                href={getStoreCustomerPreviewUrl(store.slug, { previewSecret: store.previewSecret })}
+                href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                 target="_blank"
                 rel="noreferrer"
                 style={{ backgroundColor: 'var(--merchant-surface)', borderColor: 'var(--merchant-border)', color: 'var(--merchant-text)' }}
@@ -2492,7 +2492,7 @@ export default function BrandStudioPage() {
             </div>
             {store?.slug && (
               <a
-                href={getStoreCustomerPreviewUrl(store.slug, { previewSecret: store.previewSecret })}
+                href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500 transition shrink-0"
@@ -2650,7 +2650,7 @@ export default function BrandStudioPage() {
                   <div className="pt-4 pb-6 flex items-center gap-3">
                     {store?.slug && (
                       <a
-                        href={getStoreCustomerPreviewUrl(store.slug, { previewSecret: store.previewSecret })}
+                        href={getPublicStoreUrl(store.slug, getStorefrontUrl(), { preview: true })}
                         target="_blank"
                         rel="noreferrer"
                         className="flex-1 py-3 px-4 rounded-xl text-xs font-bold border flex items-center justify-center gap-2 text-center shadow-xs transition hover:opacity-90"

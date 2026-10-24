@@ -183,24 +183,27 @@ export default function OrderConfirmationPage() {
           {/* Email Confirmation Notice (Zero Login Required) */}
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 max-w-lg mx-auto text-center space-y-1">
             <p className="font-bold flex items-center justify-center gap-1.5">
-              <span>✉️</span> Confirmation & Live Tracking Sent to Your Email
+              <span>✉️</span> Email Confirmation & Tracking Updates
             </p>
             <p className="text-[11px] text-emerald-700">
-              No login required. You can check order status, delivery progress, and previous receipts anytime via the direct link sent to your email and WhatsApp.
+              Your order is saved and email confirmation is queued. No login is required to check order status and delivery progress using your secure tracking link.
             </p>
           </div>
 
-          {/* WhatsApp Send to Vendor CTA */}
+          {/* WhatsApp Action (Deep Link to connect with merchant) */}
           {cleanPhone && (
-            <div className="pt-2 flex flex-wrap justify-center gap-3">
+            <div className="pt-2 flex flex-col items-center justify-center gap-1.5">
               <a
                 href={waOrderDetailsLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold shadow-sm transition"
               >
-                <MessageSquare className="w-4 h-4" /> Send Order Details to Store on WhatsApp
+                <MessageSquare className="w-4 h-4" /> Open WhatsApp or WhatsApp Web to continue with the prepared order message
               </a>
+              <span className="text-[11px] text-[var(--store-text-secondary)]">
+                Connect directly with the merchant with your pre-filled order summary.
+              </span>
             </div>
           )}
         </div>

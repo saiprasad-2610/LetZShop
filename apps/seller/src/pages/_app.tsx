@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { AikyamGlobalFooter } from '../components/AikyamGlobalFooter';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { SellerLocaleProvider, type SupportedLocale } from '@simply/i18n';
@@ -30,6 +32,8 @@ function SellerI18nWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  const standalone = ['/login', '/register', '/onboarding', '/_error'].includes(router.pathname);
   useEffect(() => {
     // Register PWA service worker safely
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
@@ -45,15 +49,12 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </Head>
       <ThemeProvider>
         <AuthProvider>
           <SellerI18nWrapper>
             <Component {...pageProps} />
+            <AikyamGlobalFooter className={standalone ? '' : 'md:pl-64'} />
           </SellerI18nWrapper>
         </AuthProvider>
       </ThemeProvider>

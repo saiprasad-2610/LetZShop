@@ -1,3 +1,4 @@
+import { getSellerUrl as getPreviewSellerOrigin } from '../../../utils/config';
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -27,7 +28,7 @@ import { normalizeBrandText, clampCatalogText, ABOUT_TEXT_LIMITS } from '@simply
 
 export default function StoreAboutPage() {
   const router = useRouter();
-  const { slug, preview, previewSecret } = router.query;
+  const { slug, preview } = router.query;
   const { setStoreId, api } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -36,34 +37,20 @@ export default function StoreAboutPage() {
 
   useEffect(() => {
     if (router.query.embedded === 'true' && !loading && storeData) {
-      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, '*');
+      window.parent.postMessage({ type: 'BRAND_PREVIEW_READY' }, new URL(getPreviewSellerOrigin()).origin);
     }
   }, [router.query.embedded, loading, Boolean(storeData)]);
 
   useEffect(() => {
     if (!slug) return;
-    if (preview === 'true') {
-      try {
-        sessionStorage.setItem('simply_merchant_preview', 'true');
-      } catch {}
-    }
-    const effectiveSecret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (effectiveSecret) {
-      try {
-        sessionStorage.setItem('simply_merchant_preview_secret', effectiveSecret);
-      } catch {}
-    }
-    loadStorefront(String(slug), effectiveSecret);
-  }, [slug, preview, previewSecret]);
+    loadStorefront(String(slug), preview ? String(preview) : undefined);
+  }, [slug, preview]);
 
   // Live real-time studio preview sync
   useEffect(() => {
     if (router.query.embedded === 'true') {
       const handleMessage = (event: MessageEvent) => {
-        if (event.data?.type === 'UPDATE_THEME_PREVIEW' && event.data.themeConfig) {
+        if (event.origin === new URL(getPreviewSellerOrigin()).origin && event.source === window.parent && event.data?.type === 'UPDATE_THEME_PREVIEW' && event.data.themeConfig) {
           setStoreData((prev: any) => {
             if (!prev) return prev;
             return {
@@ -114,11 +101,6 @@ export default function StoreAboutPage() {
   const getLink = (path: string) => {
     const params = new URLSearchParams();
     if (isPreviewMode) params.set('preview', 'true');
-    const secret =
-      (typeof previewSecret === 'string' && previewSecret.trim() ? previewSecret.trim() : undefined) ||
-      (typeof preview === 'string' && preview !== 'true' && preview.trim() ? preview.trim() : undefined) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('simply_merchant_preview_secret') || undefined : undefined);
-    if (secret) params.set('previewSecret', secret);
     if (isEmbedded) params.set('embedded', 'true');
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
