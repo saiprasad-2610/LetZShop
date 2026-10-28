@@ -775,8 +775,12 @@ export class AdminDataService {
     // Plans with numeric price sort ascending by pricePaise.
     // Plans without a fixed numeric price (0/contact) sort LAST.
     const sortedPlans = [...plans].sort((a, b) => {
-      const aIsCustom = a.pricePaise <= 0 || a.code === 'CUSTOM';
-      const bIsCustom = b.pricePaise <= 0 || b.code === 'CUSTOM';
+      const orderA = typeof a.displayOrder === 'number' ? a.displayOrder : 0;
+      const orderB = typeof b.displayOrder === 'number' ? b.displayOrder : 0;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const aIsCustom = a.pricePaise <= 0 || a.code === 'CUSTOM' || a.paymentType === 'CONTACT_TEAM';
+      const bIsCustom = b.pricePaise <= 0 || b.code === 'CUSTOM' || b.paymentType === 'CONTACT_TEAM';
       if (aIsCustom && !bIsCustom) return 1;
       if (!aIsCustom && bIsCustom) return -1;
       return a.pricePaise - b.pricePaise;

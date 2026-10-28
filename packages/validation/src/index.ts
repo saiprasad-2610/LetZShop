@@ -91,14 +91,100 @@ export function isValidEmail(email: string): boolean {
 
 export const BUSINESS_NAME_REGEX = /^[\p{L}\p{N}\s&'\-.,/()]{2,100}$/u;
 
+/**
+ * Normalizes a business name by removing leading/trailing spaces and
+ * collapsing consecutive whitespace characters between words into a single space.
+ * Preserves normal single spaces, valid punctuation, Unicode Indian scripts, and capitalization.
+ */
+export function normalizeBusinessName(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().replace(/\s+/g, ' ');
+}
+
 export function isValidBusinessName(name: string): boolean {
-  if (!name) return false;
-  const trimmed = name.trim();
-  return trimmed.length >= 2 && trimmed.length <= 100 && BUSINESS_NAME_REGEX.test(trimmed);
+  if (!name || typeof name !== 'string') return false;
+  const normalized = normalizeBusinessName(name);
+  return normalized.length >= 2 && normalized.length <= 100 && BUSINESS_NAME_REGEX.test(normalized);
 }
 
 export function validateMoneyAmount(amountPaise: number): boolean {
   return Number.isInteger(amountPaise) && amountPaise >= 0;
+}
+
+/**
+ * Razorpay Key ID format: must start with rzp_test_ or rzp_live_ followed by alphanumeric characters.
+ */
+export const RAZORPAY_KEY_ID_REGEX = /^rzp_(?:test|live)_[a-zA-Z0-9_]+$/;
+
+export function isValidRazorpayKeyId(keyId: string): boolean {
+  if (!keyId || typeof keyId !== 'string') return false;
+  return RAZORPAY_KEY_ID_REGEX.test(keyId.trim());
+}
+
+/**
+ * Official Udyam Registration Number format: UDYAM-XX-00-0000000
+ * Prefix: UDYAM
+ * 2 uppercase alphabetic state/UT characters
+ * 2 numeric digits
+ * 7 numeric digits
+ */
+export const UDYAM_REGEX = /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/;
+
+export function normalizeUdyamNumber(udyam: string): string {
+  if (!udyam || typeof udyam !== 'string') return '';
+  return udyam.trim().toUpperCase();
+}
+
+export function isValidUdyamNumber(udyam: string): boolean {
+  if (!udyam || typeof udyam !== 'string') return false;
+  return UDYAM_REGEX.test(normalizeUdyamNumber(udyam));
+}
+
+/**
+ * Normalizes a product name by removing leading/trailing spaces and
+ * collapsing consecutive whitespace characters between words into a single space.
+ * Preserves normal single spaces, valid punctuation, brand formatting, and Unicode Indian scripts.
+ */
+export function normalizeProductName(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Validates a product name.
+ * Rules:
+ * - Length between 2 and 255 characters after normalization.
+ * - Must contain at least one meaningful Unicode letter or numeric character (\\p{L}|\\p{N}).
+ * - Reject names consisting exclusively of punctuation, symbols, whitespace, or emoji (e.g. "@#$%^&*", "!!!", "₹₹₹").
+ */
+export function isValidProductName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const normalized = normalizeProductName(name);
+  if (normalized.length < 2 || normalized.length > 255) return false;
+  return /[\p{L}\p{N}]/u.test(normalized);
+}
+
+/**
+ * Maximum character limit for product descriptions per language.
+ */
+export const PRODUCT_DESCRIPTION_MAX_CHARS = 5000;
+
+/**
+ * Counts user-perceived Unicode grapheme clusters (characters) in a text string.
+ * Supports Devanagari text (Hindi, Marathi), composed characters, combining marks, and emojis.
+ */
+export function countGraphemes(text?: string | null): number {
+  if (!text) return 0;
+  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+    const segmenter = new (Intl as any).Segmenter();
+    return Array.from(segmenter.segment(text)).length;
+  }
+  return Array.from(text).length;
+}
+
+export function isValidProductDescription(description?: string | null): boolean {
+  if (!description) return true; // optional field
+  return countGraphemes(description) <= PRODUCT_DESCRIPTION_MAX_CHARS;
 }
 
 /**

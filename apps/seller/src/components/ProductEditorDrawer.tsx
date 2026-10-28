@@ -22,7 +22,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useSellerI18n, LOCALE_REGISTRY, SUPPORTED_LOCALES, ACTIVE_LOCALES, type SupportedLocale } from '@simply/i18n';
 import { parseRupeesToPaise, PAYMENT_GATEWAY_MIN_AMOUNT_RUPEES } from '@simply/ui';
-import { validateProductImageFile, formatBytes } from '@simply/validation';
+import {
+  validateProductImageFile,
+  formatBytes,
+  isValidProductName,
+  normalizeProductName,
+  countGraphemes,
+  PRODUCT_DESCRIPTION_MAX_CHARS,
+} from '@simply/validation';
 import { SafeImage } from './ui/SafeImage';
 
 interface OptionTypeDraft {
@@ -790,11 +797,28 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
     if (savingRef.current || uploadingImage || loading) return;
     const errors: Record<string, string> = {};
 
-    const trimmedName = name.trim();
+    const trimmedName = normalizeProductName(name);
     if (!trimmedName) {
       errors.name = 'Product name is required.';
     } else if (trimmedName.length < 2) {
       errors.name = 'Product name must be at least 2 characters.';
+    } else if (!isValidProductName(trimmedName)) {
+      errors.name = 'Product name must contain at least one letter or number.';
+    }
+
+    if (description && countGraphemes(description) > PRODUCT_DESCRIPTION_MAX_CHARS) {
+      errors.description = `Product description cannot exceed ${PRODUCT_DESCRIPTION_MAX_CHARS} characters.`;
+    }
+
+    for (const [loc, t] of Object.entries(translations)) {
+      if (t.name && t.name.trim() && !isValidProductName(t.name.trim())) {
+        errors.general = `Product name in ${LOCALE_REGISTRY[loc as SupportedLocale]?.nativeName || loc} must contain at least one letter or number.`;
+        break;
+      }
+      if (t.description && countGraphemes(t.description) > PRODUCT_DESCRIPTION_MAX_CHARS) {
+        errors.general = `Product description in ${LOCALE_REGISTRY[loc as SupportedLocale]?.nativeName || loc} cannot exceed 5,000 characters.`;
+        break;
+      }
     }
 
     if (mode === 'SELL_ONLINE' || mode === 'SELL_AND_ENQUIRY') {
@@ -1063,10 +1087,36 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                 <textarea
                   rows={3}
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: '' }));
+                  }}
                   placeholder="Describe your product materials, fit, care instructions..."
-                  className="w-full px-3.5 py-2 border border-[var(--merchant-input-border)] rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs sm:text-sm bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none ${
+                    countGraphemes(description) > PRODUCT_DESCRIPTION_MAX_CHARS || formErrors.description
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-[var(--merchant-input-border)]'
+                  }`}
                 />
+                <div className="flex justify-between items-center mt-1">
+                  <span
+                    className={`text-[11px] ${
+                      countGraphemes(description) > PRODUCT_DESCRIPTION_MAX_CHARS
+                        ? 'text-rose-600 font-semibold'
+                        : 'text-[var(--merchant-text-muted)]'
+                    }`}
+                  >
+                    {countGraphemes(description)} / {PRODUCT_DESCRIPTION_MAX_CHARS} characters
+                  </span>
+                  {countGraphemes(description) > PRODUCT_DESCRIPTION_MAX_CHARS && (
+                    <span className="text-[11px] text-rose-600 font-medium">
+                      Product description cannot exceed 5,000 characters.
+                    </span>
+                  )}
+                </div>
+                {formErrors.description && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{formErrors.description}</p>
+                )}
               </div>
 
               {/* Optional Localized Content (Multi-lingual) */}
@@ -1117,22 +1167,44 @@ export const ProductEditorDrawer: React.FC<ProductEditorDrawerProps> = ({
                     placeholder={`Product name in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
                     className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)]"
                   />
-                  <textarea
-                    rows={2}
-                    value={translations[activeTranslationLocale]?.description || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setTranslations((prev) => ({
-                        ...prev,
-                        [activeTranslationLocale]: {
-                          name: prev[activeTranslationLocale]?.name || '',
-                          description: val,
-                        },
-                      }));
-                    }}
-                    placeholder={`Description in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
-                    className="w-full px-3 py-1.5 border border-[var(--merchant-input-border)] rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none"
-                  />
+                  <div>
+                    <textarea
+                      rows={2}
+                      value={translations[activeTranslationLocale]?.description || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTranslations((prev) => ({
+                          ...prev,
+                          [activeTranslationLocale]: {
+                            name: prev[activeTranslationLocale]?.name || '',
+                            description: val,
+                          },
+                        }));
+                      }}
+                      placeholder={`Description in ${LOCALE_REGISTRY[activeTranslationLocale]?.nativeName}...`}
+                      className={`w-full px-3 py-1.5 border rounded-lg text-xs bg-[var(--merchant-input-bg)] text-[var(--merchant-text)] focus:border-[var(--merchant-focus-ring)] resize-none ${
+                        countGraphemes(translations[activeTranslationLocale]?.description || '') > PRODUCT_DESCRIPTION_MAX_CHARS
+                          ? 'border-rose-400 focus:border-rose-500'
+                          : 'border-[var(--merchant-input-border)]'
+                      }`}
+                    />
+                    <div className="flex justify-between items-center mt-0.5">
+                      <span
+                        className={`text-[11px] ${
+                          countGraphemes(translations[activeTranslationLocale]?.description || '') > PRODUCT_DESCRIPTION_MAX_CHARS
+                            ? 'text-rose-600 font-semibold'
+                            : 'text-[var(--merchant-text-muted)]'
+                        }`}
+                      >
+                        {countGraphemes(translations[activeTranslationLocale]?.description || '')} / {PRODUCT_DESCRIPTION_MAX_CHARS} characters
+                      </span>
+                      {countGraphemes(translations[activeTranslationLocale]?.description || '') > PRODUCT_DESCRIPTION_MAX_CHARS && (
+                        <span className="text-[11px] text-rose-600 font-medium">
+                          Cannot exceed 5,000 characters.
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -130,8 +130,7 @@ export default function CouponsManagementPage() {
     setCoupons(newList);
     try {
       localStorage.setItem(storageKey, JSON.stringify(newList));
-      // Broadcast so storefront cart context can sync custom coupons
-      localStorage.setItem('simply_custom_coupons', JSON.stringify(newList));
+      localStorage.removeItem('simply_custom_coupons');
     } catch (e) {
       console.error('Failed to persist coupons', e);
     }

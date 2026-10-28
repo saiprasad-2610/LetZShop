@@ -242,7 +242,7 @@ export default function StoreProductsPage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 sm:pt-6 sm:pb-14 space-y-5 sm:space-y-6">
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-32 sm:pb-20 space-y-4 sm:space-y-6">
 
         {/* Page Hero Header Banner */}
         <div data-testid="catalog-header" className="relative rounded-2xl overflow-hidden p-5 sm:p-7 border border-gray-200/80 shadow-xs bg-[var(--store-surface)] store-surface text-left space-y-2 [overflow-wrap:anywhere]">
@@ -350,7 +350,7 @@ export default function StoreProductsPage() {
             )}
           </div>
         ) : (
-          <div className={`store-product-grid grid gap-3.5 sm:gap-6 ${
+          <div className={`store-product-grid grid gap-2.5 sm:gap-6 ${
             themeCode === 'foundry' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
             themeCode === 'local' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
             themeCode === 'atelier' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
@@ -377,19 +377,19 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[3/4] bg-[var(--store-surface)] store-surface overflow-hidden"
+                      className="block relative aspect-[3/4] bg-[var(--store-surface)] store-surface overflow-hidden p-2 flex items-center justify-center"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
                         fallbackTitle={title}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-stone-900/90 text-amber-200 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest px-2 py-0.5">
+                      <span className="absolute top-2.5 left-2.5 bg-stone-900/90 text-amber-200 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 z-10">
                         Haute Creation
                       </span>
                     </Link>
@@ -397,37 +397,37 @@ export default function StoreProductsPage() {
                     <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-[var(--store-surface)] store-surface">
                       <div>
                         {p.category?.name && (
-                          <span className="text-[9px] sm:text-[10px] font-mono text-[var(--store-text-secondary)] uppercase tracking-widest block mb-0.5">
+                          <span className="text-[9px] sm:text-[10px] font-mono text-[var(--store-text-secondary)] uppercase tracking-widest block mb-0.5 truncate">
                             {p.category.name}
                           </span>
                         )}
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif text-xs sm:text-base text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug font-medium"
+                          className="font-serif text-xs sm:text-base text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug font-medium min-h-[2rem] sm:min-h-[2.5rem] flex items-start break-words"
                         >
                           {title}
                         </Link>
                       </div>
 
                       <div className="pt-2 sm:pt-3 border-t border-[var(--store-border)] flex items-center justify-between gap-1">
-                        <div>
-                          <div data-store-price="true" className="font-serif text-xs sm:text-base font-semibold text-[var(--store-text-primary)]">
+                        <div className="min-w-0 pr-1">
+                          <div data-store-price="true" className="font-serif text-xs sm:text-base font-semibold text-[var(--store-text-primary)] truncate">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
-                            <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through">
+                            <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through truncate">
                               {formatPaise(comparePaise)}
                             </div>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                           <button
                             type="button"
                             data-store-button="true"
-                          onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-none bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-amber-200 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-none bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-amber-200 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1 shrink-0"
                           >
                             {isAdded ? (
                               <>
@@ -439,7 +439,8 @@ export default function StoreProductsPage() {
                             ) : (
                               <>
                                 <Plus className="w-3 h-3" />
-                                <span>{t('storefront.addToCart')}</span>
+                                <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -455,37 +456,37 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-[var(--store-surface)] store-surface border-2 border-slate-800 overflow-hidden shadow-lg hover:border-pink-500 transition-all flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border-2 border-slate-800 overflow-hidden shadow-lg hover:border-pink-500 transition-all flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-square bg-[var(--store-button-bg)] store-inverse overflow-hidden"
+                      className="block relative aspect-square bg-[var(--store-button-bg)] store-inverse overflow-hidden p-2 flex items-center justify-center"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         fallbackTitle={title}
                       />
-                      <span className="absolute top-2 left-2 bg-pink-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 shadow">
+                      <span className="absolute top-2 left-2 bg-pink-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 shadow z-10">
                         DROP 01
                       </span>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-[var(--store-button-bg)] store-inverse">
+                    <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-[var(--store-button-bg)] store-inverse">
                       <div>
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-black text-xs sm:text-sm uppercase tracking-tight text-white hover:text-pink-400 transition line-clamp-1"
+                          className="font-black text-xs sm:text-sm uppercase tracking-tight text-white hover:text-pink-400 transition line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] flex items-start break-words"
                         >
                           {title}
                         </Link>
                         <div className="flex items-baseline gap-1.5 mt-1">
-                          <span data-store-price="true" className="font-black text-xs sm:text-base text-pink-400 font-mono">
+                          <span data-store-price="true" className="font-black text-xs sm:text-base text-pink-400 font-mono truncate">
                             {formatPaise(pricePaise)}
                           </span>
                           {comparePaise && (
-                            <span className="text-[10px] sm:text-xs text-[var(--store-text-secondary)] font-mono line-through">
+                            <span className="text-[10px] sm:text-xs text-[var(--store-text-secondary)] font-mono line-through truncate">
                               {formatPaise(comparePaise)}
                             </span>
                           )}
@@ -495,9 +496,9 @@ export default function StoreProductsPage() {
                       <button
                         type="button"
                         data-store-button="true"
-                          onClick={(e) => handleQuickAdd(e, p)}
+                        onClick={(e) => handleQuickAdd(e, p)}
                         disabled={isAdding}
-                        className="w-full py-1.5 sm:py-2 bg-[var(--store-surface)] store-surface hover:bg-pink-500 hover:text-white text-[var(--store-text-primary)] font-black text-[10px] sm:text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1"
+                        className="w-full py-1.5 sm:py-2 bg-[var(--store-surface)] store-surface hover:bg-pink-500 hover:text-white text-[var(--store-text-primary)] font-black text-[10px] sm:text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-1 shrink-0"
                       >
                         {isAdded ? (
                           <>
@@ -521,43 +522,43 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-[var(--store-surface)] store-surface rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-square bg-amber-50/50 overflow-hidden"
+                      className="block relative aspect-square bg-amber-50/50 overflow-hidden p-2 flex items-center justify-center"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         fallbackTitle={title}
                       />
-                      <span className="absolute top-2 left-2 bg-emerald-700 text-white text-[9px] sm:text-[10px] font-bold rounded-full px-2.5 py-0.5 shadow">
+                      <span className="absolute top-2 left-2 bg-emerald-700 text-white text-[9px] sm:text-[10px] font-bold rounded-full px-2.5 py-0.5 shadow z-10">
                         Fresh Batch
                       </span>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
+                    <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
                       <div>
                         {p.category?.name && (
-                          <span className="text-[9px] sm:text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">
+                          <span className="text-[9px] sm:text-[10px] font-semibold text-amber-800 uppercase block mb-0.5 truncate">
                             {p.category.name}
                           </span>
                         )}
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2"
+                          className="font-serif font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2 leading-snug min-h-[2rem] sm:min-h-[2.5rem] flex items-start break-words"
                         >
                           {title}
                         </Link>
-                        <div className="text-[10px] sm:text-[11px] text-[var(--store-text-secondary)] mt-1 line-clamp-1">
+                        <div className="text-[10px] sm:text-[11px] text-[var(--store-text-secondary)] mt-1 line-clamp-1 truncate">
                           Vacuum-sealed 500g pack
                         </div>
                       </div>
 
                       <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-1 sm:gap-2">
-                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono">
+                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono truncate">
                           {formatPaise(pricePaise)}
                         </div>
 
@@ -566,7 +567,7 @@ export default function StoreProductsPage() {
                           data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-[11px] sm:text-xs shadow-sm transition flex items-center gap-1 shrink-0"
+                          className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-[10px] sm:text-xs shadow-sm transition flex items-center gap-1 shrink-0"
                         >
                           {isAdded ? (
                             <>
@@ -576,7 +577,8 @@ export default function StoreProductsPage() {
                           ) : (
                             <>
                               <Plus className="w-3 h-3" />
-                              <span>{t('storefront.addToCart')}</span>
+                              <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                              <span className="xs:hidden">Add</span>
                             </>
                           )}
                         </button>
@@ -591,49 +593,50 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-[var(--store-surface)] store-surface border border-slate-700 rounded-sm overflow-hidden shadow-md font-mono flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-slate-700 rounded-sm overflow-hidden shadow-md font-mono flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[4/3] bg-[var(--store-button-bg)] store-inverse overflow-hidden border-b border-slate-700"
+                      className="block relative aspect-[4/3] bg-[var(--store-button-bg)] store-inverse overflow-hidden border-b border-slate-700 p-2 flex items-center justify-center"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         fallbackTitle={title}
                       />
-                      <div className="absolute top-2 left-2 bg-slate-900/90 text-sky-400 text-[9px] font-bold px-2 py-0.5 border border-sky-500/40">
+                      <div className="absolute top-2 left-2 bg-slate-900/90 text-sky-400 text-[9px] font-bold px-2 py-0.5 border border-sky-500/40 z-10">
                         SPEC: INDUSTRIAL GRADE
                       </div>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 text-[var(--store-text-secondary)]">
+                    <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 text-[var(--store-text-secondary)]">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[9px] text-[var(--store-text-secondary)]">
-                          <span>PART ID: #PRD-{p.id.slice(0, 6).toUpperCase()}</span>
-                          <span className="text-emerald-400 font-bold">IN STOCK</span>
+                          <span className="truncate">#PRD-{p.id.slice(0, 6).toUpperCase()}</span>
+                          <span className="text-emerald-400 font-bold shrink-0 ml-1">IN STOCK</span>
                         </div>
 
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-bold text-xs sm:text-sm text-white hover:text-sky-300 transition line-clamp-2 block"
+                          className="font-bold text-xs sm:text-sm text-white hover:text-sky-300 transition line-clamp-2 block leading-snug min-h-[2rem] sm:min-h-[2.5rem] flex items-start break-words"
                         >
                           {title}
                         </Link>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
-                        <span data-store-price="true" className="text-sky-400 font-bold text-xs sm:text-sm">{formatPaise(pricePaise)}</span>
+                      <div className="pt-2 border-t border-slate-700 flex items-center justify-between gap-1">
+                        <span data-store-price="true" className="text-sky-400 font-bold text-xs sm:text-sm truncate">{formatPaise(pricePaise)}</span>
                         <button
                           type="button"
                           data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-sm transition flex items-center gap-1"
+                          className="px-2 sm:px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] sm:text-[11px] font-bold rounded-sm transition flex items-center gap-1 shrink-0"
                         >
                           {isAdded ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                          <span>{t('storefront.addToCart')}</span>
+                          <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                          <span className="xs:hidden">Add</span>
                         </button>
                       </div>
                     </div>
@@ -646,36 +649,36 @@ export default function StoreProductsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                    className="bg-[var(--store-surface)] store-surface border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-[4/5] bg-[var(--store-surface)] store-surface overflow-hidden"
+                      className="block relative aspect-[4/5] bg-[var(--store-surface)] store-surface overflow-hidden p-2 flex items-center justify-center"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                         fallbackTitle={title}
                       />
-                      <span className="absolute top-2 left-2 bg-stone-900/80 text-white text-[9px] font-serif uppercase tracking-wider px-2 py-0.5">
+                      <span className="absolute top-2 left-2 bg-stone-900/80 text-white text-[9px] font-serif uppercase tracking-wider px-2 py-0.5 z-10">
                         Living Sanctuary
                       </span>
                     </Link>
 
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
+                    <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
                       <div>
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-serif text-xs sm:text-sm font-semibold text-[var(--store-text-primary)] hover:text-[var(--store-text-secondary)] transition line-clamp-1"
+                          className="font-serif text-xs sm:text-sm font-semibold text-[var(--store-text-primary)] hover:text-[var(--store-text-secondary)] transition line-clamp-2 leading-snug min-h-[1.75rem] sm:min-h-[2rem] flex items-start break-words"
                         >
                           {title}
                         </Link>
-                        <div className="text-[10px] text-[var(--store-text-secondary)]">Solid Wood • Hand-Finished</div>
+                        <div className="text-[10px] text-[var(--store-text-secondary)] truncate">Solid Wood • Hand-Finished</div>
                       </div>
 
-                      <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between">
-                        <div data-store-price="true" className="font-serif text-xs sm:text-sm font-bold text-[var(--store-text-primary)]">
+                      <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-1">
+                        <div data-store-price="true" className="font-serif text-xs sm:text-sm font-bold text-[var(--store-text-primary)] truncate">
                           {formatPaise(pricePaise)}
                         </div>
                         <button
@@ -683,10 +686,11 @@ export default function StoreProductsPage() {
                           data-store-button="true"
                           onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="px-3 py-1 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-medium text-[11px] shadow-sm transition flex items-center gap-1"
+                          className="px-2 sm:px-3 py-1 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-medium text-[10px] sm:text-[11px] shadow-sm transition flex items-center gap-1 shrink-0"
                         >
                           {isAdded ? <Check className="w-3 h-3 text-emerald-400" /> : <Plus className="w-3 h-3" />}
-                          <span>{t('storefront.addToCart')}</span>
+                          <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                          <span className="xs:hidden">Add</span>
                         </button>
                       </div>
                     </div>
@@ -698,47 +702,47 @@ export default function StoreProductsPage() {
               return (
                 <div
                   key={p.id}
-                  className="bg-[var(--store-surface)] store-surface rounded-xl border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group relative"
+                  className="bg-[var(--store-surface)] store-surface rounded-xl border border-[var(--store-border)] overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between group relative h-full"
                 >
                   <Link
                     href={getLink(`/store/${slug}/product/${p.id}`)}
-                    className="block relative aspect-square bg-[var(--store-surface)] store-surface overflow-hidden"
+                    className="block relative aspect-square bg-gray-50/60 dark:bg-slate-900/40 overflow-hidden p-2 flex items-center justify-center"
                   >
                     <SafeImage
                       src={coverImage}
                       alt={title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       fallbackTitle={title}
                     />
                     {hasDiscount && (
-                      <span className="absolute top-2 left-2 bg-green-600 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
+                      <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow z-10">
                         SAVE {Math.round(((comparePaise - pricePaise) / comparePaise) * 100)}%
                       </span>
                     )}
                   </Link>
 
-                  <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                  <div className="p-2.5 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
                     <div>
                       {p.category?.name && (
-                        <span className="text-[9px] text-[var(--store-text-secondary)] uppercase font-mono block mb-0.5">
+                        <span className="text-[9px] text-[var(--store-text-secondary)] uppercase font-mono block mb-0.5 truncate">
                           {p.category.name}
                         </span>
                       )}
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-blue-600 transition line-clamp-2"
+                        className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-amber-800 transition line-clamp-2 leading-snug min-h-[2rem] sm:min-h-[2.5rem] flex items-start break-words"
                       >
                         {title}
                       </Link>
                     </div>
 
                     <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-1">
-                      <div>
-                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono">
+                      <div className="min-w-0 pr-1">
+                        <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono truncate">
                           {formatPaise(pricePaise)}
                         </div>
                         {hasDiscount && (
-                          <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through">
+                          <div className="text-[10px] text-[var(--store-text-secondary)] font-mono line-through truncate">
                             {formatPaise(comparePaise)}
                           </div>
                         )}
@@ -747,9 +751,9 @@ export default function StoreProductsPage() {
                       <button
                         type="button"
                         data-store-button="true"
-                          onClick={(e) => handleQuickAdd(e, p)}
+                        onClick={(e) => handleQuickAdd(e, p)}
                         disabled={isAdding}
-                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center gap-1 shrink-0"
+                        className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[var(--store-button-bg)] store-inverse hover:bg-[var(--store-button-bg)] store-inverse text-white font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center gap-1 shrink-0"
                       >
                         {isAdded ? (
                           <>
@@ -761,7 +765,8 @@ export default function StoreProductsPage() {
                         ) : (
                           <>
                             <Plus className="w-3 h-3" />
-                            <span>{t('storefront.addToCart')}</span>
+                            <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                            <span className="xs:hidden">Add</span>
                           </>
                         )}
                       </button>

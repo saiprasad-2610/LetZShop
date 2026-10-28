@@ -77,6 +77,8 @@ export function brandTextLimit(
 const isImageField = (key: string) =>
   ['heroBannerUrl', 'bannerUrl', 'imageUrl'].includes(key);
 
+export const FOOTER_DESCRIPTION_MAX = 300;
+
 type Limits = Readonly<Record<string, number>>;
 const ROOT_LIMITS = {
   storeStory: BRAND_TEXT_LIMITS.aboutParagraph,
@@ -84,6 +86,7 @@ const ROOT_LIMITS = {
   physicalStoreTimings: BRAND_TEXT_LIMITS.subtitle,
 };
 const FOOTER_CONTACT_LIMITS = {
+  description: FOOTER_DESCRIPTION_MAX,
   address: ABOUT_TEXT_LIMITS.storeAddress,
   contactPhone: ABOUT_TEXT_LIMITS.contactPhone,
   contactEmail: ABOUT_TEXT_LIMITS.contactEmail,
@@ -96,6 +99,8 @@ function normalizeFields(source: any, limits: Limits) {
   if (!isObject(source)) return source;
   const result = { ...source };
   for (const [key, max] of Object.entries(limits)) {
+    // Preserve legacy descriptions without destructive truncation
+    if (key === 'description') continue;
     if (Object.prototype.hasOwnProperty.call(source, key))
       result[key] = clampCatalogText(
         source[key],
@@ -144,7 +149,9 @@ function fieldErrors(source: unknown, limits: Limits, path: string): string[] {
     if (value === undefined) return [];
     if (typeof value !== 'string') return [`${path}.${field} must be a string`];
     const effectiveMax = brandTextLimit(value, max, isImageField(field));
-    return value.length > effectiveMax
+    // For BUG-005 footer description, count user-perceived Unicode characters. Other fields preserve UTF-16 limits.
+    const charCount = field === 'description' ? Array.from(value).length : value.length;
+    return charCount > effectiveMax
       ? [`${path}.${field} must be at most ${effectiveMax} characters`]
       : [];
   });
@@ -174,6 +181,12 @@ export function brandTextErrors(config: unknown): string[] {
       'configJson.pages.about',
     ),
   ];
+  if (source?.announcement?.enabled === true) {
+    const text = source?.announcement?.text;
+    if (typeof text !== 'string' || !text.trim()) {
+      errors.push('Enter an announcement message or disable the announcement bar.');
+    }
+  }
   const values = source?.pages?.about?.values;
   if (values !== undefined) {
     if (!Array.isArray(values))

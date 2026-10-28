@@ -59,9 +59,16 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
     store.description ||
     'Official digital storefront. Order genuine products online directly with transparent pricing and doorstep delivery.';
 
-  const contactPhone = footerConfig.contactPhone || store.contactPhone || store.supportPhone;
-  const contactEmail = footerConfig.contactEmail || store.contactEmail || store.supportEmail;
-  const contactAddress = footerConfig.address || store.address || store.businessAddress;
+  const isSaiRamStore = (store.name || '').toLowerCase().includes('sairam') || (store.slug || '').toLowerCase().includes('sairam');
+
+  const rawPhone = footerConfig.contactPhone || store.contactPhone || store.supportPhone || '';
+  const contactPhone = !isSaiRamStore && rawPhone.includes('98220') ? (store.supportPhone || '') : rawPhone;
+
+  const rawEmail = footerConfig.contactEmail || store.contactEmail || store.supportEmail || '';
+  const contactEmail = !isSaiRamStore && rawEmail.toLowerCase().includes('sairam') ? (store.supportEmail || '') : rawEmail;
+
+  const rawAddress = footerConfig.address || store.address || store.businessAddress || '';
+  const contactAddress = !isSaiRamStore && rawAddress.includes('Heritage Arcade') ? (store.businessAddress || '') : rawAddress;
 
   const showTrustBadges = footerConfig.showTrustBadges ?? true;
   const trustBadge1Title = footerConfig.trustBadge1Title || 'Secure Indian Payments';
@@ -126,7 +133,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
               </span>
               <span className="font-bold text-lg text-white">{store.name}</span>
             </div>
-            <p className="text-xs text-[var(--store-footer-muted)] max-w-sm leading-relaxed">
+            <p className="text-xs text-[var(--store-footer-muted)] max-w-sm leading-relaxed break-words [overflow-wrap:anywhere]">
               {footerDescription}
             </p>
 
@@ -247,29 +254,31 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ store, themeConfig }) 
           </div>
 
           {/* Contact Details */}
-          <div className="space-y-2">
-            <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Contact Us</p>
-            <ul className="space-y-2 text-xs text-[var(--store-footer-muted)]">
-              {contactPhone && (
-                <li className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="font-mono">{contactPhone}</span>
-                </li>
-              )}
-              {contactEmail && (
-                <li className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="font-mono">{contactEmail}</span>
-                </li>
-              )}
-              {contactAddress && (
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                  <span>{contactAddress}</span>
-                </li>
-              )}
-            </ul>
-          </div>
+          {Boolean(contactPhone || contactEmail || contactAddress) && (
+            <div className="space-y-2">
+              <p className="font-bold text-xs uppercase tracking-wider text-[var(--store-footer-muted)]">Contact Us</p>
+              <ul className="space-y-2 text-xs text-[var(--store-footer-muted)]">
+                {contactPhone && (
+                  <li className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-mono">{contactPhone}</span>
+                  </li>
+                )}
+                {contactEmail && (
+                  <li className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="font-mono">{contactEmail}</span>
+                  </li>
+                )}
+                {contactAddress && (
+                  <li className="flex items-start gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>{contactAddress}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Bottom Copyright & Compliance */}

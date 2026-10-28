@@ -40,6 +40,12 @@ interface PlanFormData {
   priceRupees: number;
   billingCycle: string;
   availability: 'PURCHASABLE' | 'COMING_SOON' | 'CONTACT';
+  paymentType: 'ONLINE_INSTANT' | 'CONTACT_TEAM';
+  gstEnabled: boolean;
+  gstPercent: number;
+  status: string;
+  displayOrder: number;
+  badge: string;
   maxProducts: number;
   maxStaff: number;
   maxStorageMb: number;
@@ -55,6 +61,12 @@ const initialFormData: PlanFormData = {
   priceRupees: 0,
   billingCycle: 'MONTHLY',
   availability: 'PURCHASABLE',
+  paymentType: 'ONLINE_INSTANT',
+  gstEnabled: true,
+  gstPercent: 18,
+  status: 'ACTIVE',
+  displayOrder: 0,
+  badge: '',
   maxProducts: 100,
   maxStaff: 5,
   maxStorageMb: 2048,
@@ -136,6 +148,12 @@ export default function AdminBillingPage() {
       priceRupees: plan.pricePaise / 100,
       billingCycle: plan.billingCycle,
       availability: (plan.availability as any) || (plan.purchasable ? 'PURCHASABLE' : 'COMING_SOON'),
+      paymentType: (plan.paymentType as any) || (plan.availability === 'CONTACT' || plan.code === 'CUSTOM' ? 'CONTACT_TEAM' : 'ONLINE_INSTANT'),
+      gstEnabled: plan.gstEnabled !== undefined ? Boolean(plan.gstEnabled) : true,
+      gstPercent: typeof plan.gstPercent === 'number' ? plan.gstPercent : 18,
+      status: plan.status || 'ACTIVE',
+      displayOrder: typeof plan.displayOrder === 'number' ? plan.displayOrder : 0,
+      badge: plan.badge || '',
       maxProducts: plan.maxProducts,
       maxStaff: plan.maxStaff,
       maxStorageMb: plan.maxStorageMb,
@@ -219,6 +237,12 @@ export default function AdminBillingPage() {
           maxStorageMb: Number(formData.maxStorageMb),
           customDomainAllowed: formData.customDomainAllowed,
           isPublic: formData.isPublic,
+          gstEnabled: formData.gstEnabled,
+          gstPercent: formData.gstEnabled ? Number(formData.gstPercent) : 0,
+          paymentType: formData.paymentType,
+          badge: formData.badge.trim() || undefined,
+          displayOrder: Number(formData.displayOrder) || 0,
+          status: formData.status,
           highlights,
         });
         showNotification(
@@ -237,6 +261,12 @@ export default function AdminBillingPage() {
           maxStorageMb: Number(formData.maxStorageMb),
           customDomainAllowed: formData.customDomainAllowed,
           isPublic: formData.isPublic,
+          gstEnabled: formData.gstEnabled,
+          gstPercent: formData.gstEnabled ? Number(formData.gstPercent) : 0,
+          paymentType: formData.paymentType,
+          badge: formData.badge.trim() || undefined,
+          displayOrder: Number(formData.displayOrder) || 0,
+          status: formData.status,
           highlights,
         });
         showNotification(
@@ -465,6 +495,11 @@ export default function AdminBillingPage() {
                       {/* Header with Title & subtle Code */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
+                          {p.badge && (
+                            <span className="inline-block mb-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-admin-accent/15 text-admin-accent border border-admin-accent/25">
+                              {p.badge}
+                            </span>
+                          )}
                           <h3 className="font-black text-lg text-admin-text truncate">
                             {p.name}
                           </h3>
@@ -473,14 +508,18 @@ export default function AdminBillingPage() {
                           </span>
                         </div>
                         {/* Status / Availability Pill */}
-                        <div>
-                          {isComingSoon ? (
+                        <div className="flex flex-col items-end gap-1">
+                          {p.status === 'INACTIVE' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-admin-danger-soft text-admin-danger border border-admin-border">
+                              Inactive
+                            </span>
+                          ) : isComingSoon ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
                               Coming Soon
                             </span>
-                          ) : isCustomContact ? (
+                          ) : isCustomContact || p.paymentType === 'CONTACT_TEAM' ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                              Custom Quote
+                              Contact Team
                             </span>
                           ) : p.purchasable ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
@@ -495,24 +534,34 @@ export default function AdminBillingPage() {
                       </div>
 
                       {/* Standard Pricing Area: Height-Consistent */}
-                      <div className="h-14 flex flex-col justify-center border-b border-admin-border/50 pb-2">
-                        {isCustomContact ? (
+                      <div className="h-16 flex flex-col justify-center border-b border-admin-border/50 pb-2">
+                        {isCustomContact || p.paymentType === 'CONTACT_TEAM' ? (
                           <div>
                             <span className="text-xl font-black text-admin-text block">
-                              Contact Aikyam
+                              Contact Team
                             </span>
                             <span className="text-[11px] font-medium text-admin-muted block">
-                              Custom Quote
+                              Custom Quote & Manual Onboarding
                             </span>
                           </div>
                         ) : (
                           <div>
-                            <span className="text-2xl font-black font-mono text-admin-text block">
-                              {formatPaise(p.pricePaise)}
-                            </span>
-                            <span className="text-[11px] font-medium text-admin-muted block">
-                              /{p.billingCycle.toLowerCase()}
-                            </span>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-2xl font-black font-mono text-admin-text">
+                                {formatPaise(p.pricePaise)}
+                              </span>
+                              <span className="text-[11px] font-medium text-admin-muted">
+                                /{p.billingCycle.toLowerCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-admin-bg border border-admin-border text-admin-secondary">
+                                {p.gstEnabled ? `+${p.gstPercent ?? 18}% GST` : '0% GST (Exempt)'}
+                              </span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                Instant Online (Razorpay)
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -780,12 +829,213 @@ export default function AdminBillingPage() {
                 </div>
 
                 {/* SECTION 3: AVAILABILITY */}
-                <div className="space-y-3 pt-3 border-t border-admin-border">
+                <div className="space-y-4 pt-3 border-t border-admin-border">
                   <h4 className="text-[11px] font-bold uppercase tracking-wider text-admin-accent flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     3. Availability
                   </h4>
-                  <div className="space-y-2">
+
+                  {/* GST (%) and Status Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-admin-secondary">
+                          GST (%)
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-admin-accent cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.gstEnabled}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                gstEnabled: e.target.checked,
+                              })
+                            }
+                            className="w-3.5 h-3.5 text-admin-accent rounded focus:ring-admin-border"
+                          />
+                          <span>Enable GST</span>
+                        </label>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        placeholder="18"
+                        disabled={!formData.gstEnabled}
+                        value={formData.gstEnabled ? formData.gstPercent : 0}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            gstPercent: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-mono text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface disabled:opacity-40 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-[10px] text-admin-muted mt-0.5 block">
+                        {formData.gstEnabled
+                          ? `GST @ ${formData.gstPercent}% added to Razorpay order & tax invoice`
+                          : 'GST is disabled (Tax exempt / 0% GST)'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Status
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            status: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                      >
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                      </select>
+                      <span className="text-[10px] text-admin-muted mt-0.5 block">
+                        Controls whether tier is currently operational.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Display Order and Badge Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Display order
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={formData.displayOrder}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            displayOrder: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-mono text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                      />
+                      <span className="text-[10px] text-admin-muted mt-0.5 block">
+                        Sorting index for pricing display (lower numbers first).
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-admin-secondary mb-1">
+                        Badge
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Most Popular"
+                        value={formData.badge}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            badge: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-admin-bg border border-admin-border rounded-xl text-xs font-medium text-admin-text focus:outline-none focus:ring-2 focus:ring-admin-border focus:bg-admin-surface"
+                      />
+                      <span className="text-[10px] text-admin-muted mt-0.5 block">
+                        Optional highlighted badge tag on the card.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payment Mode (Instant Online Payment vs Contact Team) */}
+                  <div className="p-3 bg-admin-bg border border-admin-border rounded-2xl space-y-2">
+                    <label className="block text-xs font-semibold text-admin-secondary">
+                      Merchant Payment & Checkout Mode
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label
+                        className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition ${
+                          formData.paymentType === 'ONLINE_INSTANT'
+                            ? 'border-emerald-500/50 bg-emerald-500/10 text-admin-text'
+                            : 'border-admin-border bg-admin-surface hover:bg-admin-raised text-admin-secondary'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentType"
+                          value="ONLINE_INSTANT"
+                          checked={formData.paymentType === 'ONLINE_INSTANT'}
+                          onChange={() =>
+                            setFormData({
+                              ...formData,
+                              paymentType: 'ONLINE_INSTANT',
+                            })
+                          }
+                          className="mt-0.5 text-admin-accent"
+                        />
+                        <div>
+                          <span className="text-xs font-bold block">
+                            Instant Online Payment
+                          </span>
+                          <span className="text-[10px] text-admin-muted leading-tight block">
+                            Merchant pays instantly via Super Admin&apos;s Razorpay and store activates automatically.
+                          </span>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition ${
+                          formData.paymentType === 'CONTACT_TEAM'
+                            ? 'border-blue-500/50 bg-blue-500/10 text-admin-text'
+                            : 'border-admin-border bg-admin-surface hover:bg-admin-raised text-admin-secondary'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentType"
+                          value="CONTACT_TEAM"
+                          checked={formData.paymentType === 'CONTACT_TEAM'}
+                          onChange={() =>
+                            setFormData({
+                              ...formData,
+                              paymentType: 'CONTACT_TEAM',
+                            })
+                          }
+                          className="mt-0.5 text-admin-accent"
+                        />
+                        <div>
+                          <span className="text-xs font-bold block">
+                            Contact Team
+                          </span>
+                          <span className="text-[10px] text-admin-muted leading-tight block">
+                            For custom or enterprise setups. Merchant is guided to Contact Team instead of direct checkout.
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Allow purchase & Visible to merchants Checkboxes */}
+                  <div className="space-y-2 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary">
+                      <input
+                        type="checkbox"
+                        checked={formData.paymentType === 'ONLINE_INSTANT'}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            paymentType: e.target.checked
+                              ? 'ONLINE_INSTANT'
+                              : 'CONTACT_TEAM',
+                          })
+                        }
+                        className="w-4 h-4 text-admin-accent rounded focus:ring-admin-border"
+                      />
+                      <span>Allow purchase when active</span>
+                    </label>
+
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-admin-secondary">
                       <input
                         type="checkbox"
@@ -795,10 +1045,10 @@ export default function AdminBillingPage() {
                         }
                         className="w-4 h-4 text-admin-accent rounded focus:ring-admin-border"
                       />
-                      <span>Publicly Purchasable by Merchants</span>
+                      <span>Visible to merchants</span>
                     </label>
                     <span className="text-[10px] text-admin-muted block pl-6">
-                      Uncheck to make this tier Internal/Hidden. Growth plan remains Coming Soon by backend enforcement.
+                      Uncheck to make this tier Internal/Hidden from the merchant dashboard.
                     </span>
                   </div>
                 </div>

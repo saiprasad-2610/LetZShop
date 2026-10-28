@@ -491,6 +491,28 @@ export class SimplyApiClient {
       }),
     devActivate: (planId: string, durationDays = 30) =>
       this.request('subscriptions/dev-activate', { method: 'POST', body: { planId, durationDays } }),
+    downloadInvoicePdf: async (invoiceId: string): Promise<Blob> => {
+      let activeBase = this.baseUrl;
+      if (
+        typeof window !== 'undefined' &&
+        window.location &&
+        (activeBase.includes('localhost:4000') || !activeBase)
+      ) {
+        const host = window.location.hostname.toLowerCase();
+        if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
+          activeBase = 'https://simply-ecommerce-api.onrender.com';
+        }
+      }
+      const url = `${activeBase}/subscriptions/invoices/${invoiceId}/pdf`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      });
+      if (!res.ok) {
+        throw new Error('Failed to download invoice PDF.');
+      }
+      return res.blob();
+    },
   };
 
   // --- Admin ---
@@ -634,6 +656,12 @@ export class SimplyApiClient {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      gstEnabled?: boolean;
+      gstPercent?: number;
+      paymentType?: 'ONLINE_INSTANT' | 'CONTACT_TEAM';
+      badge?: string | null;
+      displayOrder?: number;
+      status?: string;
       highlights?: PlanHighlightItem[];
     }) => this.request('admin/plans', { method: 'POST', body: data }),
     updatePlan: (

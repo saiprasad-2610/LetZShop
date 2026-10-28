@@ -57,6 +57,12 @@ export interface AdminPlan {
   maxStorageMb: number;
   customDomainAllowed: boolean;
   isPublic: boolean;
+  gstEnabled?: boolean;
+  gstPercent?: number;
+  paymentType?: 'ONLINE_INSTANT' | 'CONTACT_TEAM';
+  badge?: string | null;
+  displayOrder?: number;
+  status?: string;
   availability: 'AVAILABLE' | 'HIDDEN' | 'COMING_SOON' | 'CONTACT';
   purchasable: boolean;
   merchantCount: number;

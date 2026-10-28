@@ -166,7 +166,7 @@ export default function StoreSearchPage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-32 sm:pb-20 space-y-6">
         {/* Breadcrumb & Title */}
         <div className="flex items-center gap-2 text-xs text-[var(--store-text-secondary)]">
           <Link href={getLink(getPublicStoreUrl(String(slug)))} className="hover:text-[var(--store-text-primary)] flex items-center gap-1">
@@ -247,7 +247,7 @@ export default function StoreSearchPage() {
             </button>
           </div>
         ) : (
-          <div className="store-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="store-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-6">
             {filteredProducts.map((p) => {
               const trans = getProductTranslation(p.translations, locale);
               const title = trans?.name?.trim() || p.name || p.title || 'Product';
@@ -267,58 +267,58 @@ export default function StoreSearchPage() {
               return (
                 <div
                   key={p.id}
-                  className="bg-[var(--store-surface)] store-surface rounded-2xl border border-[var(--store-border)] overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
+                  className="bg-[var(--store-surface)] store-surface rounded-2xl border border-[var(--store-border)] overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between group relative h-full"
                 >
                   <Link
                     href={getLink(`/store/${slug}/product/${p.id}`)}
-                    className="block relative aspect-square bg-[var(--store-surface)] store-surface overflow-hidden"
+                    className="block relative aspect-square bg-gray-50/60 dark:bg-slate-900/40 overflow-hidden p-2 flex items-center justify-center"
                   >
                     <SafeImage
                       src={coverImage}
                       alt={title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
                     />
                     {comparePaise && comparePaise > pricePaise && (
-                      <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs z-10">
                         {Math.round(((comparePaise - pricePaise) / comparePaise) * 100)}% OFF
                       </span>
                     )}
                   </Link>
 
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
                     <div>
                       {p.category?.name && (
-                        <span className="text-[11px] font-semibold text-[var(--store-text-secondary)] uppercase tracking-wide block mb-1">
+                        <span className="text-[9px] sm:text-[11px] font-semibold text-[var(--store-text-secondary)] uppercase tracking-wide block mb-0.5 truncate">
                           {p.category.name}
                         </span>
                       )}
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-700 transition line-clamp-2"
+                        className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-emerald-700 transition line-clamp-2 leading-snug min-h-[2rem] sm:min-h-[2.5rem] flex items-start break-words"
                       >
                         {title}
                       </Link>
                     </div>
 
-                    <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-mono font-bold text-sm text-[var(--store-text-primary)]">
+                    <div className="pt-2 border-t border-[var(--store-border)] flex items-center justify-between gap-1 sm:gap-2">
+                      <div className="min-w-0 pr-1">
+                        <div className="font-mono font-bold text-xs sm:text-sm text-[var(--store-text-primary)] truncate">
                           {formatPaise(pricePaise)}
                         </div>
                         {comparePaise && comparePaise > pricePaise && (
-                          <div className="text-[11px] text-[var(--store-text-secondary)] font-mono line-through">
+                          <div className="text-[10px] sm:text-[11px] text-[var(--store-text-secondary)] font-mono line-through truncate">
                             {formatPaise(comparePaise)}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1 shrink-0">
                         {/* Interactive Add to Cart Button */}
                         <button
                           data-store-button="true"
                           onClick={(e) => handleAddToCart(e, p)}
                           disabled={isAdding}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5 hover:opacity-95 ${
+                          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition shadow-xs flex items-center gap-1 shrink-0 hover:opacity-95 ${
                             isAdded
                               ? 'bg-emerald-700 text-white'
                               : 'text-white'
@@ -330,18 +330,19 @@ export default function StoreSearchPage() {
                         >
                           {isAdded ? (
                             <>
-                              <Check className="w-3.5 h-3.5 text-white" />
+                              <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
                               <span>Added</span>
                             </>
                           ) : isAdding ? (
                             <>
-                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Adding...</span>
+                              <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>...</span>
                             </>
                           ) : (
                             <>
-                              <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>{t('storefront.addToCart')}</span>
+                              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                              <span className="xs:hidden">Add</span>
                             </>
                           )}
                         </button>

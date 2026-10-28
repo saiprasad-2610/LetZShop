@@ -942,7 +942,7 @@ export default function ProductDetailPage() {
                 <h3 className="text-xs font-bold text-[var(--store-text-primary)] uppercase tracking-wider">
                   {t('storefront.description')}
                 </h3>
-                <div className="text-xs text-[var(--store-text-secondary)] leading-relaxed whitespace-pre-line">
+                <div className="text-xs text-[var(--store-text-secondary)] leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]">
                   {displayDescription}
                 </div>
               </div>

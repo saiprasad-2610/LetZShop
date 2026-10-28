@@ -178,19 +178,26 @@ export default function StoreAboutPage() {
         },
       ];
 
-  const storeAddress =
-    aboutConfig.storeAddress ??
-    themeConfig?.physicalStoreAddress ??
-    (clampCatalogText(store.businessAddress, ABOUT_TEXT_LIMITS.storeAddress) ||
-    'Heritage Arcade, MG Road, Pune, Maharashtra 411001');
+  const isSaiRamStore = (store.name || '').toLowerCase().includes('sairam') || (store.slug || '').toLowerCase().includes('sairam');
+
+  const rawAddress =
+    aboutConfig.storeAddress ||
+    themeConfig?.physicalStoreAddress ||
+    clampCatalogText(store.businessAddress, ABOUT_TEXT_LIMITS.storeAddress) || '';
+  const storeAddress = !isSaiRamStore && rawAddress.includes('Heritage Arcade') ? (store.businessAddress || '') : rawAddress;
   
   const storeHours =
-    aboutConfig.storeHours ??
-    themeConfig?.physicalStoreTimings ??
-    'Monday – Saturday: 10:30 AM to 8:30 PM (IST)';
+    aboutConfig.storeHours ||
+    themeConfig?.physicalStoreTimings || '';
 
-  const contactPhone = aboutConfig.contactPhone ?? (clampCatalogText(store.supportPhone, ABOUT_TEXT_LIMITS.contactPhone) || '+91 98220 12345');
-  const contactEmail = aboutConfig.contactEmail ?? (clampCatalogText(store.supportEmail, ABOUT_TEXT_LIMITS.contactEmail) || 'contact@sairamteacompany.com');
+  const rawPhone = aboutConfig.contactPhone || store.supportPhone || '';
+  const contactPhone = !isSaiRamStore && rawPhone.includes('98220') ? (store.supportPhone || '') : rawPhone;
+
+  const rawEmail = aboutConfig.contactEmail || store.supportEmail || '';
+  const contactEmail = !isSaiRamStore && rawEmail.toLowerCase().includes('sairam') ? (store.supportEmail || '') : rawEmail;
+
+  const rawWhatsapp = (store.whatsappNumber || store.supportPhone || contactPhone || '').replace(/[^0-9]/g, '');
+  const cleanWhatsappNumber = !isSaiRamStore && rawWhatsapp.includes('9822012345') ? '' : rawWhatsapp;
   const heroImage =
     aboutConfig.bannerUrl ||
     themeConfig?.branding?.bannerUrl ||
@@ -338,57 +345,69 @@ export default function StoreAboutPage() {
         </section>
 
         {/* 5. Physical Store / Contact Box */}
-        <section className="bg-[var(--store-surface)] store-surface rounded-3xl border border-[var(--store-border)] p-8 sm:p-10 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--store-border)] pb-6">
-            <div>
-              <span className="text-xs font-mono font-bold text-[var(--store-text-secondary)] uppercase tracking-widest block mb-1">
-                Direct Contact & Store Location
-              </span>
-              <h3 className="text-xl sm:text-2xl font-bold text-[var(--store-text-primary)]">
-                Visit Our Store or Get in Touch
-              </h3>
-            </div>
-            <a
-              href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20I%20have%20an%20inquiry%20regarding%20your%20products`}
-              target="_blank"
-              rel="noreferrer"
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-2 self-start sm:self-auto"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Chat on WhatsApp</span>
-            </a>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-xs">
-            <div className="space-y-1.5">
-              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-[var(--store-text-secondary)]" /> Store Address
-              </span>
-              <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeAddress}</p>
+        {Boolean(cleanWhatsappNumber || storeAddress || storeHours || contactPhone || contactEmail) && (
+          <section className="bg-[var(--store-surface)] store-surface rounded-3xl border border-[var(--store-border)] p-8 sm:p-10 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--store-border)] pb-6">
+              <div>
+                <span className="text-xs font-mono font-bold text-[var(--store-text-secondary)] uppercase tracking-widest block mb-1">
+                  Direct Contact & Store Location
+                </span>
+                <h3 className="text-xl sm:text-2xl font-bold text-[var(--store-text-primary)]">
+                  Visit Our Store or Get in Touch
+                </h3>
+              </div>
+              {cleanWhatsappNumber && (
+                <a
+                  href={`https://wa.me/${cleanWhatsappNumber.startsWith('91') ? cleanWhatsappNumber : `91${cleanWhatsappNumber}`}?text=Hello%20${encodeURIComponent(store.name)}%2C%20I%20have%20an%20inquiry%20regarding%20your%20products`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-2 self-start sm:self-auto"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Chat on WhatsApp</span>
+                </a>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-[var(--store-text-secondary)]" /> Operating Hours
-              </span>
-              <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeHours}</p>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+              {storeAddress && (
+                <div className="space-y-1.5">
+                  <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-[var(--store-text-secondary)]" /> Store Address
+                  </span>
+                  <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeAddress}</p>
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-[var(--store-text-secondary)]" /> Phone Support
-              </span>
-              <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactPhone}</p>
-            </div>
+              {storeHours && (
+                <div className="space-y-1.5">
+                  <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[var(--store-text-secondary)]" /> Operating Hours
+                  </span>
+                  <p className="font-medium text-[var(--store-text-primary)] leading-relaxed">{storeHours}</p>
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-[var(--store-text-secondary)]" /> Support Email
-              </span>
-              <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactEmail}</p>
+              {contactPhone && (
+                <div className="space-y-1.5">
+                  <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                    <Phone className="w-4 h-4 text-[var(--store-text-secondary)]" /> Phone Support
+                  </span>
+                  <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactPhone}</p>
+                </div>
+              )}
+
+              {contactEmail && (
+                <div className="space-y-1.5">
+                  <span className="text-[var(--store-text-secondary)] font-semibold flex items-center gap-1.5">
+                    <Mail className="w-4 h-4 text-[var(--store-text-secondary)]" /> Support Email
+                  </span>
+                  <p className="font-medium text-[var(--store-text-primary)] font-mono">{contactEmail}</p>
+                </div>
+              )}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
       <StoreFooter store={store} themeConfig={themeConfig} />

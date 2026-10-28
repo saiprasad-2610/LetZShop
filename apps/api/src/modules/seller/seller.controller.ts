@@ -32,6 +32,9 @@ import { ShiprocketShippingProvider } from '../shipping/providers/shiprocket-shi
 import { DashboardService } from './dashboard.service';
 import { ReportsService } from './reports.service';
 import { isActiveLocale, sanitizeLocale, ACTIVE_LOCALES } from '@simply/i18n';
+import { normalizeBusinessName, isValidBusinessName, isValidRazorpayKeyId } from '@simply/validation';
+import { encryptSecret, decryptSecret } from '../../common/crypto/encryption.util';
+import { verifyRazorpayCredentials } from '../payments/razorpay-verification.util';
 
 @ApiTags('Seller Dashboard & Merchant APIs')
 @ApiBearerAuth()
@@ -157,6 +160,14 @@ export class SellerController {
       throw new BadRequestException(`Invalid storefront default locale. Must be an active supported locale: ${ACTIVE_LOCALES.join(', ')}`);
     }
 
+    let normalizedName: string | undefined = undefined;
+    if (body.name !== undefined) {
+      normalizedName = normalizeBusinessName(body.name);
+      if (!isValidBusinessName(normalizedName)) {
+        throw new BadRequestException('Business name must be between 2 and 100 characters and contain valid characters.');
+      }
+    }
+
     if (body.enabledStorefrontLocales) {
       if (!Array.isArray(body.enabledStorefrontLocales) || body.enabledStorefrontLocales.length === 0) {
         throw new BadRequestException('At least one storefront language must be enabled.');
@@ -171,7 +182,7 @@ export class SellerController {
     return this.prisma.store.update({
       where: { id: tenant.storeId },
       data: {
-        ...(body.name ? { name: body.name } : {}),
+        ...(normalizedName ? { name: normalizedName } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
         ...(body.timezone ? { timezone: body.timezone } : {}),
         ...(body.supportPhone !== undefined ? { supportPhone: body.supportPhone } : {}),
@@ -824,8 +835,15 @@ export class SellerController {
     const { keyId, keySecret, isEnabled = true, codEnabled } = body;
     const keepExisting = keySecret === '__KEEP_EXISTING__';
 
-    if (!keyId || !keyId.trim()) {
+    const cleanKeyId = (keyId || '').trim();
+    if (!cleanKeyId) {
       throw new BadRequestException('Razorpay Key ID is required.');
+    }
+
+    if (!isValidRazorpayKeyId(cleanKeyId)) {
+      throw new BadRequestException(
+        'Invalid Razorpay Key ID format. Key ID must start with "rzp_test_" or "rzp_live_" followed by alphanumeric characters.'
+      );
     }
 
     let storeId: string | undefined = tenant?.storeId;
@@ -849,6 +867,28 @@ export class SellerController {
       throw new BadRequestException('Razorpay Key Secret is required for first-time setup.');
     }
 
+    // If changing Key ID but attempting to keep existing secret, require matching secret
+    if (existing && existing.keyId && cleanKeyId !== existing.keyId && keepExisting) {
+      throw new BadRequestException(
+        'When changing your Razorpay Key ID, you must also provide the matching Razorpay Key Secret.'
+      );
+    }
+
+    // Resolve the secret to verify
+    const secretToVerify = keepExisting
+      ? decryptSecret(existing?.keySecretEncrypted)
+      : (keySecret || '').trim();
+
+    if (!secretToVerify) {
+      throw new BadRequestException('Razorpay Key Secret is required.');
+    }
+
+    // Non-mutating server-to-server verification against Razorpay
+    const verification = await verifyRazorpayCredentials(cleanKeyId, secretToVerify);
+
+    // Authenticated encryption at rest (AES-256-GCM)
+    const encryptedSecret = encryptSecret(secretToVerify);
+
     const currentCapabilities = (existing?.capabilities as any) || {};
     const updatedCapabilities = codEnabled !== undefined
       ? { ...currentCapabilities, codEnabled }
@@ -859,9 +899,10 @@ export class SellerController {
       account = await this.prisma.merchantPaymentAccount.update({
         where: { id: existing.id },
         data: {
-          keyId: keyId.trim(),
-          ...(keepExisting ? {} : { keySecretEncrypted: keySecret.trim() }),
+          keyId: cleanKeyId,
+          keySecretEncrypted: encryptedSecret,
           isEnabled,
+          connectionStatus: 'CONNECTED',
           capabilities: updatedCapabilities,
         },
       });
@@ -871,9 +912,10 @@ export class SellerController {
           tenantId: tenantId || tenant.tenantId,
           storeId,
           provider: 'RAZORPAY',
-          keyId: keyId.trim(),
-          keySecretEncrypted: keySecret.trim(),
+          keyId: cleanKeyId,
+          keySecretEncrypted: encryptedSecret,
           isEnabled,
+          connectionStatus: 'CONNECTED',
           capabilities: updatedCapabilities,
         },
       });
@@ -881,11 +923,12 @@ export class SellerController {
 
     return {
       success: true,
-      message: 'Payment credentials saved successfully.',
+      message: 'Razorpay credentials verified and saved successfully.',
       keyId: account.keyId,
       isEnabled: account.isEnabled,
       codEnabled: updatedCapabilities.codEnabled !== false,
-      secretConfigured: Boolean(account.keySecretEncrypted),
+      secretConfigured: true,
+      mode: verification.mode,
     };
   }
 

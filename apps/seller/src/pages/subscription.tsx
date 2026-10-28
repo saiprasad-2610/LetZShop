@@ -45,6 +45,26 @@ export default function SubscriptionPage() {
   const [currentSub, setCurrentSub] = useState<any>(null);
   const [store, setStore] = useState<any>(null);
   const [activating, setActivating] = useState<string | null>(null);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+
+  const handleDownloadInvoice = async (invoiceId: string, invoiceNumber: string) => {
+    setDownloadingInvoiceId(invoiceId);
+    try {
+      const blob = await api.subscriptions.downloadInvoicePdf(invoiceId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Unable to download invoice PDF at this time. Please try again.');
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  };
 
   useEffect(() => {
     loadSubscriptionInfo();
@@ -115,6 +135,21 @@ export default function SubscriptionPage() {
       // Backend calculates authoritative plan amount and creates Razorpay Order
       const orderData = await api.subscriptions.createOrder(planToActivate.id, 'MONTHLY');
 
+      let prefillEmail = orderData.prefill?.email || user?.email || store?.supportEmail || '';
+      const prefillName = orderData.prefill?.name || user?.fullName || store?.name || 'Merchant';
+      const prefillContact = orderData.prefill?.contact || user?.phone || store?.supportPhone || '';
+
+      if (!prefillEmail) {
+        // Prevent Razorpay from falling back to browser/device remembered payer cookies
+        const inputEmail = window.prompt('Please confirm your merchant billing email address for payment receipt:');
+        if (!inputEmail || !inputEmail.includes('@')) {
+          alert('A valid merchant billing email is required to proceed with checkout.');
+          setActivating(null);
+          return;
+        }
+        prefillEmail = inputEmail.trim();
+      }
+
       const options = {
         key: orderData.keyId,
         amount: orderData.amountPaise,
@@ -123,9 +158,9 @@ export default function SubscriptionPage() {
         description: `Plan: ${planToActivate.name}`,
         order_id: orderData.providerOrderId,
         prefill: {
-          name: user?.fullName || '',
-          contact: user?.phone || '',
-          email: user?.email || '',
+          name: prefillName,
+          contact: prefillContact,
+          email: prefillEmail,
         },
         theme: {
           color: '#10B981',
@@ -275,9 +310,9 @@ export default function SubscriptionPage() {
           <div className={getGridClasses(plans.length)}>
             {plans.map((p: any) => {
               const isCurrent = currentSub?.planId === p.id && isLive;
-              const isComingSoon = p.availability === 'COMING_SOON' || (p.code || '').toUpperCase().includes('GROWTH');
-              const isCustom = p.availability === 'CONTACT' || p.pricePaise <= 0 || (p.code || '').toUpperCase().includes('CUSTOM');
-              const isPopular = p.code === 'STARTER_MONTHLY' && !isCurrent;
+              const isComingSoon = p.availability === 'COMING_SOON';
+              const isCustom = p.paymentType === 'CONTACT_TEAM' || p.availability === 'CONTACT' || p.pricePaise <= 0 || (p.code || '').toUpperCase().includes('CUSTOM');
+              const badgeText = p.badge || (p.code === 'STARTER_MONTHLY' && !isCurrent ? t('subscription.mostPopular') : null);
 
               return (
                 <div
@@ -285,7 +320,7 @@ export default function SubscriptionPage() {
                   className={`bg-[var(--merchant-surface)] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 shadow-xs relative h-full ${
                     isCurrent
                       ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                      : isPopular
+                      : badgeText
                         ? 'border-[var(--merchant-primary)] ring-2 ring-[var(--merchant-primary)]/20 shadow-md'
                         : 'border-[var(--merchant-border)]'
                   } ${isComingSoon ? 'opacity-90' : ''}`}
@@ -298,9 +333,9 @@ export default function SubscriptionPage() {
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                       {t('subscription.comingSoon')}
                     </span>
-                  ) : isPopular ? (
+                  ) : badgeText ? (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--merchant-primary)] text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
-                      {t('subscription.mostPopular')}
+                      {badgeText}
                     </span>
                   ) : null}
 
@@ -322,17 +357,28 @@ export default function SubscriptionPage() {
                     {isCustom ? (
                       <div className="py-2.5 px-3 rounded-lg bg-[var(--merchant-surface-muted)] border border-[var(--merchant-border)]">
                         <span className="text-xs font-semibold text-[var(--merchant-text)]">
-                          Contact Aikyam
+                          Contact Team
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-baseline gap-1 py-1">
-                        <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
-                          {formatPaise(p.pricePaise)}
-                        </span>
-                        <span className="text-xs font-medium text-[var(--merchant-text-muted)]">
-                          /{p.billingCycle?.toLowerCase() || 'monthly'}
-                        </span>
+                      <div className="space-y-1 py-1">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-[var(--merchant-text)] font-mono">
+                            {formatPaise(p.pricePaise)}
+                          </span>
+                          <span className="text-xs font-medium text-[var(--merchant-text-muted)]">
+                            /{p.billingCycle?.toLowerCase() || 'monthly'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[var(--merchant-text-muted)] font-medium">
+                          {p.gstEnabled ? (
+                            <span className="text-emerald-400/90 font-semibold">
+                              + {p.gstPercent ?? 18}% GST (Total: {formatPaise(Math.round(p.pricePaise * (1 + (p.gstPercent ?? 18) / 100)))})
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0% GST / Exempt</span>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -375,7 +421,7 @@ export default function SubscriptionPage() {
                         className="w-full py-3 rounded-xl text-xs font-bold bg-[var(--merchant-surface-raised)] hover:bg-[var(--merchant-surface-muted)] text-[var(--merchant-text)] border border-[var(--merchant-border)] shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Mail className="w-4 h-4 text-[var(--merchant-primary)]" />
-                        <span>{t('subscription.contactAikyam')}</span>
+                        <span>Contact Team</span>
                       </a>
                     ) : (
                       <button
@@ -388,7 +434,7 @@ export default function SubscriptionPage() {
                           t('subscription.activating')
                         ) : (
                           <>
-                            <span>{t('subscription.activatePlan')}</span>
+                            <span>Pay Online with Razorpay</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </>
                         )}
@@ -507,17 +553,13 @@ export default function SubscriptionPage() {
                             <td className="px-6 py-4 text-right">
                               <button
                                 type="button"
-                                disabled={!inv.invoicePdfUrl}
-                                className={`inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                                  inv.invoicePdfUrl 
-                                    ? 'text-[var(--merchant-primary)] hover:underline' 
-                                    : 'text-[var(--merchant-text-muted)] cursor-not-allowed'
-                                }`}
-                                onClick={() => inv.invoicePdfUrl && window.open(inv.invoicePdfUrl, '_blank')}
-                                title={!inv.invoicePdfUrl ? 'PDF unavailable' : 'Download PDF'}
+                                disabled={downloadingInvoiceId === inv.id}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer disabled:opacity-50"
+                                onClick={() => handleDownloadInvoice(inv.id, inv.invoiceNumber)}
+                                title="Download PDF"
                               >
-                                <Download className="w-3.5 h-3.5" />
-                                {t('subscription.downloadPdf')}
+                                <Download className={`w-3.5 h-3.5 ${downloadingInvoiceId === inv.id ? 'animate-bounce text-blue-500' : ''}`} />
+                                {downloadingInvoiceId === inv.id ? 'Downloading...' : t('subscription.downloadPdf')}
                               </button>
                             </td>
                           </tr>

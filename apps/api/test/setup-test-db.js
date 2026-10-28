@@ -2,7 +2,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 // Load root .env if present
-const rootDir = path.resolve(__dirname, '../../..');
+const rootDir = path.resolve(__dirname, '../..');
 const envPath = path.resolve(rootDir, '.env');
 if (fs.existsSync(envPath) && typeof process.loadEnvFile === 'function') {
   try {

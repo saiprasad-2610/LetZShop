@@ -233,7 +233,8 @@ export class AuthService {
       user: {
         userId: user.id,
         phone: user.phone,
-        email: user.email,
+        email: user.email || null,
+        fullName: user.fullName || null,
         role: user.role as any,
         tenantId: tenant?.id || null,
         storeId: store?.id || null,
@@ -398,7 +399,8 @@ export class AuthService {
       user: {
         userId: user.id,
         phone: user.phone,
-        email: user.email,
+        email: user.email || null,
+        fullName: user.fullName || null,
         role: user.role as any,
         tenantId: tenant?.id || null,
         storeId: store?.id || null,
@@ -827,7 +829,8 @@ export class AuthService {
     const authenticatedUser: AuthenticatedUser = {
       userId: user.id,
       phone: user.phone,
-      email: user.email,
+      email: user.email || null,
+      fullName: user.fullName || null,
       role: user.role as any,
       tenantId: tenant?.id || null,
       storeId: store?.id || null,
@@ -938,7 +941,7 @@ export class AuthService {
   }
 
   public issueTokensForUser(
-    user: { id: string; phone: string; role: any; isSuperAdmin?: boolean },
+    user: { id: string; phone: string; role: any; isSuperAdmin?: boolean; email?: string | null; fullName?: string | null },
     tenantId: string,
     storeId: string,
     sessionId?: string
@@ -960,6 +963,8 @@ export class AuthService {
       user: {
         userId: user.id,
         phone: user.phone,
+        email: user.email || null,
+        fullName: user.fullName || null,
         role: user.role as any,
         tenantId,
         storeId,
@@ -1169,7 +1174,8 @@ export class AuthService {
       user: {
         userId: user.id,
         phone: user.phone,
-        email: user.email,
+        email: user.email || null,
+        fullName: user.fullName || null,
         role: user.role as any,
         tenantId: null,
         storeId: null,

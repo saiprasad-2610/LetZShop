@@ -120,6 +120,8 @@ export default function BrandStudioPage() {
   );
   const [announcementEnabled, setAnnouncementEnabled] = useState(true);
   const [announcementFloating, setAnnouncementFloating] = useState(false);
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
+  const [footerDescError, setFooterDescError] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState<number>(40);
   const [storeNameSize, setStoreNameSize] = useState<number>(18);
@@ -214,14 +216,10 @@ export default function BrandStudioPage() {
   const [pillar3Desc, setPillar3Desc] = useState(
     'Reliable express shipping with real-time tracking and verified protective packaging.'
   );
-  const [physicalStoreAddress, setPhysicalStoreAddress] = useState(
-    'Heritage Arcade, MG Road, Pune, Maharashtra 411001'
-  );
-  const [physicalStoreTimings, setPhysicalStoreTimings] = useState(
-    'Monday – Saturday: 10:30 AM to 8:30 PM (IST)'
-  );
-  const [aboutPhone, setAboutPhone] = useState('+91 98220 12345');
-  const [aboutEmail, setAboutEmail] = useState('contact@sairamteacompany.com');
+  const [physicalStoreAddress, setPhysicalStoreAddress] = useState('');
+  const [physicalStoreTimings, setPhysicalStoreTimings] = useState('');
+  const [aboutPhone, setAboutPhone] = useState('');
+  const [aboutEmail, setAboutEmail] = useState('');
 
   // FOOTER & SOCIAL MEDIA Specific Customization
   const [footerDescription, setFooterDescription] = useState(
@@ -263,11 +261,9 @@ export default function BrandStudioPage() {
 
       if (storeRes) {
         if (!aboutPageTitle) setAboutPageTitle(clampCatalogText(`About ${storeRes.name || 'Our Boutique'}`, ABOUT_TEXT_LIMITS.pageTitle));
-        if (storeRes.supportPhone) {
-          setAboutPhone(clampCatalogText(storeRes.supportPhone, ABOUT_TEXT_LIMITS.contactPhone));
-        }
-        if (storeRes.supportEmail) setAboutEmail(clampCatalogText(storeRes.supportEmail, ABOUT_TEXT_LIMITS.contactEmail));
-        if (storeRes.businessAddress) setPhysicalStoreAddress(clampCatalogText(storeRes.businessAddress, ABOUT_TEXT_LIMITS.storeAddress));
+        setAboutPhone(clampCatalogText(storeRes.supportPhone || '', ABOUT_TEXT_LIMITS.contactPhone));
+        setAboutEmail(clampCatalogText(storeRes.supportEmail || '', ABOUT_TEXT_LIMITS.contactEmail));
+        setPhysicalStoreAddress(clampCatalogText(storeRes.businessAddress || '', ABOUT_TEXT_LIMITS.storeAddress));
         if (storeRes.socialLinks) {
           setSocialInstagram(typeof storeRes.socialLinks.instagram === 'string' ? storeRes.socialLinks.instagram : '');
           setSocialWhatsapp(typeof storeRes.socialLinks.whatsapp === 'string' ? storeRes.socialLinks.whatsapp : '');
@@ -288,6 +284,7 @@ export default function BrandStudioPage() {
       }
 
       if (configRes) {
+        const isSaiRamStore = (storeRes?.name || '').toLowerCase().includes('sairam') || (storeRes?.slug || '').toLowerCase().includes('sairam');
         const cfg = normalizeBrandText(configRes.configJson || configRes);
         loadedConfigRef.current = cfg;
         const activeThemeCode =
@@ -357,10 +354,16 @@ export default function BrandStudioPage() {
             setPillar3Title(a.values[2]?.title ?? pillar3Title);
             setPillar3Desc(a.values[2]?.desc ?? pillar3Desc);
           }
-          if (a.storeAddress !== undefined) setPhysicalStoreAddress(a.storeAddress);
+          if (a.storeAddress !== undefined) {
+            setPhysicalStoreAddress(!isSaiRamStore && (a.storeAddress || '').includes('Heritage Arcade') ? (storeRes?.businessAddress || '') : a.storeAddress);
+          }
           if (a.storeHours !== undefined) setPhysicalStoreTimings(a.storeHours);
-          if (a.contactPhone !== undefined) setAboutPhone(a.contactPhone);
-          if (a.contactEmail !== undefined) setAboutEmail(a.contactEmail);
+          if (a.contactPhone !== undefined) {
+            setAboutPhone(!isSaiRamStore && (a.contactPhone || '').includes('98220') ? (storeRes?.supportPhone || '') : a.contactPhone);
+          }
+          if (a.contactEmail !== undefined) {
+            setAboutEmail(!isSaiRamStore && (a.contactEmail || '').toLowerCase().includes('sairam') ? (storeRes?.supportEmail || '') : a.contactEmail);
+          }
           if (a.bannerUrl !== undefined) setAboutBannerUrl(a.bannerUrl);
           else if (a.imageUrl !== undefined) setAboutBannerUrl(a.imageUrl);
         } else if (cfg.storeStory) {
@@ -371,6 +374,12 @@ export default function BrandStudioPage() {
         const f = cfg.footer || cfg.pages?.footer;
         if (f) {
           if (f.description) setFooterDescription(f.description);
+          if (f.contactPhone !== undefined && !isSaiRamStore && (f.contactPhone || '').includes('98220')) {
+            // contaminated fallback filtered
+          }
+          if (f.contactEmail !== undefined && !isSaiRamStore && (f.contactEmail || '').toLowerCase().includes('sairam')) {
+            // contaminated fallback filtered
+          }
           if (f.socialLinks) {
             setSocialInstagram(typeof f.socialLinks.instagram === 'string' ? f.socialLinks.instagram : '');
             setSocialWhatsapp(typeof f.socialLinks.whatsapp === 'string' ? f.socialLinks.whatsapp : '');
@@ -826,6 +835,14 @@ export default function BrandStudioPage() {
 
   const handleSaveThemeConfig = async () => {
     if (hasInvalidColors || hasInvalidSocialLinks) return;
+    if (announcementEnabled && !announcementText.trim()) {
+      setAnnouncementError('Enter an announcement message or disable the announcement bar.');
+      return;
+    }
+    if (Array.from(footerDescription || '').length > 300) {
+      setFooterDescError('Footer brand description exceeds the 300-character limit. Please shorten it to save changes.');
+      return;
+    }
     setSaving(true);
     setSaveSuccess(false);
     try {
@@ -1064,7 +1081,10 @@ export default function BrandStudioPage() {
               role="switch"
               aria-label={t('brandStudio.topAnnouncementBar')}
               aria-checked={announcementEnabled}
-              onClick={() => setAnnouncementEnabled(!announcementEnabled)}
+              onClick={() => {
+                setAnnouncementEnabled(!announcementEnabled);
+                if (announcementError) setAnnouncementError(null);
+              }}
               className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
                 announcementEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
               }`}
@@ -1084,11 +1104,18 @@ export default function BrandStudioPage() {
             <div>
               <CatalogTextField fieldKey="announcement.text"
                   label={t('brandStudio.promotionalOfferMessage')}
-                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={setAnnouncementText}
+                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={(val) => {
+                    setAnnouncementText(val);
+                    if (announcementError) setAnnouncementError(null);
+                  }}
                   labelClassName="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5" type="text" placeholder={t('brandStudio.eGFestiveOffer20OffOnAll')}
-                  inputClassName="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  inputClassName={`w-full px-3.5 py-2.5 border rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 ${announcementError ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-300 dark:border-slate-700 focus:ring-blue-500'}`}
                 />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{t('brandStudio.visibleAtTheTopHeaderAcrossHomeProducts')}</p>
+              {announcementError ? (
+                <p className="text-xs text-rose-600 font-semibold mt-1.5">{announcementError}</p>
+              ) : (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{t('brandStudio.visibleAtTheTopHeaderAcrossHomeProducts')}</p>
+              )}
             </div>
 
             {/* Continuous Scrolling Marquee Animation Toggle */}
@@ -1318,7 +1345,7 @@ export default function BrandStudioPage() {
                       }}
                       className="font-bold block truncate transition-all dark:!text-merchant-text"
                     >
-                      {store?.name || 'SaiRam Tea Company'}
+                      {store?.name || 'Our Store'}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-merchant-text-muted font-mono uppercase tracking-wider block">{t('brandStudio.liveHeaderPreview')}</span>
                   </div>
@@ -1538,7 +1565,10 @@ export default function BrandStudioPage() {
                 type="checkbox"
                 checked={announcementEnabled}
                 aria-label={t('brandStudio.topAnnouncementBar')}
-                onChange={(e) => setAnnouncementEnabled(e.target.checked)}
+                onChange={(e) => {
+                  setAnnouncementEnabled(e.target.checked);
+                  if (announcementError) setAnnouncementError(null);
+                }}
                 className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
             </div>
@@ -1547,10 +1577,16 @@ export default function BrandStudioPage() {
                 <div>
                   <CatalogTextField fieldKey="announcement.text"
                   label={t('brandStudio.announcementMessage')}
-                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={setAnnouncementText}
+                  value={announcementText} max={BRAND_TEXT_LIMITS.subtitle} onChange={(val) => {
+                    setAnnouncementText(val);
+                    if (announcementError) setAnnouncementError(null);
+                  }}
                   labelClassName="text-[11px] font-semibold text-slate-700 block mb-1" type="text" placeholder={t('brandStudio.eGComplimentaryPanIndiaInsuredShippingOn')}
-                  inputClassName="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  inputClassName={`w-full px-3 py-2 text-xs border rounded-xl focus:outline-none focus:ring-2 ${announcementError ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-300 focus:ring-blue-500'}`}
                 />
+                {announcementError && (
+                  <p className="text-xs text-rose-600 font-semibold mt-1.5">{announcementError}</p>
+                )}
                 </div>
 
                 {/* Floating Marquee Button / Toggle */}
@@ -2222,10 +2258,37 @@ export default function BrandStudioPage() {
             <textarea
               rows={3}
               value={footerDescription}
-              onChange={(e) => setFooterDescription(e.target.value)}
+              onChange={(e) => {
+                setFooterDescription(e.target.value);
+                if (footerDescError) setFooterDescError(null);
+              }}
               placeholder={t('brandStudio.officialDigitalStorefrontOrderGenuineProductsOnlineDirectly')}
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl leading-relaxed"
+              className={`w-full px-3 py-2 text-xs border rounded-xl leading-relaxed focus:outline-none focus:ring-2 ${
+                Array.from(footerDescription || '').length > 300
+                  ? 'border-rose-400 focus:ring-rose-500'
+                  : 'border-slate-300 focus:ring-blue-500'
+              }`}
             />
+            <div className="flex items-center justify-between text-[11px] mt-1">
+              {Array.from(footerDescription || '').length > 300 ? (
+                <p className="text-rose-600 font-semibold">
+                  {footerDescError || 'Current description exceeds 300 characters. Please shorten it to save changes.'}
+                </p>
+              ) : (
+                <span className="text-slate-400">Optional (max 300 characters)</span>
+              )}
+              <p
+                className={`tabular-nums font-mono ${
+                  Array.from(footerDescription || '').length > 300
+                    ? 'text-rose-600 font-bold'
+                    : Array.from(footerDescription || '').length >= 270
+                    ? 'text-amber-600 font-medium'
+                    : 'text-slate-500'
+                }`}
+              >
+                {Array.from(footerDescription || '').length} / 300 characters
+              </p>
+            </div>
           </div>
 
           {/* Value Props & Trust Badges Strip */}

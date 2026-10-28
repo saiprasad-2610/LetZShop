@@ -22,6 +22,7 @@ import {
 } from '../../common/exceptions/domain.exceptions';
 import { PaymentStateMachine } from './state-machine/payment-state-machine';
 import { SubscriptionService } from '../subscriptions/subscription.service';
+import { decryptSecret } from '../../common/crypto/encryption.util';
 
 @Injectable()
 export class PaymentsService {
@@ -105,7 +106,7 @@ export class PaymentsService {
       currency: order.currency,
       purpose: PaymentPurpose.MERCHANT_ORDER,
       merchantKeyId: merchantAccount?.keyId,
-      merchantKeySecret: merchantAccount?.keySecretEncrypted,
+      merchantKeySecret: decryptSecret(merchantAccount?.keySecretEncrypted),
       receipt: order.orderNumber,
     });
 
@@ -178,7 +179,13 @@ export class PaymentsService {
   ): Promise<any> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      include: { stores: true },
+      include: {
+        stores: true,
+        memberships: {
+          where: { role: 'SELLER_OWNER', isActive: true },
+          include: { user: true },
+        },
+      },
     });
     if (!tenant) throw new NotFoundException('Merchant tenant not found.');
 
@@ -187,12 +194,20 @@ export class PaymentsService {
     });
     if (!plan) throw new NotFoundException('Subscription plan not found.');
 
-    if (plan.code.toUpperCase().includes('GROWTH')) {
+    if (plan.paymentType === 'CONTACT_TEAM' || plan.code.toUpperCase().includes('CUSTOM') || plan.pricePaise <= 0) {
+      throw new BadRequestException('This plan is not available for self-service purchase. Contact Team.');
+    }
+
+    if (plan.status === 'INACTIVE') {
+      throw new BadRequestException('This plan is currently inactive and cannot be purchased.');
+    }
+
+    if (!plan.paymentType && plan.code.toUpperCase().includes('GROWTH')) {
       throw new BadRequestException('The Growth plan is coming soon and cannot be purchased or activated at this time.');
     }
 
-    if (!plan.isPublic || plan.code.toUpperCase().includes('CUSTOM') || plan.pricePaise <= 0) {
-      throw new BadRequestException('This plan is not available for self-service purchase. Contact Aikyam.');
+    if (!plan.isPublic) {
+      throw new BadRequestException('This plan is not publicly available.');
     }
 
     // Check if tenant already has an active subscription for this plan (Requirement 12: already-active subscription)
@@ -227,11 +242,28 @@ export class PaymentsService {
     const storeId = tenant.stores[0]?.id || 'platform';
     const provider = this.razorpayProvider;
 
+    // Calculate authoritative amount including GST if enabled
+    let chargeAmountPaise = plan.pricePaise;
+    let taxPaise = 0;
+    if (plan.gstEnabled) {
+      const rate = typeof plan.gstPercent === 'number' && plan.gstPercent >= 0 ? plan.gstPercent : 18;
+      taxPaise = Math.round(plan.pricePaise * (rate / 100));
+      chargeAmountPaise = plan.pricePaise + taxPaise;
+    }
+
+    // Extract authoritative merchant owner identity for Razorpay prefill
+    const ownerUser = tenant.memberships?.[0]?.user;
+    const prefill = {
+      name: ownerUser?.fullName || tenant.name,
+      email: ownerUser?.email || '',
+      contact: ownerUser?.phone || '',
+    };
+
     // Call provider with purpose = PLATFORM_SUBSCRIPTION and authoritative plan amount
     const providerResult = await provider.createPaymentOrder({
       tenantId,
       storeId,
-      amountPaise: plan.pricePaise,
+      amountPaise: chargeAmountPaise,
       currency: 'INR',
       purpose: PaymentPurpose.PLATFORM_SUBSCRIPTION,
       subscriptionId: plan.id,
@@ -249,7 +281,7 @@ export class PaymentsService {
           subscriptionId: plan.id,
           provider: PaymentProviderType.RAZORPAY,
           providerOrderId: providerResult.providerOrderId,
-          amountPaise: plan.pricePaise,
+          amountPaise: chargeAmountPaise,
           currency: 'INR',
           status: PaymentStatus.PENDING,
           idempotencyKey,
@@ -273,6 +305,11 @@ export class PaymentsService {
             purpose: PaymentPurpose.PLATFORM_SUBSCRIPTION,
             planCode: plan.code,
             planName: plan.name,
+            baseAmountPaise: plan.pricePaise,
+            taxPaise,
+            gstEnabled: plan.gstEnabled,
+            gstPercent: plan.gstPercent,
+            prefill,
           };
         }
       }
@@ -288,6 +325,11 @@ export class PaymentsService {
       purpose: PaymentPurpose.PLATFORM_SUBSCRIPTION,
       planCode: plan.code,
       planName: plan.name,
+      baseAmountPaise: plan.pricePaise,
+      taxPaise,
+      gstEnabled: plan.gstEnabled,
+      gstPercent: plan.gstPercent,
+      prefill,
     };
 
     if (idempotencyKey) {
@@ -399,7 +441,7 @@ export class PaymentsService {
       const merchantAccount = await this.prisma.merchantPaymentAccount.findFirst({
         where: { storeId: paymentOrder.storeId, isEnabled: true },
       });
-      merchantSecret = merchantAccount?.keySecretEncrypted;
+      merchantSecret = decryptSecret(merchantAccount?.keySecretEncrypted);
       merchantKeyId = merchantAccount?.keyId;
     } else {
       merchantSecret = this.razorpayProvider.platformKeySecret;

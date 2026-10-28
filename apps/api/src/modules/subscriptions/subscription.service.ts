@@ -34,6 +34,21 @@ export class SubscriptionService {
 
     const planAvailability = (p: any) => {
       const codeUpper = (p.code || '').toUpperCase();
+      if (p.status === 'INACTIVE') {
+        return { purchasable: false, isComingSoon: false, availability: 'HIDDEN' };
+      }
+      if (p.paymentType === 'CONTACT_TEAM') {
+        return { purchasable: false, isComingSoon: false, availability: 'CONTACT' };
+      }
+      if (p.paymentType === 'ONLINE_INSTANT') {
+        return {
+          purchasable: Boolean(p.isPublic && p.pricePaise > 0),
+          isComingSoon: false,
+          availability: p.isPublic ? 'PURCHASABLE' : 'HIDDEN',
+        };
+      }
+
+      // Legacy fallback
       const isComingSoon = codeUpper.includes('GROWTH');
       const isContact = codeUpper.includes('CUSTOM') || p.pricePaise <= 0;
       const purchasable = Boolean(p.isPublic && !isComingSoon && !isContact);
@@ -51,17 +66,21 @@ export class SubscriptionService {
       };
     };
 
-    // Canonical sort: Numeric prices ascending, Contact/Custom placed strictly last
+    // Sort: By displayOrder ascending first, then Custom/Contact placed strictly last, then numeric prices ascending
     const sorted = [...plans].sort((a, b) => {
-      const isCustomA = (a.code || '').toUpperCase().includes('CUSTOM') || a.pricePaise <= 0;
-      const isCustomB = (b.code || '').toUpperCase().includes('CUSTOM') || b.pricePaise <= 0;
+      const orderA = typeof a.displayOrder === 'number' ? a.displayOrder : 0;
+      const orderB = typeof b.displayOrder === 'number' ? b.displayOrder : 0;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const isCustomA = (a.code || '').toUpperCase().includes('CUSTOM') || a.paymentType === 'CONTACT_TEAM' || a.pricePaise <= 0;
+      const isCustomB = (b.code || '').toUpperCase().includes('CUSTOM') || b.paymentType === 'CONTACT_TEAM' || b.pricePaise <= 0;
       if (isCustomA && !isCustomB) return 1;
       if (!isCustomA && isCustomB) return -1;
       return a.pricePaise - b.pricePaise;
     });
 
     return sorted
-      .filter((p) => p.isPublic || (p.code || '').toUpperCase().includes('CUSTOM') || (p.code || '').toUpperCase().includes('GROWTH'))
+      .filter((p) => p.status !== 'INACTIVE' && (p.isPublic || (p.code || '').toUpperCase().includes('CUSTOM') || (p.code || '').toUpperCase().includes('GROWTH')))
       .map((p) => ({
         ...p,
         // Current subscription activation and renewal use a 30-day monthly period.

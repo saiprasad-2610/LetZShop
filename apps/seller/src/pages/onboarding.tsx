@@ -17,6 +17,7 @@ import {
   isValidIndianPhone,
   isValidEmail,
   isValidBusinessName,
+  normalizeBusinessName,
 } from '@simply/validation';
 import { IndianPhoneInput } from '../components/IndianPhoneInput';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -47,10 +48,11 @@ export default function OnboardingPage() {
   const [slugSuggestion, setSlugSuggestion] = useState<{ slug: string; available: boolean } | null>(null);
   useEffect(() => {
     setSlugSuggestion(null);
-    if (!isValidBusinessName(businessName)) return;
+    const normalized = normalizeBusinessName(businessName);
+    if (!isValidBusinessName(normalized)) return;
     let current = true;
     const timer = setTimeout(() => {
-      apiClient.stores.slugAvailability(businessName.trim()).then((result: any) => {
+      apiClient.stores.slugAvailability(normalized).then((result: any) => {
         if (current) setSlugSuggestion(result);
       }).catch(() => { /* The database reserves the URL on submission. */ });
     }, 400);
@@ -161,7 +163,8 @@ export default function OnboardingPage() {
     const resolvedCity = selectedCity === OTHER_CITY_OPTION ? customCity.trim() : selectedCity.trim();
     const locationString = resolvedCity && selectedState ? `${resolvedCity}, ${selectedState}` : (resolvedCity || selectedState || undefined);
 
-    if (!isValidBusinessName(businessName)) {
+    const normalizedName = normalizeBusinessName(businessName);
+    if (!isValidBusinessName(normalizedName)) {
       setError('Business name is required and must be valid.');
       return;
     }
@@ -186,7 +189,7 @@ export default function OnboardingPage() {
 
     try {
       const res = await apiClient.stores.onboard({
-        businessName: businessName.trim(),
+        businessName: normalizedName,
         category,
         logoUrl: logoUrl.trim() || undefined,
         contactPhone: contactPhone.trim(),
@@ -328,7 +331,10 @@ export default function OnboardingPage() {
                       setBusinessName(e.target.value);
                       setBusinessNameTouched(true);
                     }}
-                    onBlur={() => setBusinessNameTouched(true)}
+                    onBlur={() => {
+                      setBusinessNameTouched(true);
+                      setBusinessName((prev) => normalizeBusinessName(prev));
+                    }}
                     placeholder="e.g. Shree Ganesh Foods, Maa's Kitchen"
                     style={inputStyle}
                     className={`block w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm placeholder:opacity-40 focus:outline-none focus:ring-2 ${
@@ -359,7 +365,11 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 disabled={!isValidBusinessName(businessName)}
-                onClick={() => saveDraft(2)}
+                onClick={() => {
+                  const norm = normalizeBusinessName(businessName);
+                  setBusinessName(norm);
+                  saveDraft(2);
+                }}
                 style={{ backgroundColor: 'var(--merchant-primary)', color: '#ffffff' }}
                 className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
               >

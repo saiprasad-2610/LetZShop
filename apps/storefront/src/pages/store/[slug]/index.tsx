@@ -264,9 +264,18 @@ export default function StoreHomePage() {
 
   const themeCode = themeConfig?.themeId || 'atelier';
   const homeConfig = themeConfig?.pages?.home || {};
-  const heroBadge = homeConfig.heroBadge;
-  const heroTitle = homeConfig.heroTitle;
-  const heroSubtitle = homeConfig.heroSubtitle;
+  const hasCustomBadge = typeof homeConfig.heroBadge === 'string';
+  const showHeroBadge = hasCustomBadge ? homeConfig.heroBadge.trim().length > 0 : true;
+  const heroBadge = showHeroBadge ? (homeConfig.heroBadge ? homeConfig.heroBadge.trim() : undefined) : undefined;
+
+  const hasCustomTitle = typeof homeConfig.heroTitle === 'string';
+  const showHeroTitle = hasCustomTitle ? homeConfig.heroTitle.trim().length > 0 : true;
+  const heroTitle = showHeroTitle ? (homeConfig.heroTitle ? homeConfig.heroTitle.trim() : undefined) : undefined;
+
+  const hasCustomSubtitle = typeof homeConfig.heroSubtitle === 'string';
+  const showHeroSubtitle = hasCustomSubtitle ? homeConfig.heroSubtitle.trim().length > 0 : true;
+  const heroSubtitle = showHeroSubtitle ? (homeConfig.heroSubtitle ? homeConfig.heroSubtitle.trim() : undefined) : undefined;
+
   const heroCtaText = homeConfig.heroCtaText;
   const heroCtaLink = homeConfig.heroCtaLink ? getLink(homeConfig.heroCtaLink) : '#products';
   const heroSecondaryCtaText = homeConfig.heroSecondaryCtaText;
@@ -315,7 +324,7 @@ export default function StoreHomePage() {
 
       <StoreHeader store={store} themeConfig={themeConfig} />
 
-      <main data-brand-page="home" className="[overflow-wrap:anywhere] space-y-8 sm:space-y-12 pb-16">
+      <main data-brand-page="home" className="[overflow-wrap:anywhere] space-y-8 sm:space-y-12 pb-32 sm:pb-20">
         <style jsx global>{`[data-brand-page="home"] [data-theme-accent] { max-width: 100%; flex-wrap: wrap; } [data-brand-page="home"] [data-theme-accent] span { min-width: 0; } [data-brand-page="home"] [data-theme-hero] a { max-width: 100%; }`}</style>
         {/* =========================================================================
             1. HERO COMPOSITION (GENUINELY DISTINCT ACROSS 6 THEMES)
@@ -326,32 +335,40 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-amber-900/40">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               <div className="lg:col-span-7 space-y-5 text-left flex flex-col justify-center">
-                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40 bg-stone-900/40">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-bold">{store.name}</span>
-                  <span className="text-amber-500/60">•</span>
-                  <span>{heroBadge ?? 'Artisanal Atelier'}</span>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs sm:text-sm font-serif tracking-[0.2em] uppercase text-amber-600/90 font-semibold">
-                    The {store.name} Maison
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1 text-[11px] font-mono tracking-[0.2em] uppercase text-amber-300 border border-amber-500/40 bg-stone-900/40">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="font-bold">{store.name}</span>
+                    <span className="text-amber-500/60">•</span>
+                    <span>{heroBadge ?? 'Artisanal Atelier'}</span>
                   </div>
-                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif tracking-tight leading-[1.1] font-theme-heading text-stone-900">
-                    {heroTitle ? (
-                      heroTitle
-                    ) : (
-                      <>
-                        Timeless Elegance & Handcrafted Luxury by <span className="text-amber-600 italic underline decoration-amber-300/60 underline-offset-4">{store.name}</span>
-                      </>
-                    )}
-                  </h1>
-                </div>
+                )}
 
-                <p className="text-sm sm:text-base max-w-xl font-light leading-relaxed opacity-90">
-                  {heroSubtitle ??
-                    'Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.'}
-                </p>
+                {(showHeroTitle || !hasCustomTitle) && (
+                  <div className="space-y-1">
+                    <div className="text-xs sm:text-sm font-serif tracking-[0.2em] uppercase text-amber-600/90 font-semibold">
+                      The {store.name} Maison
+                    </div>
+                    {showHeroTitle && (
+                      <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif tracking-tight leading-[1.1] font-theme-heading text-stone-900">
+                        {heroTitle ? (
+                          heroTitle
+                        ) : (
+                          <>
+                            Timeless Elegance & Handcrafted Luxury by <span className="text-amber-600 italic underline decoration-amber-300/60 underline-offset-4">{store.name}</span>
+                          </>
+                        )}
+                      </h1>
+                    )}
+                  </div>
+                )}
+
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base max-w-xl font-light leading-relaxed opacity-90">
+                    {heroSubtitle ??
+                      'Every creation embodies heritage craftsmanship, hand-selected materials, and immaculate proportion. Designed for collectors of fine distinction.'}
+                  </p>
+                )}
 
                 <div className="flex flex-wrap items-center gap-4 pt-4">
                   <a data-theme-tone="primary"
@@ -404,22 +421,28 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b-4 border-pink-500">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'space-y-6 text-center'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white font-black text-xs uppercase tracking-widest border-2 border-pink-500 shadow-lg">
-                  <Zap className="w-4 h-4 fill-pink-500 text-pink-500" />
-                  <span className="text-pink-400">{store.name}</span>
-                  <span>•</span>
-                  <span>{heroBadge ?? 'OFFICIAL DROP'}</span>
-                </div>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white font-black text-xs uppercase tracking-widest border-2 border-pink-500 shadow-lg">
+                    <Zap className="w-4 h-4 fill-pink-500 text-pink-500" />
+                    <span className="text-pink-400">{store.name}</span>
+                    <span>•</span>
+                    <span>{heroBadge ?? 'OFFICIAL DROP'}</span>
+                  </div>
+                )}
 
-                <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none font-theme-heading">
-                  <span className="text-pink-500 block">{store.name}</span>
-                  <span>{heroTitle ?? 'ONLINE DROP CATALOG'}</span>
-                </h1>
+                {showHeroTitle && (
+                  <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none font-theme-heading">
+                    <span className="text-pink-500 block">{store.name}</span>
+                    <span>{heroTitle ?? 'ONLINE DROP CATALOG'}</span>
+                  </h1>
+                )}
 
-                <p className="text-sm sm:text-lg text-slate-300 max-w-2xl font-medium">
-                  {heroSubtitle ??
-                    'High-octane apparel, trending accessories, and limited releases. Once sold out, they never restock.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-lg text-slate-300 max-w-2xl font-medium">
+                    {heroSubtitle ??
+                      'High-octane apparel, trending accessories, and limited releases. Once sold out, they never restock.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -479,20 +502,26 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden border-b border-amber-200 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-5'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-5' : 'space-y-5'}>
-                <span data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
-                  <span>{heroBadge ?? '🌿 Pure & Handcrafted by'}</span>
-                  <strong className="text-emerald-800 font-extrabold">{store.name}</strong>
-                </span>
+                {showHeroBadge && (
+                  <span data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs">
+                    <span>{heroBadge ?? '🌿 Pure & Handcrafted by'}</span>
+                    <strong className="text-emerald-800 font-extrabold">{store.name}</strong>
+                  </span>
+                )}
 
-                <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight font-theme-heading">
-                  <span className="block text-amber-800 font-bold mb-1 underline decoration-amber-300 decoration-wavy underline-offset-4">{store.name}</span>
-                  <span>{heroTitle ?? 'Authentic Homemade Delicacies & Fresh Daily Batches'}</span>
-                </h1>
+                {showHeroTitle && (
+                  <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight font-theme-heading">
+                    <span className="block text-amber-800 font-bold mb-1 underline decoration-amber-300 decoration-wavy underline-offset-4">{store.name}</span>
+                    <span>{heroTitle ?? 'Authentic Homemade Delicacies & Fresh Daily Batches'}</span>
+                  </h1>
+                )}
 
-                <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
-                  {heroSubtitle ??
-                    'Made using traditional recipes, pure ingredients, and zero artificial preservatives. Fresh batches prepared daily and vacuum-sealed for doorstep delivery.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
+                    {heroSubtitle ??
+                      'Made using traditional recipes, pure ingredients, and zero artificial preservatives. Fresh batches prepared daily and vacuum-sealed for doorstep delivery.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -557,24 +586,30 @@ export default function StoreHomePage() {
 
             <div className="max-w-6xl mx-auto space-y-6 relative">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                <div data-theme-accent="true" className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
-                  <span>{store.name.toUpperCase()} // {heroBadge ?? 'OEM B2B SUPPLY DIVISION'}</span>
-                </div>
+                {showHeroBadge ? (
+                  <div data-theme-accent="true" className="inline-flex items-center gap-2 text-xs text-sky-400 font-bold uppercase tracking-wider">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
+                    <span>{store.name.toUpperCase()} // {heroBadge ?? 'OEM B2B SUPPLY DIVISION'}</span>
+                  </div>
+                ) : <div />}
                 <div className="text-xs text-slate-400">
                   STANDARD: <span className="text-white font-bold">ISO 9001:2015</span> | QC: <span className="text-emerald-400 font-bold">PASS 100%</span>
                 </div>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-mono font-bold text-white tracking-tight leading-tight font-theme-heading">
-                <span className="text-sky-400 block">{store.name}</span>
-                <span>{heroTitle ?? '// PRECISION COMPONENTS & WHOLESALE'}</span>
-              </h1>
+              {showHeroTitle && (
+                <h1 className="text-3xl sm:text-5xl font-mono font-bold text-white tracking-tight leading-tight font-theme-heading">
+                  <span className="text-sky-400 block">{store.name}</span>
+                  <span>{heroTitle ?? '// PRECISION COMPONENTS & WHOLESALE'}</span>
+                </h1>
+              )}
 
-              <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
-                {heroSubtitle ??
-                  'Direct factory manufacturing, precision engineering components, and bulk industrial wholesale. Technical specifications compliant with domestic and export standards.'}
-              </p>
+              {showHeroSubtitle && (
+                <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
+                  {heroSubtitle ??
+                    'Direct factory manufacturing, precision engineering components, and bulk industrial wholesale. Technical specifications compliant with domestic and export standards.'}
+                </p>
+              )}
 
               {/* Technical Specifications Highlights Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
@@ -623,22 +658,28 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden bg-stone-100 text-stone-900 pt-6 pb-10 sm:pt-8 sm:pb-12 lg:pt-10 lg:pb-14 px-4 sm:px-6 lg:px-8 border-b border-stone-200">
             <div className={`max-w-6xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left' : 'max-w-5xl text-center space-y-6'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <span data-theme-accent="true" className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
-                  THE {store.name.toUpperCase()} STUDIO • {heroBadge ?? 'BESPOKE LIVING SPACES'}
-                </span>
+                {showHeroBadge && (
+                  <span data-theme-accent="true" className="text-xs font-serif uppercase tracking-[0.25em] text-stone-700 block font-semibold">
+                    THE {store.name.toUpperCase()} STUDIO • {heroBadge ?? 'BESPOKE LIVING SPACES'}
+                  </span>
+                )}
 
-                <h1 className="text-4xl sm:text-6xl font-serif text-stone-900 tracking-tight leading-tight font-theme-heading">
-                  <span className="italic block font-normal text-stone-600 mb-1">Intentional Living with</span>
-                  <span className="font-bold underline decoration-stone-300">{store.name}</span>
-                  {heroTitle && heroTitle !== store.name && (
-                    <span className="block text-xl sm:text-2xl font-light text-stone-600 mt-2">{heroTitle}</span>
-                  )}
-                </h1>
+                {showHeroTitle && (
+                  <h1 className="text-4xl sm:text-6xl font-serif text-stone-900 tracking-tight leading-tight font-theme-heading">
+                    <span className="italic block font-normal text-stone-600 mb-1">Intentional Living with</span>
+                    <span className="font-bold underline decoration-stone-300">{store.name}</span>
+                    {heroTitle && heroTitle !== store.name && (
+                      <span className="block text-xl sm:text-2xl font-light text-stone-600 mt-2">{heroTitle}</span>
+                    )}
+                  </h1>
+                )}
 
-                <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed font-light">
-                  {heroSubtitle ??
-                    'Handcrafted solid wood furniture, bespoke living objects, and organic textures. Curated to bring harmony, warmth, and enduring beauty into your sanctuary.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed font-light">
+                    {heroSubtitle ??
+                      'Handcrafted solid wood furniture, bespoke living objects, and organic textures. Curated to bring harmony, warmth, and enduring beauty into your sanctuary.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-3`}>
                   <a data-theme-tone="primary"
@@ -679,20 +720,26 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" data-store-inverse-hero="true" className="bg-blue-900 text-white pt-6 pb-10 sm:pt-8 sm:pb-10 px-4 sm:px-6 lg:px-8 border-b border-blue-800">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-3">
-                <div data-theme-accent="true" className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
-                  <Truck className="w-3.5 h-3.5 text-green-400" />
-                  <strong className="text-white font-bold">{store.name}</strong>
-                  <span>•</span>
-                  <span>{heroBadge ?? 'Fast Neighborhood Dispatch'}</span>
-                </div>
-                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-theme-heading">
-                  <span className="text-yellow-300 block">{store.name} Superstore</span>
-                  <span className="text-lg sm:text-2xl font-medium text-blue-100">{heroTitle ?? 'Daily Groceries & Essentials'}</span>
-                </h1>
-                <p className="text-xs sm:text-sm text-blue-200 max-w-xl">
-                  {heroSubtitle ??
-                    'Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.'}
-                </p>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className="inline-flex items-center gap-2 bg-blue-800 px-3.5 py-1 rounded text-xs font-semibold text-blue-200">
+                    <Truck className="w-3.5 h-3.5 text-green-400" />
+                    <strong className="text-white font-bold">{store.name}</strong>
+                    <span>•</span>
+                    <span>{heroBadge ?? 'Fast Neighborhood Dispatch'}</span>
+                  </div>
+                )}
+                {showHeroTitle && (
+                  <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-theme-heading">
+                    <span className="text-yellow-300 block">{store.name} Superstore</span>
+                    <span className="text-lg sm:text-2xl font-medium text-blue-100">{heroTitle ?? 'Daily Groceries & Essentials'}</span>
+                  </h1>
+                )}
+                {showHeroSubtitle && (
+                  <p className="text-xs sm:text-sm text-blue-200 max-w-xl">
+                    {heroSubtitle ??
+                      'Order daily groceries, FMCG provisions, and household essentials. Direct from your trusted local merchant at true wholesale rates.'}
+                  </p>
+                )}
                 <div className="pt-2 flex items-center gap-3">
                   <a data-theme-tone="primary"
                     data-theme-btn="true"
@@ -722,28 +769,37 @@ export default function StoreHomePage() {
                     />
                   </div>
                 )}
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20 space-y-2.5 min-w-[260px]">
-                  <div className="text-xs font-bold text-white">Need it immediately?</div>
-                  <p className="text-[11px] text-blue-200">Send your shopping list or tap below to chat directly with store staff.</p>
-                  <a
-                    href={`https://wa.me/919822012345?text=Hello%20${encodeURIComponent(store.name)}%2C%20here%20is%20my%20order%20list:`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => {
-                      if (store?.id) {
-                        logWhatsappEnquiry({
-                          storeId: store.id,
-                          customerName: 'WhatsApp Buyer',
-                          message: `WhatsApp direct list enquiry for ${store.name}`,
-                        });
-                      }
-                    }}
-                    data-theme-btn="true"
-                    className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
-                  >
-                    ⚡ Send List on WhatsApp
-                  </a>
-                </div>
+                {(() => {
+                  const isSaiRam = (store?.name || '').toLowerCase().includes('sairam') || (store?.slug || '').toLowerCase().includes('sairam');
+                  const rawWa = (store?.whatsappNumber || store?.supportPhone || '').replace(/[^0-9]/g, '');
+                  const cleanWa = !isSaiRam && rawWa.includes('9822012345') ? '' : rawWa;
+                  if (!cleanWa) return null;
+                  const waNum = cleanWa.startsWith('91') ? cleanWa : `91${cleanWa}`;
+                  return (
+                    <div className="bg-white/10 p-4 rounded-xl border border-white/20 space-y-2.5 min-w-[260px]">
+                      <div className="text-xs font-bold text-white">Need it immediately?</div>
+                      <p className="text-[11px] text-blue-200">Send your shopping list or tap below to chat directly with store staff.</p>
+                      <a
+                        href={`https://wa.me/${waNum}?text=Hello%20${encodeURIComponent(store.name)}%2C%20here%20is%20my%20order%20list:`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => {
+                          if (store?.id) {
+                            logWhatsappEnquiry({
+                              storeId: store.id,
+                              customerName: 'WhatsApp Buyer',
+                              message: `WhatsApp direct list enquiry for ${store.name}`,
+                            });
+                          }
+                        }}
+                        data-theme-btn="true"
+                        className="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition shadow"
+                      >
+                        ⚡ Send List on WhatsApp
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </section>
@@ -757,32 +813,40 @@ export default function StoreHomePage() {
             
             <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-900 border border-rose-300/80 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
-                  <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-                  <strong className="font-bold text-rose-950">{store.name}</strong>
-                  <span className="text-rose-400">•</span>
-                  <span>{heroBadge ?? 'Luminous Clean Actives'}</span>
-                </div>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-900 border border-rose-300/80 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                    <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                    <strong className="font-bold text-rose-950">{store.name}</strong>
+                    <span className="text-rose-400">•</span>
+                    <span>{heroBadge ?? 'Luminous Clean Actives'}</span>
+                  </div>
+                )}
 
-                <div className="space-y-2">
-                  <span className="text-xs font-sans tracking-[0.25em] uppercase text-rose-700 font-bold block">
-                    {store.name} Clean Apothecary
-                  </span>
-                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-slate-900 tracking-tight leading-[1.12] font-theme-heading">
-                    {heroTitle ? (
-                      heroTitle
-                    ) : (
-                      <>
-                        Radiant Skin Health & <span className="text-rose-700 italic font-normal">Pure Formulations</span> by {store.name}
-                      </>
+                {(showHeroTitle || !hasCustomTitle) && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-sans tracking-[0.25em] uppercase text-rose-700 font-bold block">
+                      {store.name} Clean Apothecary
+                    </span>
+                    {showHeroTitle && (
+                      <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-slate-900 tracking-tight leading-[1.12] font-theme-heading">
+                        {heroTitle ? (
+                          heroTitle
+                        ) : (
+                          <>
+                            Radiant Skin Health & <span className="text-rose-700 italic font-normal">Pure Formulations</span> by {store.name}
+                          </>
+                        )}
+                      </h1>
                     )}
-                  </h1>
-                </div>
+                  </div>
+                )}
 
-                <p className="text-sm sm:text-base text-slate-600 max-w-xl leading-relaxed font-light">
-                  {heroSubtitle ??
-                    'Antioxidant-dense botanical serums, barrier-restoring moisture creams, and clean cosmetic pigments. Clinically formulated for radiant everyday distinction.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-slate-600 max-w-xl leading-relaxed font-light">
+                    {heroSubtitle ??
+                      'Antioxidant-dense botanical serums, barrier-restoring moisture creams, and clean cosmetic pigments. Clinically formulated for radiant everyday distinction.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -847,25 +911,33 @@ export default function StoreHomePage() {
 
             <div className={`max-w-7xl mx-auto relative ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-4xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>{store.name.toUpperCase()} // {heroBadge ?? 'LIMITED MONOLITH RUN'}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-400 font-bold">
-                    SYSTEM STATUS: 100% ONLINE // DIRECT ARCHIVE
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-xs font-mono font-bold bg-zinc-900 text-emerald-400 border border-emerald-500/40 shadow-lg ${heroBanner ? '' : 'mx-auto'}`}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>{store.name.toUpperCase()} // {heroBadge ?? 'LIMITED MONOLITH RUN'}</span>
                   </div>
-                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black uppercase tracking-tighter text-white leading-none font-theme-heading">
-                    <span className="text-emerald-400 block tracking-normal">{store.name}</span>
-                    <span>{heroTitle ?? 'THE MONOLITH ARCHIVE'}</span>
-                  </h1>
-                </div>
+                )}
 
-                <p className="text-xs sm:text-sm text-zinc-400 max-w-xl font-mono leading-relaxed">
-                  {heroSubtitle ??
-                    'Precision engineered textiles, stealth utilitarian accessories, and architectural minimalism. Manufactured without excess, calibrated for performance.'}
-                </p>
+                {(showHeroTitle || !hasCustomTitle) && (
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-400 font-bold">
+                      SYSTEM STATUS: 100% ONLINE // DIRECT ARCHIVE
+                    </div>
+                    {showHeroTitle && (
+                      <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black uppercase tracking-tighter text-white leading-none font-theme-heading">
+                        <span className="text-emerald-400 block tracking-normal">{store.name}</span>
+                        <span>{heroTitle ?? 'THE MONOLITH ARCHIVE'}</span>
+                      </h1>
+                    )}
+                  </div>
+                )}
+
+                {showHeroSubtitle && (
+                  <p className="text-xs sm:text-sm text-zinc-400 max-w-xl font-mono leading-relaxed">
+                    {heroSubtitle ??
+                      'Precision engineered textiles, stealth utilitarian accessories, and architectural minimalism. Manufactured without excess, calibrated for performance.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -927,32 +999,40 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden bg-[#FDFBF7] text-[#431407] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-orange-200/80">
             <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-serif font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
-                  <Award className="w-3.5 h-3.5 text-amber-700" />
-                  <strong>{store.name}</strong>
-                  <span className="text-amber-400">•</span>
-                  <span>{heroBadge ?? 'Master Artisan Heritage'}</span>
-                </div>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-serif font-bold bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                    <Award className="w-3.5 h-3.5 text-amber-700" />
+                    <strong>{store.name}</strong>
+                    <span className="text-amber-400">•</span>
+                    <span>{heroBadge ?? 'Master Artisan Heritage'}</span>
+                  </div>
+                )}
 
-                <div className="space-y-2">
-                  <span className="text-xs font-serif tracking-[0.2em] uppercase text-orange-800 font-bold block">
-                    Handmade With Integrity • Est. Direct
-                  </span>
-                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#431407] tracking-tight leading-[1.14] font-theme-heading">
-                    {heroTitle ? (
-                      heroTitle
-                    ) : (
-                      <>
-                        Earth-Grown, Hand-Woven & <span className="text-orange-800 italic underline decoration-amber-400/80 decoration-wavy underline-offset-4">Heirloom Crafted</span> by {store.name}
-                      </>
+                {(showHeroTitle || !hasCustomTitle) && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-serif tracking-[0.2em] uppercase text-orange-800 font-bold block">
+                      Handmade With Integrity • Est. Direct
+                    </span>
+                    {showHeroTitle && (
+                      <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#431407] tracking-tight leading-[1.14] font-theme-heading">
+                        {heroTitle ? (
+                          heroTitle
+                        ) : (
+                          <>
+                            Earth-Grown, Hand-Woven & <span className="text-orange-800 italic underline decoration-amber-400/80 decoration-wavy underline-offset-4">Heirloom Crafted</span> by {store.name}
+                          </>
+                        )}
+                      </h1>
                     )}
-                  </h1>
-                </div>
+                  </div>
+                )}
 
-                <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed font-normal">
-                  {heroSubtitle ??
-                    'Celebrating indigenous artisanal lineages, natural sun-cured textures, and ethical craft communities. Each offering is made with patient attention and zero shortcuts.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed font-normal">
+                    {heroSubtitle ??
+                      'Celebrating indigenous artisanal lineages, natural sun-cured textures, and ethical craft communities. Each offering is made with patient attention and zero shortcuts.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -1014,20 +1094,26 @@ export default function StoreHomePage() {
           <section data-theme-hero="true" className="relative overflow-hidden bg-[#FFFBEB] text-[#451A03] pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-amber-200">
             <div className={`max-w-7xl mx-auto ${heroBanner ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center text-left' : 'max-w-3xl text-center space-y-6 mx-auto'}`}>
               <div className={heroBanner ? 'lg:col-span-7 space-y-6' : 'space-y-6'}>
-                <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
-                  <span>{heroBadge ?? '🍫 Fresh Batch Crafted Daily •'}</span>
-                  <strong>{store.name}</strong>
-                </div>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-950 border border-amber-300 shadow-xs ${heroBanner ? '' : 'mx-auto'}`}>
+                    <span>{heroBadge ?? '🍫 Fresh Batch Crafted Daily •'}</span>
+                    <strong>{store.name}</strong>
+                  </div>
+                )}
 
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#451A03] tracking-tight leading-[1.15] font-theme-heading">
-                  <span className="text-amber-800 block">{store.name}</span>
-                  <span>{heroTitle ?? 'Artisanal Confections & Fresh Delicacies'}</span>
-                </h1>
+                {showHeroTitle && (
+                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-[#451A03] tracking-tight leading-[1.15] font-theme-heading">
+                    <span className="text-amber-800 block">{store.name}</span>
+                    <span>{heroTitle ?? 'Artisanal Confections & Fresh Delicacies'}</span>
+                  </h1>
+                )}
 
-                <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed">
-                  {heroSubtitle ??
-                    'Prepared in small batches using pure ingredients, gourmet recipes, and zero artificial preservatives. Vacuum sealed and shipped fresh to your doorstep.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-stone-700 max-w-xl leading-relaxed">
+                    {heroSubtitle ??
+                      'Prepared in small batches using pure ingredients, gourmet recipes, and zero artificial preservatives. Vacuum sealed and shipped fresh to your doorstep.'}
+                  </p>
+                )}
 
                 <div className={`flex flex-wrap items-center ${heroBanner ? '' : 'justify-center'} gap-4 pt-2`}>
                   <a data-theme-tone="primary"
@@ -1085,32 +1171,35 @@ export default function StoreHomePage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10 w-full">
               <div className="max-w-2xl space-y-6">
-                {/* Legacy Shield Trust Badge */}
-                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
-                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>{heroBadge ?? 'Built from 65 years of legacy'}</span>
-                </div>
+                {showHeroBadge && (
+                  <div data-theme-accent="true" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-md text-blue-900 border border-blue-200 shadow-sm">
+                    <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>{heroBadge ?? 'Built from 65 years of legacy'}</span>
+                  </div>
+                )}
 
-                {/* Monumental Dual-Color Headline */}
-                <div className="space-y-2">
-                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black tracking-tight text-slate-900 leading-[1.08] font-theme-heading">
-                    {heroTitle ? (
-                      heroTitle
-                    ) : (
-                      <>
-                        From <span className="text-amber-600">Looms</span>
-                        <br />
-                        to <span className="text-blue-600">Labs.</span>
-                      </>
-                    )}
-                  </h1>
-                </div>
+                {showHeroTitle && (
+                  <div className="space-y-2">
+                    <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sans font-black tracking-tight text-slate-900 leading-[1.08] font-theme-heading">
+                      {heroTitle ? (
+                        heroTitle
+                      ) : (
+                        <>
+                          From <span className="text-amber-600">Looms</span>
+                          <br />
+                          to <span className="text-blue-600">Labs.</span>
+                        </>
+                      )}
+                    </h1>
+                  </div>
+                )}
 
-                {/* Subtitle */}
-                <p className="text-sm sm:text-base text-slate-700 max-w-xl font-normal leading-relaxed">
-                  {heroSubtitle ??
-                    'The same family that mastered the precision of textile manufacturing for 65 years now builds the technology infrastructure that businesses run on, oil fields depend on, and global supply chains trust.'}
-                </p>
+                {showHeroSubtitle && (
+                  <p className="text-sm sm:text-base text-slate-700 max-w-xl font-normal leading-relaxed">
+                    {heroSubtitle ??
+                      'The same family that mastered the precision of textile manufacturing for 65 years now builds the technology infrastructure that businesses run on, oil fields depend on, and global supply chains trust.'}
+                  </p>
+                )}
 
                 {/* 3 Floating Frosted Glass Pillar Cards (matching user screenshot) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
@@ -1183,30 +1272,33 @@ export default function StoreHomePage() {
             </div>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full space-y-6">
-              {/* Floating Monolith Pill */}
-              <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>{store.name.toUpperCase()} // {heroBadge ?? 'CINEMATIC PANORAMA 2026'}</span>
-              </div>
+              {showHeroBadge && (
+                <div data-theme-accent="true" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-widest uppercase bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30 shadow-lg mx-auto">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{store.name.toUpperCase()} // {heroBadge ?? 'CINEMATIC PANORAMA 2026'}</span>
+                </div>
+              )}
 
-              {/* Monumental Headline */}
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-sans font-black tracking-tight text-white uppercase leading-[1.02] font-theme-heading drop-shadow-md">
-                {heroTitle ? (
-                  heroTitle
-                ) : (
-                  <>
-                    Immersive <span className="text-amber-400 italic font-serif">Frontiers.</span>
-                    <br />
-                    Direct from {store.name}
-                  </>
-                )}
-              </h1>
+              {showHeroTitle && (
+                <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-sans font-black tracking-tight text-white uppercase leading-[1.02] font-theme-heading drop-shadow-md">
+                  {heroTitle ? (
+                    heroTitle
+                  ) : (
+                    <>
+                      Immersive <span className="text-amber-400 italic font-serif">Frontiers.</span>
+                      <br />
+                      Direct from {store.name}
+                    </>
+                  )}
+                </h1>
+              )}
 
-              {/* Subtitle */}
-              <p className="text-sm sm:text-base lg:text-lg text-slate-200 max-w-2xl mx-auto font-light leading-relaxed drop-shadow">
-                {heroSubtitle ??
-                  'Edge-to-edge visual excellence, archival material rigor, and timeless silhouettes. Experience the entire collection in full cinematic scale.'}
-              </p>
+              {showHeroSubtitle && (
+                <p className="text-sm sm:text-base lg:text-lg text-slate-200 max-w-2xl mx-auto font-light leading-relaxed drop-shadow">
+                  {heroSubtitle ??
+                    'Edge-to-edge visual excellence, archival material rigor, and timeless silhouettes. Experience the entire collection in full cinematic scale.'}
+                </p>
+              )}
 
               {/* Dual Action Buttons */}
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -1360,7 +1452,7 @@ export default function StoreHomePage() {
         {/* =========================================================================
             3. PRODUCT CARDS & GRID (GENUINELY DISTINCT THEME COMPOSITIONS)
         ========================================================================= */}
-        <section id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 scroll-mt-24">
+        <section id="products" className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-5 sm:space-y-6 scroll-mt-32 sm:scroll-mt-36">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-4">
             <div>
               <h2 className={`text-xl sm:text-2xl font-bold text-[var(--store-text-primary)] ${
@@ -1399,10 +1491,10 @@ export default function StoreHomePage() {
               </button>
             </div>
           ) : (
-            <div className={`store-product-grid grid gap-4 sm:gap-6 ${
+            <div className={`store-product-grid grid gap-2.5 sm:gap-6 ${
               themeCode === 'foundry' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
               themeCode === 'local' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
-              themeCode === 'atelier' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+              themeCode === 'atelier' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
               'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
             }`}>
               {filteredProducts.map((p: any) => {
@@ -1579,60 +1671,60 @@ export default function StoreHomePage() {
                   return (
                     <div
                       key={p.id}
-                      className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
+                      className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between group relative h-full"
                     >
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="block relative aspect-square bg-amber-50/50 overflow-hidden"
+                        className="block relative aspect-square bg-amber-50/40 overflow-hidden p-2"
                       >
                         <SafeImage
                           src={coverImage}
                           alt={title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                           fallbackTitle={title}
                         />
-                        <span className="absolute top-2 left-2 bg-emerald-700 text-white text-[10px] font-bold rounded-full px-2.5 py-0.5 shadow">
+                        <span className="absolute top-2 left-2 bg-emerald-700 text-white text-[9px] sm:text-[10px] font-bold rounded-full px-2 py-0.5 shadow-xs">
                           Fresh Batch
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
                         <div>
                           {p.category?.name && (
-                            <span className="text-[10px] font-semibold text-amber-800 uppercase block mb-1">
+                            <span className="text-[9px] sm:text-[10px] font-semibold text-amber-800 uppercase block mb-0.5 truncate">
                               {p.category.name}
                             </span>
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif font-bold text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2"
+                            className="font-serif font-bold text-xs sm:text-sm text-[var(--store-text-primary)] hover:text-emerald-800 transition line-clamp-2 leading-snug break-words min-h-[2rem] sm:min-h-[2.5rem] flex items-start"
                           >
                             {title}
                           </Link>
-                          <div className="text-[11px] text-[var(--store-text-secondary)] mt-1">
+                          <div className="text-[9px] sm:text-[10px] text-[var(--store-text-secondary)] mt-0.5 truncate">
                             Vacuum-sealed 500g pack
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-2">
-                          <div data-store-price="true" className="font-bold text-sm text-[var(--store-text-primary)] font-mono">
+                        <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-1">
+                          <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono shrink-0">
                             {formatPaise(pricePaise)}
                           </div>
 
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-[var(--store-text-primary)] font-bold text-xs shadow-sm transition flex items-center gap-1"
+                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center justify-center gap-1 shrink-0"
                           >
                             {isAdded ? (
                               <>
-                                <Check className="w-3.5 h-3.5" />
+                                <Check className="w-3 h-3" />
                                 <span>Added</span>
                               </>
                             ) : (
                               <>
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-3 h-3" />
                                 <span>{t('storefront.addToCart')}</span>
                               </>
                             )}
@@ -1697,37 +1789,48 @@ export default function StoreHomePage() {
                         </div>
 
                         {/* Dual Action: Instant RFQ on WhatsApp & Product Page */}
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
-                          <a
-                            href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20Item%3A%20${encodeURIComponent(title)}%20(SKU%3A%20PRD-${p.id.slice(0, 6).toUpperCase()})`}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => {
-                              if (store?.id) {
-                                logWhatsappEnquiry({
-                                  storeId: store.id,
-                                  productId: p.id,
-                                  customerName: 'WhatsApp Buyer',
-                                  message: `RFQ Quote enquiry for ${title}`,
-                                });
-                              }
-                            }}
-                            data-theme-btn="true"
-                            className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
-                          >
-                            <MessageSquare className="w-3 h-3" />
-                            <span>RFQ Quote</span>
-                          </a>
+                        {(() => {
+                          const isSaiRam = (store?.name || '').toLowerCase().includes('sairam') || (store?.slug || '').toLowerCase().includes('sairam');
+                          const rawWa = (store?.whatsappNumber || store?.supportPhone || '').replace(/[^0-9]/g, '');
+                          const cleanWa = !isSaiRam && rawWa.includes('9822012345') ? '' : rawWa;
+                          const waNum = cleanWa ? (cleanWa.startsWith('91') ? cleanWa : `91${cleanWa}`) : '';
 
-                          <Link
-                            href={getLink(`/store/${slug}/product/${p.id}`)}
-                            data-theme-btn="true"
-                            className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
-                          >
-                            <span>Full Spec</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </div>
+                          return (
+                            <div className={cleanWa ? "grid grid-cols-2 gap-2 pt-2 border-t border-slate-700" : "flex pt-2 border-t border-slate-700"}>
+                              {cleanWa && (
+                                <a
+                                  href={`https://wa.me/${waNum}?text=RFQ%20Inquiry%20for%20Item%3A%20${encodeURIComponent(title)}%20(SKU%3A%20PRD-${p.id.slice(0, 6).toUpperCase()})`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => {
+                                    if (store?.id) {
+                                      logWhatsappEnquiry({
+                                        storeId: store.id,
+                                        productId: p.id,
+                                        customerName: 'WhatsApp Buyer',
+                                        message: `RFQ Quote enquiry for ${title}`,
+                                      });
+                                    }
+                                  }}
+                                  data-theme-btn="true"
+                                  className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                                >
+                                  <MessageSquare className="w-3 h-3" />
+                                  <span>RFQ Quote</span>
+                                </a>
+                              )}
+
+                              <Link
+                                href={getLink(`/store/${slug}/product/${p.id}`)}
+                                data-theme-btn="true"
+                                className="w-full px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-[var(--store-text-primary)] text-[11px] font-bold text-center rounded-sm transition flex items-center justify-center gap-1"
+                              >
+                                <span>Full Spec</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </Link>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -1950,47 +2053,47 @@ export default function StoreHomePage() {
                   return (
                     <div
                       key={p.id}
-                      className="bg-[#FDFBF7] rounded-2xl border-2 border-amber-200/80 overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col group relative"
+                      className="bg-[#FDFBF7] rounded-2xl border-2 border-amber-200/80 overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between group relative h-full"
                     >
                       <Link
                         href={getLink(`/store/${slug}/product/${p.id}`)}
-                        className="block relative aspect-[4/3] bg-amber-50/50 overflow-hidden"
+                        className="block relative aspect-square bg-amber-50/40 overflow-hidden p-2"
                       >
                         <SafeImage
                           src={coverImage}
                           alt={title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                           fallbackTitle={title}
                         />
-                        <span className="absolute top-2.5 left-2.5 bg-[#431407]/90 text-amber-200 text-[10px] font-serif font-bold px-2.5 py-0.5 rounded-full shadow">
+                        <span className="absolute top-2 left-2 bg-[#431407]/90 text-amber-200 text-[9px] sm:text-[10px] font-serif font-bold px-2 py-0.5 rounded-full shadow-xs tracking-wider">
                           Artisan Weave
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
                         <div>
                           {p.category?.name && (
-                            <span className="text-[10px] font-serif font-bold text-orange-800 uppercase tracking-wider block mb-1">
+                            <span className="text-[9px] sm:text-[10px] font-serif font-bold text-orange-800 uppercase tracking-wider block mb-0.5 truncate">
                               {p.category.name}
                             </span>
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-bold text-[#431407] hover:text-orange-800 transition line-clamp-2 leading-snug"
+                            className="font-serif text-xs sm:text-sm font-bold text-[#431407] hover:text-orange-800 transition line-clamp-2 leading-snug break-words min-h-[2rem] sm:min-h-[2.5rem] flex items-start"
                           >
                             {title}
                           </Link>
                         </div>
 
-                        <div className="pt-2.5 border-t border-amber-200/60 flex items-center justify-between">
-                          <div data-store-price="true" className="font-serif text-base font-bold text-[#9A3412]">
+                        <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-1">
+                          <div data-store-price="true" className="font-serif text-xs sm:text-base font-bold text-[#9A3412] shrink-0">
                             {formatPaise(pricePaise)}
                           </div>
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-[var(--store-text-primary)] font-serif font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-[11px] sm:text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer shrink-0"
                           >
                             {isAdded ? (
                               <>
@@ -2167,47 +2270,47 @@ export default function StoreHomePage() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group relative"
+                    className="bg-white rounded-xl border border-gray-200/80 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between group relative h-full"
                   >
                     <Link
                       href={getLink(`/store/${slug}/product/${p.id}`)}
-                      className="block relative aspect-square bg-gray-100 overflow-hidden"
+                      className="block relative aspect-square bg-gray-50/50 overflow-hidden p-2"
                     >
                       <SafeImage
                         src={coverImage}
                         alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         fallbackTitle={title}
                       />
                       {comparePaise && comparePaise > pricePaise && (
-                        <span className="absolute top-2 left-2 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
+                        <span className="absolute top-2 left-2 bg-green-600 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
                           Save ₹{Math.round((comparePaise - pricePaise) / 100)}
                         </span>
                       )}
                     </Link>
 
-                    <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                    <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between space-y-2">
                       <div>
                         {p.category?.name && (
-                          <span className="text-[10px] text-gray-400 font-semibold block uppercase">
+                          <span className="text-[9px] text-gray-400 font-semibold block uppercase truncate">
                             {p.category.name}
                           </span>
                         )}
                         <Link
                           href={getLink(`/store/${slug}/product/${p.id}`)}
-                          className="font-bold text-xs text-gray-900 hover:text-blue-700 transition line-clamp-2 leading-snug"
+                          className="font-bold text-xs sm:text-sm text-gray-900 hover:text-blue-700 transition line-clamp-2 leading-snug break-words min-h-[2rem] sm:min-h-[2.5rem] flex items-start"
                         >
                           {title}
                         </Link>
                       </div>
 
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
-                        <div>
-                          <div data-store-price="true" className="font-mono font-bold text-xs text-gray-900">
+                        <div className="min-w-0">
+                          <div data-store-price="true" className="font-mono font-bold text-xs sm:text-sm text-gray-900 truncate">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
-                            <div className="text-[10px] text-gray-400 font-mono line-through">
+                            <div className="text-[9px] sm:text-[10px] text-gray-400 font-mono line-through truncate">
                               {formatPaise(comparePaise)}
                             </div>
                           )}
@@ -2215,19 +2318,20 @@ export default function StoreHomePage() {
 
                         <button
                           data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                          onClick={(e) => handleQuickAdd(e, p)}
                           disabled={isAdding}
-                          className="px-2.5 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-bold text-[11px] transition shadow-sm flex items-center gap-1"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-bold text-[10px] sm:text-xs transition shadow-xs flex items-center justify-center gap-1 shrink-0"
                         >
                           {isAdded ? (
                             <>
                               <Check className="w-3 h-3 text-green-300" />
-                              <span>Added</span>
+                              <span className="hidden xs:inline">Added</span>
                             </>
                           ) : (
                             <>
                               <Plus className="w-3 h-3" />
-                              <span>{t('storefront.addToCart')}</span>
+                              <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                              <span className="xs:hidden">Add</span>
                             </>
                           )}
                         </button>

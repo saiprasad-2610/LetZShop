@@ -203,26 +203,33 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
       )}
 
       {/* Foundry Specific Quick RFQ Button */}
-      {themeCode === 'foundry' && (
-        <a
-          href={`https://wa.me/919822012345?text=Hi%20${encodeURIComponent(store.name)}%2C%20please%20send%20catalog%20and%20quotation`}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => {
-            if (store?.id) {
-              logWhatsappEnquiry({
-                storeId: store.id,
-                customerName: 'WhatsApp Buyer',
-                message: `Catalog & quotation enquiry for ${store.name}`,
-              });
-            }
-          }}
-          data-theme-btn="true"
-          className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-800 text-white font-mono text-xs font-semibold shadow-sm transition"
-        >
-          <span>Instant RFQ</span>
-        </a>
-      )}
+      {themeCode === 'foundry' && (() => {
+        const isSaiRam = (store?.name || '').toLowerCase().includes('sairam') || (store?.slug || '').toLowerCase().includes('sairam');
+        const rawWa = (store?.whatsappNumber || store?.supportPhone || '').replace(/[^0-9]/g, '');
+        const cleanWa = !isSaiRam && rawWa.includes('9822012345') ? '' : rawWa;
+        if (!cleanWa) return null;
+        const waNum = cleanWa.startsWith('91') ? cleanWa : `91${cleanWa}`;
+        return (
+          <a
+            href={`https://wa.me/${waNum}?text=Hi%20${encodeURIComponent(store.name)}%2C%20please%20send%20catalog%20and%20quotation`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              if (store?.id) {
+                logWhatsappEnquiry({
+                  storeId: store.id,
+                  customerName: 'WhatsApp Buyer',
+                  message: `Catalog & quotation enquiry for ${store.name}`,
+                });
+              }
+            }}
+            data-theme-btn="true"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-800 text-white font-mono text-xs font-semibold shadow-sm transition"
+          >
+            <span>Instant RFQ</span>
+          </a>
+        );
+      })()}
 
       <Link data-theme-tone="primary"
         href={getQueryPath(`/store/${slug}/cart`)}
@@ -407,25 +414,32 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ store, themeConfig }) 
           >
             {t('storefront.cart')} ({itemCount})
           </Link>
-          {themeCode === 'foundry' && (
-            <a
-              href={`https://wa.me/919822012345?text=RFQ%20Inquiry%20for%20${encodeURIComponent(store.name)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                if (store?.id) {
-                  logWhatsappEnquiry({
-                    storeId: store.id,
-                    customerName: 'WhatsApp Buyer',
-                    message: `B2B RFQ quotation enquiry for ${store.name}`,
-                  });
-                }
-              }}
-              className="block text-sm font-bold text-sky-700 py-1 font-mono"
-            >
-              📞 Request B2B Quotation (WhatsApp)
-            </a>
-          )}
+          {themeCode === 'foundry' && (() => {
+            const isSaiRam = (store?.name || '').toLowerCase().includes('sairam') || (store?.slug || '').toLowerCase().includes('sairam');
+            const rawWa = (store?.whatsappNumber || store?.supportPhone || '').replace(/[^0-9]/g, '');
+            const cleanWa = !isSaiRam && rawWa.includes('9822012345') ? '' : rawWa;
+            if (!cleanWa) return null;
+            const waNum = cleanWa.startsWith('91') ? cleanWa : `91${cleanWa}`;
+            return (
+              <a
+                href={`https://wa.me/${waNum}?text=RFQ%20Inquiry%20for%20${encodeURIComponent(store.name)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  if (store?.id) {
+                    logWhatsappEnquiry({
+                      storeId: store.id,
+                      customerName: 'WhatsApp Buyer',
+                      message: `B2B RFQ quotation enquiry for ${store.name}`,
+                    });
+                  }
+                }}
+                className="block text-sm font-bold text-sky-700 py-1 font-mono"
+              >
+                📞 Request B2B Quotation (WhatsApp)
+              </a>
+            );
+          })()}
         </div>
       )}
     </header>

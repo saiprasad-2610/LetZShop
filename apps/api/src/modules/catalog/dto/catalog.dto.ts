@@ -11,10 +11,12 @@ import {
   MinLength,
   ArrayMinSize,
   ArrayMaxSize,
+  Matches,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductMode, OptionType, ProductStatus, VariantStatus } from '@simply/types';
+import { normalizeProductName } from '@simply/validation';
 
 export class CreateOptionValueDto {
   @ApiPropertyOptional({ example: 'opt-val-123' })
@@ -188,8 +190,9 @@ export class CreateProductDto {
   @ApiProperty({ example: 'Classic Linen Shirt' })
   @IsNotEmpty({ message: 'Product name is required.' })
   @IsString({ message: 'Product name must be a string.' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) => (typeof value === 'string' ? normalizeProductName(value) : value))
   @MinLength(2, { message: 'Product name must be at least 2 characters.' })
+  @Matches(/[\p{L}\p{N}]/u, { message: 'Product name must contain at least one letter or number.' })
   name: string;
 
   @ApiPropertyOptional({ example: 'classic-linen-shirt' })

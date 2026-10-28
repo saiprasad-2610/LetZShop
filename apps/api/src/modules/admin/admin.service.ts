@@ -356,6 +356,9 @@ export class AdminService {
       ownerName: owner?.fullName || 'Merchant Seller',
       ownerPhone: owner?.phone || store?.supportPhone || store?.whatsappNumber || 'Not provided',
       ownerEmail: owner?.email || store?.supportEmail || 'Not provided',
+      billingAddress: store?.businessAddress || null,
+      merchantGstin: invoice.tenant.gstin || null,
+      issuerGstin: process.env.PLATFORM_GSTIN || null,
       invoiceDate: formatDate(invoice.createdAt),
       billingPeriod: `${startStr} – ${endStr}`,
       billingPeriodShort: `${startStr} – ${endStr}`,
@@ -3486,6 +3489,13 @@ export class AdminService {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      gstEnabled?: boolean;
+      gstPercent?: number;
+      paymentType?: string;
+      badge?: string | null;
+      displayOrder?: number;
+      status?: string;
+      highlights?: Array<{ text: string; sortOrder?: number } | string>;
     },
     actorId: string,
   ) {
@@ -3523,6 +3533,12 @@ export class AdminService {
           maxStorageMb: Number(data.maxStorageMb ?? 2048),
           customDomainAllowed: Boolean(data.customDomainAllowed),
           isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : true,
+          gstEnabled: Boolean(data.gstEnabled),
+          gstPercent: typeof data.gstPercent === 'number' ? data.gstPercent : 18.0,
+          paymentType: data.paymentType === 'CONTACT_TEAM' ? 'CONTACT_TEAM' : 'ONLINE_INSTANT',
+          badge: data.badge?.trim() || null,
+          displayOrder: Number(data.displayOrder ?? 0),
+          status: data.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
         },
       });
 
@@ -3571,6 +3587,12 @@ export class AdminService {
       maxStorageMb?: number;
       customDomainAllowed?: boolean;
       isPublic?: boolean;
+      gstEnabled?: boolean;
+      gstPercent?: number;
+      paymentType?: string;
+      badge?: string | null;
+      displayOrder?: number;
+      status?: string;
       highlights?: Array<{ text: string; sortOrder?: number } | string>;
     },
     actorId: string,
@@ -3604,6 +3626,24 @@ export class AdminService {
             : {}),
           ...(data.isPublic !== undefined
             ? { isPublic: Boolean(data.isPublic) }
+            : {}),
+          ...(data.gstEnabled !== undefined
+            ? { gstEnabled: Boolean(data.gstEnabled) }
+            : {}),
+          ...(data.gstPercent !== undefined
+            ? { gstPercent: Number(data.gstPercent) }
+            : {}),
+          ...(data.paymentType !== undefined
+            ? { paymentType: data.paymentType === 'CONTACT_TEAM' ? 'CONTACT_TEAM' : 'ONLINE_INSTANT' }
+            : {}),
+          ...(data.badge !== undefined
+            ? { badge: data.badge ? data.badge.trim() : null }
+            : {}),
+          ...(data.displayOrder !== undefined
+            ? { displayOrder: Number(data.displayOrder) }
+            : {}),
+          ...(data.status !== undefined
+            ? { status: data.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE' }
             : {}),
         },
       });

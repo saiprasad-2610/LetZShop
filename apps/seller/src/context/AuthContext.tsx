@@ -184,12 +184,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStore(null);
     apiClient.setToken(null);
     apiClient.setRefreshToken(null);
-    localStorage.removeItem('simply_seller_token');
-    localStorage.removeItem('simply_seller_refresh_token');
-    localStorage.removeItem('simply_seller_user');
-    localStorage.removeItem('simply_seller_store');
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('simply_onboarding_draft');
+      try {
+        const localKeys = Object.keys(localStorage);
+        for (const k of localKeys) {
+          if (k.startsWith('simply_') || k.startsWith('rzp_')) {
+            localStorage.removeItem(k);
+          }
+        }
+        const sessionKeys = Object.keys(sessionStorage);
+        for (const k of sessionKeys) {
+          if (k.startsWith('simply_') || k.startsWith('rzp_')) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      } catch (e) {
+        localStorage.removeItem('simply_seller_token');
+        localStorage.removeItem('simply_seller_refresh_token');
+        localStorage.removeItem('simply_seller_user');
+        localStorage.removeItem('simply_seller_store');
+        sessionStorage.removeItem('simply_onboarding_draft');
+      }
     }
     router.push('/login');
   };

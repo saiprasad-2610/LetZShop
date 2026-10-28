@@ -4,7 +4,7 @@ import { publicProduct } from './public-product';
 import { normalizePublicMedia } from '../media/public-media-reference';
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient, StoreStatus } from '@prisma/client';
-import { normalizeSlug, isReservedSlug, normalizePhone } from '@simply/validation';
+import { normalizeSlug, isReservedSlug, normalizePhone, normalizeBusinessName, isValidBusinessName } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
 import { AuthenticatedUser, normalizeBrandText, normalizeThemeSocialLinks, normalizeSocialLinks } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
@@ -276,8 +276,9 @@ export class StoresService {
     user: AuthenticatedUser,
     input: OnboardMerchantDto
   ) {
-    if (!input.businessName || !input.businessName.trim()) {
-      throw new BadRequestException('Business name is required.');
+    const normalizedName = normalizeBusinessName(input.businessName);
+    if (!normalizedName || !isValidBusinessName(normalizedName)) {
+      throw new BadRequestException('Business name is required and must be between 2 and 100 characters.');
     }
 
     // Duplicate onboarding prevention: Check if user already owns an active store
@@ -306,7 +307,7 @@ export class StoresService {
       };
     }
 
-    return withUniqueStoreSlug(input.businessName, (candidateSlug) => this.prisma.$transaction(async (tx) => {
+    return withUniqueStoreSlug(normalizedName, (candidateSlug) => this.prisma.$transaction(async (tx) => {
       // Serialize duplicate setup requests for one account, while different merchants proceed independently.
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.userId} FOR UPDATE`;
       const currentMembership = await tx.tenantMembership.findFirst({
@@ -318,7 +319,7 @@ export class StoresService {
       // 1. Create Tenant
       const tenant = await tx.tenant.create({
         data: {
-          name: input.businessName,
+          name: normalizedName,
           slug: candidateSlug,
           status: 'ACTIVE' as any,
         },
@@ -338,7 +339,7 @@ export class StoresService {
       const store = await tx.store.create({
         data: {
           tenantId: tenant.id,
-          name: input.businessName,
+          name: normalizedName,
           slug: candidateSlug,
           status: StoreStatus.PRIVATE_PREVIEW,
           isPubliclyAccessible: false,
@@ -357,13 +358,13 @@ export class StoresService {
           accentColor: '#D97706',
           fontHeading: 'Inter',
           fontBody: 'Inter',
-          announcement: `Welcome to ${input.businessName}`,
+          announcement: `Welcome to ${normalizedName}`,
         },
       });
 
       // 5. Create default sections so store never looks empty
       const defaultSections = [
-        { sectionType: 'hero', title: `Welcome to ${input.businessName}`, sortOrder: 0, isEnabled: true },
+        { sectionType: 'hero', title: `Welcome to ${normalizedName}`, sortOrder: 0, isEnabled: true },
         { sectionType: 'featured_products', title: 'Featured Products', sortOrder: 1, isEnabled: true },
         { sectionType: 'categories', title: 'Shop By Category', sortOrder: 2, isEnabled: true },
         { sectionType: 'about_business', title: 'About Our Business', sortOrder: 3, isEnabled: true },
@@ -403,7 +404,7 @@ export class StoresService {
           entityType: 'Store',
           entityId: store.id,
           metadata: {
-            businessName: input.businessName,
+            businessName: normalizedName,
             category: input.category,
             slug: candidateSlug,
           },

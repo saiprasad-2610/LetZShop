@@ -4,7 +4,13 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { PrismaClient, ProductStatus, VariantStatus, ProductMode } from '@prisma/client';
 import { CreateProductDto, ProductMediaItemDto } from './dto/catalog.dto';
 import { TenantContext } from '@simply/types';
-import { normalizeSlug } from '@simply/validation';
+import {
+  normalizeSlug,
+  isValidProductName,
+  normalizeProductName,
+  isValidProductDescription,
+  PRODUCT_DESCRIPTION_MAX_CHARS,
+} from '@simply/validation';
 
 @Injectable()
 export class CatalogService {
@@ -52,6 +58,25 @@ export class CatalogService {
     dto: CreateProductDto,
     actorId?: string
   ) {
+    if (!isValidProductName(dto.name)) {
+      throw new BadRequestException('Product name must contain at least one letter or number.');
+    }
+
+    if (dto.description && !isValidProductDescription(dto.description)) {
+      throw new BadRequestException(`Product description cannot exceed ${PRODUCT_DESCRIPTION_MAX_CHARS} characters.`);
+    }
+
+    if (dto.translations && Array.isArray(dto.translations)) {
+      for (const trans of dto.translations) {
+        if (trans.name && !isValidProductName(trans.name)) {
+          throw new BadRequestException(`Product name translation (${trans.locale}) must contain at least one letter or number.`);
+        }
+        if (trans.description && !isValidProductDescription(trans.description)) {
+          throw new BadRequestException(`Product description translation (${trans.locale}) cannot exceed ${PRODUCT_DESCRIPTION_MAX_CHARS} characters.`);
+        }
+      }
+    }
+
     // Mode & Price validation
     if (dto.mode === ProductMode.SELL_ONLINE || dto.mode === ProductMode.SELL_AND_ENQUIRY) {
       const hasVariantWithPrice =
@@ -621,6 +646,27 @@ export class CatalogService {
     actorId?: string
   ) {
     const product = await this.getProductById(tenant, productId);
+
+    if (dto.name !== undefined && !isValidProductName(dto.name)) {
+      throw new BadRequestException('Product name must contain at least one letter or number.');
+    }
+
+    if (dto.description !== undefined && dto.description !== product.description) {
+      if (dto.description && !isValidProductDescription(dto.description)) {
+        throw new BadRequestException(`Product description cannot exceed ${PRODUCT_DESCRIPTION_MAX_CHARS} characters.`);
+      }
+    }
+
+    if (dto.translations && Array.isArray(dto.translations)) {
+      for (const trans of dto.translations) {
+        if (trans.name && !isValidProductName(trans.name)) {
+          throw new BadRequestException(`Product name translation (${trans.locale}) must contain at least one letter or number.`);
+        }
+        if (trans.description && !isValidProductDescription(trans.description)) {
+          throw new BadRequestException(`Product description translation (${trans.locale}) cannot exceed ${PRODUCT_DESCRIPTION_MAX_CHARS} characters.`);
+        }
+      }
+    }
 
     const hasMediaUpdate = dto.media !== undefined || dto.mediaAssetIds !== undefined;
     const mediaInputs = hasMediaUpdate ? this.extractMediaInputs(dto) : [];

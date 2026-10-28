@@ -1,6 +1,7 @@
 import { AccountEmailVerification } from '../components/AccountEmailVerification';
 import { getPublicStoreUrl } from '@simply/types';
 import { getStorefrontUrl } from '../utils/config';
+import { normalizeBusinessName, isValidRazorpayKeyId, isValidUdyamNumber, normalizeUdyamNumber } from '@simply/validation';
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
@@ -85,6 +86,7 @@ export default function SettingsPage() {
 
   const [razorpayConnected, setRazorpayConnected] = useState(false);
   const [razorpayKeyId, setRazorpayKeyId] = useState('');
+  const [initialRazorpayKeyId, setInitialRazorpayKeyId] = useState('');
   const [razorpayKeySecret, setRazorpayKeySecret] = useState('');
   const [razorpaySecretConfigured, setRazorpaySecretConfigured] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
@@ -150,7 +152,7 @@ export default function SettingsPage() {
   const [docNumbers, setDocNumbers] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (authLoading && !token) return;
+    if (authLoading || !token) return;
     loadSettings();
     loadPaymentSettings();
     loadDeliveryRates();
@@ -168,9 +170,9 @@ export default function SettingsPage() {
         setBusinessType(data.businessType as BusinessType);
       }
       setGstRegistered(Boolean(data.gstRegistered));
-      if (data.gstin) setGstin(data.gstin);
-      if (data.panNumberMasked) setPanNumber(data.panNumberMasked);
-      if (data.udyamNumber) setUdyamNumber(data.udyamNumber);
+      setGstin(data.gstin || '');
+      setPanNumber(data.panNumberMasked || '');
+      setUdyamNumber(data.udyamNumber || '');
     } catch (err: any) {
       console.error('Failed to load business verification:', err);
     } finally {
@@ -183,14 +185,34 @@ export default function SettingsPage() {
     setSavingVerificationProfile(true);
     setVerificationProfileMsg(null);
     try {
+      const trimmedUdyam = udyamNumber.trim();
+      if (trimmedUdyam) {
+        const normalizedUdyam = normalizeUdyamNumber(trimmedUdyam);
+        if (!isValidUdyamNumber(normalizedUdyam)) {
+          setVerificationProfileMsg({
+            type: 'error',
+            text: 'Enter a valid Udyam Registration Number in the format UDYAM-XX-00-0000000.',
+          });
+          setSavingVerificationProfile(false);
+          return;
+        }
+      }
+
+      const trimmedPan = panNumber.trim();
+      const panToSend = trimmedPan.includes('*') ? undefined : (trimmedPan || '');
       const updated = await api.verification.updateProfile({
         businessType,
         gstRegistered,
-        gstin: gstRegistered ? gstin.trim() : undefined,
-        panNumber: panNumber.trim() || undefined,
-        udyamNumber: udyamNumber.trim() || undefined,
+        gstin: gstRegistered ? (gstin.trim() || undefined) : undefined,
+        panNumber: panToSend,
+        udyamNumber: trimmedUdyam ? normalizeUdyamNumber(trimmedUdyam) : '',
       });
       setVerificationData(updated);
+      if (updated.businessType) setBusinessType(updated.businessType as BusinessType);
+      setGstRegistered(Boolean(updated.gstRegistered));
+      setGstin(updated.gstin || '');
+      setPanNumber(updated.panNumberMasked || '');
+      setUdyamNumber(updated.udyamNumber || '');
       setVerificationProfileMsg({
         type: 'success',
         text: 'Business verification profile updated successfully! Document requirements adjusted.',
@@ -277,9 +299,9 @@ export default function SettingsPage() {
       setStore(s);
       setBusinessName(s.name || '');
       setCategory(s.category || '');
-      setContactPhone(s.contactPhone || '');
-      setContactEmail(s.contactEmail || '');
-      setAddress(s.address || '');
+      setContactPhone(s.supportPhone || s.contactPhone || '');
+      setContactEmail(s.supportEmail || s.contactEmail || '');
+      setAddress(s.businessAddress || s.address || '');
       if (s.storefrontDefaultLocale && isActiveLocale(s.storefrontDefaultLocale)) {
         setStorefrontDefaultLocale(s.storefrontDefaultLocale as SupportedLocale);
       }
@@ -327,7 +349,9 @@ export default function SettingsPage() {
       if (data) {
         const isConn = Boolean(data.connected && data.keyId && data.keyId !== 'pending_setup');
         setRazorpayConnected(isConn);
-        setRazorpayKeyId(data.keyId === 'pending_setup' ? '' : (data.keyId || ''));
+        const loadedKey = data.keyId === 'pending_setup' ? '' : (data.keyId || '');
+        setRazorpayKeyId(loadedKey);
+        setInitialRazorpayKeyId(loadedKey);
         setRazorpaySecretConfigured(Boolean(data.secretConfigured));
         if (typeof data.codEnabled === 'boolean') {
           setCodEnabled(data.codEnabled);
@@ -362,12 +386,22 @@ export default function SettingsPage() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const normalizedName = normalizeBusinessName(businessName);
+    setBusinessName(normalizedName);
     try {
-      await api.themes.updateBranding({
-        storeName: businessName,
-      });
+      await Promise.all([
+        api.stores.updateStore({
+          name: normalizedName,
+          supportPhone: contactPhone.trim(),
+          supportEmail: contactEmail.trim(),
+          businessAddress: address.trim(),
+        }),
+        api.themes.updateBranding({
+          storeName: normalizedName,
+        }),
+      ]);
       alert('Store settings updated successfully!');
-      loadSettings();
+      await loadSettings();
     } catch (err: any) {
       alert(err.message || 'Failed to update settings');
     } finally {
@@ -424,27 +458,43 @@ export default function SettingsPage() {
     e.preventDefault();
     setPaymentSaveMsg(null);
 
-    if (!razorpayKeyId.trim()) {
+    const cleanKeyId = razorpayKeyId.trim();
+    if (!cleanKeyId) {
       setPaymentSaveMsg({ type: 'error', text: 'Razorpay Key ID is required.' });
       return;
     }
 
-    // If account is already configured, allow saving with blank secret (keep existing)
-    if (!razorpaySecretConfigured && !razorpayKeySecret.trim()) {
-      setPaymentSaveMsg({ type: 'error', text: 'Razorpay Key Secret is required for first-time setup.' });
+    if (!isValidRazorpayKeyId(cleanKeyId)) {
+      setPaymentSaveMsg({
+        type: 'error',
+        text: 'Invalid Razorpay Key ID format. Key ID must start with "rzp_test_" or "rzp_live_" followed by alphanumeric characters.',
+      });
+      return;
+    }
+
+    // If changing Key ID or first time, secret is required
+    const isChangingKeyId = Boolean(initialRazorpayKeyId && cleanKeyId !== initialRazorpayKeyId);
+    if ((!razorpaySecretConfigured || isChangingKeyId) && !razorpayKeySecret.trim()) {
+      setPaymentSaveMsg({
+        type: 'error',
+        text: isChangingKeyId
+          ? 'Please enter the Razorpay Key Secret for the new Key ID.'
+          : 'Razorpay Key Secret is required for first-time setup.',
+      });
       return;
     }
 
     setSavingPayment(true);
     try {
       await api.paymentSettings.save({
-        keyId: razorpayKeyId.trim(),
+        keyId: cleanKeyId,
         keySecret: razorpayKeySecret.trim() || '__KEEP_EXISTING__',
         isEnabled: true,
       });
-      setPaymentSaveMsg({ type: 'success', text: 'Razorpay credentials saved! Customers can now pay directly to your account.' });
+      setPaymentSaveMsg({ type: 'success', text: 'Razorpay credentials verified and saved successfully.' });
       setRazorpayConnected(true);
       setRazorpaySecretConfigured(true);
+      setInitialRazorpayKeyId(cleanKeyId);
       setRazorpayKeySecret(''); // Clear the secret field after saving
     } catch (err: any) {
       setPaymentSaveMsg({ type: 'error', text: err.message || 'Failed to save Razorpay credentials.' });
@@ -738,6 +788,7 @@ export default function SettingsPage() {
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
+                onBlur={() => setBusinessName((prev) => normalizeBusinessName(prev))}
                 className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm focus:border-[var(--merchant-primary)] focus:outline-none font-medium"
               />
             </div>
@@ -947,8 +998,17 @@ export default function SettingsPage() {
                   placeholder="e.g. UDYAM-MH-01-0012345"
                   value={udyamNumber}
                   onChange={(e) => setUdyamNumber(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 bg-[var(--merchant-input-bg)] border border-[var(--merchant-input-border)] text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:border-[var(--merchant-primary)] focus:outline-none uppercase"
+                  className={`w-full px-3 py-2 bg-[var(--merchant-input-bg)] border ${
+                    udyamNumber.trim() && !isValidUdyamNumber(udyamNumber.trim())
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-[var(--merchant-input-border)] focus:border-[var(--merchant-primary)]'
+                  } text-[var(--merchant-text)] rounded-lg text-sm font-mono focus:outline-none uppercase`}
                 />
+                {udyamNumber.trim() && !isValidUdyamNumber(udyamNumber.trim()) && (
+                  <p className="text-[11px] text-rose-500 mt-1">
+                    Enter a valid Udyam Registration Number in the format UDYAM-XX-00-0000000.
+                  </p>
+                )}
               </div>
             </div>
 

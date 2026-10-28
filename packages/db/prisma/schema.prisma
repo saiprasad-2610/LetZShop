@@ -640,6 +640,12 @@ model Plan {
   maxStorageMb        Int      @default(1024) @map("max_storage_mb")
   customDomainAllowed Boolean  @default(false) @map("custom_domain_allowed")
   isPublic            Boolean  @default(true) @map("is_public")
+  gstEnabled          Boolean  @default(false) @map("gst_enabled")
+  gstPercent          Float    @default(18.0) @map("gst_percent")
+  paymentType         String   @default("ONLINE_INSTANT") @map("payment_type")
+  badge               String?  @map("badge")
+  displayOrder        Int      @default(0) @map("display_order")
+  status              String   @default("ACTIVE") @map("status")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

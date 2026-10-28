@@ -17,6 +17,7 @@ import {
   calculateOverallVerificationStatus,
 } from '@simply/api-contracts';
 import { MailService } from '../notifications/mail.service';
+import { isValidUdyamNumber, normalizeUdyamNumber } from '@simply/validation';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -150,10 +151,15 @@ export class VerificationService {
 
     if (typeof data.gstRegistered === 'boolean') {
       updateData.gstRegistered = data.gstRegistered;
+      if (!data.gstRegistered) {
+        updateData.gstin = null;
+      }
     }
 
     if (data.gstin !== undefined) {
-      if (data.gstin && data.gstin.trim()) {
+      if (data.gstRegistered === false) {
+        updateData.gstin = null;
+      } else if (data.gstin && data.gstin.trim()) {
         const normalized = data.gstin.trim().toUpperCase();
         if (!GSTIN_REGEX.test(normalized)) {
           throw new BadRequestException('Invalid GSTIN format. Expected 15-character alphanumeric format.');
@@ -167,10 +173,19 @@ export class VerificationService {
     if (data.panNumber !== undefined) {
       if (data.panNumber && data.panNumber.trim()) {
         const normalized = data.panNumber.trim().toUpperCase();
-        if (!PAN_REGEX.test(normalized)) {
-          throw new BadRequestException('Invalid PAN format. Expected standard 10-character Indian PAN.');
+        // If client sends back masked PAN, retain current existing PAN safely
+        if (normalized.includes('*')) {
+          if (tenant.panNumber && maskPan(tenant.panNumber) === normalized) {
+            // Unchanged masked PAN: keep existing
+          } else {
+            throw new BadRequestException('Please enter the full 10-character PAN to update it.');
+          }
+        } else {
+          if (!PAN_REGEX.test(normalized)) {
+            throw new BadRequestException('Invalid PAN format. Expected standard 10-character Indian PAN.');
+          }
+          updateData.panNumber = normalized;
         }
-        updateData.panNumber = normalized;
       } else {
         updateData.panNumber = null;
       }
@@ -178,7 +193,10 @@ export class VerificationService {
 
     if (data.udyamNumber !== undefined) {
       if (data.udyamNumber && data.udyamNumber.trim()) {
-        const normalized = data.udyamNumber.trim().toUpperCase();
+        const normalized = normalizeUdyamNumber(data.udyamNumber);
+        if (!isValidUdyamNumber(normalized)) {
+          throw new BadRequestException('Enter a valid Udyam Registration Number in the format UDYAM-XX-00-0000000.');
+        }
         updateData.udyamNumber = normalized;
       } else {
         updateData.udyamNumber = null;
@@ -353,9 +371,13 @@ export class VerificationService {
             data: { panNumber: data.documentNumber.trim().toUpperCase() },
           });
         } else if (docType === 'UDYAM' && data.documentNumber) {
+          const normalized = normalizeUdyamNumber(data.documentNumber);
+          if (!isValidUdyamNumber(normalized)) {
+            throw new BadRequestException('Enter a valid Udyam Registration Number in the format UDYAM-XX-00-0000000.');
+          }
           await tx.tenant.update({
             where: { id: tenantId },
-            data: { udyamNumber: data.documentNumber.trim().toUpperCase() },
+            data: { udyamNumber: normalized },
           });
         } else if (docType === 'GST_CERTIFICATE' && data.documentNumber) {
           await tx.tenant.update({

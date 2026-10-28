@@ -98,7 +98,15 @@ export class SubscriptionController {
       });
     };
 
+    const plan = invoice.subscription?.plan;
+    const isGst = Boolean(plan?.gstEnabled);
+    const gstRate = plan?.gstPercent ?? 18;
+    const basePaise = plan?.pricePaise && plan.pricePaise <= invoice.amountPaise ? plan.pricePaise : invoice.amountPaise;
+    const taxPaise = isGst ? Math.max(0, invoice.amountPaise - basePaise) : 0;
+
     const amountInRupees = (invoice.amountPaise / 100).toFixed(2);
+    const subtotalInRupees = (basePaise / 100).toFixed(2);
+    const taxInRupees = (taxPaise / 100).toFixed(2);
     const startStr = formatDate(invoice.subscription?.currentPeriodStart);
     const endStr = formatDate(invoice.subscription?.currentPeriodEnd);
 
@@ -110,6 +118,9 @@ export class SubscriptionController {
       ownerName: owner?.fullName || 'Merchant Seller',
       ownerPhone: owner?.phone || store?.supportPhone || store?.whatsappNumber || 'Not provided',
       ownerEmail: owner?.email || store?.supportEmail || 'Not provided',
+      billingAddress: store?.businessAddress || null,
+      merchantGstin: invoice.tenant.gstin || null,
+      issuerGstin: process.env.PLATFORM_GSTIN || null,
       invoiceDate: formatDate(invoice.createdAt),
       billingPeriod: `${startStr} – ${endStr}`,
       billingPeriodShort: `${startStr} – ${endStr}`,
@@ -120,6 +131,9 @@ export class SubscriptionController {
       paymentStatus: payment?.status || invoice.status,
       planName: invoice.subscription?.plan?.name || 'Launch',
       formattedAmount: `INR ${amountInRupees}`,
+      subtotalFormatted: `INR ${subtotalInRupees}`,
+      taxFormatted: isGst ? `INR ${taxInRupees}` : 'INR 0.00',
+      taxNote: isGst ? `(Includes GST @ ${gstRate}%)` : '(No tax charged / Exempt)',
     });
 
     res.header('Content-Type', 'application/pdf');
@@ -181,7 +195,10 @@ export class SubscriptionController {
   ) {
     const plan = await this.prisma.plan.findUnique({ where: { id: body.planId } });
     if (!plan) throw new NotFoundException('Subscription plan not found.');
-    if (plan.code.toUpperCase().includes('GROWTH')) {
+    if (plan.paymentType === 'CONTACT_TEAM') {
+      throw new BadRequestException('This plan requires contacting our team for manual onboarding and activation.');
+    }
+    if (!plan.paymentType && plan.code.toUpperCase().includes('GROWTH')) {
       throw new BadRequestException('The Growth plan is coming soon and cannot be activated at this time.');
     }
 
@@ -226,7 +243,10 @@ export class SubscriptionController {
 
     const plan = await this.prisma.plan.findUnique({ where: { id: body.planId } });
     if (!plan) throw new NotFoundException('Subscription plan not found.');
-    if (plan.code.toUpperCase().includes('GROWTH')) {
+    if (plan.paymentType === 'CONTACT_TEAM') {
+      throw new BadRequestException('This plan requires contacting our team for manual onboarding and activation.');
+    }
+    if (!plan.paymentType && plan.code.toUpperCase().includes('GROWTH')) {
       throw new BadRequestException('The Growth plan is coming soon and cannot be activated at this time.');
     }
 

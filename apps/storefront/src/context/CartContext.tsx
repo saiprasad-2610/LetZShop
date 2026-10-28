@@ -555,8 +555,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Check merchant-created custom coupons
           if (!couponDef && typeof window !== 'undefined') {
             try {
-              const customKey = storeId ? `simply_coupons_${storeId}` : 'simply_custom_coupons';
-              const savedCustom = localStorage.getItem('simply_custom_coupons') || localStorage.getItem(customKey);
+              const customKey = storeId ? `simply_coupons_${storeId}` : null;
+              const savedCustom = customKey ? localStorage.getItem(customKey) : null;
               if (savedCustom) {
                 const list = JSON.parse(savedCustom);
                 const found = list.find((c: any) => c.code === normalizedCode && c.isActive);
