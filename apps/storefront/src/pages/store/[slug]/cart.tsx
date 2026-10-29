@@ -377,29 +377,29 @@ export default function StoreCartPage() {
                               </p>
                             )}
                             <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-bold font-mono text-[var(--store-text-primary)]">
+                              <span className="text-sm font-bold font-mono text-[var(--store-text-primary)] whitespace-nowrap">
                                 {formatPaise(variant.pricePaise || 0)}
                               </span>
                               {hasCompare && (
-                                <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through">
+                                <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through whitespace-nowrap">
                                   {formatPaise(variant.compareAtPricePaise)}
                                 </span>
                               )}
                               {hasCompare && (
-                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded whitespace-nowrap">
                                   {Math.round(((variant.compareAtPricePaise - variant.pricePaise) / variant.compareAtPricePaise) * 100)}% OFF
                                 </span>
                               )}
                             </div>
                             {variant.sku && (
-                              <p className="text-[10px] text-[var(--store-text-secondary)] font-mono">SKU: {variant.sku}</p>
+                              <p className="text-[10px] text-[var(--store-text-secondary)] font-mono truncate">SKU: {variant.sku}</p>
                             )}
                           </div>
                         </div>
 
                         {/* Quantity Controls & Actions */}
                         <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
-                          <div className="flex items-center border border-[var(--store-border)] rounded-xl bg-[var(--store-surface)] store-surface overflow-hidden shadow-sm">
+                          <div className="flex items-center border border-[var(--store-border)] rounded-xl bg-[var(--store-surface)] store-surface overflow-hidden shadow-sm shrink-0">
                             <button
                               type="button"
                               onClick={() => handleQuantityChange(targetVariantId, item.quantity - 1, productTitle)}
@@ -421,8 +421,8 @@ export default function StoreCartPage() {
                             </button>
                           </div>
 
-                          <div className="text-right space-y-1">
-                            <span className="font-mono font-bold text-base text-[var(--store-text-primary)] block">
+                          <div className="text-right space-y-1 shrink-0">
+                            <span className="font-mono font-bold text-base text-[var(--store-text-primary)] block whitespace-nowrap">
                               {formatPaise(lineTotal)}
                             </span>
                             <button

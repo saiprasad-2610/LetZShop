@@ -1553,46 +1553,48 @@ export default function StoreHomePage() {
                           </Link>
                         </div>
 
-                        <div className="pt-3 border-t border-stone-200 flex items-center justify-between">
-                          <div>
-                            <div data-store-price="true" className="font-serif text-base font-semibold text-[var(--store-text-primary)]">
+                        <div className="pt-2 sm:pt-3 border-t border-stone-200 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-serif text-xs sm:text-base font-semibold text-[var(--store-text-primary)] whitespace-nowrap truncate">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && (
-                              <div className="text-[11px] text-[var(--store-text-secondary)] font-mono line-through">
+                              <div className="text-[10px] sm:text-[11px] text-[var(--store-text-secondary)] font-mono line-through whitespace-nowrap truncate">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                             <button
                               data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3 py-1.5 rounded-none bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-amber-200 text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1"
+                              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-none bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-amber-200 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition shadow-sm flex items-center gap-1 shrink-0"
                               title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
-                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Added</span>
+                                  <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400" />
+                                  <span className="hidden xs:inline">Added</span>
+                                  <span className="xs:hidden">Added</span>
                                 </>
                               ) : isAdding ? (
-                                <span>Adding...</span>
+                                <span>...</span>
                               ) : (
                                 <>
-                                  <Plus className="w-3.5 h-3.5" />
-                                  <span>{t('storefront.addToCart')}</span>
+                                  <Plus className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                                  <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                  <span className="xs:hidden">Add</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-semibold text-[var(--store-text-primary)] hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1"
+                              className="text-xs font-semibold text-[var(--store-text-primary)] hover:text-amber-700 flex items-center gap-1 uppercase tracking-wider p-1 shrink-0"
                               title="View full piece"
                             >
-                              <ArrowRight className="w-3.5 h-3.5" />
+                              <ArrowRight className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
                             </Link>
                           </div>
                         </div>
@@ -1631,12 +1633,12 @@ export default function StoreHomePage() {
                           >
                             {title}
                           </Link>
-                          <div className="flex items-baseline gap-2 mt-1">
-                            <span data-store-price="true" className="font-black text-base text-pink-400 font-mono">
+                          <div className="flex items-baseline gap-2 mt-1 min-w-0">
+                            <span data-store-price="true" className="font-black text-sm sm:text-base text-pink-400 font-mono whitespace-nowrap truncate">
                               {formatPaise(pricePaise)}
                             </span>
                             {comparePaise && (
-                              <span className="text-xs text-[var(--store-text-secondary)] font-mono line-through">
+                              <span className="text-[10px] sm:text-xs text-[var(--store-text-secondary)] font-mono line-through whitespace-nowrap truncate">
                                 {formatPaise(comparePaise)}
                               </span>
                             )}
@@ -1657,7 +1659,8 @@ export default function StoreHomePage() {
                           ) : (
                             <>
                               <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>{isAdding ? t('common.loading') : t('storefront.addToCart')}</span>
+                              <span className="hidden xs:inline">{isAdding ? t('common.loading') : t('storefront.addToCart')}</span>
+                              <span className="xs:hidden">{isAdding ? '...' : 'ADD'}</span>
                             </>
                           )}
                         </button>
@@ -1707,8 +1710,10 @@ export default function StoreHomePage() {
                         </div>
 
                         <div className="pt-2 border-t border-amber-100 flex items-center justify-between gap-1">
-                          <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono shrink-0">
-                            {formatPaise(pricePaise)}
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-bold text-xs sm:text-sm text-[var(--store-text-primary)] font-mono whitespace-nowrap truncate">
+                              {formatPaise(pricePaise)}
+                            </div>
                           </div>
 
                           <button
@@ -1725,7 +1730,8 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3 h-3" />
-                                <span>{t('storefront.addToCart')}</span>
+                                <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -1871,35 +1877,39 @@ export default function StoreHomePage() {
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                          <div data-store-price="true" className="font-serif text-sm font-bold text-[var(--store-text-primary)]">
-                            {formatPaise(pricePaise)}
+                        <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-serif text-xs sm:text-sm font-bold text-[var(--store-text-primary)] whitespace-nowrap truncate">
+                              {formatPaise(pricePaise)}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                             <button
                               data-store-button="true"
                               onClick={(e) => handleQuickAdd(e, p)}
                               disabled={isAdding}
-                              className="px-3.5 py-1.5 rounded-lg bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-[var(--store-text-primary)] font-medium text-xs shadow-sm transition flex items-center gap-1"
+                              className="px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-[var(--store-text-primary)] font-medium text-[10px] sm:text-xs shadow-sm transition flex items-center gap-1 shrink-0"
                               title={t('storefront.addToCart')}
                             >
                               {isAdded ? (
                                 <>
                                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Added</span>
+                                  <span className="hidden xs:inline">Added</span>
+                                  <span className="xs:hidden">Added</span>
                                 </>
                               ) : isAdding ? (
-                                <span>Adding...</span>
+                                <span>...</span>
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>{t('storefront.addToCart')}</span>
+                                  <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                  <span className="xs:hidden">Add</span>
                                 </>
                               )}
                             </button>
                             <Link
                               href={getLink(`/store/${slug}/product/${p.id}`)}
-                              className="text-xs font-serif uppercase tracking-wider text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)]"
+                              className="text-xs font-serif uppercase tracking-wider text-[var(--store-text-secondary)] hover:text-[var(--store-text-primary)] shrink-0"
                               title="View piece details"
                             >
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -1933,7 +1943,7 @@ export default function StoreHomePage() {
                         </span>
                       </Link>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-gradient-to-b from-white to-rose-50/20">
+                      <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-gradient-to-b from-white to-rose-50/20">
                         <div>
                           {p.category?.name && (
                             <span className="text-[10px] font-sans font-bold text-rose-700 uppercase tracking-widest block mb-1">
@@ -1942,19 +1952,19 @@ export default function StoreHomePage() {
                           )}
                           <Link
                             href={getLink(`/store/${slug}/product/${p.id}`)}
-                            className="font-serif text-sm font-semibold text-[var(--store-text-primary)] hover:text-rose-800 transition line-clamp-2 leading-snug"
+                            className="font-serif text-xs sm:text-sm font-semibold text-[var(--store-text-primary)] hover:text-rose-800 transition line-clamp-2 leading-snug"
                           >
                             {title}
                           </Link>
                         </div>
 
-                        <div className="pt-2.5 border-t border-rose-100 flex items-center justify-between">
-                          <div>
-                            <div data-store-price="true" className="font-serif text-base font-bold text-rose-950">
+                        <div className="pt-2 sm:pt-2.5 border-t border-rose-100 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-serif text-xs sm:text-base font-bold text-rose-950 whitespace-nowrap truncate">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through whitespace-nowrap truncate">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -1962,19 +1972,21 @@ export default function StoreHomePage() {
 
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3.5 py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-rose-900 hover:bg-rose-800 text-white font-sans font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0"
                           >
                             {isAdded ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-rose-300" />
-                                <span>Added</span>
+                                <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-rose-300" />
+                                <span className="hidden xs:inline">Added</span>
+                                <span className="xs:hidden">Added</span>
                               </>
                             ) : (
                               <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>{t('storefront.addToCart')}</span>
+                                <Plus className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                                <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -2020,25 +2032,29 @@ export default function StoreHomePage() {
                           </Link>
                         </div>
 
-                        <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-                          <div data-store-price="true" className="font-mono text-sm font-bold text-emerald-400">
-                            {formatPaise(pricePaise)}
+                        <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-mono text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap truncate">
+                              {formatPaise(pricePaise)}
+                            </div>
                           </div>
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-3 py-1.5 rounded-sm bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-black font-mono font-black text-xs transition flex items-center gap-1 cursor-pointer"
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-sm bg-[var(--store-surface)] hover:bg-[var(--store-surface)] text-black font-mono font-black text-[10px] sm:text-xs transition flex items-center gap-1 cursor-pointer shrink-0"
                           >
                             {isAdded ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-black" />
-                                <span>ADDED</span>
+                                <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-black" />
+                                <span className="hidden xs:inline">ADDED</span>
+                                <span className="xs:hidden">ADDED</span>
                               </>
                             ) : (
                               <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>{t('storefront.addToCart')}</span>
+                                <Plus className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                                <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -2086,14 +2102,16 @@ export default function StoreHomePage() {
                         </div>
 
                         <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-1">
-                          <div data-store-price="true" className="font-serif text-xs sm:text-base font-bold text-[#9A3412] shrink-0">
-                            {formatPaise(pricePaise)}
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-serif text-xs sm:text-base font-bold text-[#9A3412] whitespace-nowrap truncate">
+                              {formatPaise(pricePaise)}
+                            </div>
                           </div>
                           <button
                             data-store-button="true"
                             onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-[11px] sm:text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                            className="px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-[#9A3412] hover:bg-[#7C2D12] text-white font-serif font-bold text-[10px] sm:text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer shrink-0"
                           >
                             {isAdded ? (
                               <>
@@ -2103,7 +2121,8 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Select</span>
+                                <span className="hidden xs:inline">Select</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -2156,13 +2175,13 @@ export default function StoreHomePage() {
                           </Link>
                         </div>
 
-                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                          <div>
-                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
+                        <div className="pt-2 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-sans text-xs sm:text-base font-bold text-[var(--store-text-primary)] whitespace-nowrap truncate">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through">
+                              <div className="text-[10px] text-[var(--store-text-secondary)] line-through whitespace-nowrap truncate">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -2170,9 +2189,9 @@ export default function StoreHomePage() {
 
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-sans font-bold text-[10px] sm:text-xs shadow-xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2182,7 +2201,8 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>{t('storefront.addToCart')}</span>
+                                <span className="hidden xs:inline">{t('storefront.addToCart')}</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -2230,13 +2250,13 @@ export default function StoreHomePage() {
                           </Link>
                         </div>
 
-                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                          <div>
-                            <div data-store-price="true" className="font-sans text-base sm:text-lg font-bold text-[var(--store-text-primary)]">
+                        <div className="pt-2 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                          <div className="min-w-0 pr-1">
+                            <div data-store-price="true" className="font-sans text-xs sm:text-base font-bold text-[var(--store-text-primary)] whitespace-nowrap truncate">
                               {formatPaise(pricePaise)}
                             </div>
                             {comparePaise && comparePaise > pricePaise && (
-                              <div className="text-[11px] text-[var(--store-text-secondary)] line-through">
+                              <div className="text-[11px] text-[var(--store-text-secondary)] line-through whitespace-nowrap truncate">
                                 {formatPaise(comparePaise)}
                               </div>
                             )}
@@ -2244,9 +2264,9 @@ export default function StoreHomePage() {
 
                           <button
                             data-store-button="true"
-                              onClick={(e) => handleQuickAdd(e, p)}
+                            onClick={(e) => handleQuickAdd(e, p)}
                             disabled={isAdding}
-                            className="px-4 py-2 rounded-xl bg-[var(--store-surface)] hover:bg-amber-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-sans font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-xl bg-[var(--store-surface)] hover:bg-amber-500 hover:text-[var(--store-text-primary)] text-[var(--store-text-primary)] font-sans font-bold text-[10px] sm:text-xs shadow-xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
                           >
                             {isAdded ? (
                               <>
@@ -2256,7 +2276,8 @@ export default function StoreHomePage() {
                             ) : (
                               <>
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Select</span>
+                                <span className="hidden xs:inline">Select</span>
+                                <span className="xs:hidden">Add</span>
                               </>
                             )}
                           </button>
@@ -2305,12 +2326,12 @@ export default function StoreHomePage() {
                       </div>
 
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
-                        <div className="min-w-0">
-                          <div data-store-price="true" className="font-mono font-bold text-xs sm:text-sm text-gray-900 truncate">
+                        <div className="min-w-0 pr-1">
+                          <div data-store-price="true" className="font-mono font-bold text-xs sm:text-sm text-gray-900 whitespace-nowrap truncate">
                             {formatPaise(pricePaise)}
                           </div>
                           {comparePaise && (
-                            <div className="text-[9px] sm:text-[10px] text-gray-400 font-mono line-through truncate">
+                            <div className="text-[9px] sm:text-[10px] text-gray-400 font-mono line-through whitespace-nowrap truncate">
                               {formatPaise(comparePaise)}
                             </div>
                           )}
@@ -2326,6 +2347,7 @@ export default function StoreHomePage() {
                             <>
                               <Check className="w-3 h-3 text-green-300" />
                               <span className="hidden xs:inline">Added</span>
+                              <span className="xs:hidden">Added</span>
                             </>
                           ) : (
                             <>
