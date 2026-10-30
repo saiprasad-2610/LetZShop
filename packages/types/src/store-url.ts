@@ -23,28 +23,33 @@ export interface StoreUrlOptions {
 export function getPublicStoreUrl(
   store: StoreUrlTarget | string,
   origin: string = '',
-  options: StoreUrlOptions = {},
+  options?: StoreUrlOptions | string | null,
 ): string {
+  const safeOptions: StoreUrlOptions =
+    typeof options === 'string'
+      ? { customDomain: options }
+      : options || {};
+
   const slug = typeof store === 'string' ? store : store.slug;
   const subdomain =
     typeof store === 'string'
-      ? options.subdomain || store
-      : store.subdomain || options.subdomain;
+      ? safeOptions.subdomain || store
+      : store.subdomain || safeOptions.subdomain;
   const customDomain =
     typeof store === 'string'
-      ? options.customDomain
-      : store.customDomain || options.customDomain;
-  const pagePath = options.page ? `/${options.page.replace(/^\/+/, '')}` : '';
+      ? safeOptions.customDomain
+      : store.customDomain || safeOptions.customDomain;
+  const pagePath = safeOptions.page ? `/${safeOptions.page.replace(/^\/+/, '')}` : '';
 
   // 1. Priority 1: Verified Custom Domain
   if (customDomain && customDomain.trim()) {
     const cleanDomain = customDomain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
     const url = `https://${cleanDomain}${pagePath}`;
-    return appendQueryParameters(url, options);
+    return appendQueryParameters(url, safeOptions);
   }
 
   // 2. Priority 2: Subdomain routing (preferred by default unless explicitly disabled)
-  const shouldPreferSubdomain = options.preferSubdomain !== false;
+  const shouldPreferSubdomain = safeOptions.preferSubdomain !== false;
   if (subdomain && subdomain.trim() && shouldPreferSubdomain) {
     const cleanSubdomain = subdomain.trim().toLowerCase();
     const cleanOrigin = origin.trim().replace(/\/+$/, '');
@@ -59,7 +64,7 @@ export function getPublicStoreUrl(
         // Local development: http://subdomain.localhost:3000
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
           const url = `${protocol}//${cleanSubdomain}.localhost${portStr}${pagePath}`;
-          return appendQueryParameters(url, options);
+          return appendQueryParameters(url, safeOptions);
         }
 
         // Wildcard production / staging root domain:
@@ -75,7 +80,7 @@ export function getPublicStoreUrl(
         }
 
         const url = `${protocol}//${cleanSubdomain}.${rootDomain}${portStr}${pagePath}`;
-        return appendQueryParameters(url, options);
+        return appendQueryParameters(url, safeOptions);
       } catch {
         // Fallback to path routing if origin is not a parseable URL
       }
@@ -85,7 +90,7 @@ export function getPublicStoreUrl(
   // 3. Legacy path-based routing (preserves full backward compatibility)
   const cleanOrigin = origin.replace(/\/+$/, '');
   const url = `${cleanOrigin}/store/${encodeURIComponent(slug)}${pagePath}`;
-  return appendQueryParameters(url, options);
+  return appendQueryParameters(url, safeOptions);
 }
 
 /**

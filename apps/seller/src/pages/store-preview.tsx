@@ -49,7 +49,9 @@ export default function StorePreviewPage() {
   const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
   const [customerPreviewUrl, setCustomerPreviewUrl] = useState('');
   const [publicShareUrl, setPublicShareUrl] = useState('');
-  const displayUrl = getPublicStoreUrl(storeSubdomain || storeSlug, getStorefrontUrl(), storeCustomDomain);
+  const displayUrl = getPublicStoreUrl(storeSubdomain || storeSlug, getStorefrontUrl(), {
+    customDomain: storeCustomDomain,
+  });
 
   useEffect(() => {
     setCustomerPreviewUrl(

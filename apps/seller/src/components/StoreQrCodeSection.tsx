@@ -50,7 +50,7 @@ export const StoreQrCodeSection: React.FC<StoreQrCodeSectionProps> = ({
   const activeStorefrontUrl = getPublicStoreUrl(
     storeSubdomain || storeSlug,
     baseStorefrontUrl,
-    storeCustomDomain
+    { customDomain: storeCustomDomain }
   );
 
   useEffect(() => {
