@@ -599,7 +599,7 @@ export default function CompactDashboardPage() {
   return (
     <Layout title={t('navigation.dashboard')}>
       <Head>
-        <title>{t('navigation.dashboard')} | Simply Merchant Portal</title>
+        <title>{`${t('navigation.dashboard')} | Simply Merchant Portal`}</title>
       </Head>
 
       <div className="space-y-2.5 sm:space-y-3">
