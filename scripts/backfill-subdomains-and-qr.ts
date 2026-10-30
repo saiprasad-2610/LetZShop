@@ -27,17 +27,14 @@ async function main() {
   const mediaDir = path.resolve(process.cwd(), 'uploads', 'qr-codes');
 
   for (const store of stores) {
-    let updatedSubdomain = store.subdomain;
+    // 1. Assign or normalize unique compact subdomain (e.g. sairamteacompany)
+    let candidate = sanitizeSubdomain(store.name || store.slug);
+    const validation = validateSubdomain(candidate);
+    if (!validation.valid) {
+      candidate = `store${candidate}`.slice(0, 63);
+    }
 
-    // 1. Assign unique subdomain if not present
-    if (!updatedSubdomain) {
-      let candidate = sanitizeSubdomain(store.slug || store.name);
-      const validation = validateSubdomain(candidate);
-      if (!validation.valid) {
-        candidate = `store-${store.slug}`.slice(0, 63);
-      }
-
-      // Check collision
+    if (store.subdomain !== candidate) {
       let suffix = 1;
       let finalSubdomain = candidate;
       while (true) {
@@ -46,17 +43,16 @@ async function main() {
         });
         if (!existing) break;
         suffix += 1;
-        finalSubdomain = `${candidate.slice(0, 58)}-${suffix}`;
+        finalSubdomain = `${candidate.slice(0, 58)}${suffix}`;
       }
 
       await prisma.store.update({
         where: { id: store.id },
         data: { subdomain: finalSubdomain },
       });
-      updatedSubdomain = finalSubdomain;
-      console.log(`[Migration] Store "${store.name}" (${store.slug}) assigned subdomain: "${finalSubdomain}"`);
+      console.log(`[Migration] Store "${store.name}" updated subdomain: "${store.subdomain}" -> "${finalSubdomain}"`);
     } else {
-      console.log(`[Migration] Store "${store.name}" already has subdomain: "${store.subdomain}"`);
+      console.log(`[Migration] Store "${store.name}" already has compact subdomain: "${store.subdomain}"`);
     }
 
     // 2. Provision permanent QR code if not present

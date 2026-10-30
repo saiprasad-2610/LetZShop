@@ -51,11 +51,12 @@ export const RESERVED_SUBDOMAINS = new Set<string>([
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$/;
 
 /**
- * Sanitizes an arbitrary store name or slug into a DNS-compliant subdomain label.
- * - Lowercase alphanumeric and hyphens.
- * - Collapses consecutive hyphens.
- * - Trims leading and trailing hyphens.
- * - Constrains length between 3 and 63 characters.
+ * Sanitizes an arbitrary store name or slug into a clean, compact alphanumeric subdomain.
+ * Examples:
+ * - "Sairam Tea Company" -> "sairamteacompany"
+ * - "Sparsha Sarees" -> "sparshasarees"
+ * - "SK General Stores" -> "skgeneralstores"
+ * - "Bhagya Kala" -> "bhagyakala"
  */
 export function sanitizeSubdomain(rawInput: string): string {
   if (!rawInput || typeof rawInput !== 'string') return '';
@@ -64,20 +65,18 @@ export function sanitizeSubdomain(rawInput: string): string {
     .toLowerCase()
     .trim()
     .replace(/['’]/g, '')
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]/g, '');
 
   if (sanitized.length < 3) {
     if (sanitized.length === 0) {
       sanitized = 'store';
     } else {
-      sanitized = `${sanitized}-shop`;
+      sanitized = `${sanitized}shop`;
     }
   }
 
   if (sanitized.length > 63) {
-    sanitized = sanitized.slice(0, 63).replace(/-+$/, '');
+    sanitized = sanitized.slice(0, 63);
   }
 
   return sanitized;

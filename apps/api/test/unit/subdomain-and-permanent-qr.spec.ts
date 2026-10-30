@@ -12,11 +12,11 @@ import { StoreSuspendedException } from '../../src/common/exceptions/domain.exce
 
 describe('Merchant Subdomain & Permanent QR Code System', () => {
   describe('Phase 2 — Subdomain Rules, Sanitization & Collision Resistance', () => {
-    it('should sanitize merchant names to DNS-safe lowercase subdomains', () => {
-      expect(sanitizeSubdomain('Sairam Tea Company')).toBe('sairam-tea-company');
-      expect(sanitizeSubdomain('Sparsha Sarees & Silks!')).toBe('sparsha-sarees-silks');
-      expect(sanitizeSubdomain('SK_General_Stores')).toBe('sk-general-stores');
-      expect(sanitizeSubdomain('---Leading-Trailing---')).toBe('leading-trailing');
+    it('should sanitize merchant names to clean, compact lowercase subdomains', () => {
+      expect(sanitizeSubdomain('Sairam Tea Company')).toBe('sairamteacompany');
+      expect(sanitizeSubdomain('Sparsha Sarees & Silks!')).toBe('sparshasareessilks');
+      expect(sanitizeSubdomain('SK_General_Stores')).toBe('skgeneralstores');
+      expect(sanitizeSubdomain('---Leading-Trailing---')).toBe('leadingtrailing');
     });
 
     it('should validate DNS label length, characters, and structure', () => {
