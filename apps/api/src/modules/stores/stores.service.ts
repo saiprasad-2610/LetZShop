@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { visibleCategoryCount } from '../catalog/category-counts';
 import { storeSlugBase, storeSlugCandidate, withUniqueStoreSlug } from './store-identity';
 import { publicProduct } from './public-product';
@@ -6,7 +7,7 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { PrismaClient, StoreStatus } from '@prisma/client';
 import { normalizeSlug, isReservedSlug, normalizePhone, normalizeBusinessName, isValidBusinessName } from '@simply/validation';
 import { SubscriptionVisibilityService } from '../subscriptions/subscription-visibility.service';
-import { AuthenticatedUser, normalizeBrandText, normalizeThemeSocialLinks, normalizeSocialLinks } from '@simply/types';
+import { AuthenticatedUser, normalizeBrandText, normalizeThemeSocialLinks, normalizeSocialLinks, sanitizeSubdomain } from '@simply/types';
 import { OnboardMerchantDto } from './dto/onboard-merchant.dto';
 
 export interface CreateStoreInput {
@@ -33,14 +34,25 @@ export class StoresService {
     }
 
     return withUniqueStoreSlug(cleanSlug || input.name, (slug) => this.prisma.$transaction(async (tx) => {
+      const candidateSubdomain = sanitizeSubdomain(slug);
       const store = await tx.store.create({
         data: {
           tenantId: input.tenantId,
           name: input.name.trim(),
           slug,
+          subdomain: candidateSubdomain,
           description: input.description,
           status: StoreStatus.DRAFT,
           isPubliclyAccessible: false,
+        },
+      });
+
+      // Provision permanent QR code identifier
+      const qrToken = randomBytes(4).toString('hex');
+      await tx.storeQRCode.create({
+        data: {
+          storeId: store.id,
+          publicToken: qrToken,
         },
       });
 
@@ -93,6 +105,7 @@ export class StoresService {
         themeConfigs: { orderBy: { updatedAt: 'desc' } },
         sections: { where: { isEnabled: true }, orderBy: { sortOrder: 'asc' } },
         shippingProfiles: true,
+        qrCode: true,
       },
     });
 
@@ -336,16 +349,27 @@ export class StoresService {
       });
 
       // 3. Create Store in PRIVATE_PREVIEW
+      const candidateSubdomain = sanitizeSubdomain(candidateSlug);
       const store = await tx.store.create({
         data: {
           tenantId: tenant.id,
           name: normalizedName,
           slug: candidateSlug,
+          subdomain: candidateSubdomain,
           status: StoreStatus.PRIVATE_PREVIEW,
           isPubliclyAccessible: false,
           supportPhone: input.contactPhone ? normalizePhone(input.contactPhone) : null,
           supportEmail: input.contactEmail || null,
           businessAddress: input.address || null,
+        },
+      });
+
+      // Provision permanent QR code identifier
+      const qrToken = randomBytes(4).toString('hex');
+      await tx.storeQRCode.create({
+        data: {
+          storeId: store.id,
+          publicToken: qrToken,
         },
       });
 

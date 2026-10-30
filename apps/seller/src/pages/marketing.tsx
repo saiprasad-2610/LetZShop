@@ -19,6 +19,7 @@ import {
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { getStorefrontUrl } from '../utils/config';
+import { StoreQrCodeSection } from '../components/StoreQrCodeSection';
 
 export default function MarketingPage() {
   const { api, store } = useAuth();
@@ -125,23 +126,16 @@ export default function MarketingPage() {
           </div>
         </div>
 
-        {/* Promotional Banner Ideas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] text-[var(--merchant-text)] p-6 rounded-2xl shadow-sm space-y-3">
-            <Sparkles className="w-6 h-6 text-[var(--merchant-accent)]" />
-            <h3 className="font-bold text-lg">Festive Special Promotion</h3>
-            <p className="text-xs text-[var(--merchant-text-muted)]">
-              Announce a limited-time festival offer or clearance discount. Customize the announcement bar in the Brand Studio!
-            </p>
-          </div>
+        {/* Permanent Store QR Code Section */}
+        <StoreQrCodeSection />
 
-          <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] text-[var(--merchant-text)] p-6 rounded-2xl shadow-sm space-y-3">
-            <QrCode className="w-6 h-6 text-[var(--merchant-primary)]" />
-            <h3 className="font-bold text-lg">In-Store QR Standee</h3>
-            <p className="text-xs text-[var(--merchant-text-muted)]">
-              Print a QR code of your store link on your packaging or billing counter for repeat orders!
-            </p>
-          </div>
+        {/* Promotional Ideas */}
+        <div className="bg-[var(--merchant-surface)] border border-[var(--merchant-border)] text-[var(--merchant-text)] p-6 rounded-2xl shadow-sm space-y-3">
+          <Sparkles className="w-6 h-6 text-[var(--merchant-accent)]" />
+          <h3 className="font-bold text-lg">Festive Special Promotion</h3>
+          <p className="text-xs text-[var(--merchant-text-muted)]">
+            Announce a limited-time festival offer or clearance discount. Customize the announcement bar in the Brand Studio!
+          </p>
         </div>
       </div>
     </Layout>

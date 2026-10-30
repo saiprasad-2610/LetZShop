@@ -47,7 +47,12 @@ export class SubscriptionVisibilityService {
   ): Promise<StoreVisibilityResult> {
     const store = await this.prisma.store.findFirst({
       where: {
-        OR: [{ slug: storeSlugOrId }, { id: storeSlugOrId }],
+        OR: [
+          { slug: storeSlugOrId },
+          { subdomain: storeSlugOrId },
+          { customDomain: storeSlugOrId },
+          { id: storeSlugOrId },
+        ],
         deletedAt: null,
       },
       include: {

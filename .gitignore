@@ -58,6 +58,11 @@ backups/
 *.dump
 *.zip
 
+# Python & Temporary uploads
+__pycache__/
+*.pyc
+uploads/
+
 # Runtime & Process files
 *.pid
 .simply-dev-processes.json

@@ -429,6 +429,8 @@ model Store {
   tenantId             String      @map("tenant_id")
   name                 String
   slug                 String      @unique
+  subdomain            String?     @unique
+  customDomain         String?     @unique @map("custom_domain")
   description          String?
   status               StoreStatus @default(DRAFT)
   defaultCurrency      String      @default("INR") @map("default_currency")
@@ -450,6 +452,7 @@ model Store {
 
   tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branding           StoreBranding?
+  qrCode             StoreQRCode?
   themeConfigs       StoreThemeConfig[]
   themeConfiguration StoreThemeConfiguration?
   sections           StoreSection[]
@@ -467,7 +470,22 @@ model Store {
 
   @@index([tenantId, status])
   @@index([slug, isPubliclyAccessible])
+  @@index([subdomain, isPubliclyAccessible])
   @@map("stores")
+}
+
+model StoreQRCode {
+  id               String   @id @default(uuid())
+  storeId          String   @unique @map("store_id")
+  publicToken      String   @unique @map("public_token")
+  qrCodeStorageKey String?  @map("qr_code_storage_key")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([publicToken])
+  @@map("store_qr_codes")
 }
 
 model StoreBranding {

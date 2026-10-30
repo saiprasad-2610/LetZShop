@@ -27,6 +27,7 @@ import { SellerModule } from './modules/seller/seller.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { VerificationModule } from './modules/verification/verification.module';
+import { QrCodeModule } from './modules/qr-code/qr-code.module';
 
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -78,6 +79,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     NotificationsModule,
     ReviewsModule,
     VerificationModule,
+    QrCodeModule,
   ],
   providers: [
     {

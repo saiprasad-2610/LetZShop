@@ -22,6 +22,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: '/q/:token',
+        destination: `${apiUrl}/q/:token`,
+      },
+      {
         source: '/api/v1/:path*',
         destination: `${apiUrl}/:path*`,
       },

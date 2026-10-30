@@ -1,4 +1,5 @@
 export * from './store-url';
+export * from './subdomain.util';
 export * from './public-media';
 export * from './catalog-header';
 export * from './brand-text';

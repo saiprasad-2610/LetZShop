@@ -44,7 +44,13 @@ export class StorefrontController {
   }
 
   private async getScopedCart(slug: string, token: string) {
-    const store = await this.prisma.store.findFirst({ where: { slug, deletedAt: null }, select: { id: true } });
+    const store = await this.prisma.store.findFirst({
+      where: {
+        OR: [{ slug }, { subdomain: slug }, { customDomain: slug }, { id: slug }],
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
     if (!store) throw new NotFoundException('Store not found.');
     const cart = await this.prisma.cart.findFirst({
       where: { storeId: store.id, ...(token.startsWith('guest_') ? { guestToken: token } : { id: token }) },

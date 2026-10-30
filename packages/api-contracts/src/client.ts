@@ -308,6 +308,10 @@ export class SimplyApiClient {
     getPrivatePreview: () => this.request('stores/my-store/preview'),
     getPublicStorefront: (slug: string, previewSecret?: string) =>
       this.request(`storefront/${slug}`, { params: { previewSecret, _t: Date.now() } }),
+    getQrCode: (storeId: string) => this.request(`stores/${encodeURIComponent(storeId)}/qr-code`),
+    getQrCodePreviewUrl: (storeId: string) => `${this.baseUrl}/stores/${encodeURIComponent(storeId)}/qr-code/preview`,
+    getQrCodeDownloadUrl: (storeId: string, format = 'png', size = 1200) =>
+      `${this.baseUrl}/stores/${encodeURIComponent(storeId)}/qr-code/download?format=${format}&size=${size}`,
   };
 
   // --- Seller Analytics ---

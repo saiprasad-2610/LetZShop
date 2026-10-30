@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
 import { MiniStorePreview } from '../components/MiniStorePreview';
 import { getStoreCustomerPreviewUrl, getStorePublicShareUrl } from '../utils/config';
+import { StoreQrCodeSection } from '../components/StoreQrCodeSection';
 import {
   ExternalLink,
   Palette,
@@ -18,6 +19,7 @@ import {
   AlertCircle,
   MessageCircle,
   ChevronDown,
+  QrCode,
 } from 'lucide-react';
 
 export default function StorePreviewPage() {
@@ -41,11 +43,13 @@ export default function StorePreviewPage() {
   );
 
   const storeSlug = store?.slug || 'sk-general-stores';
+  const storeSubdomain = store?.subdomain;
+  const storeCustomDomain = store?.customDomain;
   const storeName = store?.name || 'SK General Stores';
   const [activePreviewPage, setActivePreviewPage] = useState<'home' | 'products' | 'about'>('home');
   const [customerPreviewUrl, setCustomerPreviewUrl] = useState('');
   const [publicShareUrl, setPublicShareUrl] = useState('');
-  const displayUrl = getPublicStoreUrl(storeSlug, getStorefrontUrl());
+  const displayUrl = getPublicStoreUrl(storeSubdomain || storeSlug, getStorefrontUrl(), storeCustomDomain);
 
   useEffect(() => {
     setCustomerPreviewUrl(
@@ -346,7 +350,13 @@ export default function StorePreviewPage() {
         </div>
 
         {/* =========================================================================
-            SECTION 3: STOREFRONT PREVIEW FRAME
+            SECTION 3: PERMANENT STORE QR CODE
+            Large scannable QR code, active URL, PNG/print downloads, and sharing.
+        ========================================================================= */}
+        <StoreQrCodeSection />
+
+        {/* =========================================================================
+            SECTION 4: STOREFRONT PREVIEW FRAME
             Directly renders MiniStorePreview.
             No second toolbar, no duplicate cards, no repeated merchant headings.
         ========================================================================= */}
