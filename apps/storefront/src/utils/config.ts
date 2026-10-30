@@ -22,12 +22,13 @@ export function getSellerUrl(): string {
     // Localhost / local development
     if (
       host === 'localhost' ||
+      host.endsWith('.localhost') ||
       host === '127.0.0.1' ||
       host.startsWith('192.168.') ||
       host.startsWith('10.') ||
       host.endsWith('.local')
     ) {
-      return `http://${host}:3001`;
+      return 'http://localhost:3001';
     }
 
     // Letz Shop production domain (e.g. letzshop.store, *.letzshop.store)
@@ -82,12 +83,13 @@ export function getApiUrl(): string {
     const host = window.location.hostname.toLowerCase();
     if (
       host === 'localhost' ||
+      host.endsWith('.localhost') ||
       host === '127.0.0.1' ||
       host.startsWith('192.168.') ||
       host.startsWith('10.') ||
       host.endsWith('.local')
     ) {
-      return `http://${host}:4000`;
+      return 'http://localhost:4000';
     }
     if (host === 'letzshop.store' || host.endsWith('.letzshop.store')) {
       return 'https://api.letzshop.store';
@@ -95,7 +97,7 @@ export function getApiUrl(): string {
     if (
       host.includes('vercel.app') ||
       host.includes('onrender.com') ||
-      (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.'))
+      (host !== 'localhost' && !host.endsWith('.localhost') && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.'))
     ) {
       return 'https://simply-ecommerce-api.onrender.com';
     }

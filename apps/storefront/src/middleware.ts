@@ -67,9 +67,9 @@ export function middleware(req: NextRequest) {
 
   // 4. If merchant subdomain or custom domain is detected, route seamlessly
   if (tenantIdentifier) {
-    // If the URL contains redundant /store/:slug, redirect to clean root path
-    if (pathname.startsWith(`/store/${tenantIdentifier}`)) {
-      const cleanPath = pathname.replace(`/store/${tenantIdentifier}`, '') || '/';
+    // If the URL contains redundant /store/:slug, redirect to clean root path on the subdomain
+    if (pathname.startsWith('/store/')) {
+      const cleanPath = pathname.replace(/^\/store\/[^/]+/, '') || '/';
       url.pathname = cleanPath;
       return NextResponse.redirect(url, 308);
     }
@@ -78,10 +78,9 @@ export function middleware(req: NextRequest) {
     // e.g. / -> /store/sairamtea
     // e.g. /cart -> /store/sairamtea/cart
     // e.g. /product/123 -> /store/sairamtea/product/123
-    const rewrittenPath = `/store/${tenantIdentifier}${pathname === '/' ? '' : pathname}`;
-    const rewriteUrl = new URL(rewrittenPath, req.url);
+    url.pathname = `/store/${tenantIdentifier}${pathname === '/' ? '' : pathname}`;
 
-    const response = NextResponse.rewrite(rewriteUrl);
+    const response = NextResponse.rewrite(url);
     response.headers.set('x-tenant-identifier', tenantIdentifier);
     response.headers.set('x-content-type-options', 'nosniff');
     return response;

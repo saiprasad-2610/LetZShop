@@ -96,7 +96,12 @@ export class SimplyApiClient {
         resolvedUrl = envUrl;
       } else if (typeof window !== 'undefined' && window.location) {
         const host = window.location.hostname.toLowerCase();
-        if (host.includes('onrender.com') || host.includes('letzshop.store') || (host !== 'localhost' && host !== '127.0.0.1')) {
+        const isLocalHost = host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1';
+        if (isLocalHost) {
+          resolvedUrl = 'http://localhost:4000';
+        } else if (host.includes('letzshop.store') || host.endsWith('.letzshop.store')) {
+          resolvedUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.letzshop.store';
+        } else if (host.includes('onrender.com')) {
           resolvedUrl = 'https://simply-ecommerce-api.onrender.com';
         } else if (envUrl && envUrl !== '') {
           resolvedUrl = envUrl;
